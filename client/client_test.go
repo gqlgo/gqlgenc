@@ -123,7 +123,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data "\"invalid data format\"": : : : unmarshal string: json: cannot unmarshal JSON string into Go map[string]interface {}`),
+				err:  errors.New(`failed to decode response data "\"invalid data format\"": decode graphql data: decode json: unmarshal value: unmarshal string: json: cannot unmarshal JSON string into Go map[string]interface {}`),
 			},
 		},
 	}

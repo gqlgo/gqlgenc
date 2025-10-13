@@ -17,7 +17,7 @@ import (
 
 var jsonRawMessageType = reflect.TypeOf(jsonv1.RawMessage{})
 
-var (
+const (
 	kindString = jsontext.Kind('"')
 	kindNumber = jsontext.Kind('0')
 )
@@ -32,7 +32,7 @@ var (
 func UnmarshalData(data jsontext.Value, v any) error {
 	d := newDecoder(bytes.NewReader(data))
 	if err := d.Decode(v); err != nil {
-		return fmt.Errorf(": %w", err)
+		return fmt.Errorf("decode graphql data: %w", err)
 	}
 
 	tok, err := d.jsonDecoder.ReadToken()
@@ -66,7 +66,6 @@ type Decoder struct {
 
 func newDecoder(r io.Reader) *Decoder {
 	jsonDecoder := jsontext.NewDecoder(r)
-	// jsonDecoder.UseNumber()
 
 	return &Decoder{
 		jsonDecoder: jsonDecoder,
@@ -82,7 +81,7 @@ func (d *Decoder) Decode(v any) error {
 
 	d.vs = [][]reflect.Value{{rv.Elem()}}
 	if err := d.decode(); err != nil {
-		return fmt.Errorf(": %w", err)
+		return fmt.Errorf("decode json: %w", err)
 	}
 
 	return nil
@@ -97,7 +96,7 @@ func (d *Decoder) decode() error {
 		if errors.Is(err, io.EOF) {
 			return errors.New("unexpected end of JSON input")
 		} else if err != nil {
-			return fmt.Errorf(": %w", err)
+			return fmt.Errorf("read json token: %w", err)
 		}
 
 		switch {
@@ -133,7 +132,7 @@ func (d *Decoder) decode() error {
 			if errors.Is(err, io.EOF) {
 				return errors.New("unexpected end of JSON input")
 			} else if err != nil {
-				return fmt.Errorf(": %w", err)
+				return fmt.Errorf("read field value token: %w", err)
 			}
 
 		// Are we inside an array and seeing next value (rather than end of array)?
@@ -230,7 +229,7 @@ func (d *Decoder) decode() error {
 				} else {
 					// Use the standard unmarshal method for non-custom types
 					if err := unmarshalValue(tok, target); err != nil {
-						return fmt.Errorf(": %w", err)
+						return fmt.Errorf("unmarshal value: %w", err)
 					}
 				}
 			}
@@ -307,11 +306,6 @@ func (d *Decoder) decode() error {
 
 				for i := range d.vs {
 					v := d.vs[i][len(d.vs[i])-1]
-					// TODO: Confirm this is needed, write a test case.
-					// if v.Kind() == reflect.Ptr && v.IsNil() {
-					//	v.Set(reflect.New(v.Type().Elem())) // v = new(T).
-					//}
-
 					// Reset slice to empty (in case it had non-zero initial value).
 					if v.Kind() == reflect.Ptr {
 						v = v.Elem()

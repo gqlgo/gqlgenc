@@ -42,7 +42,7 @@ func ParseResponse(resp *http.Response, out any) error {
 	if err := unmarshalResponse(body, out); err != nil {
 		var gqlErrs *gqlErrors
 		if errors.As(err, &gqlErrs) {
-			// success to parse graphql error response
+			// successfully parsed graphql error response
 			errResponse.GqlErrors = &gqlErrs.Errors
 		} else if isStatusCodeOK {
 			// status code is OK but the GraphQL response can't be parsed, it's an error.
@@ -113,7 +113,7 @@ func unmarshalResponse(respBody []byte, out any) error {
 	if len(resp.Errors) > 0 {
 		gqlErrs := &gqlErrors{}
 		if err := json.Unmarshal(respBody, gqlErrs); err != nil {
-			return fmt.Errorf("faild to decode response error %q: %w", respBody, err)
+			return fmt.Errorf("failed to decode response error %q: %w", respBody, err)
 		}
 
 		return gqlErrs

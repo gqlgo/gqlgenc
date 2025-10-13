@@ -366,7 +366,7 @@ func TestUnmarshalGraphQL_unexportedField(t *testing.T) {
 	}
 
 	got := err.Error()
-	want := ": : struct field for \"foo\" doesn't exist in any of 1 places to unmarshal"
+	want := "decode graphql data: decode json: struct field for \"foo\" doesn't exist in any of 1 places to unmarshal"
 
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Error(diff)
