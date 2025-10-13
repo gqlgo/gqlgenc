@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 
 	stdjson "encoding/json"
 	"encoding/json/jsontext"
@@ -294,13 +293,7 @@ type structFieldInfo struct {
 	omit           bool
 }
 
-var structInfoCache sync.Map
-
-func getStructInfo(t reflect.Type) *structInfo {
-	if info, ok := structInfoCache.Load(t); ok {
-		return info.(*structInfo)
-	}
-
+func buildStructInfo(t reflect.Type) *structInfo {
 	info := &structInfo{fallbackIndex: -1}
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -338,7 +331,6 @@ func getStructInfo(t reflect.Type) *structInfo {
 		info.fields = append(info.fields, sf)
 	}
 
-	structInfoCache.Store(t, info)
 	return info
 }
 
@@ -382,7 +374,7 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 		used = make(map[string]bool, len(fields))
 	}
 
-	info := getStructInfo(rv.Type())
+	info := buildStructInfo(rv.Type())
 
 	fallbackAssigned := false
 
