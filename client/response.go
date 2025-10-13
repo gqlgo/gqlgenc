@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	gojson "github.com/go-json-experiment/json"
+	jsonv2 "github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
 	"github.com/Yamashou/gqlgenc/v3/graphqljson"
@@ -86,7 +86,7 @@ func (er *errorResponse) HasErrors() bool {
 }
 
 func (er *errorResponse) Error() string {
-	content, err := gojson.Marshal(er)
+	content, err := jsonv2.Marshal(er)
 	if err != nil {
 		return err.Error()
 	}
@@ -102,7 +102,7 @@ type response struct {
 
 func unmarshalResponse(respBody []byte, out any) error {
 	resp := response{}
-	if err := gojson.Unmarshal(respBody, &resp); err != nil {
+	if err := jsonv2.Unmarshal(respBody, &resp); err != nil {
 		return fmt.Errorf("failed to decode response %q: %w", respBody, err)
 	}
 
@@ -112,7 +112,7 @@ func unmarshalResponse(respBody []byte, out any) error {
 
 	if len(resp.Errors) > 0 {
 		gqlErrs := &gqlErrors{}
-		if err := gojson.Unmarshal(respBody, gqlErrs); err != nil {
+		if err := jsonv2.Unmarshal(respBody, gqlErrs); err != nil {
 			return fmt.Errorf("faild to decode response error %q: %w", respBody, err)
 		}
 

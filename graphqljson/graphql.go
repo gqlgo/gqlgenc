@@ -35,7 +35,7 @@ import (
 	"strconv"
 	"strings"
 
-	gojson "github.com/go-json-experiment/json"
+	jsonv2 "github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -309,7 +309,7 @@ func (d *Decoder) decode() error {
 							target.Set(reflect.MakeMap(target.Type()))
 						}
 						// Unmarshal into the map using jsonv2
-						if err := gojson.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
+						if err := jsonv2.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
 							return fmt.Errorf("unmarshal into map: %w", err)
 						}
 					}
@@ -620,11 +620,11 @@ func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 			return nil
 		}
 		// For other string-compatible types, use jsonv2
-		b, err := gojson.Marshal(str)
+		b, err := jsonv2.Marshal(str)
 		if err != nil {
 			return fmt.Errorf("marshal string: %w", err)
 		}
-		if err := gojson.Unmarshal(b, v.Addr().Interface()); err != nil {
+		if err := jsonv2.Unmarshal(b, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal string: %w", err)
 		}
 		return nil
@@ -635,11 +635,11 @@ func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 			return nil
 		}
 		// For other bool-compatible types, use jsonv2
-		bytes, err := gojson.Marshal(b)
+		bytes, err := jsonv2.Marshal(b)
 		if err != nil {
 			return fmt.Errorf("marshal bool: %w", err)
 		}
-		if err := gojson.Unmarshal(bytes, v.Addr().Interface()); err != nil {
+		if err := jsonv2.Unmarshal(bytes, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal bool: %w", err)
 		}
 		return nil
@@ -666,11 +666,11 @@ func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 		} else {
 			val = value.Float()
 		}
-		b, err := gojson.Marshal(val)
+		b, err := jsonv2.Marshal(val)
 		if err != nil {
 			return fmt.Errorf("marshal number: %w", err)
 		}
-		if err := gojson.Unmarshal(b, v.Addr().Interface()); err != nil {
+		if err := jsonv2.Unmarshal(b, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal number: %w", err)
 		}
 		return nil
