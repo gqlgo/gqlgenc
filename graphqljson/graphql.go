@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"encoding/json/jsontext"
@@ -479,114 +478,52 @@ func isGraphQLFragment(f reflect.StructField) bool {
 }
 
 // reconstructJSON reconstructs JSON bytes from tokens for objects/arrays.
-// kind should be kindObjectStart for objects or kindArrayStart for arrays.
+// kind should be BeginObject.Kind() for objects or BeginArray.Kind() for arrays.
 func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 	var buf bytes.Buffer
+	enc := jsontext.NewEncoder(&buf)
 
-	// Write opening bracket
+	// Write the opening token (already read by caller)
+	var startToken jsontext.Token
 	if kind == jsontext.BeginArray.Kind() {
-		buf.WriteByte('[')
+		startToken = jsontext.BeginArray
 	} else {
-		buf.WriteByte('{')
+		startToken = jsontext.BeginObject
 	}
 
-	depth := 1
-	needComma := false
-	expectingValue := false
-	inObject := kind == jsontext.BeginObject.Kind()
+	if err := enc.WriteToken(startToken); err != nil {
+		return nil, fmt.Errorf("write start token: %w", err)
+	}
 
+	// Read and write tokens until we've closed the initial object/array
+	depth := 1
 	for depth > 0 {
 		tok, err := d.jsonDecoder.ReadToken()
 		if err != nil {
 			return nil, fmt.Errorf("read token: %w", err)
 		}
 
+		// Write the token using Encoder (handles all formatting automatically)
+		if err := enc.WriteToken(tok); err != nil {
+			return nil, fmt.Errorf("write token: %w", err)
+		}
+
+		// Update depth counter
 		switch tok.Kind() {
-		case jsontext.BeginObject.Kind():
-			if needComma {
-				buf.WriteByte(',')
-			}
-			buf.WriteByte('{')
+		case jsontext.BeginObject.Kind(), jsontext.BeginArray.Kind():
 			depth++
-			needComma = false
-			expectingValue = false
-			inObject = true
-		case jsontext.EndObject.Kind():
-			buf.WriteByte('}')
+		case jsontext.EndObject.Kind(), jsontext.EndArray.Kind():
 			depth--
-			needComma = depth > 0
-			expectingValue = false
-		case jsontext.BeginArray.Kind():
-			if needComma {
-				buf.WriteByte(',')
-			}
-			buf.WriteByte('[')
-			depth++
-			needComma = false
-			expectingValue = false
-			inObject = false
-		case jsontext.EndArray.Kind():
-			buf.WriteByte(']')
-			depth--
-			needComma = depth > 0
-			expectingValue = false
-		case kindString:
-			if needComma {
-				buf.WriteByte(',')
-			}
-			// Properly encode string using jsontext
-			encoded, err := jsontext.AppendQuote(nil, tok.String())
-			if err != nil {
-				return nil, fmt.Errorf("quote string: %w", err)
-			}
-			buf.Write(encoded)
-			if inObject && !expectingValue {
-				// This is a key, add colon
-				buf.WriteByte(':')
-				expectingValue = true
-				needComma = false
-			} else {
-				// This is a value
-				expectingValue = false
-				needComma = true
-			}
-		case jsontext.True.Kind():
-			if needComma {
-				buf.WriteByte(',')
-			}
-			buf.WriteString("true")
-			expectingValue = false
-			needComma = true
-		case jsontext.False.Kind():
-			if needComma {
-				buf.WriteByte(',')
-			}
-			buf.WriteString("false")
-			expectingValue = false
-			needComma = true
-		case jsontext.Null.Kind():
-			if needComma {
-				buf.WriteByte(',')
-			}
-			buf.WriteString("null")
-			expectingValue = false
-			needComma = true
-		case kindNumber:
-			if needComma {
-				buf.WriteByte(',')
-			}
-			// Format number
-			if float64(tok.Int()) == tok.Float() {
-				buf.WriteString(strconv.FormatInt(tok.Int(), 10))
-			} else {
-				buf.WriteString(fmt.Sprintf("%g", tok.Float()))
-			}
-			expectingValue = false
-			needComma = true
 		}
 	}
 
-	return buf.Bytes(), nil
+	// Remove trailing newline added by Encoder
+	result := buf.Bytes()
+	if len(result) > 0 && result[len(result)-1] == '\n' {
+		result = result[:len(result)-1]
+	}
+
+	return result, nil
 }
 
 // unmarshalValue unmarshals JSON value into v.

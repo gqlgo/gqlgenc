@@ -8,7 +8,8 @@
       "Bash(ls:*)",
       "Bash(rm:*)",
       "Bash(go build:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(GOEXPERIMENT=jsonv2 go doc:*)"
     ],
     "deny": []
   }
