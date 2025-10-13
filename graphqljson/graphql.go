@@ -90,240 +90,260 @@ func (d *Decoder) Decode(v any) error {
 
 // decode decodes a single JSON value from d.tokenizer into d.vs.
 func (d *Decoder) decode() error {
-	readToken := func(context string) (jsontext.Token, error) {
+	for len(d.vs) > 0 {
+		switch d.state() {
+		case jsontext.BeginObject.Kind():
+			if err := d.handleObject(); err != nil {
+				return err
+			}
+			continue
+		case jsontext.BeginArray.Kind():
+			if err := d.handleArray(); err != nil {
+				return err
+			}
+			continue
+		}
+
 		tok, err := d.jsonDecoder.ReadToken()
 		if errors.Is(err, io.EOF) {
-			return jsontext.Token{}, errors.New("unexpected end of JSON input")
+			return errors.New("unexpected end of JSON input")
 		}
 		if err != nil {
-			return jsontext.Token{}, fmt.Errorf("%s: %w", context, err)
+			return fmt.Errorf("read json token: %w", err)
 		}
-		return tok, nil
+
+		if err := d.handleValue(tok); err != nil {
+			return err
+		}
 	}
 
-	for len(d.vs) > 0 {
-		state := d.state()
-		var tok jsontext.Token
-		var err error
+	return nil
+}
 
-		switch state {
-		case jsontext.BeginObject.Kind():
-			nextKind := d.jsonDecoder.PeekKind()
-			if nextKind == jsontext.EndObject.Kind() {
-				tok, err = readToken("read json token")
-				if err != nil {
-					return err
-				}
-			} else {
-				tok, err = readToken("read json token")
-				if err != nil {
-					return err
-				}
+func (d *Decoder) handleObject() error {
+	tok, err := d.jsonDecoder.ReadToken()
+	if errors.Is(err, io.EOF) {
+		return errors.New("unexpected end of JSON input")
+	}
+	if err != nil {
+		return fmt.Errorf("read object token: %w", err)
+	}
 
-				key := tok.String()
-				var found bool
+	if tok.Kind() == jsontext.EndObject.Kind() {
+		d.popAllVs()
+		d.popState()
+		return nil
+	}
 
-				for i := range d.vs {
-					current := d.vs[i][len(d.vs[i])-1]
-					candidate := derefValue(current)
+	key := tok.String()
+	if err := d.prepareObjectField(key); err != nil {
+		return err
+	}
 
-					var f reflect.Value
-					if candidate.IsValid() && candidate.Kind() == reflect.Struct {
-						f = fieldByGraphQLName(candidate, key)
-						if f.IsValid() {
-							found = true
-						}
-					}
+	nextKind := d.jsonDecoder.PeekKind()
+	handled, err := d.handleCompositeSpecialType(nextKind)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
 
-					d.vs[i] = append(d.vs[i], f)
-				}
+	valueTok, err := d.jsonDecoder.ReadToken()
+	if errors.Is(err, io.EOF) {
+		return errors.New("unexpected end of JSON input")
+	}
+	if err != nil {
+		return fmt.Errorf("read field value token: %w", err)
+	}
 
-				if !found {
-					return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(d.vs), d.jsonDecoder.InputOffset())
-				}
+	return d.handleValue(valueTok)
+}
 
-				nextKind = d.jsonDecoder.PeekKind()
-				handled, handleErr := d.handleCompositeSpecialType(nextKind)
-				if handleErr != nil {
-					return handleErr
-				}
-				if handled {
-					continue
-				}
+func (d *Decoder) handleArray() error {
+	tok, err := d.jsonDecoder.ReadToken()
+	if errors.Is(err, io.EOF) {
+		return errors.New("unexpected end of JSON input")
+	}
+	if err != nil {
+		return fmt.Errorf("read array token: %w", err)
+	}
 
-				tok, err = readToken("read field value token")
-				if err != nil {
-					return err
-				}
+	if tok.Kind() == jsontext.EndArray.Kind() {
+		d.popAllVs()
+		d.popState()
+		return nil
+	}
+
+	if err := d.prepareArrayElement(); err != nil {
+		return err
+	}
+
+	return d.handleValue(tok)
+}
+
+func (d *Decoder) handleValue(tok jsontext.Token) error {
+	switch tok.Kind() {
+	case jsontext.Null.Kind():
+		for i := range d.vs {
+			v := d.vs[i][len(d.vs[i])-1]
+			if !v.CanSet() {
+				continue
 			}
+			v.Set(reflect.Zero(v.Type()))
+		}
+		d.popAllVs()
+		return nil
 
-		case jsontext.BeginArray.Kind():
-			nextKind := d.jsonDecoder.PeekKind()
-			if nextKind == jsontext.EndArray.Kind() {
-				tok, err = readToken("read json token")
-				if err != nil {
-					return err
-				}
-			} else {
-				someSliceExist := false
-
-				for i := range d.vs {
-					base := d.vs[i][len(d.vs[i])-1]
-					target, ok := ensureValue(base)
-					if !ok {
-						d.vs[i] = append(d.vs[i], reflect.Value{})
-						continue
-					}
-
-					var f reflect.Value
-					if target.Kind() == reflect.Slice {
-						target.Set(reflect.Append(target, reflect.Zero(target.Type().Elem())))
-						f = target.Index(target.Len() - 1)
-						someSliceExist = true
-					}
-
-					d.vs[i] = append(d.vs[i], f)
-				}
-
-				if !someSliceExist {
-					return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(d.vs), d.jsonDecoder.InputOffset())
-				}
-
-				handled, handleErr := d.handleCompositeSpecialType(nextKind)
-				if handleErr != nil {
-					return handleErr
-				}
-				if handled {
-					continue
-				}
-
-				tok, err = readToken("read json token")
-				if err != nil {
-					return err
-				}
-			}
-
-		default:
-			handled, handleErr := d.handleCompositeSpecialType(d.jsonDecoder.PeekKind())
-			if handleErr != nil {
-				return handleErr
-			}
-			if handled {
+	case kindString, jsontext.True.Kind(), jsontext.False.Kind(), kindNumber:
+		for i := range d.vs {
+			v := d.vs[i][len(d.vs[i])-1]
+			if !v.IsValid() {
 				continue
 			}
 
-			tok, err = readToken("read json token")
-			if err != nil {
-				return err
-			}
-		}
-
-		switch tok.Kind() {
-		case jsontext.Null.Kind():
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				if !v.CanSet() {
-					continue
-				}
-				v.Set(reflect.Zero(v.Type()))
-			}
-			d.popAllVs()
-			continue
-
-		case kindString, jsontext.True.Kind(), jsontext.False.Kind(), kindNumber:
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				if !v.IsValid() {
-					continue
-				}
-
-				target, assigned := ensureValue(v)
-				if !assigned {
-					continue
-				}
-
-				var unmarshaler graphql.Unmarshaler
-				implements := false
-				if target.CanAddr() {
-					unmarshaler, implements = target.Addr().Interface().(graphql.Unmarshaler)
-				} else if target.CanInterface() {
-					unmarshaler, implements = target.Interface().(graphql.Unmarshaler)
-				}
-
-				if implements {
-					var value any
-					switch tok.Kind() {
-					case kindString:
-						value = tok.String()
-					case jsontext.True.Kind(), jsontext.False.Kind():
-						value = tok.Bool()
-					case kindNumber:
-						if intVal := tok.Int(); intVal == tok.Int() {
-							value = intVal
-						} else {
-							value = tok.Float()
-						}
-					}
-
-					if err := unmarshaler.UnmarshalGQL(value); err != nil {
-						return fmt.Errorf("unmarshal gql error: %w", err)
-					}
-				} else {
-					if err := unmarshalValue(tok, target); err != nil {
-						return fmt.Errorf("unmarshal value: %w", err)
-					}
-				}
+			target, assigned := ensureValue(v)
+			if !assigned {
+				continue
 			}
 
-			d.popAllVs()
+			var unmarshaler graphql.Unmarshaler
+			implements := false
+			if target.CanAddr() {
+				unmarshaler, implements = target.Addr().Interface().(graphql.Unmarshaler)
+			} else if target.CanInterface() {
+				unmarshaler, implements = target.Interface().(graphql.Unmarshaler)
+			}
 
-		case jsontext.BeginObject.Kind(), jsontext.BeginArray.Kind():
-			isArray := tok.Kind() == jsontext.BeginArray.Kind()
-			if isArray {
-				d.pushState(tok.Kind())
-				for i := range d.vs {
-					base := d.vs[i][len(d.vs[i])-1]
-					target, ok := ensureValue(base)
-					if !ok {
-						continue
+			if implements {
+				var value any
+				switch tok.Kind() {
+				case kindString:
+					value = tok.String()
+				case jsontext.True.Kind(), jsontext.False.Kind():
+					value = tok.Bool()
+				case kindNumber:
+					if intVal := tok.Int(); intVal == tok.Int() {
+						value = intVal
+					} else {
+						value = tok.Float()
 					}
-					if target.Kind() != reflect.Slice {
-						continue
-					}
-					target.Set(reflect.MakeSlice(target.Type(), 0, 0))
+				}
+
+				if err := unmarshaler.UnmarshalGQL(value); err != nil {
+					return fmt.Errorf("unmarshal gql error: %w", err)
 				}
 			} else {
-				d.pushState(tok.Kind())
-				frontier := make([]reflect.Value, len(d.vs))
-				for i := range d.vs {
-					base := d.vs[i][len(d.vs[i])-1]
-					_, _ = ensureValue(base)
-					frontier[i] = derefValue(base)
-				}
-				for len(frontier) > 0 {
-					v := frontier[0]
-					frontier = frontier[1:]
-					v = derefValue(v)
-					if !v.IsValid() || v.Kind() != reflect.Struct {
-						continue
-					}
-					for i := range v.NumField() {
-						if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
-							field := v.Field(i)
-							d.vs = append(d.vs, []reflect.Value{field})
-							frontier = append(frontier, field)
-						}
-					}
+				if err := unmarshalValue(tok, target); err != nil {
+					return fmt.Errorf("unmarshal value: %w", err)
 				}
 			}
-
-		case jsontext.EndObject.Kind(), jsontext.EndArray.Kind():
-			d.popAllVs()
-			d.popState()
-
-		default:
-			return fmt.Errorf("unexpected token in JSON input (at byte offset %d)", d.jsonDecoder.InputOffset())
 		}
+
+		d.popAllVs()
+		return nil
+
+	case jsontext.BeginObject.Kind(), jsontext.BeginArray.Kind():
+		if tok.Kind() == jsontext.BeginArray.Kind() {
+			d.pushState(tok.Kind())
+			for i := range d.vs {
+				base := d.vs[i][len(d.vs[i])-1]
+				target, ok := ensureValue(base)
+				if !ok {
+					continue
+				}
+				if target.Kind() != reflect.Slice {
+					continue
+				}
+				target.Set(reflect.MakeSlice(target.Type(), 0, 0))
+			}
+			return nil
+		}
+
+		d.pushState(tok.Kind())
+		frontier := make([]reflect.Value, len(d.vs))
+		for i := range d.vs {
+			base := d.vs[i][len(d.vs[i])-1]
+			_, _ = ensureValue(base)
+			frontier[i] = derefValue(base)
+		}
+		for len(frontier) > 0 {
+			v := frontier[0]
+			frontier = frontier[1:]
+			v = derefValue(v)
+			if !v.IsValid() || v.Kind() != reflect.Struct {
+				continue
+			}
+			for i := range v.NumField() {
+				if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
+					field := v.Field(i)
+					d.vs = append(d.vs, []reflect.Value{field})
+					frontier = append(frontier, field)
+				}
+			}
+		}
+		return nil
+
+	case jsontext.EndObject.Kind(), jsontext.EndArray.Kind():
+		d.popAllVs()
+		d.popState()
+		return nil
+
+	default:
+		return fmt.Errorf("unexpected token in JSON input (at byte offset %d)", d.jsonDecoder.InputOffset())
+	}
+
+	return nil
+}
+
+func (d *Decoder) prepareObjectField(key string) error {
+	var found bool
+
+	for i := range d.vs {
+		current := d.vs[i][len(d.vs[i])-1]
+		candidate := derefValue(current)
+
+		var field reflect.Value
+		if candidate.IsValid() && candidate.Kind() == reflect.Struct {
+			field = fieldByGraphQLName(candidate, key)
+			if field.IsValid() {
+				found = true
+			}
+		}
+
+		d.vs[i] = append(d.vs[i], field)
+	}
+
+	if !found {
+		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(d.vs), d.jsonDecoder.InputOffset())
+	}
+
+	return nil
+}
+
+func (d *Decoder) prepareArrayElement() error {
+	someSliceExist := false
+
+	for i := range d.vs {
+		base := d.vs[i][len(d.vs[i])-1]
+		target, ok := ensureValue(base)
+		if !ok {
+			d.vs[i] = append(d.vs[i], reflect.Value{})
+			continue
+		}
+
+		var elem reflect.Value
+		if target.Kind() == reflect.Slice {
+			target.Set(reflect.Append(target, reflect.Zero(target.Type().Elem())))
+			elem = target.Index(target.Len() - 1)
+			someSliceExist = true
+		}
+
+		d.vs[i] = append(d.vs[i], elem)
+	}
+
+	if !someSliceExist {
+		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(d.vs), d.jsonDecoder.InputOffset())
 	}
 
 	return nil
