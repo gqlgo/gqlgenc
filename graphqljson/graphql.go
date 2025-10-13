@@ -177,21 +177,7 @@ func (d *Decoder) handleObject() error {
 		return err
 	}
 
-	nextKind := d.tokens.peekKind()
-	handled, err := d.handleCompositeSpecialType(nextKind)
-	if err != nil {
-		return err
-	}
-	if handled {
-		return nil
-	}
-
-	valueTok, err := d.tokens.readToken("read field value token")
-	if err != nil {
-		return err
-	}
-
-	return d.handleValue(valueTok)
+	return d.consumeNextValue()
 }
 
 func (d *Decoder) handleArray() error {
@@ -215,6 +201,15 @@ func (d *Decoder) handleArray() error {
 		return err
 	}
 
+	return d.consumeNextValue()
+}
+
+func (d *Decoder) consumeNextValue() error {
+	nextKind := d.tokens.peekKind()
+	if nextKind == 0 {
+		return fmt.Errorf("peek value: unexpected token at byte offset %d", d.jsonDecoder.InputOffset())
+	}
+
 	handled, err := d.handleCompositeSpecialType(nextKind)
 	if err != nil {
 		return err
@@ -223,7 +218,7 @@ func (d *Decoder) handleArray() error {
 		return nil
 	}
 
-	tok, err := d.tokens.readToken("read array token")
+	tok, err := d.tokens.readToken("read value token")
 	if err != nil {
 		return err
 	}
