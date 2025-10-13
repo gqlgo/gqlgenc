@@ -23,6 +23,40 @@ type frame struct {
 	targets []reflect.Value
 }
 
+type tokenReader struct {
+	dec *jsontext.Decoder
+}
+
+func newTokenReader(dec *jsontext.Decoder) *tokenReader {
+	return &tokenReader{dec: dec}
+}
+
+func (r *tokenReader) readToken(context string) (jsontext.Token, error) {
+	tok, err := r.dec.ReadToken()
+	if errors.Is(err, io.EOF) {
+		return jsontext.Token{}, errors.New("unexpected end of JSON input")
+	}
+	if err != nil {
+		return jsontext.Token{}, fmt.Errorf("%s: %w", context, err)
+	}
+	return tok, nil
+}
+
+func (r *tokenReader) readValue(context string) (jsontext.Value, error) {
+	val, err := r.dec.ReadValue()
+	if errors.Is(err, io.EOF) {
+		return nil, errors.New("unexpected end of JSON input")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", context, err)
+	}
+	return val, nil
+}
+
+func (r *tokenReader) peekKind() jsontext.Kind {
+	return r.dec.PeekKind()
+}
+
 const (
 	kindString = jsontext.Kind('"')
 	kindNumber = jsontext.Kind('0')
@@ -57,6 +91,7 @@ func UnmarshalData(data jsontext.Value, v any) error {
 // for GraphQL query data structures. It's implemented on top of a JSON tokenizer.
 type Decoder struct {
 	jsonDecoder *jsontext.Decoder
+	tokens      *tokenReader
 	frames      []frame
 }
 
@@ -65,6 +100,7 @@ func newDecoder(r io.Reader) *Decoder {
 
 	return &Decoder{
 		jsonDecoder: jsonDecoder,
+		tokens:      newTokenReader(jsonDecoder),
 	}
 }
 
@@ -99,12 +135,9 @@ func (d *Decoder) decode() error {
 			continue
 		}
 
-		tok, err := d.jsonDecoder.ReadToken()
-		if errors.Is(err, io.EOF) {
-			return errors.New("unexpected end of JSON input")
-		}
+		tok, err := d.tokens.readToken("read json token")
 		if err != nil {
-			return fmt.Errorf("read json token: %w", err)
+			return err
 		}
 
 		if err := d.handleValue(tok); err != nil {
@@ -118,12 +151,9 @@ func (d *Decoder) decode() error {
 func (d *Decoder) handleObject() error {
 	frame := d.currentFrame()
 
-	tok, err := d.jsonDecoder.ReadToken()
-	if errors.Is(err, io.EOF) {
-		return errors.New("unexpected end of JSON input")
-	}
+	tok, err := d.tokens.readToken("read object token")
 	if err != nil {
-		return fmt.Errorf("read object token: %w", err)
+		return err
 	}
 
 	if tok.Kind() == jsontext.EndObject.Kind() {
@@ -135,7 +165,7 @@ func (d *Decoder) handleObject() error {
 		return err
 	}
 
-	nextKind := d.jsonDecoder.PeekKind()
+	nextKind := d.tokens.peekKind()
 	handled, err := d.handleCompositeSpecialType(nextKind)
 	if err != nil {
 		return err
@@ -144,12 +174,9 @@ func (d *Decoder) handleObject() error {
 		return nil
 	}
 
-	valueTok, err := d.jsonDecoder.ReadToken()
-	if errors.Is(err, io.EOF) {
-		return errors.New("unexpected end of JSON input")
-	}
+	valueTok, err := d.tokens.readToken("read field value token")
 	if err != nil {
-		return fmt.Errorf("read field value token: %w", err)
+		return err
 	}
 
 	return d.handleValue(valueTok)
@@ -158,18 +185,14 @@ func (d *Decoder) handleObject() error {
 func (d *Decoder) handleArray() error {
 	frame := d.currentFrame()
 
-	nextKind := d.jsonDecoder.PeekKind()
+	nextKind := d.tokens.peekKind()
 	if nextKind == 0 {
 		return fmt.Errorf("peek array value: unexpected token at byte offset %d", d.jsonDecoder.InputOffset())
 	}
 
 	if nextKind == jsontext.EndArray.Kind() {
-		_, err := d.jsonDecoder.ReadToken()
-		if errors.Is(err, io.EOF) {
-			return errors.New("unexpected end of JSON input")
-		}
-		if err != nil {
-			return fmt.Errorf("read array end: %w", err)
+		if _, err := d.tokens.readToken("read array end"); err != nil {
+			return err
 		}
 
 		d.popFrame()
@@ -188,12 +211,9 @@ func (d *Decoder) handleArray() error {
 		return nil
 	}
 
-	tok, err := d.jsonDecoder.ReadToken()
-	if errors.Is(err, io.EOF) {
-		return errors.New("unexpected end of JSON input")
-	}
+	tok, err := d.tokens.readToken("read array token")
 	if err != nil {
-		return fmt.Errorf("read array token: %w", err)
+		return err
 	}
 
 	return d.handleValue(tok)
@@ -389,12 +409,9 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 		return false, nil
 	}
 
-	value, err := d.jsonDecoder.ReadValue()
+	value, err := d.tokens.readValue("read composite value")
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return false, errors.New("unexpected end of JSON input")
-		}
-		return false, fmt.Errorf("read composite value: %w", err)
+		return false, err
 	}
 
 	clone := value.Clone()
