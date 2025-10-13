@@ -9,6 +9,8 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"sync"
+	"unicode"
 
 	"encoding/json/jsontext"
 	"encoding/json/v2"
@@ -22,6 +24,16 @@ type frame struct {
 	kind    jsontext.Kind
 	targets []reflect.Value
 }
+
+type fieldBinding struct {
+	path []int
+}
+
+type objectBinding struct {
+	fields map[string][]fieldBinding
+}
+
+var bindingCache sync.Map
 
 type tokenReader struct {
 	dec *jsontext.Decoder
@@ -325,9 +337,28 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 
 func (d *Decoder) prepareObjectField(frame *frame, key string) error {
 	var fieldTargets []reflect.Value
+	lowerKey := strings.ToLower(key)
 
 	for _, target := range frame.targets {
-		collectFieldTargets(target, key, &fieldTargets)
+		binding := bindingForValue(target)
+		if binding == nil {
+			continue
+		}
+
+		entries := binding.fields[key]
+		if len(entries) == 0 {
+			entries = binding.fields[lowerKey]
+		}
+		if len(entries) == 0 {
+			continue
+		}
+
+		for _, entry := range entries {
+			resolved, ok := resolvePath(target, entry.path)
+			if ok {
+				fieldTargets = append(fieldTargets, resolved)
+			}
+		}
 	}
 
 	if len(fieldTargets) == 0 {
@@ -365,24 +396,6 @@ func (d *Decoder) prepareArrayElement(frame *frame) error {
 
 	d.pushFrame(0, elements)
 	return nil
-}
-
-func collectFieldTargets(v reflect.Value, name string, dst *[]reflect.Value) {
-	candidate := derefValue(v)
-	if !candidate.IsValid() || candidate.Kind() != reflect.Struct {
-		return
-	}
-
-	if field := fieldByGraphQLName(candidate, name); field.IsValid() {
-		*dst = append(*dst, field)
-	}
-
-	for i := 0; i < candidate.NumField(); i++ {
-		field := candidate.Type().Field(i)
-		if isGraphQLFragment(field) || field.Anonymous {
-			collectFieldTargets(candidate.Field(i), name, dst)
-		}
-	}
 }
 
 func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
@@ -509,62 +522,181 @@ func ensureValue(v reflect.Value) (reflect.Value, bool) {
 	return v.Elem(), true
 }
 
-// fieldByGraphQLName returns an exported struct field of struct v
-// that matches GraphQL name, or invalid reflect.Value if none found.
-func fieldByGraphQLName(v reflect.Value, name string) reflect.Value {
-	for i := range v.NumField() {
-		if v.Type().Field(i).PkgPath != "" {
-			// Skip unexported field.
+func resolvePath(base reflect.Value, path []int) (reflect.Value, bool) {
+	current, ok := ensureValue(base)
+	if !ok {
+		return reflect.Value{}, false
+	}
+
+	for i, idx := range path {
+		if current.Kind() != reflect.Struct {
+			return reflect.Value{}, false
+		}
+
+		field := current.Field(idx)
+		if i == len(path)-1 {
+			if field.Kind() == reflect.Ptr && field.IsNil() {
+				if !field.CanSet() {
+					return reflect.Value{}, false
+				}
+				field.Set(reflect.New(field.Type().Elem()))
+			}
+			return field, true
+		}
+
+		if field.Kind() == reflect.Ptr {
+			if field.IsNil() {
+				if !field.CanSet() {
+					return reflect.Value{}, false
+				}
+				field.Set(reflect.New(field.Type().Elem()))
+			}
+			field = field.Elem()
+		}
+
+		current = field
+	}
+
+	return current, true
+}
+
+func bindingForValue(v reflect.Value) *objectBinding {
+	candidate := derefValue(v)
+	if !candidate.IsValid() {
+		return nil
+	}
+
+	typ := candidate.Type()
+	if typ.Kind() != reflect.Struct {
+		return nil
+	}
+
+	if cached, ok := bindingCache.Load(typ); ok {
+		return cached.(*objectBinding)
+	}
+
+	binding := buildBinding(typ)
+	bindingCache.Store(typ, binding)
+	return binding
+}
+
+func buildBinding(t reflect.Type) *objectBinding {
+	b := &objectBinding{fields: make(map[string][]fieldBinding)}
+	buildBindingPaths(t, nil, b)
+	return b
+}
+
+func buildBindingPaths(t reflect.Type, path []int, b *objectBinding) {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.PkgPath != "" {
 			continue
 		}
 
-		if hasGraphQLName(v.Type().Field(i), name) {
-			return v.Field(i)
+		currentPath := append(append([]int(nil), path...), i)
+		names, isFragment := graphQLBindingNames(field)
+		if isFragment {
+			fieldType := field.Type
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+			if fieldType.Kind() == reflect.Struct {
+				buildBindingPaths(fieldType, currentPath, b)
+			}
+			continue
+		}
+
+		if len(names) > 0 {
+			for _, name := range names {
+				b.add(name, fieldBinding{path: currentPath})
+			}
+			if !field.Anonymous {
+				continue
+			}
+		}
+
+		if field.Anonymous {
+			fieldType := field.Type
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+			if fieldType.Kind() == reflect.Struct {
+				buildBindingPaths(fieldType, currentPath, b)
+			}
 		}
 	}
-
-	return reflect.Value{}
 }
 
-// hasGraphQLName reports whether struct field f has GraphQL name.
-func hasGraphQLName(f reflect.StructField, name string) bool {
-	// First check graphql tag
-	value, ok := f.Tag.Lookup("graphql")
-	if ok {
-		value = strings.TrimSpace(value) // TODO: Parse better.
-		if strings.HasPrefix(value, "...") {
-			// GraphQL fragment. It doesn't have a name.
-			return false
-		}
+func (b *objectBinding) add(name string, binding fieldBinding) {
+	b.fields[name] = append(b.fields[name], binding)
+	lower := strings.ToLower(name)
+	if lower != name {
+		b.fields[lower] = append(b.fields[lower], binding)
+	}
+}
 
+func graphQLBindingNames(f reflect.StructField) ([]string, bool) {
+	var names []string
+
+	if value, ok := f.Tag.Lookup("graphql"); ok {
+		value = strings.TrimSpace(value)
+		if strings.HasPrefix(value, "...") {
+			return nil, true
+		}
 		if i := strings.Index(value, "("); i != -1 {
 			value = value[:i]
 		}
-
 		if i := strings.Index(value, ":"); i != -1 {
 			value = value[:i]
 		}
-
-		return strings.TrimSpace(value) == name
-	}
-
-	// If no graphql tag, check json tag
-	jsonValue, ok := f.Tag.Lookup("json")
-	if ok {
-		jsonValue = strings.TrimSpace(jsonValue)
-		// Handle json tag options (e.g., "name,omitempty")
-		if i := strings.Index(jsonValue, ","); i != -1 {
-			jsonValue = jsonValue[:i]
-		}
-		if jsonValue == name {
-			return true
+		value = strings.TrimSpace(value)
+		if value != "" {
+			names = append(names, value)
 		}
 	}
 
-	// Fall back to field name comparison
-	// TODO: caseconv package is relatively slow. Optimize it, then consider using it here.
-	// return caseconv.MixedCapsToLowerCamelCase(f.Name) == name
-	return strings.EqualFold(f.Name, name)
+	if value, ok := f.Tag.Lookup("json"); ok {
+		value = strings.TrimSpace(value)
+		if i := strings.Index(value, ","); i != -1 {
+			value = value[:i]
+		}
+		value = strings.TrimSpace(value)
+		if value != "" && value != "-" {
+			names = append(names, value)
+		}
+	}
+
+	defaultName := lowerFirst(f.Name)
+	if defaultName != "" {
+		names = append(names, defaultName)
+	}
+
+	return uniqueStrings(names), false
+}
+
+func lowerFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	var result []string
+	for _, v := range values {
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		result = append(result, v)
+	}
+	return result
 }
 
 // isGraphQLFragment reports whether struct field f is a GraphQL fragment.
