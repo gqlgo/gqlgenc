@@ -1,33 +1,8 @@
-/*
-MIT License
-
-Copyright (c) 2017 Dmitri Shuralyov
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
-// Package graphqljson provides a function for decoding JSON
-// into a GraphQL query data structure.
 package graphqljson
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -40,6 +15,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 )
+
+var jsonRawMessageType = reflect.TypeOf(json.RawMessage{})
 
 // Reference: https://blog.gopheracademy.com/advent-2017/custom-json-unmarshaler-for-graphql-client/
 
@@ -276,7 +253,7 @@ func (d *Decoder) decode() error {
 				}
 
 				// Check for json.RawMessage or map
-				if target.Type().String() == "json.RawMessage" || target.Kind() == reflect.Map {
+				if target.Type() == jsonRawMessageType || target.Kind() == reflect.Map {
 					hasSpecialType = true
 					break
 				}
@@ -301,7 +278,7 @@ func (d *Decoder) decode() error {
 						target = v.Elem()
 					}
 
-					if target.Type().String() == "json.RawMessage" {
+					if target.Type() == jsonRawMessageType {
 						target.SetBytes(jsonBytes)
 					} else if target.Kind() == reflect.Map {
 						// Initialize map if needed
