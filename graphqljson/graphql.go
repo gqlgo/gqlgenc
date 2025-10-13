@@ -21,8 +21,16 @@ import (
 var jsonRawMessageType = reflect.TypeOf(jsonv1.RawMessage{})
 
 type frame struct {
-	kind    jsontext.Kind
-	targets []reflect.Value
+	kind     jsontext.Kind
+	bindings []binding
+}
+
+type binding struct {
+	target reflect.Value
+}
+
+func valueBinding(v reflect.Value) binding {
+	return binding{target: v}
 }
 
 type fieldBinding struct {
@@ -123,7 +131,7 @@ func (d *Decoder) Decode(v any) error {
 		return fmt.Errorf("cannot decode into non-pointer %T", v)
 	}
 
-	d.frames = []frame{{kind: 0, targets: []reflect.Value{rv.Elem()}}}
+	d.frames = []frame{{kind: 0, bindings: []binding{valueBinding(rv.Elem())}}}
 	if err := d.decode(); err != nil {
 		return fmt.Errorf("decode json: %w", err)
 	}
@@ -231,7 +239,8 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 
 	switch tok.Kind() {
 	case jsontext.Null.Kind():
-		for _, target := range frame.targets {
+		for _, b := range frame.bindings {
+			target := b.target
 			if target.CanSet() {
 				target.Set(reflect.Zero(target.Type()))
 			}
@@ -240,7 +249,8 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 		return nil
 
 	case kindString, jsontext.True.Kind(), jsontext.False.Kind(), kindNumber:
-		for _, target := range frame.targets {
+		for _, b := range frame.bindings {
+			target := b.target
 			if !target.IsValid() {
 				continue
 			}
@@ -287,34 +297,36 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 		return nil
 
 	case jsontext.BeginObject.Kind():
-		for i, target := range frame.targets {
+		for i, b := range frame.bindings {
+			target := b.target
 			if !target.IsValid() {
 				continue
 			}
 			valueTarget, assigned := ensureValue(target)
 			if !assigned {
-				frame.targets[i] = reflect.Value{}
+				frame.bindings[i] = valueBinding(reflect.Value{})
 				continue
 			}
-			frame.targets[i] = valueTarget
+			frame.bindings[i] = valueBinding(valueTarget)
 		}
 		d.replaceCurrentKind(tok.Kind())
 		return nil
 
 	case jsontext.BeginArray.Kind():
-		for i, target := range frame.targets {
+		for i, b := range frame.bindings {
+			target := b.target
 			if !target.IsValid() {
 				continue
 			}
 			valueTarget, assigned := ensureValue(target)
 			if !assigned {
-				frame.targets[i] = reflect.Value{}
+				frame.bindings[i] = valueBinding(reflect.Value{})
 				continue
 			}
 			if valueTarget.Kind() == reflect.Slice {
 				valueTarget.Set(reflect.MakeSlice(valueTarget.Type(), 0, 0))
 			}
-			frame.targets[i] = valueTarget
+			frame.bindings[i] = valueBinding(valueTarget)
 		}
 		d.replaceCurrentKind(tok.Kind())
 		return nil
@@ -334,8 +346,8 @@ func (d *Decoder) prepareObjectField(frame *frame, key string) error {
 	var fieldTargets []reflect.Value
 	lowerKey := strings.ToLower(key)
 
-	for _, target := range frame.targets {
-		binding := bindingForValue(target)
+	for _, b := range frame.bindings {
+		binding := bindingForValue(b.target)
 		if binding == nil {
 			continue
 		}
@@ -349,7 +361,7 @@ func (d *Decoder) prepareObjectField(frame *frame, key string) error {
 		}
 
 		for _, entry := range entries {
-			resolved, ok := resolvePath(target, entry.path)
+			resolved, ok := resolvePath(b.target, entry.path)
 			if ok {
 				fieldTargets = append(fieldTargets, resolved)
 			}
@@ -357,10 +369,15 @@ func (d *Decoder) prepareObjectField(frame *frame, key string) error {
 	}
 
 	if len(fieldTargets) == 0 {
-		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(frame.targets), d.jsonDecoder.InputOffset())
+		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(frame.bindings), d.jsonDecoder.InputOffset())
 	}
 
-	d.pushFrame(0, fieldTargets)
+	var bindings []binding
+	for _, v := range fieldTargets {
+		bindings = append(bindings, valueBinding(v))
+	}
+
+	d.pushFrame(0, bindings)
 	return nil
 }
 
@@ -368,8 +385,8 @@ func (d *Decoder) prepareArrayElement(frame *frame) error {
 	someSliceExist := false
 	var elements []reflect.Value
 
-	for _, base := range frame.targets {
-		target, ok := ensureValue(base)
+	for _, b := range frame.bindings {
+		target, ok := ensureValue(b.target)
 		if !ok {
 			elements = append(elements, reflect.Value{})
 			continue
@@ -386,10 +403,15 @@ func (d *Decoder) prepareArrayElement(frame *frame) error {
 	}
 
 	if !someSliceExist {
-		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(frame.targets), d.jsonDecoder.InputOffset())
+		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(frame.bindings), d.jsonDecoder.InputOffset())
 	}
 
-	d.pushFrame(0, elements)
+	var bindings []binding
+	for _, v := range elements {
+		bindings = append(bindings, valueBinding(v))
+	}
+
+	d.pushFrame(0, bindings)
 	return nil
 }
 
@@ -399,21 +421,21 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 	}
 
 	frame := d.currentFrame()
-	hasSpecialType := false
-	for _, target := range frame.targets {
-		candidate := derefValue(target)
+	var targets []reflect.Value
+
+	for _, b := range frame.bindings {
+		candidate := derefValue(b.target)
 		if !candidate.IsValid() {
 			continue
 		}
 
 		typ := candidate.Type()
 		if typ == jsonRawMessageType || typ.Kind() == reflect.Map {
-			hasSpecialType = true
-			break
+			targets = append(targets, b.target)
 		}
 	}
 
-	if !hasSpecialType {
+	if len(targets) == 0 {
 		return false, nil
 	}
 
@@ -428,12 +450,8 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 	}
 	bytes := []byte(clone)
 
-	for _, v := range frame.targets {
-		if !v.IsValid() {
-			continue
-		}
-
-		target, ok := ensureValue(v)
+	for _, base := range targets {
+		target, ok := ensureValue(base)
 		if !ok {
 			continue
 		}
@@ -467,8 +485,8 @@ func (d *Decoder) currentFrame() *frame {
 	return &d.frames[len(d.frames)-1]
 }
 
-func (d *Decoder) pushFrame(kind jsontext.Kind, targets []reflect.Value) {
-	d.frames = append(d.frames, frame{kind: kind, targets: targets})
+func (d *Decoder) pushFrame(kind jsontext.Kind, bindings []binding) {
+	d.frames = append(d.frames, frame{kind: kind, bindings: bindings})
 }
 
 func (d *Decoder) popFrame() {
