@@ -366,7 +366,7 @@ func TestUnmarshalGraphQL_unexportedField(t *testing.T) {
 	}
 
 	got := err.Error()
-	want := "decode graphql data: decode json: struct field for \"foo\" doesn't exist in any of 1 places to unmarshal"
+	want := "decode graphql data: decode json: struct field for \"foo\" doesn't exist in any of 1 places to unmarshal (at byte offset 6)"
 
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Error(diff)
@@ -385,7 +385,7 @@ func TestUnmarshalGraphQL_multipleValues(t *testing.T) {
 		t.Fatal("got error: nil, want: non-nil")
 	}
 
-	if got, want := err.Error(), "invalid token '{' after top-level value"; got != want {
+	if got, want := err.Error(), "invalid token '{' after top-level value (at byte offset 15)"; got != want {
 		t.Errorf("got error: %v, want: %v", got, want)
 	}
 }

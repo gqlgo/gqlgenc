@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"strings"
 
@@ -28,7 +29,7 @@ const (
 // the result in the GraphQL query data structure pointed to by v.
 //
 // The implementation is created on top of the JSON tokenizer available
-// in "encoding/json".Decoder.
+// in "encoding/json/jsontext".Decoder.
 func UnmarshalData(data jsontext.Value, v any) error {
 	d := newDecoder(bytes.NewReader(data))
 	if err := d.Decode(v); err != nil {
@@ -41,10 +42,10 @@ func UnmarshalData(data jsontext.Value, v any) error {
 		// tokens left after we've decoded v successfully.
 		return nil
 	} else if err == nil {
-		return fmt.Errorf("invalid token '%v' after top-level value", tok)
+		return fmt.Errorf("invalid token '%v' after top-level value (at byte offset %d)", tok, d.jsonDecoder.InputOffset())
 	}
 
-	return fmt.Errorf("invalid token '%v' after top-level value", tok)
+	return fmt.Errorf("invalid token '%v' after top-level value (at byte offset %d)", tok, d.jsonDecoder.InputOffset())
 }
 
 // Decoder is a JSON Decoder that performs custom unmarshaling behavior
@@ -125,7 +126,7 @@ func (d *Decoder) decode() error {
 			}
 
 			if matchingFieldValue == nil {
-				return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.vs))
+				return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(d.vs), d.jsonDecoder.InputOffset())
 			}
 
 			tok, err = d.jsonDecoder.ReadToken()
@@ -157,7 +158,7 @@ func (d *Decoder) decode() error {
 			}
 
 			if !someSliceExist {
-				return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal", len(d.vs))
+				return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(d.vs), d.jsonDecoder.InputOffset())
 			}
 		}
 
@@ -360,7 +361,7 @@ func (d *Decoder) decode() error {
 			d.popAllVs()
 			d.popState()
 		default:
-			return errors.New("unexpected token in JSON input")
+			return fmt.Errorf("unexpected token in JSON input (at byte offset %d)", d.jsonDecoder.InputOffset())
 		}
 	}
 
@@ -574,10 +575,13 @@ func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 		}
 		// For other numeric-compatible types, use jsonv2
 		var val any
-		if intVal := value.Int(); float64(intVal) == value.Float() {
+		intVal := value.Int()
+		floatVal := value.Float()
+		// Check if the float value is exactly representable as an integer
+		if floatVal == float64(intVal) && !math.IsInf(floatVal, 0) && !math.IsNaN(floatVal) {
 			val = intVal
 		} else {
-			val = value.Float()
+			val = floatVal
 		}
 		b, err := json.Marshal(val)
 		if err != nil {
