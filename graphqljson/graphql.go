@@ -2,7 +2,7 @@ package graphqljson
 
 import (
 	"bytes"
-	"encoding/json"
+	jsonv1 "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,13 +10,18 @@ import (
 	"strconv"
 	"strings"
 
-	jsonv2 "github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 
 	"github.com/99designs/gqlgen/graphql"
 )
 
-var jsonRawMessageType = reflect.TypeOf(json.RawMessage{})
+var jsonRawMessageType = reflect.TypeOf(jsonv1.RawMessage{})
+
+var (
+	kindString = jsontext.Kind('"')
+	kindNumber = jsontext.Kind('0')
+)
 
 // Reference: https://blog.gopheracademy.com/advent-2017/custom-json-unmarshaler-for-graphql-client/
 
@@ -98,7 +103,7 @@ func (d *Decoder) decode() error {
 
 		switch {
 		// Are we inside an object and seeing next key (rather than end of object)?
-		case d.state() == '{' && tok.Kind() != '}':
+		case d.state() == jsontext.BeginObject.Kind() && tok.Kind() != jsontext.EndObject.Kind():
 			key := tok.String()
 
 			// The last matching one is the one considered
@@ -133,7 +138,7 @@ func (d *Decoder) decode() error {
 			}
 
 		// Are we inside an array and seeing next value (rather than end of array)?
-		case d.state() == '[' && tok.Kind() != ']':
+		case d.state() == jsontext.BeginArray.Kind() && tok.Kind() != jsontext.EndArray.Kind():
 			someSliceExist := false
 
 			for i := range d.vs {
@@ -159,7 +164,7 @@ func (d *Decoder) decode() error {
 		}
 
 		switch tok.Kind() {
-		case 'n': // null
+		case jsontext.Null.Kind():
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
 				if !v.CanSet() {
@@ -174,7 +179,7 @@ func (d *Decoder) decode() error {
 			d.popAllVs()
 
 			continue
-		case '"', 't', 'f', '0': // string, true, false, number
+		case kindString, jsontext.True.Kind(), jsontext.False.Kind(), kindNumber:
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
 				if !v.IsValid() {
@@ -206,11 +211,11 @@ func (d *Decoder) decode() error {
 					// Get the actual value to pass to UnmarshalGQL
 					var value any
 					switch tok.Kind() {
-					case '"':
+					case kindString:
 						value = tok.String()
-					case 't', 'f':
+					case jsontext.True.Kind(), jsontext.False.Kind():
 						value = tok.Bool()
-					case '0':
+					case kindNumber:
 						// For numbers, we need to determine the type
 						// Try int64 first, then float64
 						if intVal := tok.Int(); intVal == tok.Int() {
@@ -233,10 +238,10 @@ func (d *Decoder) decode() error {
 
 			d.popAllVs()
 
-		case '{', '[': // BeginObject or BeginArray
+		case jsontext.BeginObject.Kind(), jsontext.BeginArray.Kind():
 			// Check if any current value expects raw JSON (json.RawMessage or map)
 			hasSpecialType := false
-			isArray := tok.Kind() == '['
+			isArray := tok.Kind() == jsontext.BeginArray.Kind()
 
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
@@ -286,7 +291,7 @@ func (d *Decoder) decode() error {
 							target.Set(reflect.MakeMap(target.Type()))
 						}
 						// Unmarshal into the map using jsonv2
-						if err := jsonv2.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
+						if err := json.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
 							return fmt.Errorf("unmarshal into map: %w", err)
 						}
 					}
@@ -357,7 +362,7 @@ func (d *Decoder) decode() error {
 					}
 				}
 			}
-		case '}', ']': // EndObject, EndArray
+		case jsontext.EndObject.Kind(), jsontext.EndArray.Kind():
 			// End of object or array.
 			d.popAllVs()
 			d.popState()
@@ -474,12 +479,12 @@ func isGraphQLFragment(f reflect.StructField) bool {
 }
 
 // reconstructJSON reconstructs JSON bytes from tokens for objects/arrays.
-// kind should be '{' for objects or '[' for arrays.
+// kind should be kindObjectStart for objects or kindArrayStart for arrays.
 func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Write opening bracket
-	if kind == '[' {
+	if kind == jsontext.BeginArray.Kind() {
 		buf.WriteByte('[')
 	} else {
 		buf.WriteByte('{')
@@ -488,7 +493,7 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 	depth := 1
 	needComma := false
 	expectingValue := false
-	inObject := kind == '{'
+	inObject := kind == jsontext.BeginObject.Kind()
 
 	for depth > 0 {
 		tok, err := d.jsonDecoder.ReadToken()
@@ -497,7 +502,7 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 		}
 
 		switch tok.Kind() {
-		case '{':
+		case jsontext.BeginObject.Kind():
 			if needComma {
 				buf.WriteByte(',')
 			}
@@ -506,12 +511,12 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 			needComma = false
 			expectingValue = false
 			inObject = true
-		case '}':
+		case jsontext.EndObject.Kind():
 			buf.WriteByte('}')
 			depth--
 			needComma = depth > 0
 			expectingValue = false
-		case '[':
+		case jsontext.BeginArray.Kind():
 			if needComma {
 				buf.WriteByte(',')
 			}
@@ -520,12 +525,12 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 			needComma = false
 			expectingValue = false
 			inObject = false
-		case ']':
+		case jsontext.EndArray.Kind():
 			buf.WriteByte(']')
 			depth--
 			needComma = depth > 0
 			expectingValue = false
-		case '"':
+		case kindString:
 			if needComma {
 				buf.WriteByte(',')
 			}
@@ -545,28 +550,28 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 				expectingValue = false
 				needComma = true
 			}
-		case 't':
+		case jsontext.True.Kind():
 			if needComma {
 				buf.WriteByte(',')
 			}
 			buf.WriteString("true")
 			expectingValue = false
 			needComma = true
-		case 'f':
+		case jsontext.False.Kind():
 			if needComma {
 				buf.WriteByte(',')
 			}
 			buf.WriteString("false")
 			expectingValue = false
 			needComma = true
-		case 'n':
+		case jsontext.Null.Kind():
 			if needComma {
 				buf.WriteByte(',')
 			}
 			buf.WriteString("null")
 			expectingValue = false
 			needComma = true
-		case '0':
+		case kindNumber:
 			if needComma {
 				buf.WriteByte(',')
 			}
@@ -590,37 +595,37 @@ func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
 func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 	// For primitive types, set values directly without marshaling/unmarshaling
 	switch value.Kind() {
-	case '"':
+	case kindString:
 		str := value.String()
 		if v.Kind() == reflect.String {
 			v.SetString(str)
 			return nil
 		}
 		// For other string-compatible types, use jsonv2
-		b, err := jsonv2.Marshal(str)
+		b, err := json.Marshal(str)
 		if err != nil {
 			return fmt.Errorf("marshal string: %w", err)
 		}
-		if err := jsonv2.Unmarshal(b, v.Addr().Interface()); err != nil {
+		if err := json.Unmarshal(b, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal string: %w", err)
 		}
 		return nil
-	case 't', 'f':
+	case jsontext.True.Kind(), jsontext.False.Kind():
 		b := value.Bool()
 		if v.Kind() == reflect.Bool {
 			v.SetBool(b)
 			return nil
 		}
 		// For other bool-compatible types, use jsonv2
-		bytes, err := jsonv2.Marshal(b)
+		bytes, err := json.Marshal(b)
 		if err != nil {
 			return fmt.Errorf("marshal bool: %w", err)
 		}
-		if err := jsonv2.Unmarshal(bytes, v.Addr().Interface()); err != nil {
+		if err := json.Unmarshal(bytes, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal bool: %w", err)
 		}
 		return nil
-	case '0':
+	case kindNumber:
 		// For numeric types, try direct setting first
 		switch v.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -643,15 +648,15 @@ func unmarshalValue(value jsontext.Token, v reflect.Value) error {
 		} else {
 			val = value.Float()
 		}
-		b, err := jsonv2.Marshal(val)
+		b, err := json.Marshal(val)
 		if err != nil {
 			return fmt.Errorf("marshal number: %w", err)
 		}
-		if err := jsonv2.Unmarshal(b, v.Addr().Interface()); err != nil {
+		if err := json.Unmarshal(b, v.Addr().Interface()); err != nil {
 			return fmt.Errorf("unmarshal number: %w", err)
 		}
 		return nil
-	case 'n':
+	case jsontext.Null.Kind():
 		v.Set(reflect.Zero(v.Type()))
 		return nil
 	default:

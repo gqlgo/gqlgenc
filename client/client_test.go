@@ -93,7 +93,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err:  errors.New(`failed to decode response "{\"data\":invalid_json}": invalid character 'i' looking for beginning of value`),
 			},
 		},
 		{
@@ -108,7 +108,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "": unexpected EOF`),
+				err:  errors.New(`failed to decode response "": unexpected end of JSON input`),
 			},
 		},
 		{
@@ -299,7 +299,7 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: errors.New(`http status is OK but failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err: errors.New(`http status is OK but failed to decode response "{\"data\":invalid_json}": invalid character 'i' looking for beginning of value`),
 			},
 		},
 	}
