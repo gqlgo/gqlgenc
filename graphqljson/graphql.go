@@ -18,6 +18,11 @@ import (
 
 var jsonRawMessageType = reflect.TypeOf(jsonv1.RawMessage{})
 
+type frame struct {
+	kind    jsontext.Kind
+	targets []reflect.Value
+}
+
 const (
 	kindString = jsontext.Kind('"')
 	kindNumber = jsontext.Kind('0')
@@ -52,17 +57,7 @@ func UnmarshalData(data jsontext.Value, v any) error {
 // for GraphQL query data structures. It's implemented on top of a JSON tokenizer.
 type Decoder struct {
 	jsonDecoder *jsontext.Decoder
-
-	// Stack of what part of input JSON we're in the middle of - objects, arrays.
-	parseState []jsontext.Kind
-
-	// Stacks of values where to unmarshal.
-	// The top of each stack is the reflect.Value where to unmarshal next JSON value.
-	//
-	// The reason there's more than one stack is because we might be unmarshaling
-	// a single JSON value into multiple GraphQL fragments or embedded structs, so
-	// we keep track of them all.
-	vs [][]reflect.Value
+	frames      []frame
 }
 
 func newDecoder(r io.Reader) *Decoder {
@@ -80,7 +75,7 @@ func (d *Decoder) Decode(v any) error {
 		return fmt.Errorf("cannot decode into non-pointer %T", v)
 	}
 
-	d.vs = [][]reflect.Value{{rv.Elem()}}
+	d.frames = []frame{{kind: 0, targets: []reflect.Value{rv.Elem()}}}
 	if err := d.decode(); err != nil {
 		return fmt.Errorf("decode json: %w", err)
 	}
@@ -88,9 +83,9 @@ func (d *Decoder) Decode(v any) error {
 	return nil
 }
 
-// decode decodes a single JSON value from d.tokenizer into d.vs.
+// decode drives the JSON tokenizer and assigns values using the frame stack.
 func (d *Decoder) decode() error {
-	for len(d.vs) > 0 {
+	for len(d.frames) > 0 {
 		switch d.state() {
 		case jsontext.BeginObject.Kind():
 			if err := d.handleObject(); err != nil {
@@ -121,6 +116,8 @@ func (d *Decoder) decode() error {
 }
 
 func (d *Decoder) handleObject() error {
+	frame := d.currentFrame()
+
 	tok, err := d.jsonDecoder.ReadToken()
 	if errors.Is(err, io.EOF) {
 		return errors.New("unexpected end of JSON input")
@@ -130,13 +127,11 @@ func (d *Decoder) handleObject() error {
 	}
 
 	if tok.Kind() == jsontext.EndObject.Kind() {
-		d.popAllVs()
-		d.popState()
+		d.popFrame()
 		return nil
 	}
 
-	key := tok.String()
-	if err := d.prepareObjectField(key); err != nil {
+	if err := d.prepareObjectField(frame, tok.String()); err != nil {
 		return err
 	}
 
@@ -161,6 +156,38 @@ func (d *Decoder) handleObject() error {
 }
 
 func (d *Decoder) handleArray() error {
+	frame := d.currentFrame()
+
+	nextKind := d.jsonDecoder.PeekKind()
+	if nextKind == 0 {
+		return fmt.Errorf("peek array value: unexpected token at byte offset %d", d.jsonDecoder.InputOffset())
+	}
+
+	if nextKind == jsontext.EndArray.Kind() {
+		_, err := d.jsonDecoder.ReadToken()
+		if errors.Is(err, io.EOF) {
+			return errors.New("unexpected end of JSON input")
+		}
+		if err != nil {
+			return fmt.Errorf("read array end: %w", err)
+		}
+
+		d.popFrame()
+		return nil
+	}
+
+	if err := d.prepareArrayElement(frame); err != nil {
+		return err
+	}
+
+	handled, err := d.handleCompositeSpecialType(nextKind)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
+
 	tok, err := d.jsonDecoder.ReadToken()
 	if errors.Is(err, io.EOF) {
 		return errors.New("unexpected end of JSON input")
@@ -169,50 +196,39 @@ func (d *Decoder) handleArray() error {
 		return fmt.Errorf("read array token: %w", err)
 	}
 
-	if tok.Kind() == jsontext.EndArray.Kind() {
-		d.popAllVs()
-		d.popState()
-		return nil
-	}
-
-	if err := d.prepareArrayElement(); err != nil {
-		return err
-	}
-
 	return d.handleValue(tok)
 }
 
 func (d *Decoder) handleValue(tok jsontext.Token) error {
+	frame := d.currentFrame()
+
 	switch tok.Kind() {
 	case jsontext.Null.Kind():
-		for i := range d.vs {
-			v := d.vs[i][len(d.vs[i])-1]
-			if !v.CanSet() {
-				continue
+		for _, target := range frame.targets {
+			if target.CanSet() {
+				target.Set(reflect.Zero(target.Type()))
 			}
-			v.Set(reflect.Zero(v.Type()))
 		}
-		d.popAllVs()
+		d.popFrame()
 		return nil
 
 	case kindString, jsontext.True.Kind(), jsontext.False.Kind(), kindNumber:
-		for i := range d.vs {
-			v := d.vs[i][len(d.vs[i])-1]
-			if !v.IsValid() {
+		for _, target := range frame.targets {
+			if !target.IsValid() {
 				continue
 			}
 
-			target, assigned := ensureValue(v)
+			valueTarget, assigned := ensureValue(target)
 			if !assigned {
 				continue
 			}
 
 			var unmarshaler graphql.Unmarshaler
 			implements := false
-			if target.CanAddr() {
-				unmarshaler, implements = target.Addr().Interface().(graphql.Unmarshaler)
-			} else if target.CanInterface() {
-				unmarshaler, implements = target.Interface().(graphql.Unmarshaler)
+			if valueTarget.CanAddr() {
+				unmarshaler, implements = valueTarget.Addr().Interface().(graphql.Unmarshaler)
+			} else if valueTarget.CanInterface() {
+				unmarshaler, implements = valueTarget.Interface().(graphql.Unmarshaler)
 			}
 
 			if implements {
@@ -234,59 +250,50 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 					return fmt.Errorf("unmarshal gql error: %w", err)
 				}
 			} else {
-				if err := unmarshalValue(tok, target); err != nil {
+				if err := unmarshalValue(tok, valueTarget); err != nil {
 					return fmt.Errorf("unmarshal value: %w", err)
 				}
 			}
 		}
 
-		d.popAllVs()
+		d.popFrame()
 		return nil
 
-	case jsontext.BeginObject.Kind(), jsontext.BeginArray.Kind():
-		if tok.Kind() == jsontext.BeginArray.Kind() {
-			d.pushState(tok.Kind())
-			for i := range d.vs {
-				base := d.vs[i][len(d.vs[i])-1]
-				target, ok := ensureValue(base)
-				if !ok {
-					continue
-				}
-				if target.Kind() != reflect.Slice {
-					continue
-				}
-				target.Set(reflect.MakeSlice(target.Type(), 0, 0))
-			}
-			return nil
-		}
-
-		d.pushState(tok.Kind())
-		frontier := make([]reflect.Value, len(d.vs))
-		for i := range d.vs {
-			base := d.vs[i][len(d.vs[i])-1]
-			_, _ = ensureValue(base)
-			frontier[i] = derefValue(base)
-		}
-		for len(frontier) > 0 {
-			v := frontier[0]
-			frontier = frontier[1:]
-			v = derefValue(v)
-			if !v.IsValid() || v.Kind() != reflect.Struct {
+	case jsontext.BeginObject.Kind():
+		for i, target := range frame.targets {
+			if !target.IsValid() {
 				continue
 			}
-			for i := range v.NumField() {
-				if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
-					field := v.Field(i)
-					d.vs = append(d.vs, []reflect.Value{field})
-					frontier = append(frontier, field)
-				}
+			valueTarget, assigned := ensureValue(target)
+			if !assigned {
+				frame.targets[i] = reflect.Value{}
+				continue
 			}
+			frame.targets[i] = valueTarget
 		}
+		d.replaceCurrentKind(tok.Kind())
+		return nil
+
+	case jsontext.BeginArray.Kind():
+		for i, target := range frame.targets {
+			if !target.IsValid() {
+				continue
+			}
+			valueTarget, assigned := ensureValue(target)
+			if !assigned {
+				frame.targets[i] = reflect.Value{}
+				continue
+			}
+			if valueTarget.Kind() == reflect.Slice {
+				valueTarget.Set(reflect.MakeSlice(valueTarget.Type(), 0, 0))
+			}
+			frame.targets[i] = valueTarget
+		}
+		d.replaceCurrentKind(tok.Kind())
 		return nil
 
 	case jsontext.EndObject.Kind(), jsontext.EndArray.Kind():
-		d.popAllVs()
-		d.popState()
+		d.popFrame()
 		return nil
 
 	default:
@@ -296,39 +303,29 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 	return nil
 }
 
-func (d *Decoder) prepareObjectField(key string) error {
-	var found bool
+func (d *Decoder) prepareObjectField(frame *frame, key string) error {
+	var fieldTargets []reflect.Value
 
-	for i := range d.vs {
-		current := d.vs[i][len(d.vs[i])-1]
-		candidate := derefValue(current)
-
-		var field reflect.Value
-		if candidate.IsValid() && candidate.Kind() == reflect.Struct {
-			field = fieldByGraphQLName(candidate, key)
-			if field.IsValid() {
-				found = true
-			}
-		}
-
-		d.vs[i] = append(d.vs[i], field)
+	for _, target := range frame.targets {
+		collectFieldTargets(target, key, &fieldTargets)
 	}
 
-	if !found {
-		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(d.vs), d.jsonDecoder.InputOffset())
+	if len(fieldTargets) == 0 {
+		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(frame.targets), d.jsonDecoder.InputOffset())
 	}
 
+	d.pushFrame(0, fieldTargets)
 	return nil
 }
 
-func (d *Decoder) prepareArrayElement() error {
+func (d *Decoder) prepareArrayElement(frame *frame) error {
 	someSliceExist := false
+	var elements []reflect.Value
 
-	for i := range d.vs {
-		base := d.vs[i][len(d.vs[i])-1]
+	for _, base := range frame.targets {
 		target, ok := ensureValue(base)
 		if !ok {
-			d.vs[i] = append(d.vs[i], reflect.Value{})
+			elements = append(elements, reflect.Value{})
 			continue
 		}
 
@@ -339,14 +336,33 @@ func (d *Decoder) prepareArrayElement() error {
 			someSliceExist = true
 		}
 
-		d.vs[i] = append(d.vs[i], elem)
+		elements = append(elements, elem)
 	}
 
 	if !someSliceExist {
-		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(d.vs), d.jsonDecoder.InputOffset())
+		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal (at byte offset %d)", len(frame.targets), d.jsonDecoder.InputOffset())
 	}
 
+	d.pushFrame(0, elements)
 	return nil
+}
+
+func collectFieldTargets(v reflect.Value, name string, dst *[]reflect.Value) {
+	candidate := derefValue(v)
+	if !candidate.IsValid() || candidate.Kind() != reflect.Struct {
+		return
+	}
+
+	if field := fieldByGraphQLName(candidate, name); field.IsValid() {
+		*dst = append(*dst, field)
+	}
+
+	for i := 0; i < candidate.NumField(); i++ {
+		field := candidate.Type().Field(i)
+		if isGraphQLFragment(field) || field.Anonymous {
+			collectFieldTargets(candidate.Field(i), name, dst)
+		}
+	}
 }
 
 func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
@@ -354,13 +370,10 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 		return false, nil
 	}
 
+	frame := d.currentFrame()
 	hasSpecialType := false
-	for i := range d.vs {
-		if len(d.vs[i]) == 0 {
-			continue
-		}
-
-		candidate := derefValue(d.vs[i][len(d.vs[i])-1])
+	for _, target := range frame.targets {
+		candidate := derefValue(target)
 		if !candidate.IsValid() {
 			continue
 		}
@@ -390,8 +403,7 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 	}
 	bytes := []byte(clone)
 
-	for i := range d.vs {
-		v := d.vs[i][len(d.vs[i])-1]
+	for _, v := range frame.targets {
 		if !v.IsValid() {
 			continue
 		}
@@ -414,42 +426,35 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 		}
 	}
 
-	d.popAllVs()
+	d.popFrame()
 	return true, nil
 }
 
-// pushState pushes a new parse state s onto the stack.
-func (d *Decoder) pushState(s jsontext.Kind) {
-	d.parseState = append(d.parseState, s)
-}
-
-// popState pops a parse state (already obtained) off the stack.
-// The stack must be non-empty.
-func (d *Decoder) popState() {
-	d.parseState = d.parseState[:len(d.parseState)-1]
-}
-
-// state reports the parse state on top of stack, or 0 if empty.
 func (d *Decoder) state() jsontext.Kind {
-	if len(d.parseState) == 0 {
+	if len(d.frames) == 0 {
 		return 0
 	}
 
-	return d.parseState[len(d.parseState)-1]
+	return d.frames[len(d.frames)-1].kind
 }
 
-// popAllVs pops from all d.vs stacks, keeping only non-empty ones.
-func (d *Decoder) popAllVs() {
-	var nonEmpty [][]reflect.Value
+func (d *Decoder) currentFrame() *frame {
+	return &d.frames[len(d.frames)-1]
+}
 
-	for i := range d.vs {
-		d.vs[i] = d.vs[i][:len(d.vs[i])-1]
-		if len(d.vs[i]) > 0 {
-			nonEmpty = append(nonEmpty, d.vs[i])
-		}
+func (d *Decoder) pushFrame(kind jsontext.Kind, targets []reflect.Value) {
+	d.frames = append(d.frames, frame{kind: kind, targets: targets})
+}
+
+func (d *Decoder) popFrame() {
+	if len(d.frames) == 0 {
+		return
 	}
+	d.frames = d.frames[:len(d.frames)-1]
+}
 
-	d.vs = nonEmpty
+func (d *Decoder) replaceCurrentKind(kind jsontext.Kind) {
+	d.frames[len(d.frames)-1].kind = kind
 }
 
 func derefValue(v reflect.Value) reflect.Value {
