@@ -5,6 +5,7 @@ import (
 	"encoding/json/jsontext"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,36 @@ func TestUnmarshalGraphQL(t *testing.T) {
 
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Error(diff)
+	}
+}
+
+func TestUnmarshalGraphQL_unionMissingTypename(t *testing.T) {
+	t.Parallel()
+
+	type actor struct{ Login string }
+
+	type issueTimelineItem struct {
+		Typename    string `graphql:"__typename"`
+		ClosedEvent *struct {
+			Actor     actor
+			UpdatedAt time.Time
+		} `graphql:"... on ClosedEvent"`
+		ReopenedEvent *struct {
+			Actor     actor
+			CreatedAt time.Time
+		} `graphql:"... on ReopenedEvent"`
+	}
+
+	var got issueTimelineItem
+
+	err := graphqljson.UnmarshalData([]byte(`{
+		"createdAt": "2017-06-29T04:12:01Z",
+		"actor": {
+			"login": "shurcooL-test"
+		}
+	}`), &got)
+	if err == nil || !strings.Contains(err.Error(), "__typename") {
+		t.Fatalf("expected __typename error, got %v", err)
 	}
 }
 
@@ -415,11 +446,11 @@ func TestUnmarshalGraphQL_union(t *testing.T) {
 
 	type issueTimelineItem struct {
 		Typename    string `graphql:"__typename"`
-		ClosedEvent struct {
+		ClosedEvent *struct {
 			Actor     actor
-			UpdatedAt time.Time
+			CreatedAt time.Time
 		} `graphql:"... on ClosedEvent"`
-		ReopenedEvent reopenedEvent `graphql:"... on ReopenedEvent"`
+		ReopenedEvent *reopenedEvent `graphql:"... on ReopenedEvent"`
 	}
 
 	var got issueTimelineItem
@@ -427,7 +458,6 @@ func TestUnmarshalGraphQL_union(t *testing.T) {
 	err := graphqljson.UnmarshalData([]byte(`{
 		"__typename": "ClosedEvent",
 		"createdAt": "2017-06-29T04:12:01Z",
-		"updatedAt": "2017-06-29T04:12:01Z",
 		"actor": {
 			"login": "shurcooL-test"
 		}
@@ -438,21 +468,16 @@ func TestUnmarshalGraphQL_union(t *testing.T) {
 
 	want := issueTimelineItem{
 		Typename: "ClosedEvent",
-		ClosedEvent: struct {
+		ClosedEvent: &struct {
 			Actor     actor
-			UpdatedAt time.Time
+			CreatedAt time.Time
 		}{
-			Actor: actor{
-				Login: "shurcooL-test",
-			},
-			UpdatedAt: time.Unix(1498709521, 0).UTC(),
-		},
-		ReopenedEvent: reopenedEvent{
 			Actor: actor{
 				Login: "shurcooL-test",
 			},
 			CreatedAt: time.Unix(1498709521, 0).UTC(),
 		},
+		ReopenedEvent: nil,
 	}
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Error(diff)
@@ -471,10 +496,11 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 	}
 
 	type OrderFragment struct {
-		SubscriptionItemOrder struct {
+		Typename              string `graphql:"__typename"`
+		SubscriptionItemOrder *struct {
 			SubscriptionItem SubscriptionItemFragment
 		} `graphql:"... on SubscriptionItemOrder"`
-		PurchaseItemFragment struct {
+		PurchaseItemOrder *struct {
 			PurchaseItem PurchaseItemFragment
 		} `graphql:"... on PurchaseItemOrder"`
 	}
@@ -488,6 +514,7 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 	resp := `
 	{
 		"order": {
+			"__typename": "SubscriptionItemOrder",
 			"subscriptionItem": {
 				"id": "subscriptionItemOrderID"
 			}
@@ -501,14 +528,13 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 	}
 
 	want := BuyDashItemPayload{Order: OrderFragment{
-		SubscriptionItemOrder: struct {
+		Typename: "SubscriptionItemOrder",
+		SubscriptionItemOrder: &struct {
 			SubscriptionItem SubscriptionItemFragment
 		}{
 			SubscriptionItem: SubscriptionItemFragment{ID: "subscriptionItemOrderID"},
 		},
-		PurchaseItemFragment: struct {
-			PurchaseItem PurchaseItemFragment
-		}{},
+		PurchaseItemOrder: nil,
 	}}
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Error(diff)

@@ -88,11 +88,7 @@ func decodeGraphQLValue(data jsontext.Value, rv reflect.Value, used map[string]b
 		return decodeGraphQLValue(data, rv.Elem(), used)
 	}
 
-	if handled, err := tryUnmarshalGQL(data, rv); handled {
-		return err
-	}
-
-	if handled, err := tryStandardInterfaces(data, rv); handled {
+	if handled, err := resolveCustomHandlers(data, rv); handled {
 		return err
 	}
 
@@ -127,17 +123,21 @@ func decodeGraphQLValue(data jsontext.Value, rv reflect.Value, used map[string]b
 		return decodeMap(data, rv)
 	case reflect.Interface:
 		var anyValue any
-		if err := json.Unmarshal(data, &anyValue); err != nil {
+		if err := unmarshalInto(data, &anyValue); err != nil {
 			return err
 		}
 		rv.Set(reflect.ValueOf(anyValue))
 		return nil
 	default:
-		return json.Unmarshal(data, rv.Addr().Interface())
+		return unmarshalInto(data, rv.Addr().Interface())
 	}
 }
 
-func tryUnmarshalGQL(data jsontext.Value, rv reflect.Value) (bool, error) {
+func unmarshalInto(data jsontext.Value, target any) error {
+	return json.Unmarshal(data, target)
+}
+
+func resolveCustomHandlers(data jsontext.Value, rv reflect.Value) (bool, error) {
 	var target reflect.Value
 	switch {
 	case rv.CanAddr():
@@ -146,35 +146,29 @@ func tryUnmarshalGQL(data jsontext.Value, rv reflect.Value) (bool, error) {
 		target = rv
 	}
 
-	if !target.IsValid() {
-		return false, nil
-	}
+	if target.IsValid() {
+		if unmarshaler, ok := target.Interface().(graphql.Unmarshaler); ok {
+			var payload any
+			if err := unmarshalInto(data, &payload); err != nil {
+				return true, err
+			}
 
-	unmarshaler, ok := target.Interface().(graphql.Unmarshaler)
-	if !ok {
-		return false, nil
-	}
+			if err := unmarshaler.UnmarshalGQL(payload); err != nil {
+				return true, err
+			}
 
-	var payload any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return true, err
-	}
+			if rv.CanSet() && target.Kind() == reflect.Pointer && target.Elem().IsValid() && rv.Kind() != reflect.Pointer {
+				rv.Set(target.Elem())
+			}
 
-	if err := unmarshaler.UnmarshalGQL(payload); err != nil {
-		return true, err
-	}
-
-	// Copy value back if interface receiver updated pointer target.
-	if rv.CanSet() && target.Kind() == reflect.Pointer && target.Elem().IsValid() {
-		if rv.Kind() != reflect.Pointer {
-			rv.Set(target.Elem())
+			return true, nil
 		}
 	}
 
-	return true, nil
+	return resolveStandardInterfaces(data, rv)
 }
 
-func tryStandardInterfaces(data jsontext.Value, rv reflect.Value) (bool, error) {
+func resolveStandardInterfaces(data jsontext.Value, rv reflect.Value) (bool, error) {
 	if rv.CanAddr() {
 		if u, ok := rv.Addr().Interface().(json.Unmarshaler); ok {
 			return true, u.UnmarshalJSON(cloneBytes(data))
@@ -185,7 +179,7 @@ func tryStandardInterfaces(data jsontext.Value, rv reflect.Value) (bool, error) 
 				return true, nil
 			}
 			var s string
-			if err := json.Unmarshal(data, &s); err != nil {
+			if err := unmarshalInto(data, &s); err != nil {
 				return true, err
 			}
 			return true, t.UnmarshalText([]byte(s))
@@ -202,7 +196,7 @@ func tryStandardInterfaces(data jsontext.Value, rv reflect.Value) (bool, error) 
 				return true, nil
 			}
 			var s string
-			if err := json.Unmarshal(data, &s); err != nil {
+			if err := unmarshalInto(data, &s); err != nil {
 				return true, err
 			}
 			return true, t.UnmarshalText([]byte(s))
@@ -290,6 +284,7 @@ type structFieldInfo struct {
 	graphqlName    string
 	hasGraphQLName bool
 	isFragment     bool
+	fragmentType   string
 	anonymous      bool
 	jsonUnknown    bool
 	jsonName       string
@@ -319,12 +314,13 @@ func buildStructInfo(t reflect.Type) *structInfo {
 			}
 		}
 
-		if gqlName, isFragment, ok := parseGraphQLTag(f.Tag.Get("graphql")); ok {
+		if gqlName, fragmentType, isFragment, ok := parseGraphQLTag(f.Tag.Get("graphql")); ok {
 			sf.isFragment = isFragment
 			if gqlName != "" {
 				sf.graphqlName = gqlName
 				sf.hasGraphQLName = true
 			}
+			sf.fragmentType = fragmentType
 		}
 
 		if sf.jsonUnknown && sf.jsonName == "" && !sf.isFragment {
@@ -349,18 +345,32 @@ func parseJSONTag(tag string) (name string, opts []string) {
 	return name, opts
 }
 
-func parseGraphQLTag(tag string) (name string, isFragment bool, ok bool) {
+func parseGraphQLTag(tag string) (name string, fragmentType string, isFragment bool, ok bool) {
 	if tag == "" {
-		return "", false, false
+		return "", "", false, false
 	}
 	val := strings.TrimSpace(tag)
 	if strings.HasPrefix(val, "...") {
-		return "", true, true
+		fragmentType = parseFragmentType(val)
+		return "", fragmentType, true, true
 	}
 	if idx := strings.IndexAny(val, "(:@"); idx != -1 {
 		val = val[:idx]
 	}
-	return strings.TrimSpace(val), false, true
+	return strings.TrimSpace(val), "", false, true
+}
+
+func parseFragmentType(tag string) string {
+	rest := strings.TrimSpace(strings.TrimPrefix(tag, "..."))
+	if strings.HasPrefix(rest, "on") {
+		rest = strings.TrimSpace(rest[len("on"):])
+	}
+	for i, r := range rest {
+		if r == ' ' || r == '{' || r == '(' || r == '@' || r == ':' {
+			return strings.TrimSpace(rest[:i])
+		}
+	}
+	return strings.TrimSpace(rest)
 }
 
 func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, ignoreUnknown bool) error {
@@ -378,6 +388,26 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 	}
 
 	info := buildStructInfo(rv.Type())
+
+	hasTypenameField := false
+	for _, fi := range info.fields {
+		if fi.hasGraphQLName && fi.graphqlName == "__typename" {
+			hasTypenameField = true
+			break
+		}
+	}
+
+	var typename string
+	if hasTypenameField {
+		field, ok := fields["__typename"]
+		if !ok {
+			return errors.New("__typename is required for union decoding")
+		}
+		if err := unmarshalInto(field.value, &typename); err != nil {
+			return fmt.Errorf("decode __typename: %w", err)
+		}
+		used["__typename"] = true
+	}
 
 	fallbackAssigned := false
 
@@ -420,6 +450,24 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 			continue
 		}
 		fieldValue := rv.Field(fi.index)
+
+		if fi.isFragment && hasTypenameField {
+			if fi.fragmentType == "" {
+				return fmt.Errorf("fragment %s is missing target type", fi.name)
+			}
+			if typename == "" {
+				return errors.New("__typename must not be empty for union decoding")
+			}
+			if fi.fragmentType != typename {
+				if fieldValue.Kind() == reflect.Pointer {
+					fieldValue.Set(reflect.Zero(fieldValue.Type()))
+				} else {
+					fieldValue.Set(reflect.Zero(fieldValue.Type()))
+				}
+				continue
+			}
+		}
+
 		if fieldValue.Kind() == reflect.Pointer {
 			if fieldValue.IsNil() {
 				elem := reflect.New(fieldValue.Type().Elem())
