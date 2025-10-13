@@ -2,12 +2,12 @@ package client
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
+	gojson "github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 
 	"github.com/Yamashou/gqlgenc/v3/graphqljson"
@@ -86,7 +86,7 @@ func (er *errorResponse) HasErrors() bool {
 }
 
 func (er *errorResponse) Error() string {
-	content, err := json.Marshal(er)
+	content, err := gojson.Marshal(er)
 	if err != nil {
 		return err.Error()
 	}
@@ -96,23 +96,23 @@ func (er *errorResponse) Error() string {
 
 // response is a GraphQL layer response from a handler.
 type response struct {
-	Data   json.RawMessage `json:"data"`
-	Errors json.RawMessage `json:"errors"`
+	Data   jsontext.Value `json:"data"`
+	Errors jsontext.Value `json:"errors"`
 }
 
 func unmarshalResponse(respBody []byte, out any) error {
 	resp := response{}
-	if err := json.Unmarshal(respBody, &resp); err != nil {
+	if err := gojson.Unmarshal(respBody, &resp); err != nil {
 		return fmt.Errorf("failed to decode response %q: %w", respBody, err)
 	}
 
-	if err := graphqljson.UnmarshalData(jsontext.Value(resp.Data), out); err != nil {
+	if err := graphqljson.UnmarshalData(resp.Data, out); err != nil {
 		return fmt.Errorf("failed to decode response data %q: %w", resp.Data, err)
 	}
 
 	if len(resp.Errors) > 0 {
 		gqlErrs := &gqlErrors{}
-		if err := json.Unmarshal(respBody, gqlErrs); err != nil {
+		if err := gojson.Unmarshal(respBody, gqlErrs); err != nil {
 			return fmt.Errorf("faild to decode response error %q: %w", respBody, err)
 		}
 

@@ -28,7 +28,6 @@ package graphqljson
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -283,113 +282,11 @@ func (d *Decoder) decode() error {
 				}
 			}
 
-			// If we have json.RawMessage or map, manually reconstruct the JSON
+			// If we have json.RawMessage or map, reconstruct the JSON
 			if hasSpecialType {
-				// Build the JSON manually by reading tokens
-				var jsonBytes []byte
-				if isArray {
-					jsonBytes = append(jsonBytes, '[')
-				} else {
-					jsonBytes = append(jsonBytes, '{')
-				}
-
-				depth := 1
-				needComma := false
-				expectingValue := false
-				inObject := !isArray // Track whether current context is an object
-
-				for depth > 0 {
-					nextTok, err := d.jsonDecoder.ReadToken()
-					if err != nil {
-						return fmt.Errorf("error reading token: %w", err)
-					}
-
-					switch nextTok.Kind() {
-					case '{':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						jsonBytes = append(jsonBytes, '{')
-						depth++
-						needComma = false
-						expectingValue = false
-						inObject = true
-					case '}':
-						jsonBytes = append(jsonBytes, '}')
-						depth--
-						needComma = depth > 0
-						expectingValue = false
-						// Restore context - we'd need a stack for nested objects/arrays
-						// For simplicity, assume we go back to previous context
-					case '[':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						jsonBytes = append(jsonBytes, '[')
-						depth++
-						needComma = false
-						expectingValue = false
-						inObject = false
-					case ']':
-						jsonBytes = append(jsonBytes, ']')
-						depth--
-						needComma = depth > 0
-						expectingValue = false
-						// Restore context
-					case '"':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						// String value - properly encode it
-						encoded, err := json.Marshal(nextTok.String())
-						if err != nil {
-							return fmt.Errorf("error marshaling string: %w", err)
-						}
-						jsonBytes = append(jsonBytes, encoded...)
-						if inObject && !expectingValue {
-							// This is a key, add a colon
-							jsonBytes = append(jsonBytes, ':')
-							expectingValue = true
-							needComma = false
-						} else {
-							// This is a value
-							expectingValue = false
-							needComma = true
-						}
-					case 't':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						jsonBytes = append(jsonBytes, []byte("true")...)
-						expectingValue = false
-						needComma = true
-					case 'f':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						jsonBytes = append(jsonBytes, []byte("false")...)
-						expectingValue = false
-						needComma = true
-					case 'n':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						jsonBytes = append(jsonBytes, []byte("null")...)
-						expectingValue = false
-						needComma = true
-					case '0':
-						if needComma {
-							jsonBytes = append(jsonBytes, ',')
-						}
-						// Number
-						if float64(nextTok.Int()) == nextTok.Float() {
-							jsonBytes = append(jsonBytes, []byte(strconv.FormatInt(nextTok.Int(), 10))...)
-						} else {
-							jsonBytes = append(jsonBytes, []byte(fmt.Sprintf("%g", nextTok.Float()))...)
-						}
-						expectingValue = false
-						needComma = true
-					}
+				jsonBytes, err := d.reconstructJSON(tok.Kind())
+				if err != nil {
+					return fmt.Errorf("reconstruct JSON: %w", err)
 				}
 
 				// Now set the values
@@ -411,9 +308,9 @@ func (d *Decoder) decode() error {
 						if target.IsNil() {
 							target.Set(reflect.MakeMap(target.Type()))
 						}
-						// Unmarshal into the map
-						if err := json.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
-							return fmt.Errorf("error unmarshaling into map: %w", err)
+						// Unmarshal into the map using jsonv2
+						if err := gojson.Unmarshal(jsonBytes, target.Addr().Interface()); err != nil {
+							return fmt.Errorf("unmarshal into map: %w", err)
 						}
 					}
 				}
@@ -599,39 +496,188 @@ func isGraphQLFragment(f reflect.StructField) bool {
 	return strings.HasPrefix(value, "...")
 }
 
+// reconstructJSON reconstructs JSON bytes from tokens for objects/arrays.
+// kind should be '{' for objects or '[' for arrays.
+func (d *Decoder) reconstructJSON(kind jsontext.Kind) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Write opening bracket
+	if kind == '[' {
+		buf.WriteByte('[')
+	} else {
+		buf.WriteByte('{')
+	}
+
+	depth := 1
+	needComma := false
+	expectingValue := false
+	inObject := kind == '{'
+
+	for depth > 0 {
+		tok, err := d.jsonDecoder.ReadToken()
+		if err != nil {
+			return nil, fmt.Errorf("read token: %w", err)
+		}
+
+		switch tok.Kind() {
+		case '{':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			buf.WriteByte('{')
+			depth++
+			needComma = false
+			expectingValue = false
+			inObject = true
+		case '}':
+			buf.WriteByte('}')
+			depth--
+			needComma = depth > 0
+			expectingValue = false
+		case '[':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			buf.WriteByte('[')
+			depth++
+			needComma = false
+			expectingValue = false
+			inObject = false
+		case ']':
+			buf.WriteByte(']')
+			depth--
+			needComma = depth > 0
+			expectingValue = false
+		case '"':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			// Properly encode string using jsontext
+			encoded, err := jsontext.AppendQuote(nil, tok.String())
+			if err != nil {
+				return nil, fmt.Errorf("quote string: %w", err)
+			}
+			buf.Write(encoded)
+			if inObject && !expectingValue {
+				// This is a key, add colon
+				buf.WriteByte(':')
+				expectingValue = true
+				needComma = false
+			} else {
+				// This is a value
+				expectingValue = false
+				needComma = true
+			}
+		case 't':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			buf.WriteString("true")
+			expectingValue = false
+			needComma = true
+		case 'f':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			buf.WriteString("false")
+			expectingValue = false
+			needComma = true
+		case 'n':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			buf.WriteString("null")
+			expectingValue = false
+			needComma = true
+		case '0':
+			if needComma {
+				buf.WriteByte(',')
+			}
+			// Format number
+			if float64(tok.Int()) == tok.Float() {
+				buf.WriteString(strconv.FormatInt(tok.Int(), 10))
+			} else {
+				buf.WriteString(fmt.Sprintf("%g", tok.Float()))
+			}
+			expectingValue = false
+			needComma = true
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
 // unmarshalValue unmarshals JSON value into v.
 // v must be addressable and not obtained by the use of unexported
 // struct fields, otherwise unmarshalValue will panic.
 func unmarshalValue(value jsontext.Token, v reflect.Value) error {
-	// Convert Token to appropriate value for json.Marshal
-	var val any
+	// For primitive types, set values directly without marshaling/unmarshaling
 	switch value.Kind() {
 	case '"':
-		val = value.String()
+		str := value.String()
+		if v.Kind() == reflect.String {
+			v.SetString(str)
+			return nil
+		}
+		// For other string-compatible types, use jsonv2
+		b, err := gojson.Marshal(str)
+		if err != nil {
+			return fmt.Errorf("marshal string: %w", err)
+		}
+		if err := gojson.Unmarshal(b, v.Addr().Interface()); err != nil {
+			return fmt.Errorf("unmarshal string: %w", err)
+		}
+		return nil
 	case 't', 'f':
-		val = value.Bool()
+		b := value.Bool()
+		if v.Kind() == reflect.Bool {
+			v.SetBool(b)
+			return nil
+		}
+		// For other bool-compatible types, use jsonv2
+		bytes, err := gojson.Marshal(b)
+		if err != nil {
+			return fmt.Errorf("marshal bool: %w", err)
+		}
+		if err := gojson.Unmarshal(bytes, v.Addr().Interface()); err != nil {
+			return fmt.Errorf("unmarshal bool: %w", err)
+		}
+		return nil
 	case '0':
-		// Try to determine if it's an int or float
+		// For numeric types, try direct setting first
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v.SetInt(value.Int())
+			return nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if value.Int() < 0 {
+				return fmt.Errorf("cannot set negative value to unsigned type")
+			}
+			v.SetUint(uint64(value.Int()))
+			return nil
+		case reflect.Float32, reflect.Float64:
+			v.SetFloat(value.Float())
+			return nil
+		}
+		// For other numeric-compatible types, use jsonv2
+		var val any
 		if intVal := value.Int(); float64(intVal) == value.Float() {
 			val = intVal
 		} else {
 			val = value.Float()
 		}
+		b, err := gojson.Marshal(val)
+		if err != nil {
+			return fmt.Errorf("marshal number: %w", err)
+		}
+		if err := gojson.Unmarshal(b, v.Addr().Interface()); err != nil {
+			return fmt.Errorf("unmarshal number: %w", err)
+		}
+		return nil
 	case 'n':
-		val = nil
+		v.Set(reflect.Zero(v.Type()))
+		return nil
 	default:
 		return fmt.Errorf("unexpected token kind: %v", value.Kind())
 	}
-
-	b, err := gojson.Marshal(val)
-	if err != nil {
-		return fmt.Errorf(": %w", err)
-	}
-
-	err = gojson.Unmarshal(b, v.Addr().Interface())
-	if err != nil {
-		return fmt.Errorf(": %w", err)
-	}
-
-	return nil
 }
