@@ -77,6 +77,17 @@ func (r *tokenReader) peekKind() jsontext.Kind {
 	return r.dec.PeekKind()
 }
 
+func (r *tokenReader) readValueToken(context string) (jsontext.Kind, func() (jsontext.Token, error), error) {
+	kind := r.dec.PeekKind()
+	if kind == 0 {
+		return 0, nil, fmt.Errorf("%s: unexpected token at byte offset %d", context, r.dec.InputOffset())
+	}
+
+	return kind, func() (jsontext.Token, error) {
+		return r.readToken(context)
+	}, nil
+}
+
 const (
 	kindString = jsontext.Kind('"')
 	kindNumber = jsontext.Kind('0')
@@ -213,12 +224,12 @@ func (d *Decoder) handleArray() error {
 }
 
 func (d *Decoder) consumeNextValue() error {
-	nextKind := d.tokens.peekKind()
-	if nextKind == 0 {
-		return fmt.Errorf("peek value: unexpected token at byte offset %d", d.jsonDecoder.InputOffset())
+	kind, nextToken, err := d.tokens.readValueToken("read value token")
+	if err != nil {
+		return err
 	}
 
-	handled, err := d.handleCompositeSpecialType(nextKind)
+	handled, err := d.handleCompositeSpecialType(kind)
 	if err != nil {
 		return err
 	}
@@ -226,7 +237,7 @@ func (d *Decoder) consumeNextValue() error {
 		return nil
 	}
 
-	tok, err := d.tokens.readToken("read value token")
+	tok, err := nextToken()
 	if err != nil {
 		return err
 	}
