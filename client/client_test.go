@@ -131,22 +131,22 @@ func TestClient_unmarshalResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := unmarshalResponse(tt.args.respBody, tt.args.out)
 
-			// Error validation
+			// Error validation - compare error messages only
 			if (err == nil) != (tt.want.err == nil) {
-				// Failure if only one is nil
 				t.Errorf("unmarshalResponse() error:\nwant: %v\n got: %v", tt.want.err, err)
-			} else if err != nil {
+			} else if err != nil && tt.want.err != nil {
 				// Special handling for GraphQL errors
 				var gqlErrs *gqlErrors
-				if errors.As(err, &gqlErrs) && errors.As(tt.want.err, &gqlErrs) {
-					// Compare objects if both are GraphQL errors
-					if !cmp.Equal(tt.want.err, err) {
+				var wantGqlErrs *gqlErrors
+				if errors.As(err, &gqlErrs) && errors.As(tt.want.err, &wantGqlErrs) {
+					// Compare GraphQL errors
+					if !cmp.Equal(gqlErrs, wantGqlErrs) {
 						t.Errorf("unmarshalResponse() GraphQL error:\nwant: %v\n got: %v", tt.want.err, err)
 					}
 				} else {
 					// Compare error messages for other errors
 					if tt.want.err.Error() != err.Error() {
-						t.Errorf("unmarshalResponse() error message:\nwant: %v\n got: %v", tt.want.err, err)
+						t.Errorf("unmarshalResponse() error message:\nwant: %v\n got: %v", tt.want.err.Error(), err.Error())
 					}
 				}
 			}
