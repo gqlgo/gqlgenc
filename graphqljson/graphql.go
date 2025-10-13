@@ -124,14 +124,12 @@ func (d *Decoder) decode() error {
 				var found bool
 
 				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					if v.Kind() == reflect.Ptr {
-						v = v.Elem()
-					}
+					current := d.vs[i][len(d.vs[i])-1]
+					candidate := derefValue(current)
 
 					var f reflect.Value
-					if v.Kind() == reflect.Struct {
-						f = fieldByGraphQLName(v, key)
+					if candidate.IsValid() && candidate.Kind() == reflect.Struct {
+						f = fieldByGraphQLName(candidate, key)
 						if f.IsValid() {
 							found = true
 						}
@@ -170,15 +168,17 @@ func (d *Decoder) decode() error {
 				someSliceExist := false
 
 				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					if v.Kind() == reflect.Ptr {
-						v = v.Elem()
+					base := d.vs[i][len(d.vs[i])-1]
+					target, ok := ensureValue(base)
+					if !ok {
+						d.vs[i] = append(d.vs[i], reflect.Value{})
+						continue
 					}
 
 					var f reflect.Value
-					if v.Kind() == reflect.Slice {
-						v.Set(reflect.Append(v, reflect.Zero(v.Type().Elem())))
-						f = v.Index(v.Len() - 1)
+					if target.Kind() == reflect.Slice {
+						target.Set(reflect.Append(target, reflect.Zero(target.Type().Elem())))
+						f = target.Index(target.Len() - 1)
 						someSliceExist = true
 					}
 
@@ -237,24 +237,20 @@ func (d *Decoder) decode() error {
 					continue
 				}
 
-				if v.Kind() == reflect.Ptr && v.IsNil() {
-					v.Set(reflect.New(v.Type().Elem()))
-				}
-
-				target := v
-				if v.Kind() == reflect.Ptr {
-					target = v.Elem()
+				target, assigned := ensureValue(v)
+				if !assigned {
+					continue
 				}
 
 				var unmarshaler graphql.Unmarshaler
-				var ok bool
+				implements := false
 				if target.CanAddr() {
-					unmarshaler, ok = target.Addr().Interface().(graphql.Unmarshaler)
+					unmarshaler, implements = target.Addr().Interface().(graphql.Unmarshaler)
 				} else if target.CanInterface() {
-					unmarshaler, ok = target.Interface().(graphql.Unmarshaler)
+					unmarshaler, implements = target.Interface().(graphql.Unmarshaler)
 				}
 
-				if ok {
+				if implements {
 					var value any
 					switch tok.Kind() {
 					case kindString:
@@ -286,38 +282,36 @@ func (d *Decoder) decode() error {
 			if isArray {
 				d.pushState(tok.Kind())
 				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					if v.Kind() == reflect.Ptr {
-						v = v.Elem()
-					}
-					if v.Kind() != reflect.Slice {
+					base := d.vs[i][len(d.vs[i])-1]
+					target, ok := ensureValue(base)
+					if !ok {
 						continue
 					}
-					v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+					if target.Kind() != reflect.Slice {
+						continue
+					}
+					target.Set(reflect.MakeSlice(target.Type(), 0, 0))
 				}
 			} else {
 				d.pushState(tok.Kind())
 				frontier := make([]reflect.Value, len(d.vs))
 				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					frontier[i] = v
-					if v.Kind() == reflect.Ptr && v.IsNil() {
-						v.Set(reflect.New(v.Type().Elem()))
-					}
+					base := d.vs[i][len(d.vs[i])-1]
+					_, _ = ensureValue(base)
+					frontier[i] = derefValue(base)
 				}
 				for len(frontier) > 0 {
 					v := frontier[0]
 					frontier = frontier[1:]
-					if v.Kind() == reflect.Ptr {
-						v = v.Elem()
-					}
-					if v.Kind() != reflect.Struct {
+					v = derefValue(v)
+					if !v.IsValid() || v.Kind() != reflect.Struct {
 						continue
 					}
 					for i := range v.NumField() {
 						if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
-							d.vs = append(d.vs, []reflect.Value{v.Field(i)})
-							frontier = append(frontier, v.Field(i))
+							field := v.Field(i)
+							d.vs = append(d.vs, []reflect.Value{field})
+							frontier = append(frontier, field)
 						}
 					}
 				}
@@ -346,16 +340,12 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 			continue
 		}
 
-		v := d.vs[i][len(d.vs[i])-1]
-		if !v.IsValid() {
+		candidate := derefValue(d.vs[i][len(d.vs[i])-1])
+		if !candidate.IsValid() {
 			continue
 		}
 
-		typ := v.Type()
-		if typ.Kind() == reflect.Ptr {
-			typ = typ.Elem()
-		}
-
+		typ := candidate.Type()
 		if typ == jsonRawMessageType || typ.Kind() == reflect.Map {
 			hasSpecialType = true
 			break
@@ -386,12 +376,9 @@ func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
 			continue
 		}
 
-		target := v
-		if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				v.Set(reflect.New(v.Type().Elem()))
-			}
-			target = v.Elem()
+		target, ok := ensureValue(v)
+		if !ok {
+			continue
 		}
 
 		switch {
@@ -443,6 +430,41 @@ func (d *Decoder) popAllVs() {
 	}
 
 	d.vs = nonEmpty
+}
+
+func derefValue(v reflect.Value) reflect.Value {
+	if !v.IsValid() {
+		return v
+	}
+
+	if v.Kind() != reflect.Ptr {
+		return v
+	}
+
+	if v.IsNil() {
+		return reflect.Zero(v.Type().Elem())
+	}
+
+	return v.Elem()
+}
+
+func ensureValue(v reflect.Value) (reflect.Value, bool) {
+	if !v.IsValid() {
+		return reflect.Value{}, false
+	}
+
+	if v.Kind() != reflect.Ptr {
+		return v, true
+	}
+
+	if v.IsNil() {
+		if !v.CanSet() {
+			return reflect.Value{}, false
+		}
+		v.Set(reflect.New(v.Type().Elem()))
+	}
+
+	return v.Elem(), true
 }
 
 // fieldByGraphQLName returns an exported struct field of struct v
