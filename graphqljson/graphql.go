@@ -22,6 +22,16 @@ var (
 	jsonRawMessageType   = reflect.TypeOf(stdjson.RawMessage{})
 	jsonTextValuePtrType = reflect.TypeOf((*jsontext.Value)(nil))
 	jsonRawPtrType       = reflect.TypeOf((*stdjson.RawMessage)(nil))
+
+	kindBeginObject = jsontext.BeginObject.Kind()
+	kindEndObject   = jsontext.EndObject.Kind()
+	kindBeginArray  = jsontext.BeginArray.Kind()
+	kindEndArray    = jsontext.EndArray.Kind()
+	kindString      = jsontext.String("").Kind()
+	kindNumber      = jsontext.Int(0).Kind()
+	kindNull        = jsontext.Null.Kind()
+	kindTrue        = jsontext.True.Kind()
+	kindFalse       = jsontext.False.Kind()
 )
 
 // UnmarshalData parses the GraphQL response payload contained in data and stores
@@ -53,9 +63,9 @@ func UnmarshalData(data jsontext.Value, v any) error {
 
 func tokenString(tok jsontext.Token) string {
 	switch kind := tok.Kind(); kind {
-	case '{', '}', '[', ']':
+	case kindBeginObject, kindEndObject, kindBeginArray, kindEndArray:
 		return string(kind)
-	case 'n', 't', 'f', '"', '0':
+	case kindNull, kindTrue, kindFalse, kindString, kindNumber:
 		return tok.String()
 	default:
 		return tok.String()
@@ -534,7 +544,7 @@ func parseJSONObject(data jsontext.Value) (map[string]objectField, error) {
 	if err != nil {
 		return nil, err
 	}
-	if tok.Kind() != '{' {
+	if tok.Kind() != kindBeginObject {
 		return nil, errors.New("expected JSON object")
 	}
 
@@ -544,10 +554,10 @@ func parseJSONObject(data jsontext.Value) (map[string]objectField, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tok.Kind() == '}' {
+		if tok.Kind() == kindEndObject {
 			break
 		}
-		if tok.Kind() != '"' {
+		if tok.Kind() != kindString {
 			return nil, errors.New("unexpected non-string key in JSON object")
 		}
 		key := tok.String()
