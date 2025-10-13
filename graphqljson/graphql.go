@@ -2,7 +2,6 @@ package graphqljson
 
 import (
 	"bytes"
-	jsonv1 "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,8 +16,6 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 )
-
-var jsonRawMessageType = reflect.TypeOf(jsonv1.RawMessage{})
 
 type frame struct {
 	kind     jsontext.Kind
@@ -38,10 +35,38 @@ type fieldBinding struct {
 }
 
 type objectBinding struct {
-	fields map[string][]fieldBinding
+	fields  map[string][]fieldBinding
+	unknown []fieldBinding
 }
 
 var bindingCache sync.Map
+
+func parseJSONTag(tag string) (string, []string) {
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return "", nil
+	}
+
+	parts := strings.Split(tag, ",")
+	name := strings.TrimSpace(parts[0])
+	var opts []string
+	for _, opt := range parts[1:] {
+		opt = strings.TrimSpace(opt)
+		if opt != "" {
+			opts = append(opts, opt)
+		}
+	}
+	return name, opts
+}
+
+func hasUnknownOption(opts []string) bool {
+	for _, opt := range opts {
+		if opt == "unknown" {
+			return true
+		}
+	}
+	return false
+}
 
 type tokenReader struct {
 	dec *jsontext.Decoder
@@ -192,8 +217,12 @@ func (d *Decoder) handleObject() error {
 		return nil
 	}
 
-	if err := d.prepareObjectField(frame, tok.String()); err != nil {
+	consumed, err := d.prepareObjectField(frame, tok.String())
+	if err != nil {
 		return err
+	}
+	if consumed {
+		return nil
 	}
 
 	return d.consumeNextValue()
@@ -353,8 +382,9 @@ func (d *Decoder) handleValue(tok jsontext.Token) error {
 	return nil
 }
 
-func (d *Decoder) prepareObjectField(frame *frame, key string) error {
+func (d *Decoder) prepareObjectField(frame *frame, key string) (bool, error) {
 	var fieldTargets []reflect.Value
+	var unknownBindings []binding
 	lowerKey := strings.ToLower(key)
 
 	for _, b := range frame.bindings {
@@ -368,28 +398,57 @@ func (d *Decoder) prepareObjectField(frame *frame, key string) error {
 			entries = binding.fields[lowerKey]
 		}
 		if len(entries) == 0 {
+			for _, unknown := range binding.unknown {
+				if resolved, ok := resolvePath(b.target, unknown.path); ok {
+					unknownBindings = append(unknownBindings, valueBinding(resolved))
+				}
+			}
 			continue
 		}
 
 		for _, entry := range entries {
-			resolved, ok := resolvePath(b.target, entry.path)
-			if ok {
+			if resolved, ok := resolvePath(b.target, entry.path); ok {
 				fieldTargets = append(fieldTargets, resolved)
 			}
 		}
 	}
 
-	if len(fieldTargets) == 0 {
-		return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(frame.bindings), d.jsonDecoder.InputOffset())
+	if len(fieldTargets) > 0 {
+		var bindings []binding
+		for _, target := range fieldTargets {
+			bindings = append(bindings, valueBinding(target))
+		}
+		d.pushFrame(0, bindings)
+		return false, nil
 	}
 
-	var bindings []binding
-	for _, v := range fieldTargets {
-		bindings = append(bindings, valueBinding(v))
+	if len(unknownBindings) > 0 {
+		value, err := d.tokens.readValue("read unknown field value")
+		if err != nil {
+			return true, err
+		}
+
+		clone := value.Clone()
+		bytes := []byte(clone)
+
+		for _, binding := range unknownBindings {
+			target, ok := ensureValue(binding.target)
+			if !ok {
+				continue
+			}
+			if target.Kind() == reflect.Ptr {
+				if target.IsNil() {
+					target.Set(reflect.New(target.Type().Elem()))
+				}
+				target = target.Elem()
+			}
+			target.SetBytes(bytes)
+		}
+
+		return true, nil
 	}
 
-	d.pushFrame(0, bindings)
-	return nil
+	return false, fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal (at byte offset %d)", key, len(frame.bindings), d.jsonDecoder.InputOffset())
 }
 
 func (d *Decoder) prepareArrayElement(frame *frame) error {
@@ -427,61 +486,7 @@ func (d *Decoder) prepareArrayElement(frame *frame) error {
 }
 
 func (d *Decoder) handleCompositeSpecialType(peek jsontext.Kind) (bool, error) {
-	if peek != jsontext.BeginObject.Kind() && peek != jsontext.BeginArray.Kind() {
-		return false, nil
-	}
-
-	frame := d.currentFrame()
-	var targets []reflect.Value
-
-	for _, b := range frame.bindings {
-		candidate := derefValue(b.target)
-		if !candidate.IsValid() {
-			continue
-		}
-
-		typ := candidate.Type()
-		if typ == jsonRawMessageType || typ.Kind() == reflect.Map {
-			targets = append(targets, b.target)
-		}
-	}
-
-	if len(targets) == 0 {
-		return false, nil
-	}
-
-	value, err := d.tokens.readValue("read composite value")
-	if err != nil {
-		return false, err
-	}
-
-	clone := value.Clone()
-	if err := clone.Format(); err != nil {
-		return false, fmt.Errorf("format composite value: %w", err)
-	}
-	bytes := []byte(clone)
-
-	for _, base := range targets {
-		target, ok := ensureValue(base)
-		if !ok {
-			continue
-		}
-
-		switch {
-		case target.Type() == jsonRawMessageType:
-			target.SetBytes(bytes)
-		case target.Kind() == reflect.Map:
-			if target.IsNil() {
-				target.Set(reflect.MakeMap(target.Type()))
-			}
-			if err := json.Unmarshal(bytes, target.Addr().Interface()); err != nil {
-				return false, fmt.Errorf("unmarshal into map: %w", err)
-			}
-		}
-	}
-
-	d.popFrame()
-	return true, nil
+	return false, nil
 }
 
 func (d *Decoder) state() jsontext.Kind {
@@ -618,7 +623,15 @@ func buildBindingPaths(t reflect.Type, path []int, b *objectBinding) {
 		}
 
 		currentPath := append(append([]int(nil), path...), i)
+		nameFromJSON, jsonOpts := parseJSONTag(field.Tag.Get("json"))
+		if hasUnknownOption(jsonOpts) {
+			b.unknown = append(b.unknown, fieldBinding{path: currentPath})
+			continue
+		}
 		names, isFragment := graphQLBindingNames(field)
+		if nameFromJSON != "" && nameFromJSON != "-" {
+			names = append(names, nameFromJSON)
+		}
 		if isFragment {
 			fieldType := field.Type
 			if fieldType.Kind() == reflect.Ptr {
@@ -675,17 +688,6 @@ func graphQLBindingNames(f reflect.StructField) ([]string, bool) {
 		}
 		value = strings.TrimSpace(value)
 		if value != "" {
-			names = append(names, value)
-		}
-	}
-
-	if value, ok := f.Tag.Lookup("json"); ok {
-		value = strings.TrimSpace(value)
-		if i := strings.Index(value, ","); i != -1 {
-			value = value[:i]
-		}
-		value = strings.TrimSpace(value)
-		if value != "" && value != "-" {
 			names = append(names, value)
 		}
 	}

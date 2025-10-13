@@ -2,6 +2,7 @@ package graphqljson_test
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"testing"
@@ -587,142 +588,102 @@ func TestUnmarshalGraphQL_arrayInsideInlineFragment(t *testing.T) {
 	}
 }
 
-func TestUnmarshalGraphQL_jsonRawMessage(t *testing.T) {
+func TestUnmarshalGraphQL_unknownJSONValue(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		JSONBlob    json.RawMessage `json:"jsonBlob"`
-		JSONArray   json.RawMessage `json:"jsonArray"`
-		JSONNumber  json.RawMessage `json:"jsonNumber"`
-		JSONString  json.RawMessage `json:"jsonString"`
-		JSONOmmited json.RawMessage `json:"jsonOmmited"`
-		Number      int             `json:"number"`
-		String      string          `json:"string"`
+		Unknown jsontext.Value `json:",unknown"`
+		Number  int            `json:"number"`
 	}
 
 	var got query
 
 	err := graphqljson.UnmarshalData([]byte(`{
-		"jsonBlob": {
+		"extra": {
 			"foo": "bar"
 		},
-		"jsonArray": [1, "two", 3],
-		"jsonNumber": 2,
-		"jsonString": "json string",
-		"number": 1,
-		"string": "normal string"
+		"number": 1
 	}`), &got)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := query{
-		JSONBlob:    []byte(`{"foo":"bar"}`),
-		JSONArray:   []byte(`[1,"two",3]`),
-		JSONNumber:  []byte(`2`),
-		JSONString:  []byte(`"json string"`),
-		JSONOmmited: nil,
-		Number:      1,
-		String:      "normal string",
+	var unknown map[string]string
+	if err := json.Unmarshal(got.Unknown, &unknown); err != nil {
+		t.Fatalf("parse unknown: %v", err)
 	}
-
-	if diff := cmp.Diff(got, want); diff != "" {
+	if diff := cmp.Diff(unknown, map[string]string{"foo": "bar"}); diff != "" {
 		t.Error(diff)
+	}
+	if got.Number != 1 {
+		t.Errorf("unexpected number: %d", got.Number)
 	}
 }
 
-func TestUnmarshalGraphQL_jsonRawMessageInFragment(t *testing.T) {
+func TestUnmarshalGraphQL_unknownJSONValueInFragment(t *testing.T) {
 	t.Parallel()
 
 	type Object struct {
 		Properties struct {
-			ID       string
-			Metadata json.RawMessage
+			Metadata jsontext.Value `json:",unknown"`
 		} `graphql:"... on Properties"`
 		Value string
 	}
 
 	type query struct {
-		Object         Object
-		OptionalObject *Object
+		Object Object
 	}
 
 	var got query
 
 	err := graphqljson.UnmarshalData([]byte(`{
 		"object": {
-			"id": "81beda46-02c1-4641-aa7b-09cc6634c783",
 			"metadata": {
 				"created": "2021-05-03T21:27:28+00:00"
 			},
-			"value": "object value 1"
-		},
-		"optionalObject": {
-			"id": "6f8af214-f307-4d4d-89d3-965d8b79e3bf",
-			"metadata": {
-				"created": "2021-05-03T21:27:28+00:00",
-				"deleted": "2021-05-04T21:27:28+00:00"
-			},
-			"value": "object value 2"
+			"value": "object value"
 		}
 	}`), &got)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var want query
-	want.Object = Object{
-		Properties: struct {
-			ID       string
-			Metadata json.RawMessage
-		}{
-			ID:       "81beda46-02c1-4641-aa7b-09cc6634c783",
-			Metadata: []byte(`{"created":"2021-05-03T21:27:28+00:00"}`),
-		},
-		Value: "object value 1",
+	var metadata map[string]string
+	if err := json.Unmarshal(got.Object.Properties.Metadata, &metadata); err != nil {
+		t.Fatalf("parse metadata: %v", err)
 	}
-	want.OptionalObject = &Object{
-		Properties: struct {
-			ID       string
-			Metadata json.RawMessage
-		}{
-			ID:       "6f8af214-f307-4d4d-89d3-965d8b79e3bf",
-			Metadata: []byte(`{"created":"2021-05-03T21:27:28+00:00","deleted":"2021-05-04T21:27:28+00:00"}`),
-		},
-		Value: "object value 2",
+	if diff := cmp.Diff(metadata, map[string]string{"created": "2021-05-03T21:27:28+00:00"}); diff != "" {
+		t.Error(diff)
 	}
-
-	if diff := cmp.Diff(got, want); diff != "" {
+	if diff := cmp.Diff(got.Object.Value, "object value"); diff != "" {
 		t.Error(diff)
 	}
 }
 
-func TestUnmarshalGraphQL_map(t *testing.T) {
+func TestUnmarshalGraphQL_unknownJSONValue_map(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Outputs map[string]any
+		Outputs jsontext.Value `json:"outputs,unknown"`
 	}
 
 	var got query
 
 	err := graphqljson.UnmarshalData([]byte(`{
-			"outputs":{
-                                 "vpc":"1",
-                                 "worker_role_arn":"2"
-        	}
+		"outputs":{
+			"vpc":"1",
+			"worker_role_arn":"2"
+		}
 	}`), &got)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := query{
-		map[string]any{
-			"vpc":             "1",
-			"worker_role_arn": "2",
-		},
+	var outputs map[string]string
+	if err := json.Unmarshal(got.Outputs, &outputs); err != nil {
+		t.Fatalf("parse unknown: %v", err)
 	}
-	if diff := cmp.Diff(got, want); diff != "" {
+	if diff := cmp.Diff(outputs, map[string]string{"vpc": "1", "worker_role_arn": "2"}); diff != "" {
 		t.Error(diff)
 	}
 }
