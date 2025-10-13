@@ -3,6 +3,7 @@ package graphqljson
 import (
 	"bytes"
 	"encoding"
+	stdjson "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	stdjson "encoding/json"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 
@@ -35,27 +35,20 @@ func UnmarshalData(data jsontext.Value, v any) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	value, err := dec.ReadValue()
 	if err != nil {
-		return wrapDecodeErr(err)
+		return fmt.Errorf("decode graphql data: decode json: %w", err)
 	}
 
 	if err := decodeGraphQLValue(value, rv.Elem(), nil); err != nil {
-		return wrapDecodeErr(err)
+		return fmt.Errorf("decode graphql data: decode json: %w", err)
 	}
 
 	if tok, err := dec.ReadToken(); err == nil {
 		return fmt.Errorf("invalid token '%s' after top-level value (at byte offset %d)", tokenString(tok), dec.InputOffset())
 	} else if err != io.EOF {
-		return wrapDecodeErr(err)
+		return fmt.Errorf("decode graphql data: decode json: %w", err)
 	}
 
 	return nil
-}
-
-func wrapDecodeErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("decode graphql data: decode json: %w", err)
 }
 
 func tokenString(tok jsontext.Token) string {
