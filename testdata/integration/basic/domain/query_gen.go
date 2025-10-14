@@ -85,7 +85,7 @@ func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
 type UserFragment1 struct {
 	User struct {
 		Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
-	} "graphql:\"... on User\""
+	} "json:\"-\" graphql:\"... on User\""
 	Name    string                "json:\"name,omitempty,omitzero\" graphql:\"name\""
 	Profile UserFragment1_Profile "json:\"profile,omitempty,omitzero\" graphql:\"profile\""
 }
@@ -93,10 +93,10 @@ type UserFragment1 struct {
 type UserFragment1_Profile struct {
 	PrivateProfile struct {
 		Age *int "json:\"age\" graphql:\"age\""
-	} "graphql:\"... on PrivateProfile\""
+	} "json:\"-\" graphql:\"... on PrivateProfile\""
 	PublicProfile struct {
 		Status Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
-	} "graphql:\"... on PublicProfile\""
+	} "json:\"-\" graphql:\"... on PublicProfile\""
 }
 
 func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
@@ -224,11 +224,11 @@ func (t *UserOperation_OptionalUser) GetName() string {
 
 type UserOperation_User struct {
 	User struct {
-		UserFragment2
-		Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
-	} "graphql:\"... on User\""
-	UserFragment1
-	UserFragment2
+		UserFragment2 "json:\"-\""
+		Name          string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+	} "json:\"-\" graphql:\"... on User\""
+	UserFragment1   "json:\"-\""
+	UserFragment2   "json:\"-\""
 	Address         UserOperation_User_Address          "json:\"address,omitempty,omitzero\" graphql:\"address\""
 	Name            string                              "json:\"name,omitempty,omitzero\" graphql:\"name\""
 	Name2           string                              "json:\"name2,omitempty,omitzero\" graphql:\"name2\""
@@ -331,11 +331,11 @@ type UserOperation_User_Address struct {
 	PrivateAddress struct {
 		Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
 		Street  string "json:\"street,omitempty,omitzero\" graphql:\"street\""
-	} "graphql:\"... on PrivateAddress\""
+	} "json:\"-\" graphql:\"... on PrivateAddress\""
 	PublicAddress struct {
 		Public bool   "json:\"public,omitempty,omitzero\" graphql:\"public\""
 		Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
-	} "graphql:\"... on PublicAddress\""
+	} "json:\"-\" graphql:\"... on PublicAddress\""
 	Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
 }
 
@@ -388,11 +388,11 @@ type UserOperation_User_OptionalAddress struct {
 	PrivateAddress struct {
 		Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
 		Street  string "json:\"street,omitempty,omitzero\" graphql:\"street\""
-	} "graphql:\"... on PrivateAddress\""
+	} "json:\"-\" graphql:\"... on PrivateAddress\""
 	PublicAddress struct {
 		Public bool   "json:\"public,omitempty,omitzero\" graphql:\"public\""
 		Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
-	} "graphql:\"... on PublicAddress\""
+	} "json:\"-\" graphql:\"... on PublicAddress\""
 	Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
 }
 
@@ -468,10 +468,10 @@ func (t *UserOperation_User_OptionalAddress) GetStreet() string {
 type UserOperation_User_OptionalProfile struct {
 	PrivateProfile struct {
 		Age *int "json:\"age\" graphql:\"age\""
-	} "graphql:\"... on PrivateProfile\""
+	} "json:\"-\" graphql:\"... on PrivateProfile\""
 	PublicProfile struct {
 		Status Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
-	} "graphql:\"... on PublicProfile\""
+	} "json:\"-\" graphql:\"... on PublicProfile\""
 }
 
 func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
@@ -523,10 +523,10 @@ func (t *UserOperation_User_OptionalProfile) GetPublicProfile() struct {
 type UserOperation_User_Profile struct {
 	PrivateProfile struct {
 		Age *int "json:\"age\" graphql:\"age\""
-	} "graphql:\"... on PrivateProfile\""
+	} "json:\"-\" graphql:\"... on PrivateProfile\""
 	PublicProfile struct {
 		Status Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
-	} "graphql:\"... on PublicProfile\""
+	} "json:\"-\" graphql:\"... on PublicProfile\""
 }
 
 func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
@@ -562,10 +562,10 @@ func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
 type UserOperation_User_Profile2 struct {
 	PrivateProfile struct {
 		Age *int "json:\"age\" graphql:\"age\""
-	} "graphql:\"... on PrivateProfile\""
+	} "json:\"-\" graphql:\"... on PrivateProfile\""
 	PublicProfile struct {
 		Status Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
-	} "graphql:\"... on PublicProfile\""
+	} "json:\"-\" graphql:\"... on PublicProfile\""
 }
 
 func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {

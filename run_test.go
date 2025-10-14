@@ -41,8 +41,8 @@ func Test_IntegrationTest(t *testing.T) {
 					},
 					User: domain.UserOperation_User{
 						User: struct {
-							domain.UserFragment2
-							Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+							domain.UserFragment2 `json:"-"`
+							Name                 string "json:\"name,omitempty,omitzero\" graphql:\"name\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
 							Name:          "John Doe",
