@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"encoding/json/jsontext"
@@ -337,24 +338,21 @@ func TestUnmarshalGraphQL_unionStruct(t *testing.T) {
 			Actor struct {
 				Login string `json:"login"`
 			} `json:"actor"`
-		} `json:"closedEvent"`
+		}
 		ReopenedEvent *struct {
 			Actor struct {
 				Login string `json:"login"`
 			} `json:"actor"`
-		} `json:"reopenedEvent"`
+		}
 	}
 
 	var got issueTimelineItem
 
 	err := graphqljson.UnmarshalData([]byte(`{
         "__typename": "ClosedEvent",
-        "closedEvent": {
-            "actor": {
-                "login": "shurcooL-test"
-            }
-        },
-        "reopenedEvent": null
+        "actor": {
+            "login": "shurcooL-test"
+        }
     }`), &got)
 	if err != nil {
 		t.Fatal(err)
@@ -383,8 +381,8 @@ func TestUnmarshalGraphQL_unionMissingTypename(t *testing.T) {
 	t.Parallel()
 
 	type issueTimelineItem struct {
-		ClosedEvent   *struct{} `json:"closedEvent"`
-		ReopenedEvent *struct{} `json:"reopenedEvent"`
+		ClosedEvent   *struct{}
+		ReopenedEvent *struct{}
 	}
 
 	var got issueTimelineItem
@@ -396,6 +394,9 @@ func TestUnmarshalGraphQL_unionMissingTypename(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing __typename")
 	}
+	if !strings.Contains(err.Error(), "__typename is required") {
+		t.Errorf("expected '__typename is required' error, got: %v", err)
+	}
 }
 
 func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
@@ -406,7 +407,7 @@ func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
 		Name  string
 	}
 
-	type timelineItemShared struct {
+	type sharedFragment struct {
 		Comment string
 	}
 
@@ -415,12 +416,13 @@ func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
 		ClosedEvent *struct {
 			Actor actor `json:"actor"`
 			Extra string
+			sharedFragment
 		}
 		ReopenedEvent *struct {
 			Actor actor `json:"actor"`
 			Note  string
+			sharedFragment
 		}
-		Shared timelineItemShared `json:"shared"`
 	}
 
 	payload := []byte(`{
@@ -430,9 +432,7 @@ func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
             "name": "User B"
         },
         "note": "re-opened",
-        "shared": {
-            "comment": "visible fragment"
-        }
+        "comment": "shared field"
     }`)
 
 	var got timelineItem
@@ -440,23 +440,27 @@ func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	want := timelineItem{
-		Typename:    "ReopenedEvent",
-		ClosedEvent: nil,
-		ReopenedEvent: &struct {
-			Actor actor `json:"actor"`
-			Note  string
-		}{
-			Actor: actor{Login: "user-b", Name: "User B"},
-			Note:  "re-opened",
-		},
-		Shared: timelineItemShared{
-			Comment: "visible fragment",
-		},
+	// Verify the results manually since cmp.Diff can't handle anonymous structs with embedded fields
+	if got.Typename != "ReopenedEvent" {
+		t.Errorf("Typename = %v, want %v", got.Typename, "ReopenedEvent")
 	}
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("diff(-want +got): %s", diff)
+	if got.ClosedEvent != nil {
+		t.Errorf("ClosedEvent = %v, want nil", got.ClosedEvent)
+	}
+	if got.ReopenedEvent == nil {
+		t.Fatal("ReopenedEvent is nil")
+	}
+	if got.ReopenedEvent.Actor.Login != "user-b" {
+		t.Errorf("Actor.Login = %v, want %v", got.ReopenedEvent.Actor.Login, "user-b")
+	}
+	if got.ReopenedEvent.Actor.Name != "User B" {
+		t.Errorf("Actor.Name = %v, want %v", got.ReopenedEvent.Actor.Name, "User B")
+	}
+	if got.ReopenedEvent.Note != "re-opened" {
+		t.Errorf("Note = %v, want %v", got.ReopenedEvent.Note, "re-opened")
+	}
+	if got.ReopenedEvent.Comment != "shared field" {
+		t.Errorf("Comment = %v, want %v", got.ReopenedEvent.Comment, "shared field")
 	}
 }
 
@@ -772,6 +776,15 @@ func TestIsUnion(t *testing.T) {
 			typ: struct {
 				Name string
 				Age  int
+			}{},
+			want: false,
+		},
+		{
+			name: "not a union - anonymous struct pointers with json tags",
+			typ: struct {
+				QueryType        struct{ Name *string } `json:"queryType"`
+				MutationType     *struct{ Name *string } `json:"mutationType"`
+				SubscriptionType *struct{ Name *string } `json:"subscriptionType"`
 			}{},
 			want: false,
 		},

@@ -273,9 +273,104 @@ type objectField struct {
 	offset int64
 }
 
+// decodeUnionStruct decodes a GraphQL union/interface type by:
+// 1. Extracting __typename from JSON
+// 2. Finding the matching union field based on typename
+// 3. Collecting JSON fields that belong to the union field
+// 4. Decoding those fields into the union field
+// 5. Setting other union fields to nil
+func decodeUnionStruct(data jsontext.Value, rv reflect.Value) error {
+	// 1. Parse JSON to extract __typename
+	fields, err := parseJSONObject(data)
+	if err != nil {
+		return err
+	}
+
+	typenameField, hasTypename := fields["__typename"]
+	if !hasTypename {
+		return errors.New("__typename is required for union/interface decoding")
+	}
+
+	var typename string
+	var target any = &typename
+	if err := json.Unmarshal(typenameField.value, target); err != nil {
+		return fmt.Errorf("decode __typename: %w", err)
+	}
+
+	// 2. Set Typename field if it exists
+	if typenameFieldValue := rv.FieldByName("Typename"); typenameFieldValue.IsValid() && typenameFieldValue.CanSet() {
+		typenameFieldValue.SetString(typename)
+	}
+
+	// 3. Collect all JSON fields except __typename
+	var allFields []objectFieldEntry
+	for key, field := range fields {
+		if key != "__typename" {
+			allFields = append(allFields, objectFieldEntry{
+				name:   key,
+				value:  field.value,
+				offset: field.offset,
+			})
+		}
+	}
+
+	// 4. Find and decode the matching union field
+	info := buildStructInfo(rv.Type())
+	matched := false
+
+	for _, fi := range info.fields {
+		// Skip anonymous embedded fields (fragments)
+		if fi.anonymous {
+			continue
+		}
+
+		fieldValue := rv.Field(fi.index)
+		fieldType := rv.Type().Field(fi.index)
+
+		// Check if this is a union field (pointer to anonymous struct)
+		if fieldValue.Kind() != reflect.Pointer ||
+			fieldType.Type.Elem().Kind() != reflect.Struct ||
+			fieldType.Type.Elem().Name() != "" {
+			continue
+		}
+
+		// Get field name for matching
+		name := fi.jsonName
+		if name == "" {
+			name = fi.name
+		}
+
+		// Check if this field matches the typename
+		if strings.EqualFold(name, typename) {
+			matched = true
+			// Allocate memory for the union field
+			fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+			target := fieldValue.Elem()
+
+			// Build JSON object with all fields and decode
+			if len(allFields) > 0 {
+				payload := buildUnionJSON(allFields)
+				if err := decodeGraphQLValue(payload, target, nil); err != nil {
+					return fmt.Errorf("decode union field %s: %w", name, err)
+				}
+			}
+		} else {
+			// Set non-matching union fields to nil
+			fieldValue.Set(reflect.Zero(fieldValue.Type()))
+		}
+	}
+
+	if !matched {
+		return fmt.Errorf("union/interface type %q not mapped", typename)
+	}
+
+	return nil
+}
+
 // IsUnion checks if a struct type represents a GraphQL union type.
 // A union type is identified by having 2 or more named fields that are
-// pointers to anonymous structs (excluding anonymous embedded fields).
+// pointers to anonymous structs (excluding anonymous embedded fields and
+// fields with json tags, which are regular optional fields).
 func IsUnion(t reflect.Type) bool {
 	if t.Kind() != reflect.Struct {
 		return false
@@ -290,6 +385,10 @@ func IsUnion(t reflect.Type) bool {
 		}
 		// Skip anonymous embedded fields (these are fragments)
 		if field.Anonymous {
+			continue
+		}
+		// Skip fields with json tags (these are regular optional fields, not union fields)
+		if field.Tag.Get("json") != "" {
 			continue
 		}
 		// Check if this is a named field pointing to an anonymous struct
@@ -308,6 +407,11 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 		return fmt.Errorf("expected struct, got %s", rv.Kind())
 	}
 
+	// If this is a union/interface type, use specialized decoding
+	if IsUnion(rv.Type()) {
+		return decodeUnionStruct(data, rv)
+	}
+
 	fields, err := parseJSONObject(data)
 	if err != nil {
 		return err
@@ -318,55 +422,6 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 	}
 
 	info := buildStructInfo(rv.Type())
-
-	// Check if __typename exists in the data
-	typenameField, hasTypename := fields["__typename"]
-	var typename string
-
-	if hasTypename {
-		var target any = &typename
-		if err := json.Unmarshal(typenameField.value, target); err != nil {
-			return fmt.Errorf("decode __typename: %w", err)
-		}
-		used["__typename"] = true
-	}
-
-	// Check if this struct is a union type and collect union fields
-	var unionFields []struct {
-		info structFieldInfo
-	}
-	isUnionType := IsUnion(rv.Type())
-	if isUnionType {
-		var unionFieldsPresentInData int
-		for _, fi := range info.fields {
-			// Skip anonymous embedded fields (these are fragments, not union alternatives)
-			if fi.anonymous {
-				continue
-			}
-			field := rv.Field(fi.index)
-			fieldType := rv.Type().Field(fi.index)
-			// Check if this is a named field pointing to an anonymous struct
-			if field.Kind() == reflect.Pointer &&
-				field.Type().Elem().Kind() == reflect.Struct &&
-				fieldType.Type.Elem().Name() == "" { // anonymous struct
-				unionFields = append(unionFields, struct{ info structFieldInfo }{info: fi})
-
-				// Check if this field is present and non-null in the data
-				key := fi.jsonName
-				if key == "" {
-					key = fi.name
-				}
-				if dataField, exists := fields[key]; exists && !isJSONNull(dataField.value) {
-					unionFieldsPresentInData++
-				}
-			}
-		}
-
-		// If we have 2+ union fields present in data but no __typename, it's ambiguous
-		if unionFieldsPresentInData > 1 && !hasTypename {
-			return errors.New("__typename is required for union decoding")
-		}
-	}
 
 	fallbackAssigned := false
 
@@ -441,71 +496,6 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 		}
 	}
 
-	// Only process as union if this is a union type
-	if typename != "" && isUnionType {
-		remaining := make(map[string]objectField)
-		for key, field := range fields {
-			if used[key] {
-				continue
-			}
-			remaining[key] = field
-		}
-
-		matched := false
-		for _, entry := range unionFields {
-			fieldValue := rv.Field(entry.info.index)
-			name := entry.info.name
-			if entry.info.jsonName != "" {
-				name = entry.info.jsonName
-			}
-			if strings.EqualFold(name, typename) || strings.EqualFold(entry.info.name, typename) {
-				matched = true
-
-				if fieldValue.Kind() == reflect.Pointer {
-					if fieldValue.IsNil() {
-						fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
-					}
-					target := fieldValue.Elem()
-
-					unionInfo := buildStructInfo(fieldValue.Type().Elem())
-					var unionEntries []objectFieldEntry
-					unionUsed := map[string]bool{}
-					for _, ufi := range unionInfo.fields {
-						candidate := ufi.jsonName
-						if candidate == "" {
-							candidate = ufi.name
-						}
-						actualKey := matchKeyInsensitive(remaining, candidate)
-						if actualKey == "" {
-							continue
-						}
-
-						field := remaining[actualKey]
-						unionEntries = append(unionEntries, objectFieldEntry{name: actualKey, value: field.value, offset: field.offset})
-						unionUsed[actualKey] = true
-					}
-
-					if len(unionEntries) > 0 {
-						payload := buildUnknownValue(unionEntries)
-						if err := decodeGraphQLValue(payload, target, nil); err != nil {
-							return err
-						}
-						for key := range unionUsed {
-							used[key] = true
-						}
-					}
-				} else {
-					fieldValue.Set(reflect.Zero(fieldValue.Type()))
-				}
-				continue
-			}
-			fieldValue.Set(reflect.Zero(fieldValue.Type()))
-		}
-		if !matched {
-			return fmt.Errorf("union type %q not mapped", typename)
-		}
-	}
-
 	leftovers := collectLeftovers(fields, used)
 
 	if info.fallbackIndex >= 0 {
@@ -531,13 +521,16 @@ func decodeStruct(data jsontext.Value, rv reflect.Value, used map[string]bool, i
 
 func locateFieldKey(fi structFieldInfo, fields map[string]objectField) (string, bool) {
 	// Check json tag or field name
-	for key := range fields {
-		if fi.jsonName != "" {
-			if key == fi.jsonName {
-				return key, true
-			}
-			continue
+	if fi.jsonName != "" {
+		// Has json tag, look for exact match
+		if _, ok := fields[fi.jsonName]; ok {
+			return fi.jsonName, true
 		}
+		return "", false
+	}
+
+	// No json tag, use case-insensitive matching
+	for key := range fields {
 		if strings.EqualFold(key, fi.name) {
 			return key, true
 		}
@@ -554,15 +547,6 @@ func collectLeftovers(fields map[string]objectField, used map[string]bool) []obj
 		leftovers = append(leftovers, objectFieldEntry{name: key, value: field.value, offset: field.offset})
 	}
 	return leftovers
-}
-
-func matchKeyInsensitive(fields map[string]objectField, target string) string {
-	for key := range fields {
-		if strings.EqualFold(key, target) {
-			return key
-		}
-	}
-	return ""
 }
 
 type objectFieldEntry struct {
@@ -586,6 +570,24 @@ func buildUnknownValue(entries []objectFieldEntry) jsontext.Value {
 		return cloneBytes(entries[0].value)
 	}
 
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	for i, entry := range entries {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		buf.WriteString(strconv.Quote(entry.name))
+		buf.WriteByte(':')
+		buf.Write(entry.value)
+	}
+	buf.WriteByte('}')
+	return buf.Bytes()
+}
+
+// buildUnionJSON builds a proper JSON object from field entries, always wrapping
+// fields in an object with their keys, even for single entries. This is used for
+// union/interface decoding where we need to preserve field names.
+func buildUnionJSON(entries []objectFieldEntry) jsontext.Value {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	for i, entry := range entries {

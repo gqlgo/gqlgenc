@@ -23,7 +23,10 @@ func buildStructInfo(t reflect.Type) *structInfo {
 	info := &structInfo{fallbackIndex: -1}
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.PkgPath != "" { // unexported
+		// Skip unexported fields, but allow anonymous embedded fields
+		// even if they have a non-empty PkgPath (which indicates the package
+		// where the embedded type is defined, not that the field is unexported)
+		if f.PkgPath != "" && !f.Anonymous {
 			continue
 		}
 
