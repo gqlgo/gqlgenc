@@ -2,12 +2,12 @@ package client
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
-	"encoding/json"
 	"encoding/json/jsontext"
 
 	"github.com/Yamashou/gqlgenc/v3/graphqljson"
