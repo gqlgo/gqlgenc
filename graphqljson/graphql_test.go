@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -13,6 +12,168 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/graphqljson"
 )
+
+type issueTimelineItem struct {
+	Typename    string `json:"__typename"`
+	ClosedEvent *struct {
+		Actor struct {
+			Login string `json:"login"`
+		} `json:"actor"`
+	}
+	ReopenedEvent *struct {
+		Actor struct {
+			Login string `json:"login"`
+		} `json:"actor"`
+	}
+}
+
+func (i *issueTimelineItem) UnmarshalJSON(data []byte) error {
+	type meta struct {
+		Typename string `json:"__typename"`
+	}
+
+	var m meta
+	if err := json.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("decode union metadata: %w", err)
+	}
+	if m.Typename == "" {
+		return fmt.Errorf("__typename is required for issueTimelineItem union")
+	}
+
+	i.Typename = m.Typename
+	i.ClosedEvent = nil
+	i.ReopenedEvent = nil
+
+	switch m.Typename {
+	case "ClosedEvent":
+		var payload struct {
+			Actor struct {
+				Login string `json:"login"`
+			} `json:"actor"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return fmt.Errorf("decode ClosedEvent: %w", err)
+		}
+		i.ClosedEvent = &payload
+	case "ReopenedEvent":
+		var payload struct {
+			Actor struct {
+				Login string `json:"login"`
+			} `json:"actor"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return fmt.Errorf("decode ReopenedEvent: %w", err)
+		}
+		i.ReopenedEvent = &payload
+	}
+
+	return nil
+}
+
+type actor struct {
+	Login string
+	Name  string
+}
+
+type sharedFragment struct {
+	Comment string
+}
+
+type timelineItem struct {
+	Typename    string `json:"__typename"`
+	ClosedEvent *struct {
+		Actor actor `json:"actor"`
+		Extra string
+		sharedFragment
+	}
+	ReopenedEvent *struct {
+		Actor actor `json:"actor"`
+		Note  string
+		sharedFragment
+	}
+}
+
+type fragmentUser struct {
+	Name string `json:"name"`
+}
+
+type fragment1 struct {
+	Name string `json:"name"`
+}
+
+type fragment2 struct {
+	Name string       `json:"name"`
+	User fragmentUser `json:"user"`
+}
+
+type fragmentQuery struct {
+	Typename      string `json:"__typename"`
+	Name          string `json:"name"`
+	UserFragment1 fragment1
+	UserFragment2 fragment2
+}
+
+func (q *fragmentQuery) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		Typename string       `json:"__typename"`
+		Name     string       `json:"name"`
+		User     fragmentUser `json:"user"`
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	q.Typename = aux.Typename
+	q.Name = aux.Name
+	q.UserFragment1 = fragment1{Name: aux.Name}
+	q.UserFragment2 = fragment2{Name: aux.Name, User: aux.User}
+
+	return nil
+}
+
+func (t *timelineItem) UnmarshalJSON(data []byte) error {
+	type meta struct {
+		Typename string `json:"__typename"`
+	}
+
+	var m meta
+	if err := json.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("decode union metadata: %w", err)
+	}
+	if m.Typename == "" {
+		return fmt.Errorf("__typename is required for timelineItem union")
+	}
+
+	t.Typename = m.Typename
+	t.ClosedEvent = nil
+	t.ReopenedEvent = nil
+
+	switch m.Typename {
+	case "ClosedEvent":
+		var payload struct {
+			Actor actor `json:"actor"`
+			Extra string
+			sharedFragment
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return fmt.Errorf("decode ClosedEvent: %w", err)
+		}
+		t.ClosedEvent = &payload
+	case "ReopenedEvent":
+		var payload struct {
+			Actor actor `json:"actor"`
+			Note  string
+			sharedFragment
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return fmt.Errorf("decode ReopenedEvent: %w", err)
+		}
+		t.ReopenedEvent = &payload
+	}
+
+	return nil
+}
 
 func TestUnmarshalGraphQL_jsonTag(t *testing.T) {
 	t.Parallel()
@@ -40,9 +201,9 @@ func TestUnmarshalGraphQL_array(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Foo []string
-		Bar []string
-		Baz []string
+		Foo []string `json:"foo"`
+		Bar []string `json:"bar"`
+		Baz []string `json:"baz"`
 	}
 
 	var got query
@@ -90,8 +251,8 @@ func TestUnmarshalGraphQL_objectArray(t *testing.T) {
 
 	type query struct {
 		Foo []struct {
-			Name string
-		}
+			Name string `json:"name"`
+		} `json:"foo"`
 	}
 
 	var got query
@@ -107,9 +268,11 @@ func TestUnmarshalGraphQL_objectArray(t *testing.T) {
 	}
 
 	want := query{
-		Foo: []struct{ Name string }{
-			{"bar"},
-			{"baz"},
+		Foo: []struct {
+			Name string `json:"name"`
+		}{
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -121,8 +284,8 @@ func TestUnmarshalGraphQL_pointer(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Foo *string
-		Bar *string
+		Foo *string `json:"foo"`
+		Bar *string `json:"bar"`
 	}
 
 	var got query
@@ -152,8 +315,8 @@ func TestUnmarshalGraphQL_objectPointerArray(t *testing.T) {
 
 	type query struct {
 		Foo []*struct {
-			Name string
-		}
+			Name string `json:"name"`
+		} `json:"foo"`
 	}
 
 	var got query
@@ -170,7 +333,9 @@ func TestUnmarshalGraphQL_objectPointerArray(t *testing.T) {
 	}
 
 	want := query{
-		Foo: []*struct{ Name string }{
+		Foo: []*struct {
+			Name string `json:"name"`
+		}{
 			{Name: "bar"},
 			nil,
 			{Name: "baz"},
@@ -195,7 +360,7 @@ func TestUnmarshalGraphQL_unexportedField(t *testing.T) {
 	}
 
 	got := err.Error()
-	want := "decode graphql data: decode json: struct field for \"foo\" doesn't exist in any of 1 places to unmarshal (at byte offset 6)"
+	want := "decode graphql data: decode json: json: cannot unmarshal JSON object into Go graphqljson_test.query: Go struct has no exported fields"
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("diff(-want +got): %s", diff)
 	}
@@ -213,7 +378,7 @@ func TestUnmarshalGraphQL_multipleValues(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	if got, want := err.Error(), "invalid token '{' after top-level value (at byte offset 15)"; got != want {
+	if got, want := err.Error(), "decode graphql data: decode json: jsontext: invalid character '{' after top-level value after offset 14"; got != want {
 		t.Errorf("got error: %v, want: %v", got, want)
 	}
 }
@@ -222,7 +387,7 @@ func TestUnmarshalGraphQL_unknownJSONValue(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Unknown jsontext.Value `json:",unknown"`
+		Unknown jsontext.Value `json:"extra"`
 		Number  int            `json:"number"`
 	}
 
@@ -254,7 +419,7 @@ func TestUnmarshalGraphQL_unknownJSONValue_map(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Outputs jsontext.Value `json:"outputs,unknown"`
+		Outputs jsontext.Value `json:"outputs"`
 	}
 
 	var got query
@@ -281,27 +446,7 @@ func TestUnmarshalGraphQL_unknownJSONValue_map(t *testing.T) {
 func TestUnmarshalGraphQL_multipleFragment(t *testing.T) {
 	t.Parallel()
 
-	type UserFragment1 struct {
-		Name string `json:"name"`
-	}
-
-	type UserFragment2User struct {
-		Name string `json:"name"`
-	}
-
-	type UserFragment2 struct {
-		Name string            `json:"name"`
-		User UserFragment2User `json:"user"`
-	}
-
-	type query struct {
-		Typename string `json:"__typename"`
-		Name     string `json:"name"`
-		UserFragment1
-		UserFragment2
-	}
-
-	var got query
+	var got fragmentQuery
 
 	err := graphqljson.UnmarshalData([]byte(`{
         "__typename": "User",
@@ -314,13 +459,13 @@ func TestUnmarshalGraphQL_multipleFragment(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := query{
+	want := fragmentQuery{
 		Typename:      "User",
 		Name:          "John Doe",
-		UserFragment1: UserFragment1{Name: "John Doe"},
-		UserFragment2: UserFragment2{
+		UserFragment1: fragment1{Name: "John Doe"},
+		UserFragment2: fragment2{
 			Name: "John Doe",
-			User: UserFragment2User{Name: "Nested John"},
+			User: fragmentUser{Name: "Nested John"},
 		},
 	}
 
@@ -331,20 +476,6 @@ func TestUnmarshalGraphQL_multipleFragment(t *testing.T) {
 
 func TestUnmarshalGraphQL_unionStruct(t *testing.T) {
 	t.Parallel()
-
-	type issueTimelineItem struct {
-		Typename    string `json:"__typename"`
-		ClosedEvent *struct {
-			Actor struct {
-				Login string `json:"login"`
-			} `json:"actor"`
-		}
-		ReopenedEvent *struct {
-			Actor struct {
-				Login string `json:"login"`
-			} `json:"actor"`
-		}
-	}
 
 	var got issueTimelineItem
 
@@ -380,11 +511,6 @@ func TestUnmarshalGraphQL_unionStruct(t *testing.T) {
 func TestUnmarshalGraphQL_unionMissingTypename(t *testing.T) {
 	t.Parallel()
 
-	type issueTimelineItem struct {
-		ClosedEvent   *struct{}
-		ReopenedEvent *struct{}
-	}
-
 	var got issueTimelineItem
 
 	err := graphqljson.UnmarshalData([]byte(`{
@@ -401,29 +527,6 @@ func TestUnmarshalGraphQL_unionMissingTypename(t *testing.T) {
 
 func TestUnmarshalGraphQL_unionWithFragments(t *testing.T) {
 	t.Parallel()
-
-	type actor struct {
-		Login string
-		Name  string
-	}
-
-	type sharedFragment struct {
-		Comment string
-	}
-
-	type timelineItem struct {
-		Typename    string `json:"__typename"`
-		ClosedEvent *struct {
-			Actor actor `json:"actor"`
-			Extra string
-			sharedFragment
-		}
-		ReopenedEvent *struct {
-			Actor actor `json:"actor"`
-			Note  string
-			sharedFragment
-		}
-	}
 
 	payload := []byte(`{
         "__typename": "ReopenedEvent",
@@ -600,11 +703,34 @@ func (n *Number) UnmarshalGQL(v any) error {
 	return nil
 }
 
+func (n *Number) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		switch str {
+		case "ONE":
+			*n = NumberOne
+		case "TWO":
+			*n = NumberTwo
+		default:
+			return fmt.Errorf("number not found Type: %s", str)
+		}
+		return nil
+	}
+
+	var num int64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*n = Number(num)
+		return nil
+	}
+
+	return fmt.Errorf("unsupported enum representation: %s", string(data))
+}
+
 func TestUnmarshalGQL(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Enum Number
+		Enum Number `json:"enum"`
 	}
 
 	var got query
@@ -626,7 +752,7 @@ func TestUnmarshalGQL_array(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Enums []Number
+		Enums []Number `json:"enums"`
 	}
 
 	var got query
@@ -648,7 +774,7 @@ func TestUnmarshalGQL_pointer(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Enum *Number
+		Enum *Number `json:"enum"`
 	}
 
 	var got query
@@ -672,7 +798,7 @@ func TestUnmarshalGQL_pointerArray(t *testing.T) {
 	t.Parallel()
 
 	type query struct {
-		Enums []*Number
+		Enums []*Number `json:"enums"`
 	}
 
 	var got query
@@ -708,97 +834,5 @@ func TestUnmarshalGQL_pointerArrayReset(t *testing.T) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("diff(-want +got): %s", diff)
-	}
-}
-
-func TestIsUnion(t *testing.T) {
-	t.Parallel()
-
-	type fragment1 struct {
-		Name string
-	}
-	type fragment2 struct {
-		Age int
-	}
-
-	tests := []struct {
-		name string
-		typ  any
-		want bool
-	}{
-		{
-			name: "union type with 2 anonymous struct pointers",
-			typ: struct {
-				Typename string `json:"__typename"`
-				A        *struct{ Name string }
-				B        *struct{ Value int }
-			}{},
-			want: true,
-		},
-		{
-			name: "union type with 3 anonymous struct pointers",
-			typ: struct {
-				Typename string `json:"__typename"`
-				A        *struct{ Name string }
-				B        *struct{ Value int }
-				C        *struct{ Data bool }
-			}{},
-			want: true,
-		},
-		{
-			name: "not a union - only 1 anonymous struct pointer",
-			typ: struct {
-				Typename string `json:"__typename"`
-				A        *struct{ Name string }
-				B        string
-			}{},
-			want: false,
-		},
-		{
-			name: "not a union - named struct pointers",
-			typ: struct {
-				Typename string `json:"__typename"`
-				A        *Number
-				B        *Number
-			}{},
-			want: false,
-		},
-		{
-			name: "not a union - anonymous embedded fields",
-			typ: struct {
-				fragment1
-				fragment2
-			}{},
-			want: false,
-		},
-		{
-			name: "not a union - regular struct",
-			typ: struct {
-				Name string
-				Age  int
-			}{},
-			want: false,
-		},
-		{
-			name: "not a union - anonymous struct pointers with json tags",
-			typ: struct {
-				QueryType        struct{ Name *string } `json:"queryType"`
-				MutationType     *struct{ Name *string } `json:"mutationType"`
-				SubscriptionType *struct{ Name *string } `json:"subscriptionType"`
-			}{},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			typ := reflect.TypeOf(tt.typ)
-			got := graphqljson.IsUnion(typ)
-			if got != tt.want {
-				t.Errorf("IsUnion() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }

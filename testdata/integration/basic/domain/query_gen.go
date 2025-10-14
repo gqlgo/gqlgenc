@@ -2,10 +2,33 @@
 
 package domain
 
+import (
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
+)
+
 type UpdateUser struct {
 	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitempty,omitzero\" graphql:\"updateUser\""
 }
 
+func (t *UpdateUser) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UpdateUser
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UpdateUser(aux)
+	if value, ok := raw["updateUser"]; ok {
+		if err := json.Unmarshal(value, &t.UpdateUser); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
 	if t == nil {
 		t = &UpdateUser{}
@@ -17,8 +40,46 @@ type UpdateUser_UpdateUser struct {
 	User UpdateUser_UpdateUser_User "json:\"user,omitempty,omitzero\" graphql:\"user\""
 }
 
+func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UpdateUser_UpdateUser
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UpdateUser_UpdateUser(aux)
+	if value, ok := raw["user"]; ok {
+		if err := json.Unmarshal(value, &t.User); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type UpdateUser_UpdateUser_User struct {
 	Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+}
+
+func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UpdateUser_UpdateUser_User
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UpdateUser_UpdateUser_User(aux)
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.Name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type UserFragment1 struct {
@@ -38,8 +99,57 @@ type UserFragment1_Profile struct {
 	} "graphql:\"... on PublicProfile\""
 }
 
+func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserFragment1_Profile
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserFragment1_Profile(aux)
+	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type UserFragment2 struct {
 	Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+}
+
+func (t *UserFragment2) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserFragment2
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserFragment2(aux)
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.Name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type UserOperation struct {
@@ -47,6 +157,29 @@ type UserOperation struct {
 	User         UserOperation_User          "json:\"user,omitempty,omitzero\" graphql:\"user\""
 }
 
+func (t *UserOperation) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation(aux)
+	if value, ok := raw["optionalUser"]; ok {
+		if err := json.Unmarshal(value, &t.OptionalUser); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["user"]; ok {
+		if err := json.Unmarshal(value, &t.User); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UserOperation) GetOptionalUser() *UserOperation_OptionalUser {
 	if t == nil {
 		t = &UserOperation{}
@@ -64,6 +197,24 @@ type UserOperation_OptionalUser struct {
 	Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
 }
 
+func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_OptionalUser
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_OptionalUser(aux)
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UserOperation_OptionalUser) GetName() string {
 	if t == nil {
 		t = &UserOperation_OptionalUser{}
@@ -87,6 +238,95 @@ type UserOperation_User struct {
 	Profile2        UserOperation_User_Profile2         "json:\"profile2,omitempty,omitzero\" graphql:\"profile2\""
 }
 
+func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User(aux)
+	if value, ok := raw["address"]; ok {
+		if err := json.Unmarshal(value, &t.Address); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.Name); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["name2"]; ok {
+		if err := json.Unmarshal(value, &t.Name2); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["optionalAddress"]; ok {
+		if err := json.Unmarshal(value, &t.OptionalAddress); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["optionalProfile"]; ok {
+		if err := json.Unmarshal(value, &t.OptionalProfile); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["profile"]; ok {
+		if err := json.Unmarshal(value, &t.Profile); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["profile2"]; ok {
+		if err := json.Unmarshal(value, &t.Profile2); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.User); err != nil {
+		return err
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.User.Name); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.User.UserFragment2); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &t.UserFragment1); err != nil {
+		return err
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.Name); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["profile"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.Profile); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.UserFragment1.User); err != nil {
+		return err
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.User.Name); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.UserFragment2); err != nil {
+		return err
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment2.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type UserOperation_User_Address struct {
 	PrivateAddress struct {
 		Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
@@ -97,6 +337,51 @@ type UserOperation_User_Address struct {
 		Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
 	} "graphql:\"... on PublicAddress\""
 	Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
+}
+
+func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User_Address
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User_Address(aux)
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.Street); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+		return err
+	}
+	if value, ok := raw["private"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddress.Private); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddress.Street); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+		return err
+	}
+	if value, ok := raw["public"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddress.Public); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddress.Street); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type UserOperation_User_OptionalAddress struct {
@@ -111,6 +396,50 @@ type UserOperation_User_OptionalAddress struct {
 	Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
 }
 
+func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User_OptionalAddress
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User_OptionalAddress(aux)
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.Street); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+		return err
+	}
+	if value, ok := raw["private"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddress.Private); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddress.Street); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+		return err
+	}
+	if value, ok := raw["public"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddress.Public); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddress.Street); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() struct {
 	Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
 	Street  string "json:\"street,omitempty,omitzero\" graphql:\"street\""
@@ -145,6 +474,35 @@ type UserOperation_User_OptionalProfile struct {
 	} "graphql:\"... on PublicProfile\""
 }
 
+func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User_OptionalProfile
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User_OptionalProfile(aux)
+	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UserOperation_User_OptionalProfile) GetPrivateProfile() struct {
 	Age *int "json:\"age\" graphql:\"age\""
 } {
@@ -171,6 +529,36 @@ type UserOperation_User_Profile struct {
 	} "graphql:\"... on PublicProfile\""
 }
 
+func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User_Profile
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User_Profile(aux)
+	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type UserOperation_User_Profile2 struct {
 	PrivateProfile struct {
 		Age *int "json:\"age\" graphql:\"age\""
@@ -178,6 +566,36 @@ type UserOperation_User_Profile2 struct {
 	PublicProfile struct {
 		Status Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
 	} "graphql:\"... on PublicProfile\""
+}
+
+func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UserOperation_User_Profile2
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UserOperation_User_Profile2(aux)
+	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		return err
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {

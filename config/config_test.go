@@ -326,6 +326,7 @@ func TestLoadConfig_LoadSchema(t *testing.T) {
 					},
 				},
 			}
+			cfg.GQLGencConfig.Endpoint.Client = mockServer.client
 
 			err := cfg.loadSchema(t.Context())
 			if tt.want.err {
@@ -351,7 +352,7 @@ func TestLoadConfig_LoadSchema(t *testing.T) {
 			if tt.want.config != nil {
 				opts := []cmp.Option{
 					cmpopts.IgnoreFields(config.Config{}, "Schema"),
-					cmpopts.IgnoreFields(EndPointConfig{}, "URL"),
+					cmpopts.IgnoreFields(EndPointConfig{}, "URL", "Client"),
 				}
 				if diff := cmp.Diff(tt.want.config, cfg, opts...); diff != "" {
 					t.Errorf("loadSchema() mismatch (-want +got):\n%s", diff)
@@ -377,43 +378,55 @@ func containsString(s, substring string) bool {
 }
 
 type mockRemoteServer struct {
-	*httptest.Server
-	body []byte
+	URL    string
+	body   []byte
+	client *http.Client
 }
 
 //nolint:nonamedreturns // named return "mock" with type "*mockRemoteServer" found
 func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, closeServer func()) {
 	t.Helper()
 
-	mock = &mockRemoteServer{
-		Server: httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
-			var err error
-			mock.body, err = io.ReadAll(req.Body)
+	mock = &mockRemoteServer{URL: "http://mock/graphql"}
+	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+		var err error
+		mock.body, err = io.ReadAll(req.Body)
+		if err != nil {
+			t.Errorf("failed to read request body: %v", err)
+		}
+
+		var responseBody []byte
+		switch v := response.(type) {
+		case json.RawMessage:
+			responseBody = v
+		case responseFromFile:
+			responseBody = v.load(t)
+		default:
+			responseBody, err = json.Marshal(response)
 			if err != nil {
-				t.Errorf("failed to read request body: %v", err)
+				t.Errorf("failed to marshal response: %v", err)
 			}
+		}
 
-			var responseBody []byte
-			switch v := response.(type) {
-			case json.RawMessage:
-				responseBody = v
-			case responseFromFile:
-				responseBody = v.load(t)
-			default:
-				responseBody, err = json.Marshal(response)
-				if err != nil {
-					t.Errorf("failed to marshal response: %v", err)
-				}
-			}
+		if _, err = writer.Write(responseBody); err != nil {
+			t.Errorf("failed to write response: %v", err)
+		}
+	})
 
-			_, err = writer.Write(responseBody)
-			if err != nil {
-				t.Errorf("failed to write response: %v", err)
-			}
-		})),
-	}
+	mock.client = &http.Client{Transport: handlerRoundTripper{handler: handler}}
 
-	return mock, func() { mock.Close() }
+	return mock, func() {}
+}
+
+type handlerRoundTripper struct {
+	handler http.Handler
+}
+
+func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, req)
+	resp := recorder.Result()
+	return resp, nil
 }
 
 type responseFromFile string

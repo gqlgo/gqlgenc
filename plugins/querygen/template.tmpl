@@ -1,3 +1,10 @@
+{{- if .NeedsJSONImport }}
+import (
+    json "encoding/json/v2"
+    "encoding/json/jsontext"
+)
+
+{{- end}}
 {{- range $goType:= .GoTypes }}
 {{ genCode $goType }}
 {{- end}}

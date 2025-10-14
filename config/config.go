@@ -42,6 +42,8 @@ type GQLGencConfig struct {
 type EndPointConfig struct {
 	Headers map[string]string `yaml:"headers,omitempty"`
 	URL     string            `yaml:"url"`
+	// TODO: 消す
+	Client *http.Client `yaml:"-"`
 }
 
 // Load loads and parses the config gqlgenc config.
@@ -185,11 +187,11 @@ func (c *Config) loadRemoteSchema(ctx context.Context) error {
 		header[key] = []string{value}
 	}
 
-	transport := TransportAppend(
-		http.DefaultTransport,
-		NewHeaderTransport(func(_ context.Context) http.Header { return header }),
-	)
-	httpClient := &http.Client{Transport: transport}
+	httpClient := http.DefaultClient
+	if c.GQLGencConfig.Endpoint.Client != nil {
+		httpClient = c.GQLGencConfig.Endpoint.Client
+	}
+
 	gqlgencClient := client.NewClient(c.GQLGencConfig.Endpoint.URL, client.WithHTTPClient(httpClient))
 
 	var res introspection.Query

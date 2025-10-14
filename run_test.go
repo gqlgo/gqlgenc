@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net"
+	"bytes"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"os/signal"
-	"syscall"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -149,22 +145,14 @@ func Test_IntegrationTest(t *testing.T) {
 			// send request test
 			ctx := t.Context()
 
-			// Server
 			es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
 			srv := handler.New(es)
 			srv.AddTransport(transport.POST{})
-			http.Handle("/graphql", srv)
-			port := "8080"
-			go func() {
-				listenAndServe(ctx, t, port)
-			}()
 
-			// Wait for server to start
-			time.Sleep(50 * time.Millisecond)
-
-			// Client
+			httpClient := &http.Client{Transport: handlerRoundTripper{handler: srv}}
 			c := query.NewClient(client.NewClient(
-				fmt.Sprintf("http://localhost:%s/graphql", port),
+				"http://local/graphql",
+				client.WithHTTPClient(httpClient),
 			))
 
 			// Query
@@ -226,44 +214,6 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
-func listenAndServe(ctx context.Context, t *testing.T, port string) {
-	t.Helper()
-	addr := net.JoinHostPort("", port)
-	srv := server(addr)
-	// Graceful Shutdown
-	// Receives the signal specified by argument or closes ctx.Done() when the stop function is executed
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt, os.Kill)
-
-	// Start
-	go func() {
-		defer stop() // If stop is not executed at the end of this function, ListenAndServer() will continue to block at <-ctx.Done() when there is an error
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			t.Errorf("instance error: %v", err)
-		}
-	}()
-	// Blocks. Unblocks when ctx.Done() is closed.
-	<-ctx.Done()
-
-	// Shutdown process
-	// Force termination if Shutdown does not complete in 10 seconds
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	// Shutdown is also executed when ListenAndServer has an error, but in that case Shutdown returns nil for err, so there is no problem.
-	if err := srv.Shutdown(ctx); err != nil {
-		t.Errorf("shutdown error: %v", err)
-	}
-}
-
-func server(addr string) *http.Server {
-	return &http.Server{
-		Addr:              addr,
-		ReadTimeout:       2 * time.Minute,
-		ReadHeaderTimeout: 1 * time.Minute,
-		WriteTimeout:      60 * time.Minute,
-		IdleTimeout:       2 * time.Minute,
-	}
-}
-
 func compareFiles(t *testing.T, wantFile, generatedFile string) {
 	t.Helper()
 
@@ -283,4 +233,23 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 	if diff := cmp.Diff(string(want), string(generated)); diff != "" {
 		t.Errorf("file contents differ:\n%s", diff)
 	}
+}
+
+type handlerRoundTripper struct {
+	handler http.Handler
+}
+
+func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	_ = req.Body.Close()
+	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	reqClone := req.Clone(req.Context())
+	reqClone.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, reqClone)
+	resp := recorder.Result()
+	return resp, nil
 }
