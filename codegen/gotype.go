@@ -128,10 +128,6 @@ func (g *GoTypeGenerator) wrapWithListAndNullability(baseType gotypes.Type, gqlT
 
 // buildGoType recursively builds the Go type from GraphQL type, handling lists and nullability
 func (g *GoTypeGenerator) buildGoType(gqlType *graphql.Type) gotypes.Type {
-	return g.buildGoTypeHelper(gqlType, false)
-}
-
-func (g *GoTypeGenerator) buildGoTypeHelper(gqlType *graphql.Type, _ bool) gotypes.Type {
 	// Base case: named type (e.g., String, Int, ID, or custom types)
 	if gqlType.NamedType != "" {
 		// findGoType will add pointer if needed based on the NonNull value
@@ -141,7 +137,7 @@ func (g *GoTypeGenerator) buildGoTypeHelper(gqlType *graphql.Type, _ bool) gotyp
 	// This is a list type (NamedType is empty and Elem is set)
 	if gqlType.Elem != nil {
 		// Process the element type recursively
-		elemType := g.buildGoTypeHelper(gqlType.Elem, false)
+		elemType := g.buildGoType(gqlType.Elem)
 
 		// Create a slice of the element type
 		sliceType := gotypes.NewSlice(elemType)
