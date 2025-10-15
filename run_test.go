@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -43,9 +44,9 @@ func Test_IntegrationTest(t *testing.T) {
 						Email: "sam.smith@example.com",
 					},
 					Article: &domain.UserOperation_Article{
-						ID:    "article-1",
-						Title: "Test Article",
-						Tags:  []string{"tag1", "tag2", "tag3"},
+						ID:           "article-1",
+						Title:        "Test Article",
+						Tags:         []string{"tag1", "tag2", "tag3"},
 						OptionalTags: &[]string{"optional1", "optional2"},
 						Comments: []*domain.UserOperation_Article_Comments{
 							{ID: "1", Text: "First comment"},
@@ -277,9 +278,9 @@ func Test_IntegrationTest(t *testing.T) {
 			// Query
 			{
 				size := 100
-			userID := "1"
-			userStatus := domain.StatusActive
-			userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size, &userID, &userStatus)
+				userID := "1"
+				userStatus := domain.StatusActive
+				userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size, &userID, &userStatus)
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -382,8 +383,8 @@ func Test_IntegrationTest(t *testing.T) {
 			}
 			{
 				input := domain.UpdateUserInput{
-					ID:   "1",
-					Name: graphql.OmittableOf[*string](ptr("Test User")),
+					ID:       "1",
+					Name:     graphql.OmittableOf[*string](ptr("Test User")),
 					Settings: graphql.Omittable[*domain.UserSettingsInput]{},
 				}
 				updateUser, err := c.UpdateUser(ctx, input)
@@ -430,7 +431,7 @@ type handlerRoundTripper struct {
 func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 	_ = req.Body.Close()
 	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))

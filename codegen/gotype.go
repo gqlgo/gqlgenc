@@ -131,7 +131,7 @@ func (g *GoTypeGenerator) buildGoType(gqlType *graphql.Type) gotypes.Type {
 	return g.buildGoTypeHelper(gqlType, false)
 }
 
-func (g *GoTypeGenerator) buildGoTypeHelper(gqlType *graphql.Type, inList bool) gotypes.Type {
+func (g *GoTypeGenerator) buildGoTypeHelper(gqlType *graphql.Type, _ bool) gotypes.Type {
 	// Base case: named type (e.g., String, Int, ID, or custom types)
 	if gqlType.NamedType != "" {
 		// findGoType will add pointer if needed based on the NonNull value

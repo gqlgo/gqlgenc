@@ -25,56 +25,62 @@ func (fs FullTypes) NameMap() map[string]*FullType {
 }
 
 type FullType struct {
-	Kind        TypeKind `json:"kind"`
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Kind        TypeKind      `json:"kind"`
+	Name        *string       `json:"name"`
+	Description *string       `json:"description"`
 	Fields      []*FieldValue `json:"fields"`
 	InputFields []*InputValue `json:"inputFields"`
-	Interfaces  []*TypeRef `json:"interfaces"`
+	Interfaces  []*TypeRef    `json:"interfaces"`
 	EnumValues  []*struct {
 		Description       *string `json:"description"`
 		DeprecationReason *string `json:"deprecationReason"`
-		Name              string `json:"name"`
-		IsDeprecated      bool `json:"isDeprecated"`
+		Name              string  `json:"name"`
+		IsDeprecated      bool    `json:"isDeprecated"`
 	} `json:"enumValues"`
 	PossibleTypes []*TypeRef `json:"possibleTypes"`
 }
 
 type FieldValue struct {
-	Type              TypeRef `json:"type"`
-	Description       *string `json:"description"`
-	DeprecationReason *string `json:"deprecationReason"`
-	Name              string `json:"name"`
+	Type              TypeRef       `json:"type"`
+	Description       *string       `json:"description"`
+	DeprecationReason *string       `json:"deprecationReason"`
+	Name              string        `json:"name"`
 	Args              []*InputValue `json:"args"`
-	IsDeprecated      bool `json:"isDeprecated"`
+	IsDeprecated      bool          `json:"isDeprecated"`
 }
 
 type InputValue struct {
 	Type         TypeRef `json:"type"`
 	Description  *string `json:"description"`
 	DefaultValue *string `json:"defaultValue"`
-	Name         string `json:"name"`
+	Name         string  `json:"name"`
 }
 
 type TypeRef struct {
-	Name   *string `json:"name"`
+	Name   *string  `json:"name"`
 	OfType *TypeRef `json:"ofType"`
 	Kind   TypeKind `json:"kind"`
 }
 
 type Query struct {
 	Schema struct {
-		QueryType        struct{ Name *string `json:"name"` } `json:"queryType"`
-		MutationType     *struct{ Name *string `json:"name"` } `json:"mutationType"`
-		SubscriptionType *struct{ Name *string `json:"name"` } `json:"subscriptionType"`
-		Types            FullTypes `json:"types"`
-		Directives       []*DirectiveType `json:"directives"`
+		QueryType struct {
+			Name *string `json:"name"`
+		} `json:"queryType"`
+		MutationType *struct {
+			Name *string `json:"name"`
+		} `json:"mutationType"`
+		SubscriptionType *struct {
+			Name *string `json:"name"`
+		} `json:"subscriptionType"`
+		Types      FullTypes        `json:"types"`
+		Directives []*DirectiveType `json:"directives"`
 	} `json:"__schema"`
 }
 
 type DirectiveType struct {
-	Name        string `json:"name"`
-	Description *string `json:"description"`
-	Locations   []string `json:"locations"`
+	Name        string        `json:"name"`
+	Description *string       `json:"description"`
+	Locations   []string      `json:"locations"`
 	Args        []*InputValue `json:"args"`
 }

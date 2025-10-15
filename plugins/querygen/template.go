@@ -120,8 +120,8 @@ func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 		if named == nil {
 			continue
 		}
-		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert
-		for i := 0; i < structType.NumFields(); i++ {
+		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by namedStructType
+		for i := range structType.NumFields() {
 			field := structType.Field(i)
 			if !field.Anonymous() {
 				continue
@@ -135,7 +135,7 @@ func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 }
 
 func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr, rawExpr string) {
-	for i := 0; i < structType.NumFields(); i++ {
+	for i := range structType.NumFields() {
 		field := structType.Field(i)
 		if !field.Exported() {
 			continue
@@ -180,7 +180,7 @@ func shouldGenerateUnmarshal(named *types.Named) bool {
 }
 
 func writeJSONFieldDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr, rawExpr string) {
-	for i := 0; i < structType.NumFields(); i++ {
+	for i := range structType.NumFields() {
 		jsonName := jsonTagName(structType.Tag(i))
 		if jsonName == "" || jsonName == "-" {
 			continue
