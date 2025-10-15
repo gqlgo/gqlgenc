@@ -324,6 +324,58 @@ func Test_IntegrationTest(t *testing.T) {
 					t.Errorf("expected name to be 'Sam Smith', got '%s'", updateUser.GetUpdateUser().User.Name)
 				}
 			}
+			// Test nested input object type (UserSettingsInput)
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.OmittableOf[*string](ptr("Test User")),
+					Settings: graphql.OmittableOf[*domain.UserSettingsInput](&domain.UserSettingsInput{
+						Theme:         "dark",
+						Notifications: true,
+					}),
+				}
+				updateUser, err := c.UpdateUser(ctx, input)
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings == nil {
+					t.Errorf("expected settings to be set, got nil")
+				}
+				if updateUser.GetUpdateUser().User.Settings.Theme != "dark" {
+					t.Errorf("expected theme to be 'dark', got '%s'", updateUser.GetUpdateUser().User.Settings.Theme)
+				}
+				if updateUser.GetUpdateUser().User.Settings.Notifications != true {
+					t.Errorf("expected notifications to be true, got %v", updateUser.GetUpdateUser().User.Settings.Notifications)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:       "1",
+					Name:     graphql.OmittableOf[*string](ptr("Test User")),
+					Settings: graphql.OmittableOf[*domain.UserSettingsInput](nil),
+				}
+				updateUser, err := c.UpdateUser(ctx, input)
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings != nil {
+					t.Errorf("expected settings to be nil, got %+v", updateUser.GetUpdateUser().User.Settings)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.OmittableOf[*string](ptr("Test User")),
+					Settings: graphql.Omittable[*domain.UserSettingsInput]{},
+				}
+				updateUser, err := c.UpdateUser(ctx, input)
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings != nil {
+					t.Errorf("expected settings to be nil (omitted), got %+v", updateUser.GetUpdateUser().User.Settings)
+				}
+			}
 		})
 	}
 }

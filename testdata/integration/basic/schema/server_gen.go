@@ -124,6 +124,12 @@ type ComplexityRoot struct {
 		OptionalProfile func(childComplexity int) int
 		Profile         func(childComplexity int) int
 		ProfilePic      func(childComplexity int, size int) int
+		Settings        func(childComplexity int) int
+	}
+
+	UserSettings struct {
+		Notifications func(childComplexity int) int
+		Theme         func(childComplexity int) int
 	}
 }
 
@@ -497,6 +503,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.ProfilePic(childComplexity, args["size"].(int)), true
+
+	case "User.settings":
+		if e.complexity.User.Settings == nil {
+			break
+		}
+
+		return e.complexity.User.Settings(childComplexity), true
+
+	case "UserSettings.notifications":
+		if e.complexity.UserSettings.Notifications == nil {
+			break
+		}
+
+		return e.complexity.UserSettings.Notifications(childComplexity), true
+
+	case "UserSettings.theme":
+		if e.complexity.UserSettings.Theme == nil {
+			break
+		}
+
+		return e.complexity.UserSettings.Theme(childComplexity), true
 
 	}
 	return 0, false
@@ -2376,6 +2403,8 @@ func (ec *executionContext) fieldContext_Query_user(_ context.Context, field gra
 				return ec.fieldContext_User_id(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
 			case "profile":
 				return ec.fieldContext_User_profile(ctx, field)
 			case "optionalProfile":
@@ -2433,6 +2462,8 @@ func (ec *executionContext) fieldContext_Query_optionalUser(_ context.Context, f
 				return ec.fieldContext_User_id(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
 			case "profile":
 				return ec.fieldContext_User_profile(ctx, field)
 			case "optionalProfile":
@@ -2772,6 +2803,8 @@ func (ec *executionContext) fieldContext_UpdateUserPayload_user(_ context.Contex
 				return ec.fieldContext_User_id(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
 			case "profile":
 				return ec.fieldContext_User_profile(ctx, field)
 			case "optionalProfile":
@@ -2872,6 +2905,53 @@ func (ec *executionContext) fieldContext_User_name(_ context.Context, field grap
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_settings(ctx context.Context, field graphql.CollectedField, obj *domain.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_settings(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Settings, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*domain.UserSettings)
+	fc.Result = res
+	return ec.marshalOUserSettings2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserSettings(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_settings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "theme":
+				return ec.fieldContext_UserSettings_theme(ctx, field)
+			case "notifications":
+				return ec.fieldContext_UserSettings_notifications(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserSettings", field.Name)
 		},
 	}
 	return fc, nil
@@ -3098,6 +3178,94 @@ func (ec *executionContext) fieldContext_User_profilePic(ctx context.Context, fi
 	if fc.Args, err = ec.field_User_profilePic_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserSettings_theme(ctx context.Context, field graphql.CollectedField, obj *domain.UserSettings) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserSettings_theme(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Theme, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserSettings_theme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserSettings_notifications(ctx context.Context, field graphql.CollectedField, obj *domain.UserSettings) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserSettings_notifications(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Notifications, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserSettings_notifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -5795,6 +5963,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "settings":
+			out.Values[i] = ec._User_settings(ctx, field, obj)
 		case "profile":
 			field := field
 
@@ -5969,6 +6139,50 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userSettingsImplementors = []string{"UserSettings"}
+
+func (ec *executionContext) _UserSettings(ctx context.Context, sel ast.SelectionSet, obj *domain.UserSettings) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userSettingsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserSettings")
+		case "theme":
+			out.Values[i] = ec._UserSettings_theme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "notifications":
+			out.Values[i] = ec._UserSettings_notifications(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7453,6 +7667,13 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋ
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOUserSettings2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserSettings(ctx context.Context, sel ast.SelectionSet, v *domain.UserSettings) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._UserSettings(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOUserSettingsInput2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserSettingsInput(ctx context.Context, v any) (*domain.UserSettingsInput, error) {

@@ -23,9 +23,23 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateU
 	} else {
 		name = "undefined"
 	}
+
+	var settings *domain.UserSettings
+	if s, ok := input.Settings.ValueOK(); ok {
+		if s == nil {
+			settings = nil
+		} else {
+			settings = &domain.UserSettings{
+				Theme:         s.Theme,
+				Notifications: s.Notifications,
+			}
+		}
+	}
+
 	user := &domain.User{
-		ID:   input.ID,
-		Name: name,
+		ID:       input.ID,
+		Name:     name,
+		Settings: settings,
 	}
 	return &domain.UpdateUserPayload{
 		User: user,

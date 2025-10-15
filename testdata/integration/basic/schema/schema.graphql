@@ -30,6 +30,11 @@ input UserSettingsInput {
   notifications: Boolean!
 }
 
+type UserSettings {
+  theme: String!
+  notifications: Boolean!
+}
+
 type UpdateUserPayload {
   user: User!
 }
@@ -37,6 +42,7 @@ type UpdateUserPayload {
 type User {
   id: ID!
   name: String!
+  settings: UserSettings
   profile: Profile! @goField(forceResolver: true)
   optionalProfile: Profile @goField(forceResolver: true)
   address: Address! @goField(forceResolver: true)

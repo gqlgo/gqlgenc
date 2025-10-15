@@ -2,6 +2,10 @@ mutation UpdateUser($input: UpdateUserInput!) {
   updateUser(input: $input) {
     user {
       name
+      settings {
+        theme
+        notifications
+      }
     }
   }
 }

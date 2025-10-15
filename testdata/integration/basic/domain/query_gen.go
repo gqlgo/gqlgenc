@@ -82,7 +82,8 @@ func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
 }
 
 type UpdateUser_UpdateUser_User struct {
-	Name string "json:\"name,omitempty,omitzero\""
+	Name     string                               "json:\"name,omitempty,omitzero\""
+	Settings *UpdateUser_UpdateUser_User_Settings "json:\"settings\""
 }
 
 func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
@@ -98,6 +99,40 @@ func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
 	*t = UpdateUser_UpdateUser_User(aux)
 	if value, ok := raw["name"]; ok {
 		if err := json.Unmarshal(value, &t.Name); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["settings"]; ok {
+		if err := json.Unmarshal(value, &t.Settings); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type UpdateUser_UpdateUser_User_Settings struct {
+	Notifications bool   "json:\"notifications,omitempty,omitzero\""
+	Theme         string "json:\"theme,omitempty,omitzero\""
+}
+
+func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
+	var raw map[string]jsontext.Value
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	type Alias UpdateUser_UpdateUser_User_Settings
+	var aux Alias
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = UpdateUser_UpdateUser_User_Settings(aux)
+	if value, ok := raw["notifications"]; ok {
+		if err := json.Unmarshal(value, &t.Notifications); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["theme"]; ok {
+		if err := json.Unmarshal(value, &t.Theme); err != nil {
 			return err
 		}
 	}
@@ -1038,6 +1073,10 @@ const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {
 	updateUser(input: $input) {
 		user {
 			name
+			settings {
+				theme
+				notifications
+			}
 		}
 	}
 }

@@ -101,13 +101,19 @@ type UpdateUserPayload struct {
 }
 
 type User struct {
-	ID              string  `json:"id"`
-	Name            string  `json:"name"`
-	Profile         Profile `json:"profile"`
-	OptionalProfile Profile `json:"optionalProfile,omitempty,omitzero"`
-	Address         Address `json:"address"`
-	OptionalAddress Address `json:"optionalAddress,omitempty,omitzero"`
-	ProfilePic      string  `json:"profilePic"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	Settings        *UserSettings `json:"settings,omitempty,omitzero"`
+	Profile         Profile       `json:"profile"`
+	OptionalProfile Profile       `json:"optionalProfile,omitempty,omitzero"`
+	Address         Address       `json:"address"`
+	OptionalAddress Address       `json:"optionalAddress,omitempty,omitzero"`
+	ProfilePic      string        `json:"profilePic"`
+}
+
+type UserSettings struct {
+	Theme         string `json:"theme"`
+	Notifications bool   `json:"notifications"`
 }
 
 type UserSettingsInput struct {
