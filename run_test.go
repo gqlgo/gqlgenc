@@ -28,11 +28,13 @@ func Test_IntegrationTest(t *testing.T) {
 	tests := []struct {
 		name    string
 		testDir string
+		wantErr bool
 		want    want
 	}{
 		{
 			name:    "basic test",
 			testDir: "testdata/integration/basic/",
+			wantErr: false,
 			want: want{
 				file: "./want/query_gen.go.txt",
 				userOperation: &domain.UserOperation{
@@ -198,6 +200,11 @@ func Test_IntegrationTest(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "circular fragments test - should fail due to fragment cycle",
+			testDir: "testdata/integration/circular-fragments/",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,7 +217,14 @@ func Test_IntegrationTest(t *testing.T) {
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// Query and client generation
 			t.Chdir(tt.testDir)
-			if err := run(); err != nil {
+			err := run()
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("run() expected error but got nil")
+				}
+				return // エラーが期待される場合はここでテストを終了
+			}
+			if err != nil {
 				t.Errorf("run() error = %v", err)
 			}
 
