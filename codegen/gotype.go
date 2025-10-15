@@ -78,12 +78,83 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	typeName := fieldTypeName(parentTypeName, sel.Alias, g.cfg.GQLGencConfig.ExportQueryType)
 	fields := g.newFields(typeName, sel.SelectionSet)
 	if len(fields) == 0 {
-		t := g.findGoType(sel.Definition.Type.Name(), sel.Definition.Type.NonNull)
+		t := g.buildGoType(sel.Definition.Type)
 		return Scalar, t
 	}
 
-	t := g.newGoNamedType(typeName, sel.Definition.Type.NonNull, fields.goStructType())
+	// Create the struct type for the object
+	structType := fields.goStructType()
+	// Create named type without pointer - nullability will be handled by wrapWithListAndNullability
+	namedType := g.newGoNamedType(typeName, true, structType)
+
+	// Wrap in list if needed, checking the actual GraphQL type
+	t := g.wrapWithListAndNullability(namedType, sel.Definition.Type)
 	return Object, t
+}
+
+// wrapWithListAndNullability wraps a base type according to GraphQL type structure
+func (g *GoTypeGenerator) wrapWithListAndNullability(baseType gotypes.Type, gqlType *graphql.Type) gotypes.Type {
+	// If this is a named type (base case), the base type is already correct
+	if gqlType.NamedType != "" {
+		// baseType was created with non-null already applied, just return it
+		// unless the field itself is nullable
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(baseType)
+		}
+		return baseType
+	}
+
+	// This is a list type (NamedType is empty and Elem is set)
+	if gqlType.Elem != nil {
+		// For lists, objects should always be pointers (matching gqlgen behavior)
+		// Make baseType a pointer for consistency
+		elemBaseType := gotypes.NewPointer(baseType)
+
+		// Recursively wrap the element type
+		wrappedElem := g.wrapWithListAndNullability(elemBaseType, gqlType.Elem)
+
+		// Create a slice
+		sliceType := gotypes.NewSlice(wrappedElem)
+
+		// Make the slice pointer if it's nullable
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(sliceType)
+		}
+		return sliceType
+	}
+
+	return baseType
+}
+
+// buildGoType recursively builds the Go type from GraphQL type, handling lists and nullability
+func (g *GoTypeGenerator) buildGoType(gqlType *graphql.Type) gotypes.Type {
+	return g.buildGoTypeHelper(gqlType, false)
+}
+
+func (g *GoTypeGenerator) buildGoTypeHelper(gqlType *graphql.Type, inList bool) gotypes.Type {
+	// Base case: named type (e.g., String, Int, ID, or custom types)
+	if gqlType.NamedType != "" {
+		// findGoType will add pointer if needed based on the NonNull value
+		return g.findGoType(gqlType.NamedType, gqlType.NonNull)
+	}
+
+	// This is a list type (NamedType is empty and Elem is set)
+	if gqlType.Elem != nil {
+		// Process the element type recursively
+		elemType := g.buildGoTypeHelper(gqlType.Elem, false)
+
+		// Create a slice of the element type
+		sliceType := gotypes.NewSlice(elemType)
+
+		// Make the slice pointer if it's nullable
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(sliceType)
+		}
+		return sliceType
+	}
+
+	// Fallback - should not reach here
+	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
 }
 
 func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotypes.Type) gotypes.Type {

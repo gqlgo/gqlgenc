@@ -9,7 +9,8 @@
       "Bash(rm:*)",
       "Bash(go build:*)",
       "Bash(find:*)",
-      "Bash(GOEXPERIMENT=jsonv2 go doc:*)"
+      "Bash(GOEXPERIMENT=jsonv2 go doc:*)",
+      "WebFetch(domain:spec.graphql.org)"
     ],
     "deny": []
   }

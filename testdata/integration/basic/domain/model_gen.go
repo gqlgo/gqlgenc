@@ -20,6 +20,37 @@ type Profile interface {
 	IsProfile()
 }
 
+type Article struct {
+	ID                   string     `json:"id"`
+	Title                string     `json:"title"`
+	Tags                 []string   `json:"tags"`
+	OptionalTags         []string   `json:"optionalTags,omitempty,omitzero"`
+	Comments             []*Comment `json:"comments"`
+	OptionalComments     []*Comment `json:"optionalComments,omitempty,omitzero"`
+	Rating               float64    `json:"rating"`
+	OptionalRating       *float64   `json:"optionalRating,omitempty,omitzero"`
+	NullableElementsList []*string  `json:"nullableElementsList"`
+	FullyNullableList    []*string  `json:"fullyNullableList,omitempty,omitzero"`
+	Statuses             []Status   `json:"statuses"`
+	OptionalStatuses     []Status   `json:"optionalStatuses,omitempty,omitzero"`
+	Addresses            []Address  `json:"addresses"`
+	OptionalAddresses    []Address  `json:"optionalAddresses,omitempty,omitzero"`
+	Profiles             []Profile  `json:"profiles"`
+	OptionalProfiles     []Profile  `json:"optionalProfiles,omitempty,omitzero"`
+	Matrix               [][]string `json:"matrix"`
+	OptionalMatrix       [][]string `json:"optionalMatrix,omitempty,omitzero"`
+}
+
+type Comment struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+}
+
+type Metadata struct {
+	ID   string  `json:"id"`
+	Data *string `json:"data,omitempty,omitzero"`
+}
+
 type Mutation struct {
 }
 
@@ -59,8 +90,10 @@ type Query struct {
 }
 
 type UpdateUserInput struct {
-	ID   string                     `json:"id"`
-	Name graphql.Omittable[*string] `json:"name,omitempty,omitzero"`
+	ID       string                                `json:"id"`
+	Name     graphql.Omittable[*string]            `json:"name,omitempty,omitzero"`
+	Settings graphql.Omittable[*UserSettingsInput] `json:"settings,omitempty,omitzero"`
+	Tags     graphql.Omittable[[]string]           `json:"tags,omitempty,omitzero"`
 }
 
 type UpdateUserPayload struct {
@@ -74,6 +107,11 @@ type User struct {
 	OptionalProfile Profile `json:"optionalProfile,omitempty,omitzero"`
 	Address         Address `json:"address"`
 	OptionalAddress Address `json:"optionalAddress,omitempty,omitzero"`
+}
+
+type UserSettingsInput struct {
+	Theme         string `json:"theme"`
+	Notifications bool   `json:"notifications"`
 }
 
 type Status string

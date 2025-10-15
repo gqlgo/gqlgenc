@@ -4,7 +4,6 @@ go 1.25.2
 
 require (
 	github.com/99designs/gqlgen v0.17.73
-	github.com/go-json-experiment/json v0.0.0-20250417205406-170dfdcf87d1
 	github.com/goccy/go-yaml v1.17.1
 	github.com/google/go-cmp v0.7.0
 	github.com/vektah/gqlparser/v2 v2.5.26

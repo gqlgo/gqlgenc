@@ -2,15 +2,13 @@ package client
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"encoding/json/jsontext"
-
-	"github.com/Yamashou/gqlgenc/v3/graphqljson"
+	json "encoding/json/v2"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -106,7 +104,7 @@ func unmarshalResponse(respBody []byte, out any) error {
 		return fmt.Errorf("failed to decode response %q: %w", respBody, err)
 	}
 
-	if err := graphqljson.UnmarshalData(resp.Data, out); err != nil {
+	if err := json.Unmarshal(resp.Data, out); err != nil {
 		return fmt.Errorf("failed to decode response data %q: %w", resp.Data, err)
 	}
 

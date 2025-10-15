@@ -1,5 +1,7 @@
 directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
 
+scalar JSON
+
 schema {
   query: Query
   mutation: Mutation
@@ -8,6 +10,8 @@ schema {
 type Query {
   user: User! @goField(forceResolver: true)
   optionalUser: User @goField(forceResolver: true)
+  article(id: ID!): Article @goField(forceResolver: true)
+  metadata(id: ID!): Metadata @goField(forceResolver: true)
 }
 
 type Mutation {
@@ -17,6 +21,13 @@ type Mutation {
 input UpdateUserInput {
   id: ID!
   name: String
+  settings: UserSettingsInput
+  tags: [String!]
+}
+
+input UserSettingsInput {
+  theme: String!
+  notifications: Boolean!
 }
 
 type UpdateUserPayload {
@@ -63,4 +74,35 @@ type PrivateAddress implements Address {
   id: ID!
   street: String!
   private: Boolean!
+}
+
+type Article {
+  id: ID!
+  title: String!
+  tags: [String!]!
+  optionalTags: [String!]
+  comments: [Comment!]!
+  optionalComments: [Comment!]
+  rating: Float!
+  optionalRating: Float
+  nullableElementsList: [String]!
+  fullyNullableList: [String]
+  statuses: [Status!]!
+  optionalStatuses: [Status!]
+  addresses: [Address!]!
+  optionalAddresses: [Address!]
+  profiles: [Profile!]!
+  optionalProfiles: [Profile!]
+  matrix: [[String!]!]!
+  optionalMatrix: [[String!]!]
+}
+
+type Comment {
+  id: ID!
+  text: String!
+}
+
+type Metadata {
+  id: ID!
+  data: JSON
 }

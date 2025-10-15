@@ -7,7 +7,7 @@ mutation UpdateUser($input: UpdateUserInput!) {
 }
 
 
-query UserOperation {
+query UserOperation($articleId: ID!, $metadataId: ID!) {
   user {
     name
     name2: name
@@ -66,6 +66,66 @@ query UserOperation {
   }
   optionalUser {
     name
+  }
+  article(id: $articleId) {
+    id
+    title
+    tags
+    optionalTags
+    comments {
+      id
+      text
+    }
+    optionalComments {
+      id
+      text
+    }
+    rating
+    optionalRating
+    nullableElementsList
+    fullyNullableList
+    statuses
+    optionalStatuses
+    addresses {
+      street
+      ... on PublicAddress {
+        public
+      }
+      ... on PrivateAddress {
+        private
+      }
+    }
+    optionalAddresses {
+      street
+      ... on PublicAddress {
+        public
+      }
+      ... on PrivateAddress {
+        private
+      }
+    }
+    profiles {
+      ... on PublicProfile {
+        status
+      }
+      ... on PrivateProfile {
+        age
+      }
+    }
+    optionalProfiles {
+      ... on PublicProfile {
+        status
+      }
+      ... on PrivateProfile {
+        age
+      }
+    }
+    matrix
+    optionalMatrix
+  }
+  metadata(id: $metadataId) {
+    id
+    data
   }
 }
 

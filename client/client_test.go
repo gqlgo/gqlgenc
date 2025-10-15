@@ -93,7 +93,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "{\"data\":invalid_json}": invalid character 'i' looking for beginning of value`),
+				err:  errors.New(`failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 		{
@@ -108,7 +108,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "": unexpected end of JSON input`),
+				err:  errors.New(`failed to decode response "": jsontext: unexpected EOF`),
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data "\"invalid data format\"": decode graphql data: decode json: json: cannot unmarshal JSON string into Go map[string]interface {}`),
+				err:  errors.New(`failed to decode response data "\"invalid data format\"": json: cannot unmarshal JSON string into Go map[string]interface {}`),
 			},
 		},
 	}
@@ -299,7 +299,7 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: errors.New(`http status is OK but failed to decode response "{\"data\":invalid_json}": invalid character 'i' looking for beginning of value`),
+				err: errors.New(`http status is OK but failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 	}

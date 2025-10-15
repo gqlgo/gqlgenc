@@ -36,6 +36,84 @@ func Test_IntegrationTest(t *testing.T) {
 			want: want{
 				file: "./want/query_gen.go.txt",
 				userOperation: &domain.UserOperation{
+					Article: &domain.UserOperation_Article{
+						ID:    "article-1",
+						Title: "Test Article",
+						Tags:  []string{"tag1", "tag2", "tag3"},
+						OptionalTags: &[]string{"optional1", "optional2"},
+						Comments: []*domain.UserOperation_Article_Comments{
+							{ID: "1", Text: "First comment"},
+							{ID: "2", Text: "Second comment"},
+						},
+						OptionalComments: &[]*domain.UserOperation_Article_OptionalComments{
+							{ID: "3", Text: "Optional comment"},
+						},
+						Rating:         4.5,
+						OptionalRating: ptr(3.8),
+						NullableElementsList: []*string{
+							ptr("element1"),
+							nil,
+							ptr("element2"),
+						},
+						FullyNullableList: &[]*string{
+							ptr("nullable1"),
+							nil,
+						},
+						Statuses:         []domain.Status{domain.StatusActive, domain.StatusInactive},
+						OptionalStatuses: &[]domain.Status{domain.StatusActive},
+						Addresses: []*domain.UserOperation_Article_Addresses{
+							{
+								Street: "Public St",
+								PublicAddress: struct {
+									Public bool "json:\"public,omitempty,omitzero\""
+								}{Public: true},
+							},
+							{
+								Street: "Private St",
+								PrivateAddress: struct {
+									Private bool "json:\"private,omitempty,omitzero\""
+								}{Private: true},
+							},
+						},
+						OptionalAddresses: &[]*domain.UserOperation_Article_OptionalAddresses{
+							{
+								Street: "Optional St",
+								PublicAddress: struct {
+									Public bool "json:\"public,omitempty,omitzero\""
+								}{Public: false},
+							},
+						},
+						Profiles: []*domain.UserOperation_Article_Profiles{
+							{
+								PublicProfile: struct {
+									Status domain.Status "json:\"status,omitempty,omitzero\""
+								}{Status: domain.StatusActive},
+							},
+							{
+								PrivateProfile: struct {
+									Age *int "json:\"age\""
+								}{Age: ptr(25)},
+							},
+						},
+						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
+							{
+								PublicProfile: struct {
+									Status domain.Status "json:\"status,omitempty,omitzero\""
+								}{Status: domain.StatusInactive},
+							},
+						},
+						Matrix: [][]string{
+							{"a", "b", "c"},
+							{"d", "e", "f"},
+						},
+						OptionalMatrix: &[][]string{
+							{"x", "y"},
+						},
+					},
+					Metadata: &domain.UserOperation_Metadata{
+						ID:   "metadata-1",
+						Data: ptr(`{"key":"value","number":123}`),
+					},
 					OptionalUser: &domain.UserOperation_OptionalUser{
 						Name: "Sam Smith",
 					},
@@ -157,7 +235,7 @@ func Test_IntegrationTest(t *testing.T) {
 
 			// Query
 			{
-				userOperation, err := c.UserOperation(ctx)
+				userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1")
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}

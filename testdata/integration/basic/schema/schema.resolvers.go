@@ -47,6 +47,65 @@ func (r *queryResolver) OptionalUser(ctx context.Context) (*domain.User, error) 
 	}, nil
 }
 
+// Article is the resolver for the article field.
+func (r *queryResolver) Article(ctx context.Context, id string) (*domain.Article, error) {
+	rating := 4.5
+	optionalRating := 3.8
+	str1 := "element1"
+	str2 := "element2"
+	str3 := "nullable1"
+
+	return &domain.Article{
+		ID:           id,
+		Title:        "Test Article",
+		Tags:         []string{"tag1", "tag2", "tag3"},
+		OptionalTags: []string{"optional1", "optional2"},
+		Comments: []*domain.Comment{
+			{ID: "1", Text: "First comment"},
+			{ID: "2", Text: "Second comment"},
+		},
+		OptionalComments: []*domain.Comment{
+			{ID: "3", Text: "Optional comment"},
+		},
+		Rating:               rating,
+		OptionalRating:       &optionalRating,
+		NullableElementsList: []*string{&str1, nil, &str2},
+		FullyNullableList:    []*string{&str3, nil},
+		Statuses:             []domain.Status{domain.StatusActive, domain.StatusInactive},
+		OptionalStatuses:     []domain.Status{domain.StatusActive},
+		Addresses: []domain.Address{
+			&domain.PublicAddress{ID: "addr1", Street: "Public St", Public: true},
+			&domain.PrivateAddress{ID: "addr2", Street: "Private St", Private: true},
+		},
+		OptionalAddresses: []domain.Address{
+			&domain.PublicAddress{ID: "addr3", Street: "Optional St", Public: false},
+		},
+		Profiles: []domain.Profile{
+			&domain.PublicProfile{ID: "prof1", Status: domain.StatusActive},
+			&domain.PrivateProfile{ID: "prof2", Age: func() *int { i := 25; return &i }()},
+		},
+		OptionalProfiles: []domain.Profile{
+			&domain.PublicProfile{ID: "prof3", Status: domain.StatusInactive},
+		},
+		Matrix: [][]string{
+			{"a", "b", "c"},
+			{"d", "e", "f"},
+		},
+		OptionalMatrix: [][]string{
+			{"x", "y"},
+		},
+	}, nil
+}
+
+// Metadata is the resolver for the metadata field.
+func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metadata, error) {
+	data := `{"key":"value","number":123}`
+	return &domain.Metadata{
+		ID:   id,
+		Data: &data,
+	}, nil
+}
+
 // Profile is the resolver for the profile field.
 func (r *userResolver) Profile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
 	age := 30
