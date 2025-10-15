@@ -30,10 +30,11 @@ func (c *Client) UpdateUser(ctx context.Context, input domain.UpdateUserInput, o
 	return &res, nil
 }
 
-func (c *Client) UserOperation(ctx context.Context, articleID string, metadataID string, options ...client.Option) (*domain.UserOperation, error) {
+func (c *Client) UserOperation(ctx context.Context, articleID string, metadataID string, size *int, options ...client.Option) (*domain.UserOperation, error) {
 	vars := map[string]any{
 		"articleId":  articleID,
 		"metadataId": metadataID,
+		"size":       size,
 	}
 
 	var res domain.UserOperation

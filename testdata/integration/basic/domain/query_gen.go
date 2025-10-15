@@ -672,6 +672,7 @@ type UserOperation_User struct {
 	UserFragment1   "json:\"-\""
 	UserFragment2   "json:\"-\""
 	Address         UserOperation_User_Address          "json:\"address,omitempty,omitzero\""
+	DefaultPic      string                              "json:\"defaultPic,omitempty,omitzero\""
 	LargePic        string                              "json:\"largePic,omitempty,omitzero\""
 	Name            string                              "json:\"name,omitempty,omitzero\""
 	Name2           string                              "json:\"name2,omitempty,omitzero\""
@@ -695,6 +696,11 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	*t = UserOperation_User(aux)
 	if value, ok := raw["address"]; ok {
 		if err := json.Unmarshal(value, &t.Address); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["defaultPic"]; ok {
+		if err := json.Unmarshal(value, &t.DefaultPic); err != nil {
 			return err
 		}
 	}
@@ -1036,12 +1042,13 @@ const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {
 	}
 }
 `
-const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!) {
+const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!, $size: Int = 100) {
 	user {
 		name
 		name2: name
 		smallPic: profilePic(size: 50)
 		largePic: profilePic(size: 500)
+		defaultPic: profilePic(size: $size)
 		profile {
 			... PublicProfileFields
 			... PrivateProfileFields

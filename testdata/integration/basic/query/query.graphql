@@ -7,12 +7,13 @@ mutation UpdateUser($input: UpdateUserInput!) {
 }
 
 
-query UserOperation($articleId: ID!, $metadataId: ID!) {
+query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100) {
   user {
     name
     name2: name
     smallPic: profilePic(size: 50)
     largePic: profilePic(size: 500)
+    defaultPic: profilePic(size: $size)
     profile {
       ...PublicProfileFields
       ...PrivateProfileFields

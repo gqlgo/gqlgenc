@@ -169,6 +169,7 @@ func Test_IntegrationTest(t *testing.T) {
 						Name2:         "John Doe",
 						SmallPic:      "https://example.com/pic_1_50.jpg",
 						LargePic:      "https://example.com/pic_1_500.jpg",
+						DefaultPic:    "https://example.com/pic_1_100.jpg",
 						Address: domain.UserOperation_User_Address{
 							Street: "123 Main St",
 							PrivateAddressFields: domain.PrivateAddressFields{
@@ -273,7 +274,8 @@ func Test_IntegrationTest(t *testing.T) {
 
 			// Query
 			{
-				userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1")
+				size := 100
+			userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size)
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
