@@ -8,7 +8,7 @@ schema {
 }
 
 type Query {
-  user: User! @goField(forceResolver: true)
+  user(id: ID, status: Status): User! @goField(forceResolver: true)
   optionalUser: User @goField(forceResolver: true)
   article(id: ID!): Article @goField(forceResolver: true)
   metadata(id: ID!): Metadata @goField(forceResolver: true)

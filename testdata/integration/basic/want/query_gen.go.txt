@@ -1081,8 +1081,8 @@ const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {
 	}
 }
 `
-const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!, $size: Int = 100) {
-	user {
+const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
+	user(id: $userId, status: $userStatus) {
 		name
 		name2: name
 		smallPic: profilePic(size: 50)

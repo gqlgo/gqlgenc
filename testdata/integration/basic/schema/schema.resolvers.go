@@ -47,9 +47,13 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateU
 }
 
 // User is the resolver for the user field.
-func (r *queryResolver) User(ctx context.Context) (*domain.User, error) {
+func (r *queryResolver) User(ctx context.Context, id *string, status *domain.Status) (*domain.User, error) {
+	userID := "1"
+	if id != nil {
+		userID = *id
+	}
 	return &domain.User{
-		ID:   "1",
+		ID:   userID,
 		Name: "John Doe",
 	}, nil
 }

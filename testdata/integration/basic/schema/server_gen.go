@@ -109,7 +109,7 @@ type ComplexityRoot struct {
 		Article      func(childComplexity int, id string) int
 		Metadata     func(childComplexity int, id string) int
 		OptionalUser func(childComplexity int) int
-		User         func(childComplexity int) int
+		User         func(childComplexity int, id *string, status *domain.Status) int
 	}
 
 	UpdateUserPayload struct {
@@ -137,7 +137,7 @@ type MutationResolver interface {
 	UpdateUser(ctx context.Context, input *domain.UpdateUserInput) (*domain.UpdateUserPayload, error)
 }
 type QueryResolver interface {
-	User(ctx context.Context) (*domain.User, error)
+	User(ctx context.Context, id *string, status *domain.Status) (*domain.User, error)
 	OptionalUser(ctx context.Context) (*domain.User, error)
 	Article(ctx context.Context, id string) (*domain.Article, error)
 	Metadata(ctx context.Context, id string) (*domain.Metadata, error)
@@ -441,7 +441,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.Query.User(childComplexity), true
+		args, err := ec.field_Query_user_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.User(childComplexity, args["id"].(*string), args["status"].(*domain.Status)), true
 
 	case "UpdateUserPayload.user":
 		if e.complexity.UpdateUserPayload.User == nil {
@@ -760,6 +765,57 @@ func (ec *executionContext) field_Query_metadata_argsID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_user_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_user_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Query_user_argsStatus(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["status"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_user_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalOID2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_user_argsStatus(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*domain.Status, error) {
+	if _, ok := rawArgs["status"]; !ok {
+		var zeroVal *domain.Status
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
+	if tmp, ok := rawArgs["status"]; ok {
+		return ec.unmarshalOStatus2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐStatus(ctx, tmp)
+	}
+
+	var zeroVal *domain.Status
 	return zeroVal, nil
 }
 
@@ -2374,7 +2430,7 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().User(rctx)
+		return ec.resolvers.Query().User(rctx, fc.Args["id"].(*string), fc.Args["status"].(*domain.Status))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2391,7 +2447,7 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 	return ec.marshalNUser2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -2418,6 +2474,17 @@ func (ec *executionContext) fieldContext_Query_user(_ context.Context, field gra
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_user_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -7372,6 +7439,24 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
 	if v == nil {
 		return nil, nil
@@ -7532,6 +7617,22 @@ func (ec *executionContext) marshalOStatus2ᚕgithubᚗcomᚋYamashouᚋgqlgenc�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOStatus2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐStatus(ctx context.Context, v any) (*domain.Status, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(domain.Status)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOStatus2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐStatus(ctx context.Context, sel ast.SelectionSet, v *domain.Status) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

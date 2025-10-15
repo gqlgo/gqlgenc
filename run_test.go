@@ -275,7 +275,9 @@ func Test_IntegrationTest(t *testing.T) {
 			// Query
 			{
 				size := 100
-			userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size)
+			userID := "1"
+			userStatus := domain.StatusActive
+			userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size, &userID, &userStatus)
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
