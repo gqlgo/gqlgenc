@@ -13,9 +13,41 @@ type PrivateAddressFields struct {
 	Street  string "json:\"street,omitempty,omitzero\""
 }
 
+func (t *PrivateAddressFields) GetID() string {
+	if t == nil {
+		t = &PrivateAddressFields{}
+	}
+	return t.ID
+}
+func (t *PrivateAddressFields) GetPrivate() bool {
+	if t == nil {
+		t = &PrivateAddressFields{}
+	}
+	return t.Private
+}
+func (t *PrivateAddressFields) GetStreet() string {
+	if t == nil {
+		t = &PrivateAddressFields{}
+	}
+	return t.Street
+}
+
 type PrivateProfileFields struct {
 	Age *int   "json:\"age\""
 	ID  string "json:\"id,omitempty,omitzero\""
+}
+
+func (t *PrivateProfileFields) GetAge() *int {
+	if t == nil {
+		t = &PrivateProfileFields{}
+	}
+	return t.Age
+}
+func (t *PrivateProfileFields) GetID() string {
+	if t == nil {
+		t = &PrivateProfileFields{}
+	}
+	return t.ID
 }
 
 type PublicAddressFields struct {
@@ -24,9 +56,41 @@ type PublicAddressFields struct {
 	Street string "json:\"street,omitempty,omitzero\""
 }
 
+func (t *PublicAddressFields) GetID() string {
+	if t == nil {
+		t = &PublicAddressFields{}
+	}
+	return t.ID
+}
+func (t *PublicAddressFields) GetPublic() bool {
+	if t == nil {
+		t = &PublicAddressFields{}
+	}
+	return t.Public
+}
+func (t *PublicAddressFields) GetStreet() string {
+	if t == nil {
+		t = &PublicAddressFields{}
+	}
+	return t.Street
+}
+
 type PublicProfileFields struct {
 	ID     string "json:\"id,omitempty,omitzero\""
 	Status Status "json:\"status,omitempty,omitzero\""
+}
+
+func (t *PublicProfileFields) GetID() string {
+	if t == nil {
+		t = &PublicProfileFields{}
+	}
+	return t.ID
+}
+func (t *PublicProfileFields) GetStatus() Status {
+	if t == nil {
+		t = &PublicProfileFields{}
+	}
+	return t.Status
 }
 
 type UpdateUser struct {
@@ -80,6 +144,12 @@ func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
+	if t == nil {
+		t = &UpdateUser_UpdateUser{}
+	}
+	return t.User
+}
 
 type UpdateUser_UpdateUser_User struct {
 	Name     string                               "json:\"name,omitempty,omitzero\""
@@ -108,6 +178,18 @@ func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UpdateUser_UpdateUser_User) GetName() string {
+	if t == nil {
+		t = &UpdateUser_UpdateUser_User{}
+	}
+	return t.Name
+}
+func (t *UpdateUser_UpdateUser_User) GetSettings() *UpdateUser_UpdateUser_User_Settings {
+	if t == nil {
+		t = &UpdateUser_UpdateUser_User{}
+	}
+	return t.Settings
 }
 
 type UpdateUser_UpdateUser_User_Settings struct {
@@ -138,6 +220,18 @@ func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UpdateUser_UpdateUser_User_Settings) GetNotifications() bool {
+	if t == nil {
+		t = &UpdateUser_UpdateUser_User_Settings{}
+	}
+	return t.Notifications
+}
+func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
+	if t == nil {
+		t = &UpdateUser_UpdateUser_User_Settings{}
+	}
+	return t.Theme
+}
 
 type UserFragment1 struct {
 	User struct {
@@ -145,6 +239,27 @@ type UserFragment1 struct {
 	} "json:\"-\""
 	Name    string                "json:\"name,omitempty,omitzero\""
 	Profile UserFragment1_Profile "json:\"profile,omitempty,omitzero\""
+}
+
+func (t *UserFragment1) GetUser() struct {
+	Name string "json:\"name,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserFragment1{}
+	}
+	return t.User
+}
+func (t *UserFragment1) GetName() string {
+	if t == nil {
+		t = &UserFragment1{}
+	}
+	return t.Name
+}
+func (t *UserFragment1) GetProfile() UserFragment1_Profile {
+	if t == nil {
+		t = &UserFragment1{}
+	}
+	return t.Profile
 }
 
 type UserFragment1_Profile struct {
@@ -185,6 +300,22 @@ func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserFragment1_Profile) GetPrivateProfile() struct {
+	Age *int "json:\"age\""
+} {
+	if t == nil {
+		t = &UserFragment1_Profile{}
+	}
+	return t.PrivateProfile
+}
+func (t *UserFragment1_Profile) GetPublicProfile() struct {
+	Status Status "json:\"status,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserFragment1_Profile{}
+	}
+	return t.PublicProfile
+}
 
 type UserFragment2 struct {
 	Name string "json:\"name,omitempty,omitzero\""
@@ -207,6 +338,12 @@ func (t *UserFragment2) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UserFragment2) GetName() string {
+	if t == nil {
+		t = &UserFragment2{}
+	}
+	return t.Name
 }
 
 type UserOperation struct {
@@ -398,6 +535,114 @@ func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_Article) GetAddresses() []*UserOperation_Article_Addresses {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Addresses
+}
+func (t *UserOperation_Article) GetComments() []*UserOperation_Article_Comments {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Comments
+}
+func (t *UserOperation_Article) GetFullyNullableList() *[]*string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.FullyNullableList
+}
+func (t *UserOperation_Article) GetID() string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.ID
+}
+func (t *UserOperation_Article) GetMatrix() [][]string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Matrix
+}
+func (t *UserOperation_Article) GetNullableElementsList() []*string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.NullableElementsList
+}
+func (t *UserOperation_Article) GetOptionalAddresses() *[]*UserOperation_Article_OptionalAddresses {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalAddresses
+}
+func (t *UserOperation_Article) GetOptionalComments() *[]*UserOperation_Article_OptionalComments {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalComments
+}
+func (t *UserOperation_Article) GetOptionalMatrix() *[][]string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalMatrix
+}
+func (t *UserOperation_Article) GetOptionalProfiles() *[]*UserOperation_Article_OptionalProfiles {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalProfiles
+}
+func (t *UserOperation_Article) GetOptionalRating() *float64 {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalRating
+}
+func (t *UserOperation_Article) GetOptionalStatuses() *[]Status {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalStatuses
+}
+func (t *UserOperation_Article) GetOptionalTags() *[]string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.OptionalTags
+}
+func (t *UserOperation_Article) GetProfiles() []*UserOperation_Article_Profiles {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Profiles
+}
+func (t *UserOperation_Article) GetRating() float64 {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Rating
+}
+func (t *UserOperation_Article) GetStatuses() []Status {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Statuses
+}
+func (t *UserOperation_Article) GetTags() []string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Tags
+}
+func (t *UserOperation_Article) GetTitle() string {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.Title
+}
 
 type UserOperation_Article_Addresses struct {
 	PrivateAddressFields "json:\"-\""
@@ -459,6 +704,24 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_Article_Addresses) GetPrivateAddressFields() PrivateAddressFields {
+	if t == nil {
+		t = &UserOperation_Article_Addresses{}
+	}
+	return t.PrivateAddressFields
+}
+func (t *UserOperation_Article_Addresses) GetPublicAddressFields() PublicAddressFields {
+	if t == nil {
+		t = &UserOperation_Article_Addresses{}
+	}
+	return t.PublicAddressFields
+}
+func (t *UserOperation_Article_Addresses) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_Article_Addresses{}
+	}
+	return t.Street
+}
 
 type UserOperation_Article_Comments struct {
 	ID   string "json:\"id,omitempty,omitzero\""
@@ -487,6 +750,18 @@ func (t *UserOperation_Article_Comments) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UserOperation_Article_Comments) GetID() string {
+	if t == nil {
+		t = &UserOperation_Article_Comments{}
+	}
+	return t.ID
+}
+func (t *UserOperation_Article_Comments) GetText() string {
+	if t == nil {
+		t = &UserOperation_Article_Comments{}
+	}
+	return t.Text
 }
 
 type UserOperation_Article_OptionalAddresses struct {
@@ -533,6 +808,28 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) err
 	}
 	return nil
 }
+func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() struct {
+	Private bool "json:\"private,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_OptionalAddresses{}
+	}
+	return t.PrivateAddress
+}
+func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() struct {
+	Public bool "json:\"public,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_OptionalAddresses{}
+	}
+	return t.PublicAddress
+}
+func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_Article_OptionalAddresses{}
+	}
+	return t.Street
+}
 
 type UserOperation_Article_OptionalComments struct {
 	ID   string "json:\"id,omitempty,omitzero\""
@@ -561,6 +858,18 @@ func (t *UserOperation_Article_OptionalComments) UnmarshalJSON(data []byte) erro
 		}
 	}
 	return nil
+}
+func (t *UserOperation_Article_OptionalComments) GetID() string {
+	if t == nil {
+		t = &UserOperation_Article_OptionalComments{}
+	}
+	return t.ID
+}
+func (t *UserOperation_Article_OptionalComments) GetText() string {
+	if t == nil {
+		t = &UserOperation_Article_OptionalComments{}
+	}
+	return t.Text
 }
 
 type UserOperation_Article_OptionalProfiles struct {
@@ -600,6 +909,22 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) erro
 		}
 	}
 	return nil
+}
+func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() struct {
+	Age *int "json:\"age\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_OptionalProfiles{}
+	}
+	return t.PrivateProfile
+}
+func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() struct {
+	Status Status "json:\"status,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_OptionalProfiles{}
+	}
+	return t.PublicProfile
 }
 
 type UserOperation_Article_Profiles struct {
@@ -646,6 +971,18 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_Article_Profiles) GetPrivateProfileFields() PrivateProfileFields {
+	if t == nil {
+		t = &UserOperation_Article_Profiles{}
+	}
+	return t.PrivateProfileFields
+}
+func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileFields {
+	if t == nil {
+		t = &UserOperation_Article_Profiles{}
+	}
+	return t.PublicProfileFields
+}
 
 type UserOperation_Metadata struct {
 	Data *string "json:\"data\""
@@ -675,6 +1012,18 @@ func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_Metadata) GetData() *string {
+	if t == nil {
+		t = &UserOperation_Metadata{}
+	}
+	return t.Data
+}
+func (t *UserOperation_Metadata) GetID() string {
+	if t == nil {
+		t = &UserOperation_Metadata{}
+	}
+	return t.ID
+}
 
 type UserOperation_OptionalUser struct {
 	Email Email  "json:\"email,omitempty,omitzero\""
@@ -703,6 +1052,18 @@ func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UserOperation_OptionalUser) GetEmail() Email {
+	if t == nil {
+		t = &UserOperation_OptionalUser{}
+	}
+	return t.Email
+}
+func (t *UserOperation_OptionalUser) GetName() string {
+	if t == nil {
+		t = &UserOperation_OptionalUser{}
+	}
+	return t.Name
 }
 
 type UserOperation_User struct {
@@ -833,6 +1194,93 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_User) GetUser() struct {
+	UserFragment2 "json:\"-\""
+	Name          string "json:\"name,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.User
+}
+func (t *UserOperation_User) GetUserFragment1() UserFragment1 {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.UserFragment1
+}
+func (t *UserOperation_User) GetUserFragment2() UserFragment2 {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.UserFragment2
+}
+func (t *UserOperation_User) GetAddress() UserOperation_User_Address {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Address
+}
+func (t *UserOperation_User) GetDefaultPic() string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.DefaultPic
+}
+func (t *UserOperation_User) GetEmail() Email {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Email
+}
+func (t *UserOperation_User) GetLargePic() string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.LargePic
+}
+func (t *UserOperation_User) GetName() string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Name
+}
+func (t *UserOperation_User) GetName2() string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Name2
+}
+func (t *UserOperation_User) GetOptionalAddress() *UserOperation_User_OptionalAddress {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.OptionalAddress
+}
+func (t *UserOperation_User) GetOptionalProfile() *UserOperation_User_OptionalProfile {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.OptionalProfile
+}
+func (t *UserOperation_User) GetProfile() UserOperation_User_Profile {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Profile
+}
+func (t *UserOperation_User) GetProfile2() UserOperation_User_Profile2 {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.Profile2
+}
+func (t *UserOperation_User) GetSmallPic() string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.SmallPic
+}
 
 type UserOperation_User_Address struct {
 	PrivateAddressFields "json:\"-\""
@@ -894,6 +1342,24 @@ func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_User_Address) GetPrivateAddressFields() PrivateAddressFields {
+	if t == nil {
+		t = &UserOperation_User_Address{}
+	}
+	return t.PrivateAddressFields
+}
+func (t *UserOperation_User_Address) GetPublicAddressFields() PublicAddressFields {
+	if t == nil {
+		t = &UserOperation_User_Address{}
+	}
+	return t.PublicAddressFields
+}
+func (t *UserOperation_User_Address) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_User_Address{}
+	}
+	return t.Street
+}
 
 type UserOperation_User_OptionalAddress struct {
 	PrivateAddress struct {
@@ -951,6 +1417,30 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() struct {
+	Private bool   "json:\"private,omitempty,omitzero\""
+	Street  string "json:\"street,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress{}
+	}
+	return t.PrivateAddress
+}
+func (t *UserOperation_User_OptionalAddress) GetPublicAddress() struct {
+	Public bool   "json:\"public,omitempty,omitzero\""
+	Street string "json:\"street,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress{}
+	}
+	return t.PublicAddress
+}
+func (t *UserOperation_User_OptionalAddress) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress{}
+	}
+	return t.Street
+}
 
 type UserOperation_User_OptionalProfile struct {
 	PrivateProfileFields "json:\"-\""
@@ -995,6 +1485,18 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UserOperation_User_OptionalProfile) GetPrivateProfileFields() PrivateProfileFields {
+	if t == nil {
+		t = &UserOperation_User_OptionalProfile{}
+	}
+	return t.PrivateProfileFields
+}
+func (t *UserOperation_User_OptionalProfile) GetPublicProfileFields() PublicProfileFields {
+	if t == nil {
+		t = &UserOperation_User_OptionalProfile{}
+	}
+	return t.PublicProfileFields
 }
 
 type UserOperation_User_Profile struct {
@@ -1041,6 +1543,18 @@ func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (t *UserOperation_User_Profile) GetPrivateProfileFields() PrivateProfileFields {
+	if t == nil {
+		t = &UserOperation_User_Profile{}
+	}
+	return t.PrivateProfileFields
+}
+func (t *UserOperation_User_Profile) GetPublicProfileFields() PublicProfileFields {
+	if t == nil {
+		t = &UserOperation_User_Profile{}
+	}
+	return t.PublicProfileFields
+}
 
 type UserOperation_User_Profile2 struct {
 	PrivateProfile struct {
@@ -1079,6 +1593,22 @@ func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+func (t *UserOperation_User_Profile2) GetPrivateProfile() struct {
+	Age *int "json:\"age\""
+} {
+	if t == nil {
+		t = &UserOperation_User_Profile2{}
+	}
+	return t.PrivateProfile
+}
+func (t *UserOperation_User_Profile2) GetPublicProfile() struct {
+	Status Status "json:\"status,omitempty,omitzero\""
+} {
+	if t == nil {
+		t = &UserOperation_User_Profile2{}
+	}
+	return t.PublicProfile
 }
 
 const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {

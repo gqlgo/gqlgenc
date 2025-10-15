@@ -74,9 +74,6 @@ func genCode(t types.Type) string {
 
 		fmt.Fprintf(&buf, "\treturn nil\n}\n")
 	}
-	if nonnull := pointerType == nil; nonnull {
-		return buf.String()
-	}
 
 	for i := range structType.NumFields() {
 		field := structType.Field(i)
