@@ -78,12 +78,32 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	typeName := fieldTypeName(parentTypeName, sel.Alias, g.cfg.GQLGencConfig.ExportQueryType)
 	fields := g.newFields(typeName, sel.SelectionSet)
 	if len(fields) == 0 {
-		t := g.findGoType(sel.Definition.Type.Name(), sel.Definition.Type.NonNull)
+		t := g.buildScalarType(sel.Definition.Type)
 		return Scalar, t
 	}
 
 	t := g.newGoNamedType(typeName, sel.Definition.Type.NonNull, fields.goStructType())
 	return Object, t
+}
+
+// buildScalarType recursively builds Go type from GraphQL scalar type structure
+func (g *GoTypeGenerator) buildScalarType(gqlType *graphql.Type) gotypes.Type {
+	// Base case: named type (e.g., String, Int, Status)
+	if gqlType.NamedType != "" {
+		return g.findGoType(gqlType.NamedType, gqlType.NonNull)
+	}
+
+	// List type case
+	if gqlType.Elem != nil {
+		elemType := g.buildScalarType(gqlType.Elem)
+		sliceType := gotypes.NewSlice(elemType)
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(sliceType)
+		}
+		return sliceType
+	}
+
+	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
 }
 
 func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotypes.Type) gotypes.Type {
