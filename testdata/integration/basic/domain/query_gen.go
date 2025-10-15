@@ -138,18 +138,6 @@ func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-func (t *UpdateUser_UpdateUser_User_Settings) GetNotifications() bool {
-	if t == nil {
-		t = &UpdateUser_UpdateUser_User_Settings{}
-	}
-	return t.Notifications
-}
-func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
-	if t == nil {
-		t = &UpdateUser_UpdateUser_User_Settings{}
-	}
-	return t.Theme
-}
 
 type UserFragment1 struct {
 	User struct {
@@ -287,24 +275,24 @@ func (t *UserOperation) GetUser() UserOperation_User {
 }
 
 type UserOperation_Article struct {
-	Addresses            UserOperation_Article_Addresses          "json:\"addresses,omitempty,omitzero\""
-	Comments             UserOperation_Article_Comments           "json:\"comments,omitempty,omitzero\""
-	FullyNullableList    *string                                  "json:\"fullyNullableList\""
-	ID                   string                                   "json:\"id,omitempty,omitzero\""
-	Matrix               string                                   "json:\"matrix,omitempty,omitzero\""
-	NullableElementsList string                                   "json:\"nullableElementsList,omitempty,omitzero\""
-	OptionalAddresses    *UserOperation_Article_OptionalAddresses "json:\"optionalAddresses\""
-	OptionalComments     *UserOperation_Article_OptionalComments  "json:\"optionalComments\""
-	OptionalMatrix       *string                                  "json:\"optionalMatrix\""
-	OptionalProfiles     *UserOperation_Article_OptionalProfiles  "json:\"optionalProfiles\""
-	OptionalRating       *float64                                 "json:\"optionalRating\""
-	OptionalStatuses     *Status                                  "json:\"optionalStatuses\""
-	OptionalTags         *string                                  "json:\"optionalTags\""
-	Profiles             UserOperation_Article_Profiles           "json:\"profiles,omitempty,omitzero\""
-	Rating               float64                                  "json:\"rating,omitempty,omitzero\""
-	Statuses             Status                                   "json:\"statuses,omitempty,omitzero\""
-	Tags                 string                                   "json:\"tags,omitempty,omitzero\""
-	Title                string                                   "json:\"title,omitempty,omitzero\""
+	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses,omitempty,omitzero\""
+	Comments             []*UserOperation_Article_Comments           "json:\"comments,omitempty,omitzero\""
+	FullyNullableList    *[]*string                                  "json:\"fullyNullableList\""
+	ID                   string                                      "json:\"id,omitempty,omitzero\""
+	Matrix               [][]string                                  "json:\"matrix,omitempty,omitzero\""
+	NullableElementsList []*string                                   "json:\"nullableElementsList,omitempty,omitzero\""
+	OptionalAddresses    *[]*UserOperation_Article_OptionalAddresses "json:\"optionalAddresses\""
+	OptionalComments     *[]*UserOperation_Article_OptionalComments  "json:\"optionalComments\""
+	OptionalMatrix       *[][]string                                 "json:\"optionalMatrix\""
+	OptionalProfiles     *[]*UserOperation_Article_OptionalProfiles  "json:\"optionalProfiles\""
+	OptionalRating       *float64                                    "json:\"optionalRating\""
+	OptionalStatuses     *[]Status                                   "json:\"optionalStatuses\""
+	OptionalTags         *[]string                                   "json:\"optionalTags\""
+	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles,omitempty,omitzero\""
+	Rating               float64                                     "json:\"rating,omitempty,omitzero\""
+	Statuses             []Status                                    "json:\"statuses,omitempty,omitzero\""
+	Tags                 []string                                    "json:\"tags,omitempty,omitzero\""
+	Title                string                                      "json:\"title,omitempty,omitzero\""
 }
 
 func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
@@ -409,114 +397,6 @@ func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
-}
-func (t *UserOperation_Article) GetAddresses() UserOperation_Article_Addresses {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Addresses
-}
-func (t *UserOperation_Article) GetComments() UserOperation_Article_Comments {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Comments
-}
-func (t *UserOperation_Article) GetFullyNullableList() *string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.FullyNullableList
-}
-func (t *UserOperation_Article) GetID() string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.ID
-}
-func (t *UserOperation_Article) GetMatrix() string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Matrix
-}
-func (t *UserOperation_Article) GetNullableElementsList() string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.NullableElementsList
-}
-func (t *UserOperation_Article) GetOptionalAddresses() *UserOperation_Article_OptionalAddresses {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalAddresses
-}
-func (t *UserOperation_Article) GetOptionalComments() *UserOperation_Article_OptionalComments {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalComments
-}
-func (t *UserOperation_Article) GetOptionalMatrix() *string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalMatrix
-}
-func (t *UserOperation_Article) GetOptionalProfiles() *UserOperation_Article_OptionalProfiles {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalProfiles
-}
-func (t *UserOperation_Article) GetOptionalRating() *float64 {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalRating
-}
-func (t *UserOperation_Article) GetOptionalStatuses() *Status {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalStatuses
-}
-func (t *UserOperation_Article) GetOptionalTags() *string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.OptionalTags
-}
-func (t *UserOperation_Article) GetProfiles() UserOperation_Article_Profiles {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Profiles
-}
-func (t *UserOperation_Article) GetRating() float64 {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Rating
-}
-func (t *UserOperation_Article) GetStatuses() Status {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Statuses
-}
-func (t *UserOperation_Article) GetTags() string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Tags
-}
-func (t *UserOperation_Article) GetTitle() string {
-	if t == nil {
-		t = &UserOperation_Article{}
-	}
-	return t.Title
 }
 
 type UserOperation_Article_Addresses struct {
@@ -653,28 +533,6 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) err
 	}
 	return nil
 }
-func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() struct {
-	Private bool "json:\"private,omitempty,omitzero\""
-} {
-	if t == nil {
-		t = &UserOperation_Article_OptionalAddresses{}
-	}
-	return t.PrivateAddress
-}
-func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() struct {
-	Public bool "json:\"public,omitempty,omitzero\""
-} {
-	if t == nil {
-		t = &UserOperation_Article_OptionalAddresses{}
-	}
-	return t.PublicAddress
-}
-func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
-	if t == nil {
-		t = &UserOperation_Article_OptionalAddresses{}
-	}
-	return t.Street
-}
 
 type UserOperation_Article_OptionalComments struct {
 	ID   string "json:\"id,omitempty,omitzero\""
@@ -703,18 +561,6 @@ func (t *UserOperation_Article_OptionalComments) UnmarshalJSON(data []byte) erro
 		}
 	}
 	return nil
-}
-func (t *UserOperation_Article_OptionalComments) GetID() string {
-	if t == nil {
-		t = &UserOperation_Article_OptionalComments{}
-	}
-	return t.ID
-}
-func (t *UserOperation_Article_OptionalComments) GetText() string {
-	if t == nil {
-		t = &UserOperation_Article_OptionalComments{}
-	}
-	return t.Text
 }
 
 type UserOperation_Article_OptionalProfiles struct {
@@ -754,22 +600,6 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) erro
 		}
 	}
 	return nil
-}
-func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() struct {
-	Age *int "json:\"age\""
-} {
-	if t == nil {
-		t = &UserOperation_Article_OptionalProfiles{}
-	}
-	return t.PrivateProfile
-}
-func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() struct {
-	Status Status "json:\"status,omitempty,omitzero\""
-} {
-	if t == nil {
-		t = &UserOperation_Article_OptionalProfiles{}
-	}
-	return t.PublicProfile
 }
 
 type UserOperation_Article_Profiles struct {
@@ -845,18 +675,6 @@ func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-func (t *UserOperation_Metadata) GetData() *string {
-	if t == nil {
-		t = &UserOperation_Metadata{}
-	}
-	return t.Data
-}
-func (t *UserOperation_Metadata) GetID() string {
-	if t == nil {
-		t = &UserOperation_Metadata{}
-	}
-	return t.ID
-}
 
 type UserOperation_OptionalUser struct {
 	Email Email  "json:\"email,omitempty,omitzero\""
@@ -885,18 +703,6 @@ func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
-}
-func (t *UserOperation_OptionalUser) GetEmail() Email {
-	if t == nil {
-		t = &UserOperation_OptionalUser{}
-	}
-	return t.Email
-}
-func (t *UserOperation_OptionalUser) GetName() string {
-	if t == nil {
-		t = &UserOperation_OptionalUser{}
-	}
-	return t.Name
 }
 
 type UserOperation_User struct {
@@ -1145,30 +951,6 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
-func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() struct {
-	Private bool   "json:\"private,omitempty,omitzero\""
-	Street  string "json:\"street,omitempty,omitzero\""
-} {
-	if t == nil {
-		t = &UserOperation_User_OptionalAddress{}
-	}
-	return t.PrivateAddress
-}
-func (t *UserOperation_User_OptionalAddress) GetPublicAddress() struct {
-	Public bool   "json:\"public,omitempty,omitzero\""
-	Street string "json:\"street,omitempty,omitzero\""
-} {
-	if t == nil {
-		t = &UserOperation_User_OptionalAddress{}
-	}
-	return t.PublicAddress
-}
-func (t *UserOperation_User_OptionalAddress) GetStreet() string {
-	if t == nil {
-		t = &UserOperation_User_OptionalAddress{}
-	}
-	return t.Street
-}
 
 type UserOperation_User_OptionalProfile struct {
 	PrivateProfileFields "json:\"-\""
@@ -1213,18 +995,6 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
-}
-func (t *UserOperation_User_OptionalProfile) GetPrivateProfileFields() PrivateProfileFields {
-	if t == nil {
-		t = &UserOperation_User_OptionalProfile{}
-	}
-	return t.PrivateProfileFields
-}
-func (t *UserOperation_User_OptionalProfile) GetPublicProfileFields() PublicProfileFields {
-	if t == nil {
-		t = &UserOperation_User_OptionalProfile{}
-	}
-	return t.PublicProfileFields
 }
 
 type UserOperation_User_Profile struct {

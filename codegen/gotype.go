@@ -82,7 +82,9 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 		return Scalar, t
 	}
 
-	t := g.newGoNamedType(typeName, sel.Definition.Type.NonNull, fields.goStructType())
+	// Create base type (always non-null) then wrap with list structure
+	baseType := g.newGoNamedType(typeName, true, fields.goStructType())
+	t := g.wrapObjectType(baseType, sel.Definition.Type)
 	return Object, t
 }
 
@@ -96,6 +98,30 @@ func (g *GoTypeGenerator) buildScalarType(gqlType *graphql.Type) gotypes.Type {
 	// List type case
 	if gqlType.Elem != nil {
 		elemType := g.buildScalarType(gqlType.Elem)
+		sliceType := gotypes.NewSlice(elemType)
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(sliceType)
+		}
+		return sliceType
+	}
+
+	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
+}
+
+// wrapObjectType wraps object type with list structure (elements are always pointers)
+func (g *GoTypeGenerator) wrapObjectType(baseType gotypes.Type, gqlType *graphql.Type) gotypes.Type {
+	// Base case: named type
+	if gqlType.NamedType != "" {
+		if !gqlType.NonNull {
+			return gotypes.NewPointer(baseType)
+		}
+		return baseType
+	}
+
+	// List type case: elements are always pointers for object types
+	if gqlType.Elem != nil {
+		elemBaseType := gotypes.NewPointer(baseType)
+		elemType := g.wrapObjectType(elemBaseType, gqlType.Elem)
 		sliceType := gotypes.NewSlice(elemType)
 		if !gqlType.NonNull {
 			return gotypes.NewPointer(sliceType)
