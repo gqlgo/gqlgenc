@@ -60,7 +60,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 	switch sel := selection.(type) {
 	case *graphql.Field:
 		typeKind, t := g.newTypeKindAndGoType(parentTypeName, sel)
-		tags := []string{fmt.Sprintf(`json:"%s%s"`, sel.Alias, g.jsonOmitTag(sel)), fmt.Sprintf(`graphql:"%s"`, sel.Alias)}
+		tags := []string{fmt.Sprintf(`json:"%s%s"`, sel.Alias, g.jsonOmitTag(sel))}
 		return newField(typeKind, t, sel.Alias, tags)
 	case *graphql.FragmentSpread:
 		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
@@ -68,7 +68,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		return newField(FragmentSpread, namedType, sel.Name, []string{`json:"-"`})
 	case *graphql.InlineFragment:
 		structType := g.newFields("", sel.SelectionSet).goStructType()
-		tags := []string{`json:"-"`, fmt.Sprintf(`graphql:"... on %s"`, sel.TypeCondition)}
+		tags := []string{`json:"-"`}
 		return newField(InlineFragment, structType, sel.TypeCondition, tags)
 	}
 	panic("unexpected selection type")

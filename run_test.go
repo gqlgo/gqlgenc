@@ -42,21 +42,21 @@ func Test_IntegrationTest(t *testing.T) {
 					User: domain.UserOperation_User{
 						User: struct {
 							domain.UserFragment2 `json:"-"`
-							Name                 string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+							Name                 string "json:\"name,omitempty,omitzero\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
 							Name:          "John Doe",
 						},
 						UserFragment1: domain.UserFragment1{
 							User: struct {
-								Name string "json:\"name,omitempty,omitzero\" graphql:\"name\""
+								Name string "json:\"name,omitempty,omitzero\""
 							}{
 								Name: "John Doe",
 							},
 							Name: "John Doe",
 							Profile: domain.UserFragment1_Profile{
 								PrivateProfile: struct {
-									Age *int "json:\"age\" graphql:\"age\""
+									Age *int "json:\"age\""
 								}{
 									Age: func() *int { i := 30; return &i }(),
 								},
@@ -68,35 +68,35 @@ func Test_IntegrationTest(t *testing.T) {
 						Address: domain.UserOperation_User_Address{
 							Street: "123 Main St",
 							PrivateAddress: struct {
-								Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
-								Street  string "json:\"street,omitempty,omitzero\" graphql:\"street\""
+								Private bool   "json:\"private,omitempty,omitzero\""
+								Street  string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "123 Main St",
 							},
 							PublicAddress: struct {
-								Public bool   "json:\"public,omitempty,omitzero\" graphql:\"public\""
-								Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
+								Public bool   "json:\"public,omitempty,omitzero\""
+								Street string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "123 Main St",
 							},
 						},
 						Profile: domain.UserOperation_User_Profile{
 							PrivateProfile: struct {
-								Age *int "json:\"age\" graphql:\"age\""
+								Age *int "json:\"age\""
 							}{
 								Age: func() *int { i := 30; return &i }(),
 							},
 						},
 						Profile2: domain.UserOperation_User_Profile2{
 							PrivateProfile: struct {
-								Age *int "json:\"age\" graphql:\"age\""
+								Age *int "json:\"age\""
 							}{
 								Age: func() *int { i := 30; return &i }(),
 							},
 						},
 						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
 							PublicProfile: struct {
-								Status domain.Status "json:\"status,omitempty,omitzero\" graphql:\"status\""
+								Status domain.Status "json:\"status,omitempty,omitzero\""
 							}{
 								Status: domain.StatusActive,
 							},
@@ -104,14 +104,14 @@ func Test_IntegrationTest(t *testing.T) {
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
 							Street: "456 Elm St",
 							PrivateAddress: struct {
-								Private bool   "json:\"private,omitempty,omitzero\" graphql:\"private\""
-								Street  string "json:\"street,omitempty,omitzero\" graphql:\"street\""
+								Private bool   "json:\"private,omitempty,omitzero\""
+								Street  string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "456 Elm St",
 							},
 							PublicAddress: struct {
-								Public bool   "json:\"public,omitempty,omitzero\" graphql:\"public\""
-								Street string "json:\"street,omitempty,omitzero\" graphql:\"street\""
+								Public bool   "json:\"public,omitempty,omitzero\""
+								Street string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "456 Elm St",
 							},
