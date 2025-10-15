@@ -48,7 +48,7 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateU
 
 // User is the resolver for the user field.
 func (r *queryResolver) User(ctx context.Context, id *string, status *domain.Status) (*domain.User, error) {
-	userID := "1"
+	userID := "default-user-id"
 	if id != nil {
 		userID = *id
 	}

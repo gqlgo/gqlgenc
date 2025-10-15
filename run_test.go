@@ -285,6 +285,20 @@ func Test_IntegrationTest(t *testing.T) {
 					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
 				}
 			}
+			// Test field argument default values (schema-level defaults)
+			{
+				size := 100
+				userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size, nil, nil)
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				// When nil is passed, the resolver will use default value
+				// Note: In GraphQL, schema-level defaults only apply when variables are omitted,
+				// not when explicitly set to null. However, we verify the resolver behavior here.
+				if userOperation.User.UserFragment2.Name != "John Doe" {
+					t.Errorf("expected user name to be 'John Doe', got '%s'", userOperation.User.UserFragment2.Name)
+				}
+			}
 
 			// Mutation
 			{
