@@ -110,6 +110,7 @@ func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metada
 func (r *userResolver) Profile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
 	age := 30
 	return &domain.PrivateProfile{
+		ID:  "profile1",
 		Age: &age,
 	}, nil
 }
@@ -117,6 +118,7 @@ func (r *userResolver) Profile(ctx context.Context, obj *domain.User) (domain.Pr
 // OptionalProfile is the resolver for the optionalProfile field.
 func (r *userResolver) OptionalProfile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
 	return &domain.PublicProfile{
+		ID:     "profile2",
 		Status: domain.StatusActive,
 	}, nil
 }
@@ -124,6 +126,7 @@ func (r *userResolver) OptionalProfile(ctx context.Context, obj *domain.User) (d
 // Address is the resolver for the address field.
 func (r *userResolver) Address(ctx context.Context, obj *domain.User) (domain.Address, error) {
 	return &domain.PrivateAddress{
+		ID:     "addr1",
 		Street: "123 Main St",
 	}, nil
 }
@@ -131,6 +134,7 @@ func (r *userResolver) Address(ctx context.Context, obj *domain.User) (domain.Ad
 // OptionalAddress is the resolver for the optionalAddress field.
 func (r *userResolver) OptionalAddress(ctx context.Context, obj *domain.User) (domain.Address, error) {
 	return &domain.PublicAddress{
+		ID:     "addr2",
 		Street: "456 Elm St",
 	}, nil
 }

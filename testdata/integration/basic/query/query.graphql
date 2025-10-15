@@ -12,12 +12,8 @@ query UserOperation($articleId: ID!, $metadataId: ID!) {
     name
     name2: name
     profile {
-      ... on PublicProfile {
-        status
-      }
-      ... on PrivateProfile {
-        age
-      }
+      ...PublicProfileFields
+      ...PrivateProfileFields
     }
     profile2: profile {
       ... on PublicProfile {
@@ -28,23 +24,13 @@ query UserOperation($articleId: ID!, $metadataId: ID!) {
       }
     }
     optionalProfile {
-      ... on PublicProfile {
-        status
-      }
-      ... on PrivateProfile {
-        age
-      }
+      ...PublicProfileFields
+      ...PrivateProfileFields
     }
     address {
       street
-      ... on PublicAddress {
-        street
-        public
-      }
-      ... on PrivateAddress {
-        street
-        private
-      }
+      ...PublicAddressFields
+      ...PrivateAddressFields
     }
     optionalAddress {
       street
@@ -88,12 +74,8 @@ query UserOperation($articleId: ID!, $metadataId: ID!) {
     optionalStatuses
     addresses {
       street
-      ... on PublicAddress {
-        public
-      }
-      ... on PrivateAddress {
-        private
-      }
+      ...PublicAddressFields
+      ...PrivateAddressFields
     }
     optionalAddresses {
       street
@@ -105,12 +87,8 @@ query UserOperation($articleId: ID!, $metadataId: ID!) {
       }
     }
     profiles {
-      ... on PublicProfile {
-        status
-      }
-      ... on PrivateProfile {
-        age
-      }
+      ...PublicProfileFields
+      ...PrivateProfileFields
     }
     optionalProfiles {
       ... on PublicProfile {
@@ -147,4 +125,26 @@ fragment UserFragment1 on User {
 
 fragment UserFragment2 on User {
   name
+}
+
+fragment PublicProfileFields on PublicProfile {
+  id
+  status
+}
+
+fragment PrivateProfileFields on PrivateProfile {
+  id
+  age
+}
+
+fragment PublicAddressFields on PublicAddress {
+  id
+  street
+  public
+}
+
+fragment PrivateAddressFields on PrivateAddress {
+  id
+  street
+  private
 }

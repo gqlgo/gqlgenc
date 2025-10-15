@@ -66,15 +66,29 @@ func Test_IntegrationTest(t *testing.T) {
 						Addresses: []*domain.UserOperation_Article_Addresses{
 							{
 								Street: "Public St",
-								PublicAddress: struct {
-									Public bool "json:\"public,omitempty,omitzero\""
-								}{Public: true},
+								PublicAddressFields: domain.PublicAddressFields{
+									ID:     "addr1",
+									Street: "Public St",
+									Public: true,
+								},
+								PrivateAddressFields: domain.PrivateAddressFields{
+									ID:      "addr1",
+									Street:  "Public St",
+									Private: false,
+								},
 							},
 							{
 								Street: "Private St",
-								PrivateAddress: struct {
-									Private bool "json:\"private,omitempty,omitzero\""
-								}{Private: true},
+								PrivateAddressFields: domain.PrivateAddressFields{
+									ID:      "addr2",
+									Street:  "Private St",
+									Private: true,
+								},
+								PublicAddressFields: domain.PublicAddressFields{
+									ID:     "addr2",
+									Street: "Private St",
+									Public: false,
+								},
 							},
 						},
 						OptionalAddresses: &[]*domain.UserOperation_Article_OptionalAddresses{
@@ -87,14 +101,22 @@ func Test_IntegrationTest(t *testing.T) {
 						},
 						Profiles: []*domain.UserOperation_Article_Profiles{
 							{
-								PublicProfile: struct {
-									Status domain.Status "json:\"status,omitempty,omitzero\""
-								}{Status: domain.StatusActive},
+								PublicProfileFields: domain.PublicProfileFields{
+									ID:     "prof1",
+									Status: domain.StatusActive,
+								},
+								PrivateProfileFields: domain.PrivateProfileFields{
+									ID: "prof1",
+								},
 							},
 							{
-								PrivateProfile: struct {
-									Age *int "json:\"age\""
-								}{Age: ptr(25)},
+								PrivateProfileFields: domain.PrivateProfileFields{
+									ID:  "prof2",
+									Age: ptr(25),
+								},
+								PublicProfileFields: domain.PublicProfileFields{
+									ID: "prof2",
+								},
 							},
 						},
 						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
@@ -147,24 +169,22 @@ func Test_IntegrationTest(t *testing.T) {
 						Name2:         "John Doe",
 						Address: domain.UserOperation_User_Address{
 							Street: "123 Main St",
-							PrivateAddress: struct {
-								Private bool   "json:\"private,omitempty,omitzero\""
-								Street  string "json:\"street,omitempty,omitzero\""
-							}{
+							PrivateAddressFields: domain.PrivateAddressFields{
+								ID:     "addr1",
 								Street: "123 Main St",
 							},
-							PublicAddress: struct {
-								Public bool   "json:\"public,omitempty,omitzero\""
-								Street string "json:\"street,omitempty,omitzero\""
-							}{
+							PublicAddressFields: domain.PublicAddressFields{
+								ID:     "addr1",
 								Street: "123 Main St",
 							},
 						},
 						Profile: domain.UserOperation_User_Profile{
-							PrivateProfile: struct {
-								Age *int "json:\"age\""
-							}{
+							PrivateProfileFields: domain.PrivateProfileFields{
+								ID:  "profile1",
 								Age: func() *int { i := 30; return &i }(),
+							},
+							PublicProfileFields: domain.PublicProfileFields{
+								ID: "profile1",
 							},
 						},
 						Profile2: domain.UserOperation_User_Profile2{
@@ -175,10 +195,12 @@ func Test_IntegrationTest(t *testing.T) {
 							},
 						},
 						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
-							PublicProfile: struct {
-								Status domain.Status "json:\"status,omitempty,omitzero\""
-							}{
+							PublicProfileFields: domain.PublicProfileFields{
+								ID:     "profile2",
 								Status: domain.StatusActive,
+							},
+							PrivateProfileFields: domain.PrivateProfileFields{
+								ID: "profile2",
 							},
 						},
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{

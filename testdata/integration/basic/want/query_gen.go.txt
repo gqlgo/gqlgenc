@@ -7,6 +7,28 @@ import (
 	json "encoding/json/v2"
 )
 
+type PrivateAddressFields struct {
+	ID      string "json:\"id,omitempty,omitzero\""
+	Private bool   "json:\"private,omitempty,omitzero\""
+	Street  string "json:\"street,omitempty,omitzero\""
+}
+
+type PrivateProfileFields struct {
+	Age *int   "json:\"age\""
+	ID  string "json:\"id,omitempty,omitzero\""
+}
+
+type PublicAddressFields struct {
+	ID     string "json:\"id,omitempty,omitzero\""
+	Public bool   "json:\"public,omitempty,omitzero\""
+	Street string "json:\"street,omitempty,omitzero\""
+}
+
+type PublicProfileFields struct {
+	ID     string "json:\"id,omitempty,omitzero\""
+	Status Status "json:\"status,omitempty,omitzero\""
+}
+
 type UpdateUser struct {
 	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitempty,omitzero\""
 }
@@ -343,13 +365,9 @@ func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
 }
 
 type UserOperation_Article_Addresses struct {
-	PrivateAddress struct {
-		Private bool "json:\"private,omitempty,omitzero\""
-	} "json:\"-\""
-	PublicAddress struct {
-		Public bool "json:\"public,omitempty,omitzero\""
-	} "json:\"-\""
-	Street string "json:\"street,omitempty,omitzero\""
+	PrivateAddressFields "json:\"-\""
+	PublicAddressFields  "json:\"-\""
+	Street               string "json:\"street,omitempty,omitzero\""
 }
 
 func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
@@ -368,19 +386,39 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
 	}
-	if value, ok := raw["private"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddress.Private); err != nil {
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+	if value, ok := raw["private"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
 		return err
 	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["public"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddress.Public); err != nil {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
 			return err
 		}
 	}
@@ -530,12 +568,8 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) erro
 }
 
 type UserOperation_Article_Profiles struct {
-	PrivateProfile struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile struct {
-		Status Status "json:\"status,omitempty,omitzero\""
-	} "json:\"-\""
+	PrivateProfileFields "json:\"-\""
+	PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
@@ -549,19 +583,29 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*t = UserOperation_Article_Profiles(aux)
-	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
 	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
 	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
 			return err
 		}
 	}
@@ -726,15 +770,9 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 }
 
 type UserOperation_User_Address struct {
-	PrivateAddress struct {
-		Private bool   "json:\"private,omitempty,omitzero\""
-		Street  string "json:\"street,omitempty,omitzero\""
-	} "json:\"-\""
-	PublicAddress struct {
-		Public bool   "json:\"public,omitempty,omitzero\""
-		Street string "json:\"street,omitempty,omitzero\""
-	} "json:\"-\""
-	Street string "json:\"street,omitempty,omitzero\""
+	PrivateAddressFields "json:\"-\""
+	PublicAddressFields  "json:\"-\""
+	Street               string "json:\"street,omitempty,omitzero\""
 }
 
 func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
@@ -753,29 +791,39 @@ func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
+			return err
+		}
 	}
 	if value, ok := raw["private"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddress.Private); err != nil {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
 			return err
 		}
 	}
 	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddress.Street); err != nil {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
 		return err
 	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["public"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddress.Public); err != nil {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
 			return err
 		}
 	}
 	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddress.Street); err != nil {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
 			return err
 		}
 	}
@@ -840,12 +888,8 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 }
 
 type UserOperation_User_OptionalProfile struct {
-	PrivateProfile struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile struct {
-		Status Status "json:\"status,omitempty,omitzero\""
-	} "json:\"-\""
+	PrivateProfileFields "json:\"-\""
+	PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
@@ -859,19 +903,29 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*t = UserOperation_User_OptionalProfile(aux)
-	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
 	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
 	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
 			return err
 		}
 	}
@@ -879,12 +933,8 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 }
 
 type UserOperation_User_Profile struct {
-	PrivateProfile struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile struct {
-		Status Status "json:\"status,omitempty,omitzero\""
-	} "json:\"-\""
+	PrivateProfileFields "json:\"-\""
+	PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
@@ -898,19 +948,29 @@ func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*t = UserOperation_User_Profile(aux)
-	if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
 	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfile.Age); err != nil {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
 	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfile.Status); err != nil {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
 			return err
 		}
 	}
@@ -969,12 +1029,8 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 		name
 		name2: name
 		profile {
-			... on PublicProfile {
-				status
-			}
-			... on PrivateProfile {
-				age
-			}
+			... PublicProfileFields
+			... PrivateProfileFields
 		}
 		profile2: profile {
 			... on PublicProfile {
@@ -985,23 +1041,13 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 			}
 		}
 		optionalProfile {
-			... on PublicProfile {
-				status
-			}
-			... on PrivateProfile {
-				age
-			}
+			... PublicProfileFields
+			... PrivateProfileFields
 		}
 		address {
 			street
-			... on PublicAddress {
-				street
-				public
-			}
-			... on PrivateAddress {
-				street
-				private
-			}
+			... PublicAddressFields
+			... PrivateAddressFields
 		}
 		optionalAddress {
 			street
@@ -1045,12 +1091,8 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 		optionalStatuses
 		addresses {
 			street
-			... on PublicAddress {
-				public
-			}
-			... on PrivateAddress {
-				private
-			}
+			... PublicAddressFields
+			... PrivateAddressFields
 		}
 		optionalAddresses {
 			street
@@ -1062,12 +1104,8 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 			}
 		}
 		profiles {
-			... on PublicProfile {
-				status
-			}
-			... on PrivateProfile {
-				age
-			}
+			... PublicProfileFields
+			... PrivateProfileFields
 		}
 		optionalProfiles {
 			... on PublicProfile {
@@ -1084,6 +1122,24 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 		id
 		data
 	}
+}
+fragment PublicProfileFields on PublicProfile {
+	id
+	status
+}
+fragment PrivateProfileFields on PrivateProfile {
+	id
+	age
+}
+fragment PublicAddressFields on PublicAddress {
+	id
+	street
+	public
+}
+fragment PrivateAddressFields on PrivateAddress {
+	id
+	street
+	private
 }
 fragment UserFragment1 on User {
 	name
