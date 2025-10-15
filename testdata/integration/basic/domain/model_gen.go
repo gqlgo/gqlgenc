@@ -103,6 +103,7 @@ type UpdateUserPayload struct {
 type User struct {
 	ID              string        `json:"id"`
 	Name            string        `json:"name"`
+	Email           Email         `json:"email"`
 	Settings        *UserSettings `json:"settings,omitempty,omitzero"`
 	Profile         Profile       `json:"profile"`
 	OptionalProfile Profile       `json:"optionalProfile,omitempty,omitzero"`

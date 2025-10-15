@@ -38,6 +38,10 @@ func Test_IntegrationTest(t *testing.T) {
 			want: want{
 				file: "./want/query_gen.go.txt",
 				userOperation: &domain.UserOperation{
+					OptionalUser: &domain.UserOperation_OptionalUser{
+						Name:  "Sam Smith",
+						Email: "sam.smith@example.com",
+					},
 					Article: &domain.UserOperation_Article{
 						ID:    "article-1",
 						Title: "Test Article",
@@ -138,10 +142,8 @@ func Test_IntegrationTest(t *testing.T) {
 						ID:   "metadata-1",
 						Data: ptr(`{"key":"value","number":123}`),
 					},
-					OptionalUser: &domain.UserOperation_OptionalUser{
-						Name: "Sam Smith",
-					},
 					User: domain.UserOperation_User{
+						Email: "john.doe@example.com",
 						User: struct {
 							domain.UserFragment2 `json:"-"`
 							Name                 string "json:\"name,omitempty,omitzero\""

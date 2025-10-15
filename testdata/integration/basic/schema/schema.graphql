@@ -1,6 +1,7 @@
 directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
 
 scalar JSON
+scalar Email
 
 schema {
   query: Query
@@ -42,6 +43,7 @@ type UpdateUserPayload {
 type User {
   id: ID!
   name: String!
+  email: Email!
   settings: UserSettings
   profile: Profile! @goField(forceResolver: true)
   optionalProfile: Profile @goField(forceResolver: true)

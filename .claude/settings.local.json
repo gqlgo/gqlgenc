@@ -10,7 +10,10 @@
       "Bash(go build:*)",
       "Bash(find:*)",
       "Bash(GOEXPERIMENT=jsonv2 go doc:*)",
-      "WebFetch(domain:spec.graphql.org)"
+      "WebFetch(domain:spec.graphql.org)",
+      "WebFetch(domain:gqlgen.com)",
+      "WebFetch(domain:pkg.go.dev)",
+      "WebSearch"
     ],
     "deny": []
   }

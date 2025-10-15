@@ -14,6 +14,7 @@ mutation UpdateUser($input: UpdateUserInput!) {
 query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
   user(id: $userId, status: $userStatus) {
     name
+    email
     name2: name
     smallPic: profilePic(size: 50)
     largePic: profilePic(size: 500)
@@ -59,6 +60,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
   }
   optionalUser {
     name
+    email
   }
   article(id: $articleId) {
     id

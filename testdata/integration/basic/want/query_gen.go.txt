@@ -677,7 +677,8 @@ func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
 }
 
 type UserOperation_OptionalUser struct {
-	Name string "json:\"name,omitempty,omitzero\""
+	Email Email  "json:\"email,omitempty,omitzero\""
+	Name  string "json:\"name,omitempty,omitzero\""
 }
 
 func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
@@ -691,6 +692,11 @@ func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*t = UserOperation_OptionalUser(aux)
+	if value, ok := raw["email"]; ok {
+		if err := json.Unmarshal(value, &t.Email); err != nil {
+			return err
+		}
+	}
 	if value, ok := raw["name"]; ok {
 		if err := json.Unmarshal(value, &t.Name); err != nil {
 			return err
@@ -708,6 +714,7 @@ type UserOperation_User struct {
 	UserFragment2   "json:\"-\""
 	Address         UserOperation_User_Address          "json:\"address,omitempty,omitzero\""
 	DefaultPic      string                              "json:\"defaultPic,omitempty,omitzero\""
+	Email           Email                               "json:\"email,omitempty,omitzero\""
 	LargePic        string                              "json:\"largePic,omitempty,omitzero\""
 	Name            string                              "json:\"name,omitempty,omitzero\""
 	Name2           string                              "json:\"name2,omitempty,omitzero\""
@@ -736,6 +743,11 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	}
 	if value, ok := raw["defaultPic"]; ok {
 		if err := json.Unmarshal(value, &t.DefaultPic); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["email"]; ok {
+		if err := json.Unmarshal(value, &t.Email); err != nil {
 			return err
 		}
 	}
@@ -1084,6 +1096,7 @@ const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {
 const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
 	user(id: $userId, status: $userStatus) {
 		name
+		email
 		name2: name
 		smallPic: profilePic(size: 50)
 		largePic: profilePic(size: 500)
@@ -1129,6 +1142,7 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 	}
 	optionalUser {
 		name
+		email
 	}
 	article(id: $articleId) {
 		id
