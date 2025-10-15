@@ -41,6 +41,7 @@ type User {
   optionalProfile: Profile @goField(forceResolver: true)
   address: Address! @goField(forceResolver: true)
   optionalAddress: Address @goField(forceResolver: true)
+  profilePic(size: Int!): String! @goField(forceResolver: true)
 }
 
 union Profile = PublicProfile | PrivateProfile

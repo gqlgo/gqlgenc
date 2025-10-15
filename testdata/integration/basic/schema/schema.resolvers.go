@@ -6,6 +6,7 @@ package schema
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 )
@@ -137,6 +138,11 @@ func (r *userResolver) OptionalAddress(ctx context.Context, obj *domain.User) (d
 		ID:     "addr2",
 		Street: "456 Elm St",
 	}, nil
+}
+
+// ProfilePic is the resolver for the profilePic field.
+func (r *userResolver) ProfilePic(ctx context.Context, obj *domain.User, size int) (string, error) {
+	return fmt.Sprintf("https://example.com/pic_%s_%d.jpg", obj.ID, size), nil
 }
 
 // Mutation returns MutationResolver implementation.

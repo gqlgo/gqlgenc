@@ -672,12 +672,14 @@ type UserOperation_User struct {
 	UserFragment1   "json:\"-\""
 	UserFragment2   "json:\"-\""
 	Address         UserOperation_User_Address          "json:\"address,omitempty,omitzero\""
+	LargePic        string                              "json:\"largePic,omitempty,omitzero\""
 	Name            string                              "json:\"name,omitempty,omitzero\""
 	Name2           string                              "json:\"name2,omitempty,omitzero\""
 	OptionalAddress *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
 	OptionalProfile *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
 	Profile         UserOperation_User_Profile          "json:\"profile,omitempty,omitzero\""
 	Profile2        UserOperation_User_Profile2         "json:\"profile2,omitempty,omitzero\""
+	SmallPic        string                              "json:\"smallPic,omitempty,omitzero\""
 }
 
 func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
@@ -693,6 +695,11 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	*t = UserOperation_User(aux)
 	if value, ok := raw["address"]; ok {
 		if err := json.Unmarshal(value, &t.Address); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["largePic"]; ok {
+		if err := json.Unmarshal(value, &t.LargePic); err != nil {
 			return err
 		}
 	}
@@ -723,6 +730,11 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	}
 	if value, ok := raw["profile2"]; ok {
 		if err := json.Unmarshal(value, &t.Profile2); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["smallPic"]; ok {
+		if err := json.Unmarshal(value, &t.SmallPic); err != nil {
 			return err
 		}
 	}
@@ -1028,6 +1040,8 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 	user {
 		name
 		name2: name
+		smallPic: profilePic(size: 50)
+		largePic: profilePic(size: 500)
 		profile {
 			... PublicProfileFields
 			... PrivateProfileFields

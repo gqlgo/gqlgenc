@@ -167,6 +167,8 @@ func Test_IntegrationTest(t *testing.T) {
 						UserFragment2: domain.UserFragment2{Name: "John Doe"},
 						Name:          "John Doe",
 						Name2:         "John Doe",
+						SmallPic:      "https://example.com/pic_1_50.jpg",
+						LargePic:      "https://example.com/pic_1_500.jpg",
 						Address: domain.UserOperation_User_Address{
 							Street: "123 Main St",
 							PrivateAddressFields: domain.PrivateAddressFields{

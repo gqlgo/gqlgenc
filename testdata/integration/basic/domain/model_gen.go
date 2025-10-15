@@ -107,6 +107,7 @@ type User struct {
 	OptionalProfile Profile `json:"optionalProfile,omitempty,omitzero"`
 	Address         Address `json:"address"`
 	OptionalAddress Address `json:"optionalAddress,omitempty,omitzero"`
+	ProfilePic      string  `json:"profilePic"`
 }
 
 type UserSettingsInput struct {

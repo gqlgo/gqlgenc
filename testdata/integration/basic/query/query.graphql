@@ -11,6 +11,8 @@ query UserOperation($articleId: ID!, $metadataId: ID!) {
   user {
     name
     name2: name
+    smallPic: profilePic(size: 50)
+    largePic: profilePic(size: 500)
     profile {
       ...PublicProfileFields
       ...PrivateProfileFields
