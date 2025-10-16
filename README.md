@@ -81,7 +81,6 @@ query:
   - "./query/*.graphql" # Where are all the query files located?
 generate:
   clientInterfaceName: "GithubGraphQLClient" # Determine the name of the generated client interface
-  structFieldsAlwaysPointers: true # Optional: Always use pointers for struct fields (default: true). [same as gqlgen](https://github.com/99designs/gqlgen/blob/e1ef86e795e738654c98553b325a248c02c8c2f8/docs/content/config.md?plain=1#L73)
   enableClientJsonOmitemptyTag: true # Optional: Controls whether the "omitempty" option is added to JSON tags (default: true)
 ```
 

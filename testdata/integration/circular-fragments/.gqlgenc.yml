@@ -14,4 +14,3 @@ gqlgen:
   enable_model_json_omitempty_tag: true
   enable_model_json_omitzero_tag: true
   nullable_input_omittable: true
-  struct_fields_always_pointers: true

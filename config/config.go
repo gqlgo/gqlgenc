@@ -115,6 +115,7 @@ func Load(configFilename string) (*Config, error) {
 	cfg.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: "generated.go"}
 	cfg.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: "generated.go"}
 	cfg.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: "generated.go"}
+	cfg.GQLGenConfig.StructFieldsAlwaysPointers = false
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// gqlgenc
