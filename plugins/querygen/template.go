@@ -144,14 +144,78 @@ func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr
 		}
 
 		fieldExpr := fmt.Sprintf("%s.%s", targetExpr, field.Name())
-		fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, &%s); err != nil {\n", fieldExpr)
-		fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
-		if structType, named := structFromType(field.Type()); structType != nil {
-			if named != nil && shouldGenerateUnmarshal(named) {
-				continue
+
+		// Check if field type is a pointer
+		fieldType := field.Type()
+		if ptrType, ok := fieldType.(*types.Pointer); ok {
+			// For pointer inline fragments, only initialize if data exists
+			elemType := ptrType.Elem()
+			elemTypeStr := toString(elemType)
+
+			// Collect JSON field names from the inline fragment struct
+			var jsonFieldNames []string
+			if innerStruct, _ := structFromType(elemType); innerStruct != nil {
+				for j := range innerStruct.NumFields() {
+					innerField := innerStruct.Field(j)
+					if !innerField.Exported() {
+						continue
+					}
+					innerJSONName := jsonTagName(innerStruct.Tag(j))
+					if innerJSONName != "" && innerJSONName != "-" {
+						jsonFieldNames = append(jsonFieldNames, innerJSONName)
+					}
+				}
 			}
-			writeJSONFieldDecoders(buf, structType, fieldExpr, rawExpr)
-			writeInlineDecoders(buf, structType, fieldExpr, rawExpr)
+
+			// Generate conditional check: only initialize if at least one field exists
+			if len(jsonFieldNames) > 0 {
+				// Use unique variable name for each inline fragment check
+				// Include full path to avoid collisions (replace . with _)
+				hasDataVar := fmt.Sprintf("hasData_%s", strings.ReplaceAll(fieldExpr, ".", "_"))
+				fmt.Fprintf(buf, "\t%s := false\n", hasDataVar)
+				for _, name := range jsonFieldNames {
+					fmt.Fprintf(buf, "\tif _, ok := %s[%q]; ok {\n", rawExpr, name)
+					fmt.Fprintf(buf, "\t\t%s = true\n\t}\n", hasDataVar)
+				}
+				fmt.Fprintf(buf, "\tif %s {\n", hasDataVar)
+				fmt.Fprintf(buf, "\t\t%s = &%s{}\n", fieldExpr, elemTypeStr)
+				fmt.Fprintf(buf, "\t\tif err := json.Unmarshal(data, %s); err != nil {\n", fieldExpr)
+				fmt.Fprintf(buf, "\t\t\treturn err\n\t\t}\n")
+
+				if innerStruct, named := structFromType(elemType); innerStruct != nil {
+					if named != nil && shouldGenerateUnmarshal(named) {
+						fmt.Fprintf(buf, "\t}\n")
+						continue
+					}
+					writeJSONFieldDecoders(buf, innerStruct, fieldExpr, rawExpr)
+					writeInlineDecoders(buf, innerStruct, fieldExpr, rawExpr)
+				}
+				fmt.Fprintf(buf, "\t}\n")
+			} else {
+				// No JSON fields, always initialize (fallback to old behavior)
+				fmt.Fprintf(buf, "\t%s = &%s{}\n", fieldExpr, elemTypeStr)
+				fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, %s); err != nil {\n", fieldExpr)
+				fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
+
+				if innerStruct, named := structFromType(elemType); innerStruct != nil {
+					if named != nil && shouldGenerateUnmarshal(named) {
+						continue
+					}
+					writeJSONFieldDecoders(buf, innerStruct, fieldExpr, rawExpr)
+					writeInlineDecoders(buf, innerStruct, fieldExpr, rawExpr)
+				}
+			}
+		} else {
+			// Non-pointer field (original behavior)
+			fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, &%s); err != nil {\n", fieldExpr)
+			fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
+			if structType, named := structFromType(field.Type()); structType != nil {
+				if named != nil && shouldGenerateUnmarshal(named) {
+					continue
+				}
+				writeJSONFieldDecoders(buf, structType, fieldExpr, rawExpr)
+				writeInlineDecoders(buf, structType, fieldExpr, rawExpr)
+			}
 		}
 	}
 }

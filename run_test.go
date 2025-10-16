@@ -99,7 +99,7 @@ func Test_IntegrationTest(t *testing.T) {
 						OptionalAddresses: &[]*domain.UserOperation_Article_OptionalAddresses{
 							{
 								Street: "Optional St",
-								PublicAddress: struct {
+								PublicAddress: &struct {
 									Public bool "json:\"public,omitempty,omitzero\""
 								}{Public: false},
 							},
@@ -126,7 +126,7 @@ func Test_IntegrationTest(t *testing.T) {
 						},
 						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
 							{
-								PublicProfile: struct {
+								PublicProfile: &struct {
 									Status domain.Status "json:\"status,omitempty,omitzero\""
 								}{Status: domain.StatusInactive},
 							},
@@ -145,7 +145,7 @@ func Test_IntegrationTest(t *testing.T) {
 					},
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",
-						User: struct {
+						User: &struct {
 							domain.UserFragment2 `json:"-"`
 							Name                 string "json:\"name,omitempty,omitzero\""
 						}{
@@ -153,14 +153,14 @@ func Test_IntegrationTest(t *testing.T) {
 							Name:          "John Doe",
 						},
 						UserFragment1: domain.UserFragment1{
-							User: struct {
+							User: &struct {
 								Name string "json:\"name,omitempty,omitzero\""
 							}{
 								Name: "John Doe",
 							},
 							Name: "John Doe",
 							Profile: domain.UserFragment1_Profile{
-								PrivateProfile: struct {
+								PrivateProfile: &struct {
 									Age *int "json:\"age\""
 								}{
 									Age: func() *int { i := 30; return &i }(),
@@ -194,7 +194,7 @@ func Test_IntegrationTest(t *testing.T) {
 							},
 						},
 						Profile2: domain.UserOperation_User_Profile2{
-							PrivateProfile: struct {
+							PrivateProfile: &struct {
 								Age *int "json:\"age\""
 							}{
 								Age: func() *int { i := 30; return &i }(),
@@ -211,13 +211,13 @@ func Test_IntegrationTest(t *testing.T) {
 						},
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
 							Street: "456 Elm St",
-							PrivateAddress: struct {
+							PrivateAddress: &struct {
 								Private bool   "json:\"private,omitempty,omitzero\""
 								Street  string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "456 Elm St",
 							},
-							PublicAddress: struct {
+							PublicAddress: &struct {
 								Public bool   "json:\"public,omitempty,omitzero\""
 								Street string "json:\"street,omitempty,omitzero\""
 							}{

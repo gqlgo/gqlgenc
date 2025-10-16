@@ -68,8 +68,9 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		return newField(FragmentSpread, namedType, sel.Name, []string{`json:"-"`})
 	case *graphql.InlineFragment:
 		structType := g.newFields("", sel.SelectionSet).goStructType()
+		pointerType := gotypes.NewPointer(structType)
 		tags := []string{`json:"-"`}
-		return newField(InlineFragment, structType, sel.TypeCondition, tags)
+		return newField(InlineFragment, pointerType, sel.TypeCondition, tags)
 	}
 	panic("unexpected selection type")
 }
