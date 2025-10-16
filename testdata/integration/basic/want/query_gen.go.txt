@@ -692,38 +692,8 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
 	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["private"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
 		return err
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["public"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -1001,28 +971,8 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
-	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -1216,21 +1166,6 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.UserFragment1); err != nil {
 		return err
 	}
-	if value, ok := raw["__typename"]; ok {
-		if err := json.Unmarshal(value, &t.UserFragment1.Typename); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["name"]; ok {
-		if err := json.Unmarshal(value, &t.UserFragment1.Name); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["profile"]; ok {
-		if err := json.Unmarshal(value, &t.UserFragment1.Profile); err != nil {
-			return err
-		}
-	}
 	var typeName_t_UserFragment1 string
 	if typename, ok := raw["__typename"]; ok {
 		json.Unmarshal(typename, &typeName_t_UserFragment1)
@@ -1246,11 +1181,6 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	}
 	if err := json.Unmarshal(data, &t.UserFragment2); err != nil {
 		return err
-	}
-	if value, ok := raw["name"]; ok {
-		if err := json.Unmarshal(value, &t.UserFragment2.Name); err != nil {
-			return err
-		}
 	}
 	var typeName_t string
 	if typename, ok := raw["__typename"]; ok {
@@ -1387,38 +1317,8 @@ func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
 	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["private"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
 		return err
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["public"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["street"]; ok {
-		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -1549,28 +1449,8 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
-	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -1606,28 +1486,8 @@ func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
-	if value, ok := raw["age"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
 		return err
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["status"]; ok {
-		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
-			return err
-		}
 	}
 	return nil
 }

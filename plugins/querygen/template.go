@@ -1,26 +1,24 @@
 package querygen
 
 import (
-	"bytes"
 	_ "embed" // used to load template file
 	"fmt"
 	"go/types"
-	"reflect"
-	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
 
 	"github.com/Yamashou/gqlgenc/v3/codegen"
 	"github.com/Yamashou/gqlgenc/v3/config"
+	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/generator"
 )
 
 //go:embed template.tmpl
 var template string
 
-var skipUnmarshalTypes map[*types.TypeName]struct{}
-
 func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
-	skipUnmarshalTypes = collectEmbeddedTypes(goTypes)
+	// Create code generator with the analyzed types
+	codeGen := generator.NewCodeGenerator(goTypes)
+
 	if err := templates.Render(templates.Options{
 		PackageName:     cfg.GQLGencConfig.QueryGen.Package,
 		Template:        template,
@@ -33,232 +31,21 @@ func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes
 		Data: map[string]any{
 			"GoTypes":         goTypes,
 			"Operations":      operations,
-			"NeedsJSONImport": needsJSONImport(goTypes),
+			"NeedsJSONImport": codeGen.NeedsJSONImport(goTypes),
 		},
 		Funcs: map[string]any{
-			"genCode": genCode,
+			"genCode": func(t types.Type) string {
+				code, err := codeGen.Generate(t)
+				if err != nil {
+					panic(fmt.Errorf("failed to generate code for type %v: %w", t, err))
+				}
+				return code
+			},
 		},
 		Packages: cfg.GQLGenConfig.Packages,
 	}); err != nil {
 		return fmt.Errorf("%s generating failed: %w", cfg.GQLGencConfig.QueryGen.Filename, err)
 	}
 
-	return nil
-}
-
-func genCode(t types.Type) string {
-	pointerType, ok := t.(*types.Pointer)
-	if ok {
-		t = pointerType.Elem()
-	}
-	namedType := t.(*types.Named)                        //nolint:forcetypeassert // if not *types.Named, then panic
-	structType := namedType.Underlying().(*types.Struct) //nolint:forcetypeassert // if not *types.Struct, then panic
-	typeName := toString(namedType)
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "type %s %s\n", typeName, toString(structType))
-
-	if shouldGenerateUnmarshal(namedType) {
-		fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSON(data []byte) error {\n", typeName)
-		fmt.Fprintf(&buf, "\tvar raw map[string]jsontext.Value\n")
-		fmt.Fprintf(&buf, "\tif err := json.Unmarshal(data, &raw); err != nil {\n")
-		fmt.Fprintf(&buf, "\t\treturn err\n\t}\n")
-		fmt.Fprintf(&buf, "\ttype Alias %s\n", typeName)
-		fmt.Fprintf(&buf, "\tvar aux Alias\n")
-		fmt.Fprintf(&buf, "\tif err := json.Unmarshal(data, &aux); err != nil {\n")
-		fmt.Fprintf(&buf, "\t\treturn err\n\t}\n")
-		fmt.Fprintf(&buf, "\t*t = %s(aux)\n", typeName)
-
-		writeJSONFieldDecoders(&buf, structType, "t", "raw")
-		writeInlineDecoders(&buf, structType, "t", "raw")
-
-		fmt.Fprintf(&buf, "\treturn nil\n}\n")
-	}
-
-	for i := range structType.NumFields() {
-		field := structType.Field(i)
-		fieldName := field.Name()
-		fieldTypeName := toString(field.Type())
-
-		fmt.Fprintf(&buf, `func (t *%s) Get%s() %s {
-	if t == nil {
-		t = &%s{}
-	}
-	return t.%s
-}
-`, typeName, fieldName, fieldTypeName, typeName, fieldName)
-	}
-
-	return buf.String()
-}
-
-func toString(p types.Type) string {
-	return templates.CurrentImports.LookupType(p)
-}
-
-func jsonTagName(tag string) string {
-	if tag == "" {
-		return ""
-	}
-	value := reflect.StructTag(tag).Get("json")
-	if value == "" {
-		return ""
-	}
-	if idx := strings.Index(value, ","); idx >= 0 {
-		value = value[:idx]
-	}
-	return value
-}
-
-func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
-	result := make(map[*types.TypeName]struct{})
-	for _, t := range goTypes {
-		named := namedStructType(t)
-		if named == nil {
-			continue
-		}
-		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by namedStructType
-		for i := range structType.NumFields() {
-			field := structType.Field(i)
-			if !field.Anonymous() {
-				continue
-			}
-			if namedField := namedStructType(field.Type()); namedField != nil {
-				result[namedField.Obj()] = struct{}{}
-			}
-		}
-	}
-	return result
-}
-
-func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr, rawExpr string) {
-	// Step 1: Collect inline fragment fields (pointer type with json:"-")
-	type inlineFragment struct {
-		field       *types.Var
-		fieldExpr   string
-		elemTypeStr string
-	}
-	var inlineFragments []inlineFragment
-
-	for i := range structType.NumFields() {
-		field := structType.Field(i)
-		if !field.Exported() {
-			continue
-		}
-
-		jsonName := jsonTagName(structType.Tag(i))
-		if jsonName != "" && jsonName != "-" {
-			continue
-		}
-
-		fieldExpr := fmt.Sprintf("%s.%s", targetExpr, field.Name())
-
-		// Check if field type is a pointer
-		fieldType := field.Type()
-		if ptrType, ok := fieldType.(*types.Pointer); ok {
-			// Pointer inline fragment - will be handled by switch statement
-			elemType := ptrType.Elem()
-			elemTypeStr := toString(elemType)
-			inlineFragments = append(inlineFragments, inlineFragment{
-				field:       field,
-				fieldExpr:   fieldExpr,
-				elemTypeStr: elemTypeStr,
-			})
-		} else {
-			// Non-pointer field (original behavior for FragmentSpread)
-			fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, &%s); err != nil {\n", fieldExpr)
-			fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
-			if structType, named := structFromType(field.Type()); structType != nil {
-				if named != nil && shouldGenerateUnmarshal(named) {
-					continue
-				}
-				writeJSONFieldDecoders(buf, structType, fieldExpr, rawExpr)
-				writeInlineDecoders(buf, structType, fieldExpr, rawExpr)
-			}
-		}
-	}
-
-	// Step 2: Generate __typename-based switch if there are inline fragments
-	if len(inlineFragments) > 0 {
-		// Generate typename variable and retrieval only once
-		typeNameVar := fmt.Sprintf("typeName_%s", strings.ReplaceAll(targetExpr, ".", "_"))
-		fmt.Fprintf(buf, "\tvar %s string\n", typeNameVar)
-		fmt.Fprintf(buf, "\tif typename, ok := %s[\"__typename\"]; ok {\n", rawExpr)
-		fmt.Fprintf(buf, "\t\tjson.Unmarshal(typename, &%s)\n", typeNameVar)
-		fmt.Fprintf(buf, "\t}\n")
-		fmt.Fprintf(buf, "\tswitch %s {\n", typeNameVar)
-
-		for _, frag := range inlineFragments {
-			fmt.Fprintf(buf, "\tcase %q:\n", frag.field.Name())
-			fmt.Fprintf(buf, "\t\t%s = &%s{}\n", frag.fieldExpr, frag.elemTypeStr)
-			fmt.Fprintf(buf, "\t\tif err := json.Unmarshal(data, %s); err != nil {\n", frag.fieldExpr)
-			fmt.Fprintf(buf, "\t\t\treturn err\n\t\t}\n")
-		}
-
-		fmt.Fprintf(buf, "\t}\n")
-	}
-}
-
-func structFromType(t types.Type) (*types.Struct, *types.Named) {
-	switch tt := t.(type) {
-	case *types.Struct:
-		return tt, nil
-	case *types.Named:
-		if st, ok := tt.Underlying().(*types.Struct); ok {
-			return st, tt
-		}
-	}
-	return nil, nil
-}
-
-func shouldGenerateUnmarshal(named *types.Named) bool {
-	if named == nil {
-		return false
-	}
-	_, skip := skipUnmarshalTypes[named.Obj()]
-	return !skip
-}
-
-func writeJSONFieldDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr, rawExpr string) {
-	for i := range structType.NumFields() {
-		jsonName := jsonTagName(structType.Tag(i))
-		if jsonName == "" || jsonName == "-" {
-			continue
-		}
-
-		field := structType.Field(i)
-		if !field.Exported() {
-			continue
-		}
-
-		fieldTarget := fmt.Sprintf("&%s.%s", targetExpr, field.Name())
-		fmt.Fprintf(buf, "\tif value, ok := %s[%q]; ok {\n", rawExpr, jsonName)
-		fmt.Fprintf(buf, "\t\tif err := json.Unmarshal(value, %s); err != nil {\n", fieldTarget)
-		fmt.Fprintf(buf, "\t\t\treturn err\n\t\t}\n\t}\n")
-	}
-}
-
-func needsJSONImport(goTypes []types.Type) bool {
-	for _, t := range goTypes {
-		named := namedStructType(t)
-		if named == nil {
-			continue
-		}
-		if shouldGenerateUnmarshal(named) {
-			return true
-		}
-	}
-	return false
-}
-
-func namedStructType(t types.Type) *types.Named {
-	switch tt := t.(type) {
-	case *types.Named:
-		if _, ok := tt.Underlying().(*types.Struct); ok {
-			return tt
-		}
-	case *types.Pointer:
-		return namedStructType(tt.Elem())
-	}
 	return nil
 }
