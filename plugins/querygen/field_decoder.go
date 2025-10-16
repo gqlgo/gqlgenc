@@ -1,9 +1,7 @@
-package decoder
+package querygen
 
 import (
 	"fmt"
-
-	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/model"
 )
 
 // FieldDecoder decodes JSON fields
@@ -15,17 +13,17 @@ func NewFieldDecoder() *FieldDecoder {
 }
 
 // DecodeField creates statements for decoding a JSON field
-func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field model.FieldInfo) model.Statement {
+func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field FieldInfo) Statement {
 	fieldTarget := fmt.Sprintf("&%s.%s", targetExpr, field.Name)
 	jsonName := field.JSONTag
 
-	return &model.IfStatement{
+	return &IfStatement{
 		Condition: fmt.Sprintf(`value, ok := %s[%q]; ok`, rawExpr, jsonName),
-		Body: []model.Statement{
-			&model.ErrorCheckStatement{
+		Body: []Statement{
+			&ErrorCheckStatement{
 				ErrorExpr: fmt.Sprintf("json.Unmarshal(value, %s)", fieldTarget),
-				Body: []model.Statement{
-					&model.ReturnStatement{Value: "err"},
+				Body: []Statement{
+					&ReturnStatement{Value: "err"},
 				},
 			},
 		},
@@ -33,8 +31,8 @@ func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field model.Field
 }
 
 // DecodeFields creates statements for all JSON fields
-func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []model.FieldInfo) []model.Statement {
-	statements := make([]model.Statement, 0, len(fields))
+func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []FieldInfo) []Statement {
+	statements := make([]Statement, 0, len(fields))
 
 	for _, field := range fields {
 		if field.JSONTag == "" || field.JSONTag == "-" {

@@ -1,10 +1,8 @@
-package decoder
+package querygen
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/model"
 )
 
 // InlineFragmentDecoder decodes inline fragments
@@ -16,7 +14,7 @@ func NewInlineFragmentDecoder() *InlineFragmentDecoder {
 }
 
 // DecodeInlineFragments creates statements for decoding inline fragments using __typename
-func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string, fragments []model.InlineFragmentInfo) []model.Statement {
+func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string, fragments []InlineFragmentInfo) []Statement {
 	if len(fragments) == 0 {
 		return nil
 	}
@@ -24,19 +22,19 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 	// Create unique variable name for typename
 	typeNameVar := fmt.Sprintf("typeName_%s", strings.ReplaceAll(targetExpr, ".", "_"))
 
-	var statements []model.Statement
+	var statements []Statement
 
 	// 1. Declare typename variable
-	statements = append(statements, &model.VariableDecl{
+	statements = append(statements, &VariableDecl{
 		Name: typeNameVar,
 		Type: "string",
 	})
 
 	// 2. Extract __typename from raw
-	statements = append(statements, &model.IfStatement{
+	statements = append(statements, &IfStatement{
 		Condition: fmt.Sprintf(`typename, ok := %s["__typename"]; ok`, rawExpr),
-		Body: []model.Statement{
-			&model.RawStatement{
+		Body: []Statement{
+			&RawStatement{
 				Code: fmt.Sprintf("json.Unmarshal(typename, &%s)", typeNameVar),
 			},
 		},
@@ -44,7 +42,7 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 
 	// 3. Switch on typename
 	switchCases := d.buildSwitchCases(fragments)
-	statements = append(statements, &model.SwitchStatement{
+	statements = append(statements, &SwitchStatement{
 		Expr:  typeNameVar,
 		Cases: switchCases,
 	})
@@ -53,26 +51,26 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 }
 
 // buildSwitchCases builds switch cases for each inline fragment
-func (d *InlineFragmentDecoder) buildSwitchCases(fragments []model.InlineFragmentInfo) []model.SwitchCase {
-	cases := make([]model.SwitchCase, 0, len(fragments))
+func (d *InlineFragmentDecoder) buildSwitchCases(fragments []InlineFragmentInfo) []SwitchCase {
+	cases := make([]SwitchCase, 0, len(fragments))
 
 	for _, frag := range fragments {
-		caseBody := []model.Statement{
+		caseBody := []Statement{
 			// Initialize the pointer
-			&model.Assignment{
+			&Assignment{
 				Target: frag.FieldExpr,
 				Value:  fmt.Sprintf("&%s{}", frag.ElemTypeStr),
 			},
 			// Unmarshal into it
-			&model.ErrorCheckStatement{
+			&ErrorCheckStatement{
 				ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", frag.FieldExpr),
-				Body: []model.Statement{
-					&model.ReturnStatement{Value: "err"},
+				Body: []Statement{
+					&ReturnStatement{Value: "err"},
 				},
 			},
 		}
 
-		cases = append(cases, model.SwitchCase{
+		cases = append(cases, SwitchCase{
 			Value: frag.Field.Name,
 			Body:  caseBody,
 		})

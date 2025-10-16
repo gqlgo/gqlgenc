@@ -1,4 +1,4 @@
-package model
+package querygen
 
 import "go/types"
 

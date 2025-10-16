@@ -1,4 +1,4 @@
-package formatter
+package querygen
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
-
-	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/model"
 )
 
 // CodeFormatter formats generated code
@@ -25,7 +23,7 @@ func (f *CodeFormatter) FormatTypeDecl(typeName string, structType *types.Struct
 }
 
 // FormatUnmarshalMethod formats an UnmarshalJSON method
-func (f *CodeFormatter) FormatUnmarshalMethod(typeName string, body []model.Statement) string {
+func (f *CodeFormatter) FormatUnmarshalMethod(typeName string, body []Statement) string {
 	var buf strings.Builder
 
 	// Method signature

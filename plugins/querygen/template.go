@@ -9,7 +9,6 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/codegen"
 	"github.com/Yamashou/gqlgenc/v3/config"
-	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/generator"
 )
 
 //go:embed template.tmpl
@@ -17,7 +16,7 @@ var template string
 
 func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
 	// Create code generator with the analyzed types
-	codeGen := generator.NewCodeGenerator(goTypes)
+	codeGen := NewCodeGenerator(goTypes)
 
 	if err := templates.Render(templates.Options{
 		PackageName:     cfg.GQLGencConfig.QueryGen.Package,
