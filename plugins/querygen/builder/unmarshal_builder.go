@@ -24,7 +24,6 @@ func NewUnmarshalBuilder() *UnmarshalBuilder {
 // BuildUnmarshalMethod constructs the complete UnmarshalJSON method body
 func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo model.TypeInfo) []model.Statement {
 	var statements []model.Statement
-	typeName := typeInfo.TypeName
 
 	// 1. Declare raw map variable (using jsontext.Value for json/v2)
 	statements = append(statements, &model.VariableDecl{
@@ -40,48 +39,28 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo model.TypeInfo) []model
 		},
 	})
 
-	// 3. Use Alias pattern to unmarshal all fields with default behavior
-	statements = append(statements, &model.RawStatement{
-		Code: fmt.Sprintf("type Alias %s", typeName),
-	})
-	statements = append(statements, &model.VariableDecl{
-		Name: "aux",
-		Type: "Alias",
-	})
-	statements = append(statements, &model.ErrorCheckStatement{
-		ErrorExpr: "json.Unmarshal(data, &aux)",
-		Body: []model.Statement{
-			&model.ReturnStatement{Value: "err"},
-		},
-	})
-	statements = append(statements, &model.RawStatement{
-		Code: fmt.Sprintf("*t = %s(aux)", typeName),
-	})
-
-	// 4. Define target and raw expressions for field decoding
+	// 3. Define target and raw expressions for field decoding
 	targetExpr := "t"
 	rawExpr := "raw"
 
-	// 5. Separate regular fields, fragment spreads, and inline fragments
+	// 4. Separate regular fields, fragment spreads, and inline fragments
 	regularFields, fragmentSpreads, inlineFragments := b.categorizeFields(typeInfo)
 
-	// 6. Decode regular fields from raw map
-	// Note: Although the Alias pattern unmarshals the data, we need to explicitly
-	// unmarshal regular fields to ensure nested struct UnmarshalJSON methods are called correctly.
-	// This is necessary due to json/v2 experimental behavior.
+	// 5. Decode regular fields from raw map
+	// Note: We explicitly unmarshal regular fields to ensure nested struct UnmarshalJSON
+	// methods are called correctly. This is necessary due to json/v2 experimental behavior.
 	fieldStatements := b.fieldDecoder.DecodeFields(targetExpr, rawExpr, regularFields)
 	statements = append(statements, fieldStatements...)
 
-	// 7. Decode fragment spreads (non-pointer embedded fields with json:"-")
-	// Note: We only unmarshal the embedded field as a whole, not individual sub-fields.
-	// This is more efficient than the previous approach which unmarshaled each sub-field individually.
+	// 6. Decode fragment spreads (non-pointer embedded fields with json:"-")
+	// Note: We unmarshal the embedded field as a whole, not individual sub-fields.
 	b.decodeFragmentSpreads(&statements, fragmentSpreads)
 
-	// 8. Decode inline fragments (__typename based)
+	// 7. Decode inline fragments (__typename based)
 	inlineStatements := b.inlineDecoder.DecodeInlineFragments(targetExpr, rawExpr, inlineFragments)
 	statements = append(statements, inlineStatements...)
 
-	// 9. Return nil on success
+	// 8. Return nil on success
 	statements = append(statements, &model.ReturnStatement{Value: "nil"})
 
 	return statements

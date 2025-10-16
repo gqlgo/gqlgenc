@@ -102,12 +102,6 @@ func (t *UpdateUser) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UpdateUser
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UpdateUser(aux)
 	if value, ok := raw["updateUser"]; ok {
 		if err := json.Unmarshal(value, &t.UpdateUser); err != nil {
 			return err
@@ -131,12 +125,6 @@ func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UpdateUser_UpdateUser
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UpdateUser_UpdateUser(aux)
 	if value, ok := raw["user"]; ok {
 		if err := json.Unmarshal(value, &t.User); err != nil {
 			return err
@@ -161,12 +149,6 @@ func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UpdateUser_UpdateUser_User
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UpdateUser_UpdateUser_User(aux)
 	if value, ok := raw["name"]; ok {
 		if err := json.Unmarshal(value, &t.Name); err != nil {
 			return err
@@ -202,12 +184,6 @@ func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UpdateUser_UpdateUser_User_Settings
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UpdateUser_UpdateUser_User_Settings(aux)
 	if value, ok := raw["notifications"]; ok {
 		if err := json.Unmarshal(value, &t.Notifications); err != nil {
 			return err
@@ -284,12 +260,6 @@ func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserFragment1_Profile
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserFragment1_Profile(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
@@ -349,12 +319,6 @@ func (t *UserFragment2) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserFragment2
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserFragment2(aux)
 	if value, ok := raw["name"]; ok {
 		if err := json.Unmarshal(value, &t.Name); err != nil {
 			return err
@@ -381,12 +345,6 @@ func (t *UserOperation) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation(aux)
 	if value, ok := raw["article"]; ok {
 		if err := json.Unmarshal(value, &t.Article); err != nil {
 			return err
@@ -460,12 +418,6 @@ func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article(aux)
 	if value, ok := raw["addresses"]; ok {
 		if err := json.Unmarshal(value, &t.Addresses); err != nil {
 			return err
@@ -678,12 +630,6 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_Addresses
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_Addresses(aux)
 	if value, ok := raw["street"]; ok {
 		if err := json.Unmarshal(value, &t.Street); err != nil {
 			return err
@@ -726,12 +672,6 @@ func (t *UserOperation_Article_Comments) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_Comments
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_Comments(aux)
 	if value, ok := raw["id"]; ok {
 		if err := json.Unmarshal(value, &t.ID); err != nil {
 			return err
@@ -773,12 +713,6 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) err
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_OptionalAddresses
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_OptionalAddresses(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
@@ -850,12 +784,6 @@ func (t *UserOperation_Article_OptionalComments) UnmarshalJSON(data []byte) erro
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_OptionalComments
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_OptionalComments(aux)
 	if value, ok := raw["id"]; ok {
 		if err := json.Unmarshal(value, &t.ID); err != nil {
 			return err
@@ -896,12 +824,6 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) erro
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_OptionalProfiles
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_OptionalProfiles(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
@@ -962,12 +884,6 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Article_Profiles
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Article_Profiles(aux)
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
@@ -999,12 +915,6 @@ func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_Metadata
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_Metadata(aux)
 	if value, ok := raw["data"]; ok {
 		if err := json.Unmarshal(value, &t.Data); err != nil {
 			return err
@@ -1040,12 +950,6 @@ func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_OptionalUser
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_OptionalUser(aux)
 	if value, ok := raw["email"]; ok {
 		if err := json.Unmarshal(value, &t.Email); err != nil {
 			return err
@@ -1097,12 +1001,6 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
@@ -1303,12 +1201,6 @@ func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User_Address
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User_Address(aux)
 	if value, ok := raw["street"]; ok {
 		if err := json.Unmarshal(value, &t.Street); err != nil {
 			return err
@@ -1359,12 +1251,6 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User_OptionalAddress
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User_OptionalAddress(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
@@ -1440,12 +1326,6 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User_OptionalProfile
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User_OptionalProfile(aux)
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
@@ -1477,12 +1357,6 @@ func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User_Profile
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User_Profile(aux)
 	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
 		return err
 	}
@@ -1519,12 +1393,6 @@ func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	type Alias UserOperation_User_Profile2
-	var aux Alias
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	*t = UserOperation_User_Profile2(aux)
 	if value, ok := raw["__typename"]; ok {
 		if err := json.Unmarshal(value, &t.Typename); err != nil {
 			return err
