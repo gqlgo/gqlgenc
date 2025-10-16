@@ -4,23 +4,25 @@ import (
 	"fmt"
 	"go/types"
 	"strings"
+
+	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/builder"
+	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/formatter"
+	"github.com/Yamashou/gqlgenc/v3/plugins/querygen/model"
 )
 
 // CodeGenerator orchestrates all generators to produce complete type code
 type CodeGenerator struct {
-	analyzer      *TypeAnalyzer
-	typeDefGen    *TypeDefGenerator
-	unmarshalGen  *UnmarshalJSONGenerator
-	getterGen     *GetterGenerator
+	analyzer         *TypeAnalyzer
+	formatter        *formatter.CodeFormatter
+	unmarshalBuilder *builder.UnmarshalBuilder
 }
 
 // NewCodeGenerator creates a new CodeGenerator
 func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 	return &CodeGenerator{
-		analyzer:     NewTypeAnalyzer(goTypes),
-		typeDefGen:   NewTypeDefGenerator(),
-		unmarshalGen: NewUnmarshalJSONGenerator(),
-		getterGen:    NewGetterGenerator(),
+		analyzer:         NewTypeAnalyzer(goTypes),
+		formatter:        formatter.NewCodeFormatter(),
+		unmarshalBuilder: builder.NewUnmarshalBuilder(),
 	}
 }
 
@@ -32,43 +34,48 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 		return "", fmt.Errorf("failed to analyze type: %w", err)
 	}
 
-	var buf strings.Builder
+	parts := []string{g.generateTypeDecl(*typeInfo)}
 
-	// 1. Generate type definition
-	typeDef := g.typeDefGen.Generate(*typeInfo)
-	buf.WriteString(typeDef)
-
-	// 2. Generate UnmarshalJSON method if needed
-	unmarshalMethod := g.unmarshalGen.Generate(*typeInfo)
-	if unmarshalMethod != "" {
-		buf.WriteString(unmarshalMethod)
+	if unmarshal := g.generateUnmarshal(*typeInfo); unmarshal != "" {
+		parts = append(parts, unmarshal)
 	}
 
-	// 3. Generate getter methods
-	getters := g.getterGen.Generate(*typeInfo)
-	buf.WriteString(getters)
+	if getters := g.generateGetters(*typeInfo); getters != "" {
+		parts = append(parts, getters)
+	}
 
-	return buf.String(), nil
+	return strings.Join(parts, ""), nil
+}
+
+func (g *CodeGenerator) generateTypeDecl(typeInfo model.TypeInfo) string {
+	return g.formatter.FormatTypeDecl(typeInfo.TypeName, typeInfo.Struct)
+}
+
+func (g *CodeGenerator) generateUnmarshal(typeInfo model.TypeInfo) string {
+	if !typeInfo.ShouldGenerateUnmarshal {
+		return ""
+	}
+
+	statements := g.unmarshalBuilder.BuildUnmarshalMethod(typeInfo)
+	return g.formatter.FormatUnmarshalMethod(typeInfo.TypeName, statements)
+}
+
+func (g *CodeGenerator) generateGetters(typeInfo model.TypeInfo) string {
+	var buf strings.Builder
+	for _, field := range typeInfo.Fields {
+		getter := g.formatter.FormatGetter(
+			typeInfo.TypeName,
+			field.Name,
+			field.TypeName,
+		)
+		buf.WriteString(getter)
+	}
+	return buf.String()
 }
 
 // NeedsJSONImport checks if any type needs JSON import
 func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
-	for _, t := range goTypes {
-		// Handle pointer types
-		if pointerType, ok := t.(*types.Pointer); ok {
-			t = pointerType.Elem()
-		}
-
-		// Must be a named type with struct underlying
-		namedType, ok := t.(*types.Named)
-		if !ok {
-			continue
-		}
-		if _, ok := namedType.Underlying().(*types.Struct); !ok {
-			continue
-		}
-
-		// Check if we should generate unmarshal
+	for _, namedType := range g.analyzer.namedStructs(goTypes) {
 		if g.analyzer.shouldGenerateUnmarshal(namedType) {
 			return true
 		}

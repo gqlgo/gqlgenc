@@ -56,6 +56,17 @@ func (a *TypeAnalyzer) Analyze(t types.Type) (*model.TypeInfo, error) {
 	}, nil
 }
 
+// namedStructs extracts named struct types from the provided list, handling pointers.
+func (a *TypeAnalyzer) namedStructs(goTypes []types.Type) []*types.Named {
+	var result []*types.Named
+	for _, t := range goTypes {
+		if named := namedStructType(t); named != nil {
+			result = append(result, named)
+		}
+	}
+	return result
+}
+
 // analyzeFields analyzes all fields in a struct
 func (a *TypeAnalyzer) analyzeFields(structType *types.Struct) []model.FieldInfo {
 	var fields []model.FieldInfo
