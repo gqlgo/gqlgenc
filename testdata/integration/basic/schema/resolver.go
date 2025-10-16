@@ -1,7 +1,189 @@
 package schema
 
-// This file will not be regenerated automatically.
-//
-// It serves as dependency injection for your app, add any dependencies you require here.
+// THIS CODE WILL BE UPDATED WITH SCHEMA CHANGES. PREVIOUS IMPLEMENTATION FOR SCHEMA CHANGES WILL BE KEPT IN THE COMMENT SECTION. IMPLEMENTATION FOR UNCHANGED SCHEMA WILL BE KEPT.
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
+)
 
 type Resolver struct{}
+
+// UpdateUser is the resolver for the updateUser field.
+func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateUserInput) (*domain.UpdateUserPayload, error) {
+	var name string
+	if n, ok := input.Name.ValueOK(); ok {
+		if n == nil {
+			name = "nil"
+		} else {
+			name = *n
+		}
+	} else {
+		name = "undefined"
+	}
+
+	var settings *domain.UserSettings
+	if s, ok := input.Settings.ValueOK(); ok {
+		if s == nil {
+			settings = nil
+		} else {
+			settings = &domain.UserSettings{
+				Theme:         s.Theme,
+				Notifications: s.Notifications,
+			}
+		}
+	}
+
+	user := domain.User{
+		ID:       input.ID,
+		Name:     name,
+		Settings: settings,
+	}
+	return &domain.UpdateUserPayload{
+		User: user,
+	}, nil
+}
+
+// User is the resolver for the user field.
+func (r *queryResolver) User(ctx context.Context, id *string, status *domain.Status) (*domain.User, error) {
+	userID := "default-user-id"
+	if id != nil {
+		userID = *id
+	}
+	return &domain.User{
+		ID:    userID,
+		Name:  "John Doe",
+		Email: "john.doe@example.com",
+	}, nil
+}
+
+// OptionalUser is the resolver for the optionalUser field.
+func (r *queryResolver) OptionalUser(ctx context.Context) (*domain.User, error) {
+	return &domain.User{
+		ID:    "2",
+		Name:  "Sam Smith",
+		Email: "sam.smith@example.com",
+	}, nil
+}
+
+// Article is the resolver for the article field.
+func (r *queryResolver) Article(ctx context.Context, id string) (*domain.Article, error) {
+	rating := 4.5
+	optionalRating := 3.8
+	str1 := "element1"
+	str2 := "element2"
+	str3 := "nullable1"
+
+	return &domain.Article{
+		ID:           id,
+		Title:        "Test Article",
+		Tags:         []string{"tag1", "tag2", "tag3"},
+		OptionalTags: []string{"optional1", "optional2"},
+		Comments: []*domain.Comment{
+			{ID: "1", Text: "First comment"},
+			{ID: "2", Text: "Second comment"},
+		},
+		OptionalComments: []*domain.Comment{
+			{ID: "3", Text: "Optional comment"},
+		},
+		Rating:               rating,
+		OptionalRating:       &optionalRating,
+		NullableElementsList: []*string{&str1, nil, &str2},
+		FullyNullableList:    []*string{&str3, nil},
+		Statuses:             []domain.Status{domain.StatusActive, domain.StatusInactive},
+		OptionalStatuses:     []domain.Status{domain.StatusActive},
+		Addresses: []domain.Address{
+			&domain.PublicAddress{ID: "addr1", Street: "Public St", Public: true},
+			&domain.PrivateAddress{ID: "addr2", Street: "Private St", Private: true},
+		},
+		OptionalAddresses: []domain.Address{
+			&domain.PublicAddress{ID: "addr3", Street: "Optional St", Public: false},
+		},
+		Profiles: []domain.Profile{
+			&domain.PublicProfile{ID: "prof1", Status: domain.StatusActive},
+			&domain.PrivateProfile{ID: "prof2", Age: func() *int { i := 25; return &i }()},
+		},
+		OptionalProfiles: []domain.Profile{
+			&domain.PublicProfile{ID: "prof3", Status: domain.StatusInactive},
+		},
+		Matrix: [][]string{
+			{"a", "b", "c"},
+			{"d", "e", "f"},
+		},
+		OptionalMatrix: [][]string{
+			{"x", "y"},
+		},
+	}, nil
+}
+
+// Metadata is the resolver for the metadata field.
+func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metadata, error) {
+	data := `{"key":"value","number":123}`
+	return &domain.Metadata{
+		ID:   id,
+		Data: &data,
+	}, nil
+}
+
+// Profile is the resolver for the profile field.
+func (r *userResolver) Profile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
+	age := 30
+	return &domain.PrivateProfile{
+		ID:  "profile1",
+		Age: &age,
+	}, nil
+}
+
+// OptionalProfile is the resolver for the optionalProfile field.
+func (r *userResolver) OptionalProfile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
+	return &domain.PublicProfile{
+		ID:     "profile2",
+		Status: domain.StatusActive,
+	}, nil
+}
+
+// Address is the resolver for the address field.
+func (r *userResolver) Address(ctx context.Context, obj *domain.User) (domain.Address, error) {
+	return &domain.PrivateAddress{
+		ID:     "addr1",
+		Street: "123 Main St",
+	}, nil
+}
+
+// OptionalAddress is the resolver for the optionalAddress field.
+func (r *userResolver) OptionalAddress(ctx context.Context, obj *domain.User) (domain.Address, error) {
+	return &domain.PublicAddress{
+		ID:     "addr2",
+		Street: "456 Elm St",
+	}, nil
+}
+
+// ProfilePic is the resolver for the profilePic field.
+func (r *userResolver) ProfilePic(ctx context.Context, obj *domain.User, size int) (string, error) {
+	return fmt.Sprintf("https://example.com/pic_%s_%d.jpg", obj.ID, size), nil
+}
+
+// Mutation returns MutationResolver implementation.
+func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
+// Query returns QueryResolver implementation.
+func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
+
+// User returns UserResolver implementation.
+func (r *Resolver) User() UserResolver { return &userResolver{r} }
+
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	type Resolver struct{}
+*/

@@ -2865,9 +2865,9 @@ func (ec *executionContext) _UpdateUserPayload_user(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*domain.User)
+	res := resTmp.(domain.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_UpdateUserPayload_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
