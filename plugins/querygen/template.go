@@ -132,6 +132,14 @@ func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 }
 
 func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr, rawExpr string) {
+	// Step 1: Collect inline fragment fields (pointer type with json:"-")
+	type inlineFragment struct {
+		field       *types.Var
+		fieldExpr   string
+		elemTypeStr string
+	}
+	var inlineFragments []inlineFragment
+
 	for i := range structType.NumFields() {
 		field := structType.Field(i)
 		if !field.Exported() {
@@ -148,65 +156,16 @@ func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr
 		// Check if field type is a pointer
 		fieldType := field.Type()
 		if ptrType, ok := fieldType.(*types.Pointer); ok {
-			// For pointer inline fragments, only initialize if data exists
+			// Pointer inline fragment - will be handled by switch statement
 			elemType := ptrType.Elem()
 			elemTypeStr := toString(elemType)
-
-			// Collect JSON field names from the inline fragment struct
-			var jsonFieldNames []string
-			if innerStruct, _ := structFromType(elemType); innerStruct != nil {
-				for j := range innerStruct.NumFields() {
-					innerField := innerStruct.Field(j)
-					if !innerField.Exported() {
-						continue
-					}
-					innerJSONName := jsonTagName(innerStruct.Tag(j))
-					if innerJSONName != "" && innerJSONName != "-" {
-						jsonFieldNames = append(jsonFieldNames, innerJSONName)
-					}
-				}
-			}
-
-			// Generate conditional check: only initialize if at least one field exists
-			if len(jsonFieldNames) > 0 {
-				// Use unique variable name for each inline fragment check
-				// Include full path to avoid collisions (replace . with _)
-				hasDataVar := fmt.Sprintf("hasData_%s", strings.ReplaceAll(fieldExpr, ".", "_"))
-				fmt.Fprintf(buf, "\t%s := false\n", hasDataVar)
-				for _, name := range jsonFieldNames {
-					fmt.Fprintf(buf, "\tif _, ok := %s[%q]; ok {\n", rawExpr, name)
-					fmt.Fprintf(buf, "\t\t%s = true\n\t}\n", hasDataVar)
-				}
-				fmt.Fprintf(buf, "\tif %s {\n", hasDataVar)
-				fmt.Fprintf(buf, "\t\t%s = &%s{}\n", fieldExpr, elemTypeStr)
-				fmt.Fprintf(buf, "\t\tif err := json.Unmarshal(data, %s); err != nil {\n", fieldExpr)
-				fmt.Fprintf(buf, "\t\t\treturn err\n\t\t}\n")
-
-				if innerStruct, named := structFromType(elemType); innerStruct != nil {
-					if named != nil && shouldGenerateUnmarshal(named) {
-						fmt.Fprintf(buf, "\t}\n")
-						continue
-					}
-					writeJSONFieldDecoders(buf, innerStruct, fieldExpr, rawExpr)
-					writeInlineDecoders(buf, innerStruct, fieldExpr, rawExpr)
-				}
-				fmt.Fprintf(buf, "\t}\n")
-			} else {
-				// No JSON fields, always initialize (fallback to old behavior)
-				fmt.Fprintf(buf, "\t%s = &%s{}\n", fieldExpr, elemTypeStr)
-				fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, %s); err != nil {\n", fieldExpr)
-				fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
-
-				if innerStruct, named := structFromType(elemType); innerStruct != nil {
-					if named != nil && shouldGenerateUnmarshal(named) {
-						continue
-					}
-					writeJSONFieldDecoders(buf, innerStruct, fieldExpr, rawExpr)
-					writeInlineDecoders(buf, innerStruct, fieldExpr, rawExpr)
-				}
-			}
+			inlineFragments = append(inlineFragments, inlineFragment{
+				field:       field,
+				fieldExpr:   fieldExpr,
+				elemTypeStr: elemTypeStr,
+			})
 		} else {
-			// Non-pointer field (original behavior)
+			// Non-pointer field (original behavior for FragmentSpread)
 			fmt.Fprintf(buf, "\tif err := json.Unmarshal(data, &%s); err != nil {\n", fieldExpr)
 			fmt.Fprintf(buf, "\t\treturn err\n\t}\n")
 			if structType, named := structFromType(field.Type()); structType != nil {
@@ -217,6 +176,26 @@ func writeInlineDecoders(buf *bytes.Buffer, structType *types.Struct, targetExpr
 				writeInlineDecoders(buf, structType, fieldExpr, rawExpr)
 			}
 		}
+	}
+
+	// Step 2: Generate __typename-based switch if there are inline fragments
+	if len(inlineFragments) > 0 {
+		// Generate typename variable and retrieval only once
+		typeNameVar := fmt.Sprintf("typeName_%s", strings.ReplaceAll(targetExpr, ".", "_"))
+		fmt.Fprintf(buf, "\tvar %s string\n", typeNameVar)
+		fmt.Fprintf(buf, "\tif typename, ok := %s[\"__typename\"]; ok {\n", rawExpr)
+		fmt.Fprintf(buf, "\t\tjson.Unmarshal(typename, &%s)\n", typeNameVar)
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\tswitch %s {\n", typeNameVar)
+
+		for _, frag := range inlineFragments {
+			fmt.Fprintf(buf, "\tcase %q:\n", frag.field.Name())
+			fmt.Fprintf(buf, "\t\t%s = &%s{}\n", frag.fieldExpr, frag.elemTypeStr)
+			fmt.Fprintf(buf, "\t\tif err := json.Unmarshal(data, %s); err != nil {\n", frag.fieldExpr)
+			fmt.Fprintf(buf, "\t\t\treturn err\n\t\t}\n")
+		}
+
+		fmt.Fprintf(buf, "\t}\n")
 	}
 }
 

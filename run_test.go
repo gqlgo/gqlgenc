@@ -102,6 +102,7 @@ func Test_IntegrationTest(t *testing.T) {
 								PublicAddress: &struct {
 									Public bool "json:\"public,omitempty,omitzero\""
 								}{Public: false},
+								Typename: ptr("PublicAddress"),
 							},
 						},
 						Profiles: []*domain.UserOperation_Article_Profiles{
@@ -129,6 +130,7 @@ func Test_IntegrationTest(t *testing.T) {
 								PublicProfile: &struct {
 									Status domain.Status "json:\"status,omitempty,omitzero\""
 								}{Status: domain.StatusInactive},
+								Typename: ptr("PublicProfile"),
 							},
 						},
 						Matrix: [][]string{
@@ -150,7 +152,7 @@ func Test_IntegrationTest(t *testing.T) {
 							Name                 string "json:\"name,omitempty,omitzero\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
-							Name:          "John Doe",
+							Name:          "",
 						},
 						UserFragment1: domain.UserFragment1{
 							User: &struct {
@@ -158,6 +160,7 @@ func Test_IntegrationTest(t *testing.T) {
 							}{
 								Name: "John Doe",
 							},
+							Typename: ptr("User"),
 							Name: "John Doe",
 							Profile: domain.UserFragment1_Profile{
 								PrivateProfile: &struct {
@@ -165,9 +168,11 @@ func Test_IntegrationTest(t *testing.T) {
 								}{
 									Age: func() *int { i := 30; return &i }(),
 								},
+								Typename: ptr("PrivateProfile"),
 							},
 						},
 						UserFragment2: domain.UserFragment2{Name: "John Doe"},
+						Typename:      ptr("User"),
 						Name:          "John Doe",
 						Name2:         "John Doe",
 						SmallPic:      "https://example.com/pic_1_50.jpg",
@@ -199,6 +204,7 @@ func Test_IntegrationTest(t *testing.T) {
 							}{
 								Age: func() *int { i := 30; return &i }(),
 							},
+							Typename: ptr("PrivateProfile"),
 						},
 						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
 							PublicProfileFields: domain.PublicProfileFields{
@@ -211,18 +217,13 @@ func Test_IntegrationTest(t *testing.T) {
 						},
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
 							Street: "456 Elm St",
-							PrivateAddress: &struct {
-								Private bool   "json:\"private,omitempty,omitzero\""
-								Street  string "json:\"street,omitempty,omitzero\""
-							}{
-								Street: "456 Elm St",
-							},
 							PublicAddress: &struct {
 								Public bool   "json:\"public,omitempty,omitzero\""
 								Street string "json:\"street,omitempty,omitzero\""
 							}{
 								Street: "456 Elm St",
 							},
+							Typename: ptr("PublicAddress"),
 						},
 					},
 				},

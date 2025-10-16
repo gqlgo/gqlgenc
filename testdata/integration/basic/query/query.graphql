@@ -13,6 +13,7 @@ mutation UpdateUser($input: UpdateUserInput!) {
 
 query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
   user(id: $userId, status: $userStatus) {
+    __typename
     name
     email
     name2: name
@@ -24,6 +25,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
       ...PrivateProfileFields
     }
     profile2: profile {
+      __typename
       ... on PublicProfile {
         status
       }
@@ -41,6 +43,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
       ...PrivateAddressFields
     }
     optionalAddress {
+      __typename
       street
       ... on PublicAddress {
         street
@@ -87,6 +90,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
       ...PrivateAddressFields
     }
     optionalAddresses {
+      __typename
       street
       ... on PublicAddress {
         public
@@ -100,6 +104,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
       ...PrivateProfileFields
     }
     optionalProfiles {
+      __typename
       ... on PublicProfile {
         status
       }
@@ -117,12 +122,14 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
 }
 
 fragment UserFragment1 on User {
+  __typename
   name
   name
   ... on User {
     name
   }
   profile {
+    __typename
     ... on PublicProfile {
       status
     }
