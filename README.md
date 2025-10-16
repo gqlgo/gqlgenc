@@ -33,9 +33,6 @@ endpoint:
   url: https://api.annict.com/graphql # Where do you want to send your request?
   headers: # If you need header for getting introspection query, set it
     Authorization: "Bearer ${ANNICT_KEY}" # support environment variables
-# generate config
-generate:
-  usedModelsOnly: false
 # client to generate
 client:
   package: generated
@@ -85,7 +82,6 @@ query:
 generate:
   clientInterfaceName: "GithubGraphQLClient" # Determine the name of the generated client interface
   structFieldsAlwaysPointers: true # Optional: Always use pointers for struct fields (default: true). [same as gqlgen](https://github.com/99designs/gqlgen/blob/e1ef86e795e738654c98553b325a248c02c8c2f8/docs/content/config.md?plain=1#L73)
-  onlyUsedModels: true # Optional: Only generate used models
   enableClientJsonOmitemptyTag: true # Optional: Controls whether the "omitempty" option is added to JSON tags (default: true)
 ```
 

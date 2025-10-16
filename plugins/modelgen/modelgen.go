@@ -20,8 +20,8 @@ func New(cfg *config.Config, operationQueryDocuments []*ast.QueryDocument) *mode
 
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	return func(build *modelgen.ModelBuild) *modelgen.ModelBuild {
-		// only generate used models
-		if cfg.GQLGencConfig.UsedOnlyModels {
+		// only generate used models when usedTypes is not empty
+		if len(usedTypes) > 0 {
 			var newModels []*modelgen.Object
 
 			for _, model := range build.Models {

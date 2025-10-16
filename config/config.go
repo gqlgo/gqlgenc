@@ -34,7 +34,6 @@ type GQLGencConfig struct {
 	ClientGen       gqlgenconfig.PackageConfig `yaml:"clientgen,omitempty"`
 	Endpoint        *EndPointConfig            `yaml:"endpoint,omitempty"`
 	Query           []string                   `yaml:"query"`
-	UsedOnlyModels  bool                       `yaml:"used_models_only,omitempty"`
 	ExportQueryType bool                       `yaml:"export_query_type,omitempty"`
 }
 
