@@ -99,7 +99,7 @@ func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 }
 
 func (g *CodeGenerator) buildFields(structType *types.Struct) []FieldInfo {
-	var fields []FieldInfo
+	fields := make([]FieldInfo, 0, structType.NumFields())
 
 	for i := range structType.NumFields() {
 		field := structType.Field(i)
@@ -213,7 +213,7 @@ func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 		if named == nil {
 			continue
 		}
-		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert
+		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by namedStructType
 		for i := range structType.NumFields() {
 			field := structType.Field(i)
 			if !field.Anonymous() {
