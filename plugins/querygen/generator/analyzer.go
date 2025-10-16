@@ -69,7 +69,7 @@ func (a *TypeAnalyzer) namedStructs(goTypes []types.Type) []*types.Named {
 
 // analyzeFields analyzes all fields in a struct
 func (a *TypeAnalyzer) analyzeFields(structType *types.Struct) []model.FieldInfo {
-	var fields []model.FieldInfo
+	fields := make([]model.FieldInfo, 0, structType.NumFields())
 
 	for i := range structType.NumFields() {
 		field := structType.Field(i)

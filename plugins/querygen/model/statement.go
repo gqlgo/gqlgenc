@@ -16,7 +16,7 @@ type VariableDecl struct {
 	Type string
 }
 
-func (v *VariableDecl) String(indent int) string {
+func (v *VariableDecl) String(_ int) string {
 	return fmt.Sprintf("var %s %s", v.Name, v.Type)
 }
 
@@ -76,7 +76,7 @@ type Assignment struct {
 	Value  string
 }
 
-func (a *Assignment) String(indent int) string {
+func (a *Assignment) String(_ int) string {
 	return fmt.Sprintf("%s = %s", a.Target, a.Value)
 }
 
@@ -85,7 +85,7 @@ type ReturnStatement struct {
 	Value string
 }
 
-func (r *ReturnStatement) String(indent int) string {
+func (r *ReturnStatement) String(_ int) string {
 	if r.Value == "" {
 		return "return"
 	}
@@ -97,7 +97,7 @@ type RawStatement struct {
 	Code string
 }
 
-func (r *RawStatement) String(indent int) string {
+func (r *RawStatement) String(_ int) string {
 	return r.Code
 }
 

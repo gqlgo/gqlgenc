@@ -34,7 +34,7 @@ func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field model.Field
 
 // DecodeFields creates statements for all JSON fields
 func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []model.FieldInfo) []model.Statement {
-	var statements []model.Statement
+	statements := make([]model.Statement, 0, len(fields))
 
 	for _, field := range fields {
 		if field.JSONTag == "" || field.JSONTag == "-" {

@@ -115,17 +115,18 @@ func (b *UnmarshalBuilder) categorizeFieldsListWithPath(fields []model.FieldInfo
 	var inlineFragments []model.InlineFragmentInfo
 
 	for _, field := range fields {
-		if field.IsInlineFragment {
+		switch {
+		case field.IsInlineFragment:
 			// Pointer inline fragments (__typename based)
 			inlineFragments = append(inlineFragments, model.InlineFragmentInfo{
 				Field:       field,
 				FieldExpr:   fmt.Sprintf("%s.%s", parentPath, field.Name),
 				ElemTypeStr: field.PointerElemType,
 			})
-		} else if field.IsEmbedded && (field.JSONTag == "" || field.JSONTag == "-") {
+		case field.IsEmbedded && (field.JSONTag == "" || field.JSONTag == "-"):
 			// Fragment spreads (non-pointer embedded fields with json:"-")
 			fragmentSpreads = append(fragmentSpreads, field)
-		} else {
+		default:
 			// Regular fields with JSON tags
 			regularFields = append(regularFields, field)
 		}

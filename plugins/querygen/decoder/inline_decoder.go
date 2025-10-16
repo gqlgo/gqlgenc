@@ -54,7 +54,7 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 
 // buildSwitchCases builds switch cases for each inline fragment
 func (d *InlineFragmentDecoder) buildSwitchCases(fragments []model.InlineFragmentInfo) []model.SwitchCase {
-	var cases []model.SwitchCase
+	cases := make([]model.SwitchCase, 0, len(fragments))
 
 	for _, frag := range fragments {
 		caseBody := []model.Statement{

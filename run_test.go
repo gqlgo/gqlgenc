@@ -161,7 +161,7 @@ func Test_IntegrationTest(t *testing.T) {
 								Name: "John Doe",
 							},
 							Typename: ptr("User"),
-							Name: "John Doe",
+							Name:     "John Doe",
 							Profile: domain.UserFragment1_Profile{
 								PrivateProfile: &struct {
 									Age *int "json:\"age\""

@@ -48,6 +48,20 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 	return strings.Join(parts, ""), nil
 }
 
+// NeedsJSONImport checks if any type needs JSON import
+func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
+	for _, namedType := range g.analyzer.namedStructs(goTypes) {
+		typeInfo, err := g.analyzeType(namedType)
+		if err != nil {
+			continue
+		}
+		if typeInfo.ShouldGenerateUnmarshal {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *CodeGenerator) generateTypeDecl(typeInfo model.TypeInfo) string {
 	return g.formatter.FormatTypeDecl(typeInfo.TypeName, typeInfo.Struct)
 }
@@ -72,20 +86,6 @@ func (g *CodeGenerator) generateGetters(typeInfo model.TypeInfo) string {
 		buf.WriteString(getter)
 	}
 	return buf.String()
-}
-
-// NeedsJSONImport checks if any type needs JSON import
-func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
-	for _, namedType := range g.analyzer.namedStructs(goTypes) {
-		typeInfo, err := g.analyzeType(namedType)
-		if err != nil {
-			continue
-		}
-		if typeInfo.ShouldGenerateUnmarshal {
-			return true
-		}
-	}
-	return false
 }
 
 func (g *CodeGenerator) analyzeType(t types.Type) (*model.TypeInfo, error) {
