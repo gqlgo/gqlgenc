@@ -1,4 +1,4 @@
-directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, type: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
 
 schema {
   query: Query
