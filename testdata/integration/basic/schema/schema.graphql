@@ -20,7 +20,7 @@ type Mutation {
 }
 
 input UpdateUserInput {
-  id: ID!
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
   name: String
   settings: UserSettingsInput
   tags: [String!]
@@ -37,11 +37,11 @@ type UserSettings {
 }
 
 type UpdateUserPayload {
-  user: User!
+  user: User! @goField(type: "*github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.User")
 }
 
 type User {
-  id: ID!
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
   name: String!
   email: Email!
   settings: UserSettings

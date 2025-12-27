@@ -2865,9 +2865,9 @@ func (ec *executionContext) _UpdateUserPayload_user(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(domain.User)
+	res := resTmp.(*domain.User)
 	fc.Result = res
-	return ec.marshalNUser2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2ᚖgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_UpdateUserPayload_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2929,9 +2929,9 @@ func (ec *executionContext) _User_id(ctx context.Context, field graphql.Collecte
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(domain.UserID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_User_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5362,7 +5362,7 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 		switch k {
 		case "id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalNID2string(ctx, v)
+			data, err := ec.unmarshalNID2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6826,6 +6826,16 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 		}
 	}
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalNID2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserID(ctx context.Context, v any) (domain.UserID, error) {
+	var res domain.UserID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐUserID(ctx context.Context, sel ast.SelectionSet, v domain.UserID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {

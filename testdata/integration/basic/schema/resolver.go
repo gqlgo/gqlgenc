@@ -42,7 +42,7 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateU
 		Settings: settings,
 	}
 	return &domain.UpdateUserPayload{
-		User: user,
+		User: &user,
 	}, nil
 }
 

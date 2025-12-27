@@ -90,14 +90,14 @@ type Query struct {
 }
 
 type UpdateUserInput struct {
-	ID       string                                `json:"id"`
+	ID       UserID                                `json:"id"`
 	Name     graphql.Omittable[*string]            `json:"name,omitzero"`
 	Settings graphql.Omittable[*UserSettingsInput] `json:"settings,omitzero"`
 	Tags     graphql.Omittable[[]string]           `json:"tags,omitzero"`
 }
 
 type UpdateUserPayload struct {
-	User User `json:"user"`
+	User *User `json:"user"`
 }
 
 type UserSettings struct {
