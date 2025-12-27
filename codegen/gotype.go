@@ -161,9 +161,6 @@ func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type
 func (g *GoTypeGenerator) jsonOmitTag(field *graphql.Field) string {
 	var jsonOmitTag string
 	if field.Definition.Type.NonNull {
-		if g.cfg.GQLGenConfig.EnableModelJsonOmitemptyTag != nil && *g.cfg.GQLGenConfig.EnableModelJsonOmitemptyTag {
-			jsonOmitTag += `,omitempty`
-		}
 		if g.cfg.GQLGenConfig.EnableModelJsonOmitzeroTag != nil && *g.cfg.GQLGenConfig.EnableModelJsonOmitzeroTag {
 			jsonOmitTag += `,omitzero`
 		}

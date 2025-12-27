@@ -8,9 +8,9 @@ import (
 )
 
 type PrivateAddressFields struct {
-	ID      string "json:\"id,omitempty,omitzero\""
-	Private bool   "json:\"private,omitempty,omitzero\""
-	Street  string "json:\"street,omitempty,omitzero\""
+	ID      string "json:\"id,omitzero\""
+	Private bool   "json:\"private,omitzero\""
+	Street  string "json:\"street,omitzero\""
 }
 
 func (t *PrivateAddressFields) GetID() string {
@@ -34,7 +34,7 @@ func (t *PrivateAddressFields) GetStreet() string {
 
 type PrivateProfileFields struct {
 	Age *int   "json:\"age\""
-	ID  string "json:\"id,omitempty,omitzero\""
+	ID  string "json:\"id,omitzero\""
 }
 
 func (t *PrivateProfileFields) GetAge() *int {
@@ -51,9 +51,9 @@ func (t *PrivateProfileFields) GetID() string {
 }
 
 type PublicAddressFields struct {
-	ID     string "json:\"id,omitempty,omitzero\""
-	Public bool   "json:\"public,omitempty,omitzero\""
-	Street string "json:\"street,omitempty,omitzero\""
+	ID     string "json:\"id,omitzero\""
+	Public bool   "json:\"public,omitzero\""
+	Street string "json:\"street,omitzero\""
 }
 
 func (t *PublicAddressFields) GetID() string {
@@ -76,8 +76,8 @@ func (t *PublicAddressFields) GetStreet() string {
 }
 
 type PublicProfileFields struct {
-	ID     string "json:\"id,omitempty,omitzero\""
-	Status Status "json:\"status,omitempty,omitzero\""
+	ID     string "json:\"id,omitzero\""
+	Status Status "json:\"status,omitzero\""
 }
 
 func (t *PublicProfileFields) GetID() string {
@@ -94,7 +94,7 @@ func (t *PublicProfileFields) GetStatus() Status {
 }
 
 type UpdateUser struct {
-	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitempty,omitzero\""
+	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitzero\""
 }
 
 func (t *UpdateUser) UnmarshalJSON(data []byte) error {
@@ -117,7 +117,7 @@ func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
 }
 
 type UpdateUser_UpdateUser struct {
-	User UpdateUser_UpdateUser_User "json:\"user,omitempty,omitzero\""
+	User UpdateUser_UpdateUser_User "json:\"user,omitzero\""
 }
 
 func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
@@ -140,7 +140,7 @@ func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
 }
 
 type UpdateUser_UpdateUser_User struct {
-	Name     string                               "json:\"name,omitempty,omitzero\""
+	Name     string                               "json:\"name,omitzero\""
 	Settings *UpdateUser_UpdateUser_User_Settings "json:\"settings\""
 }
 
@@ -175,8 +175,8 @@ func (t *UpdateUser_UpdateUser_User) GetSettings() *UpdateUser_UpdateUser_User_S
 }
 
 type UpdateUser_UpdateUser_User_Settings struct {
-	Notifications bool   "json:\"notifications,omitempty,omitzero\""
-	Theme         string "json:\"theme,omitempty,omitzero\""
+	Notifications bool   "json:\"notifications,omitzero\""
+	Theme         string "json:\"theme,omitzero\""
 }
 
 func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
@@ -211,15 +211,15 @@ func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
 
 type UserFragment1 struct {
 	User *struct {
-		Name string "json:\"name,omitempty,omitzero\""
+		Name string "json:\"name,omitzero\""
 	} "json:\"-\""
 	Typename *string               "json:\"__typename\""
-	Name     string                "json:\"name,omitempty,omitzero\""
-	Profile  UserFragment1_Profile "json:\"profile,omitempty,omitzero\""
+	Name     string                "json:\"name,omitzero\""
+	Profile  UserFragment1_Profile "json:\"profile,omitzero\""
 }
 
 func (t *UserFragment1) GetUser() *struct {
-	Name string "json:\"name,omitempty,omitzero\""
+	Name string "json:\"name,omitzero\""
 } {
 	if t == nil {
 		t = &UserFragment1{}
@@ -250,7 +250,7 @@ type UserFragment1_Profile struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitempty,omitzero\""
+		Status Status "json:\"status,omitzero\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -279,7 +279,7 @@ func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitempty,omitzero\""
+			Status Status "json:\"status,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -296,7 +296,7 @@ func (t *UserFragment1_Profile) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserFragment1_Profile) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitempty,omitzero\""
+	Status Status "json:\"status,omitzero\""
 } {
 	if t == nil {
 		t = &UserFragment1_Profile{}
@@ -311,7 +311,7 @@ func (t *UserFragment1_Profile) GetTypename() *string {
 }
 
 type UserFragment2 struct {
-	Name string "json:\"name,omitempty,omitzero\""
+	Name string "json:\"name,omitzero\""
 }
 
 func (t *UserFragment2) UnmarshalJSON(data []byte) error {
@@ -337,7 +337,7 @@ type UserOperation struct {
 	Article      *UserOperation_Article      "json:\"article\""
 	Metadata     *UserOperation_Metadata     "json:\"metadata\""
 	OptionalUser *UserOperation_OptionalUser "json:\"optionalUser\""
-	User         UserOperation_User          "json:\"user,omitempty,omitzero\""
+	User         UserOperation_User          "json:\"user,omitzero\""
 }
 
 func (t *UserOperation) UnmarshalJSON(data []byte) error {
@@ -393,12 +393,12 @@ func (t *UserOperation) GetUser() UserOperation_User {
 }
 
 type UserOperation_Article struct {
-	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses,omitempty,omitzero\""
-	Comments             []*UserOperation_Article_Comments           "json:\"comments,omitempty,omitzero\""
+	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses,omitzero\""
+	Comments             []*UserOperation_Article_Comments           "json:\"comments,omitzero\""
 	FullyNullableList    *[]*string                                  "json:\"fullyNullableList\""
-	ID                   string                                      "json:\"id,omitempty,omitzero\""
-	Matrix               [][]string                                  "json:\"matrix,omitempty,omitzero\""
-	NullableElementsList []*string                                   "json:\"nullableElementsList,omitempty,omitzero\""
+	ID                   string                                      "json:\"id,omitzero\""
+	Matrix               [][]string                                  "json:\"matrix,omitzero\""
+	NullableElementsList []*string                                   "json:\"nullableElementsList,omitzero\""
 	OptionalAddresses    *[]*UserOperation_Article_OptionalAddresses "json:\"optionalAddresses\""
 	OptionalComments     *[]*UserOperation_Article_OptionalComments  "json:\"optionalComments\""
 	OptionalMatrix       *[][]string                                 "json:\"optionalMatrix\""
@@ -406,11 +406,11 @@ type UserOperation_Article struct {
 	OptionalRating       *float64                                    "json:\"optionalRating\""
 	OptionalStatuses     *[]Status                                   "json:\"optionalStatuses\""
 	OptionalTags         *[]string                                   "json:\"optionalTags\""
-	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles,omitempty,omitzero\""
-	Rating               float64                                     "json:\"rating,omitempty,omitzero\""
-	Statuses             []Status                                    "json:\"statuses,omitempty,omitzero\""
-	Tags                 []string                                    "json:\"tags,omitempty,omitzero\""
-	Title                string                                      "json:\"title,omitempty,omitzero\""
+	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles,omitzero\""
+	Rating               float64                                     "json:\"rating,omitzero\""
+	Statuses             []Status                                    "json:\"statuses,omitzero\""
+	Tags                 []string                                    "json:\"tags,omitzero\""
+	Title                string                                      "json:\"title,omitzero\""
 }
 
 func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
@@ -622,7 +622,7 @@ func (t *UserOperation_Article) GetTitle() string {
 type UserOperation_Article_Addresses struct {
 	PrivateAddressFields "json:\"-\""
 	PublicAddressFields  "json:\"-\""
-	Street               string "json:\"street,omitempty,omitzero\""
+	Street               string "json:\"street,omitzero\""
 }
 
 func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
@@ -663,8 +663,8 @@ func (t *UserOperation_Article_Addresses) GetStreet() string {
 }
 
 type UserOperation_Article_Comments struct {
-	ID   string "json:\"id,omitempty,omitzero\""
-	Text string "json:\"text,omitempty,omitzero\""
+	ID   string "json:\"id,omitzero\""
+	Text string "json:\"text,omitzero\""
 }
 
 func (t *UserOperation_Article_Comments) UnmarshalJSON(data []byte) error {
@@ -699,13 +699,13 @@ func (t *UserOperation_Article_Comments) GetText() string {
 
 type UserOperation_Article_OptionalAddresses struct {
 	PrivateAddress *struct {
-		Private bool "json:\"private,omitempty,omitzero\""
+		Private bool "json:\"private,omitzero\""
 	} "json:\"-\""
 	PublicAddress *struct {
-		Public bool "json:\"public,omitempty,omitzero\""
+		Public bool "json:\"public,omitzero\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
-	Street   string  "json:\"street,omitempty,omitzero\""
+	Street   string  "json:\"street,omitzero\""
 }
 
 func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) error {
@@ -730,14 +730,14 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) err
 	switch typeName_t {
 	case "PrivateAddress":
 		t.PrivateAddress = &struct {
-			Private bool "json:\"private,omitempty,omitzero\""
+			Private bool "json:\"private,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
 		t.PublicAddress = &struct {
-			Public bool "json:\"public,omitempty,omitzero\""
+			Public bool "json:\"public,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
@@ -746,7 +746,7 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) err
 	return nil
 }
 func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *struct {
-	Private bool "json:\"private,omitempty,omitzero\""
+	Private bool "json:\"private,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
@@ -754,7 +754,7 @@ func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *struct {
 	return t.PrivateAddress
 }
 func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() *struct {
-	Public bool "json:\"public,omitempty,omitzero\""
+	Public bool "json:\"public,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
@@ -775,8 +775,8 @@ func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
 }
 
 type UserOperation_Article_OptionalComments struct {
-	ID   string "json:\"id,omitempty,omitzero\""
-	Text string "json:\"text,omitempty,omitzero\""
+	ID   string "json:\"id,omitzero\""
+	Text string "json:\"text,omitzero\""
 }
 
 func (t *UserOperation_Article_OptionalComments) UnmarshalJSON(data []byte) error {
@@ -814,7 +814,7 @@ type UserOperation_Article_OptionalProfiles struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitempty,omitzero\""
+		Status Status "json:\"status,omitzero\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -843,7 +843,7 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) erro
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitempty,omitzero\""
+			Status Status "json:\"status,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -860,7 +860,7 @@ func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitempty,omitzero\""
+	Status Status "json:\"status,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
@@ -907,7 +907,7 @@ func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileF
 
 type UserOperation_Metadata struct {
 	Data *string "json:\"data\""
-	ID   string  "json:\"id,omitempty,omitzero\""
+	ID   string  "json:\"id,omitzero\""
 }
 
 func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
@@ -941,8 +941,8 @@ func (t *UserOperation_Metadata) GetID() string {
 }
 
 type UserOperation_OptionalUser struct {
-	Email Email  "json:\"email,omitempty,omitzero\""
-	Name  string "json:\"name,omitempty,omitzero\""
+	Email Email  "json:\"email,omitzero\""
+	Name  string "json:\"name,omitzero\""
 }
 
 func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
@@ -978,22 +978,22 @@ func (t *UserOperation_OptionalUser) GetName() string {
 type UserOperation_User struct {
 	User *struct {
 		UserFragment2 "json:\"-\""
-		Name          string "json:\"name,omitempty,omitzero\""
+		Name          string "json:\"name,omitzero\""
 	} "json:\"-\""
 	UserFragment1   "json:\"-\""
 	UserFragment2   "json:\"-\""
 	Typename        *string                             "json:\"__typename\""
-	Address         UserOperation_User_Address          "json:\"address,omitempty,omitzero\""
-	DefaultPic      string                              "json:\"defaultPic,omitempty,omitzero\""
-	Email           Email                               "json:\"email,omitempty,omitzero\""
-	LargePic        string                              "json:\"largePic,omitempty,omitzero\""
-	Name            string                              "json:\"name,omitempty,omitzero\""
-	Name2           string                              "json:\"name2,omitempty,omitzero\""
+	Address         UserOperation_User_Address          "json:\"address,omitzero\""
+	DefaultPic      string                              "json:\"defaultPic,omitzero\""
+	Email           Email                               "json:\"email,omitzero\""
+	LargePic        string                              "json:\"largePic,omitzero\""
+	Name            string                              "json:\"name,omitzero\""
+	Name2           string                              "json:\"name2,omitzero\""
 	OptionalAddress *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
 	OptionalProfile *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
-	Profile         UserOperation_User_Profile          "json:\"profile,omitempty,omitzero\""
-	Profile2        UserOperation_User_Profile2         "json:\"profile2,omitempty,omitzero\""
-	SmallPic        string                              "json:\"smallPic,omitempty,omitzero\""
+	Profile         UserOperation_User_Profile          "json:\"profile,omitzero\""
+	Profile2        UserOperation_User_Profile2         "json:\"profile2,omitzero\""
+	SmallPic        string                              "json:\"smallPic,omitzero\""
 }
 
 func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
@@ -1071,7 +1071,7 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	switch typeName_t_UserFragment1 {
 	case "User":
 		t.UserFragment1.User = &struct {
-			Name string "json:\"name,omitempty,omitzero\""
+			Name string "json:\"name,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.UserFragment1.User); err != nil {
 			return err
@@ -1088,7 +1088,7 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 	case "User":
 		t.User = &struct {
 			UserFragment2 "json:\"-\""
-			Name          string "json:\"name,omitempty,omitzero\""
+			Name          string "json:\"name,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
@@ -1098,7 +1098,7 @@ func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
 }
 func (t *UserOperation_User) GetUser() *struct {
 	UserFragment2 "json:\"-\""
-	Name          string "json:\"name,omitempty,omitzero\""
+	Name          string "json:\"name,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_User{}
@@ -1193,7 +1193,7 @@ func (t *UserOperation_User) GetSmallPic() string {
 type UserOperation_User_Address struct {
 	PrivateAddressFields "json:\"-\""
 	PublicAddressFields  "json:\"-\""
-	Street               string "json:\"street,omitempty,omitzero\""
+	Street               string "json:\"street,omitzero\""
 }
 
 func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
@@ -1235,15 +1235,15 @@ func (t *UserOperation_User_Address) GetStreet() string {
 
 type UserOperation_User_OptionalAddress struct {
 	PrivateAddress *struct {
-		Private bool   "json:\"private,omitempty,omitzero\""
-		Street  string "json:\"street,omitempty,omitzero\""
+		Private bool   "json:\"private,omitzero\""
+		Street  string "json:\"street,omitzero\""
 	} "json:\"-\""
 	PublicAddress *struct {
-		Public bool   "json:\"public,omitempty,omitzero\""
-		Street string "json:\"street,omitempty,omitzero\""
+		Public bool   "json:\"public,omitzero\""
+		Street string "json:\"street,omitzero\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
-	Street   string  "json:\"street,omitempty,omitzero\""
+	Street   string  "json:\"street,omitzero\""
 }
 
 func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
@@ -1268,16 +1268,16 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 	switch typeName_t {
 	case "PrivateAddress":
 		t.PrivateAddress = &struct {
-			Private bool   "json:\"private,omitempty,omitzero\""
-			Street  string "json:\"street,omitempty,omitzero\""
+			Private bool   "json:\"private,omitzero\""
+			Street  string "json:\"street,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
 		t.PublicAddress = &struct {
-			Public bool   "json:\"public,omitempty,omitzero\""
-			Street string "json:\"street,omitempty,omitzero\""
+			Public bool   "json:\"public,omitzero\""
+			Street string "json:\"street,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
@@ -1286,8 +1286,8 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *struct {
-	Private bool   "json:\"private,omitempty,omitzero\""
-	Street  string "json:\"street,omitempty,omitzero\""
+	Private bool   "json:\"private,omitzero\""
+	Street  string "json:\"street,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
@@ -1295,8 +1295,8 @@ func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *struct {
 	return t.PrivateAddress
 }
 func (t *UserOperation_User_OptionalAddress) GetPublicAddress() *struct {
-	Public bool   "json:\"public,omitempty,omitzero\""
-	Street string "json:\"street,omitempty,omitzero\""
+	Public bool   "json:\"public,omitzero\""
+	Street string "json:\"street,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
@@ -1383,7 +1383,7 @@ type UserOperation_User_Profile2 struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitempty,omitzero\""
+		Status Status "json:\"status,omitzero\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -1412,7 +1412,7 @@ func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitempty,omitzero\""
+			Status Status "json:\"status,omitzero\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -1429,7 +1429,7 @@ func (t *UserOperation_User_Profile2) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserOperation_User_Profile2) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitempty,omitzero\""
+	Status Status "json:\"status,omitzero\""
 } {
 	if t == nil {
 		t = &UserOperation_User_Profile2{}

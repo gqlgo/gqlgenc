@@ -24,21 +24,21 @@ type Article struct {
 	ID                   string     `json:"id"`
 	Title                string     `json:"title"`
 	Tags                 []string   `json:"tags"`
-	OptionalTags         []string   `json:"optionalTags,omitempty,omitzero"`
+	OptionalTags         []string   `json:"optionalTags,omitzero"`
 	Comments             []*Comment `json:"comments"`
-	OptionalComments     []*Comment `json:"optionalComments,omitempty,omitzero"`
+	OptionalComments     []*Comment `json:"optionalComments,omitzero"`
 	Rating               float64    `json:"rating"`
-	OptionalRating       *float64   `json:"optionalRating,omitempty,omitzero"`
+	OptionalRating       *float64   `json:"optionalRating,omitzero"`
 	NullableElementsList []*string  `json:"nullableElementsList"`
-	FullyNullableList    []*string  `json:"fullyNullableList,omitempty,omitzero"`
+	FullyNullableList    []*string  `json:"fullyNullableList,omitzero"`
 	Statuses             []Status   `json:"statuses"`
-	OptionalStatuses     []Status   `json:"optionalStatuses,omitempty,omitzero"`
+	OptionalStatuses     []Status   `json:"optionalStatuses,omitzero"`
 	Addresses            []Address  `json:"addresses"`
-	OptionalAddresses    []Address  `json:"optionalAddresses,omitempty,omitzero"`
+	OptionalAddresses    []Address  `json:"optionalAddresses,omitzero"`
 	Profiles             []Profile  `json:"profiles"`
-	OptionalProfiles     []Profile  `json:"optionalProfiles,omitempty,omitzero"`
+	OptionalProfiles     []Profile  `json:"optionalProfiles,omitzero"`
 	Matrix               [][]string `json:"matrix"`
-	OptionalMatrix       [][]string `json:"optionalMatrix,omitempty,omitzero"`
+	OptionalMatrix       [][]string `json:"optionalMatrix,omitzero"`
 }
 
 type Comment struct {
@@ -48,7 +48,7 @@ type Comment struct {
 
 type Metadata struct {
 	ID   string  `json:"id"`
-	Data *string `json:"data,omitempty,omitzero"`
+	Data *string `json:"data,omitzero"`
 }
 
 type Mutation struct {
@@ -65,7 +65,7 @@ func (this PrivateAddress) GetStreet() string { return this.Street }
 
 type PrivateProfile struct {
 	ID  string `json:"id"`
-	Age *int   `json:"age,omitempty,omitzero"`
+	Age *int   `json:"age,omitzero"`
 }
 
 func (PrivateProfile) IsProfile() {}
@@ -91,9 +91,9 @@ type Query struct {
 
 type UpdateUserInput struct {
 	ID       string                                `json:"id"`
-	Name     graphql.Omittable[*string]            `json:"name,omitempty,omitzero"`
-	Settings graphql.Omittable[*UserSettingsInput] `json:"settings,omitempty,omitzero"`
-	Tags     graphql.Omittable[[]string]           `json:"tags,omitempty,omitzero"`
+	Name     graphql.Omittable[*string]            `json:"name,omitzero"`
+	Settings graphql.Omittable[*UserSettingsInput] `json:"settings,omitzero"`
+	Tags     graphql.Omittable[[]string]           `json:"tags,omitzero"`
 }
 
 type UpdateUserPayload struct {
@@ -104,11 +104,11 @@ type User struct {
 	ID              string        `json:"id"`
 	Name            string        `json:"name"`
 	Email           Email         `json:"email"`
-	Settings        *UserSettings `json:"settings,omitempty,omitzero"`
+	Settings        *UserSettings `json:"settings,omitzero"`
 	Profile         Profile       `json:"profile"`
-	OptionalProfile Profile       `json:"optionalProfile,omitempty,omitzero"`
+	OptionalProfile Profile       `json:"optionalProfile,omitzero"`
 	Address         Address       `json:"address"`
-	OptionalAddress Address       `json:"optionalAddress,omitempty,omitzero"`
+	OptionalAddress Address       `json:"optionalAddress,omitzero"`
 	ProfilePic      string        `json:"profilePic"`
 }
 

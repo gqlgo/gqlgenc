@@ -112,8 +112,8 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "omitempty, omitzero",
-			file: "testdata/cfg/omitempty_omitzero.yml",
+			name: "omitzero",
+			file: "testdata/cfg/omitzero.yml",
 			want: want{
 				config: &Config{
 					GQLGencConfig: &GQLGencConfig{
@@ -143,10 +143,9 @@ func TestLoadConfig(t *testing.T) {
 						Resolver: config.ResolverConfig{
 							Filename: "generated.go",
 						},
-						EnableModelJsonOmitemptyTag: ptr(true),
-						EnableModelJsonOmitzeroTag:  ptr(true),
-						Directives:                  map[string]config.DirectiveConfig{},
-						GoInitialisms:               config.GoInitialismsConfig{},
+						EnableModelJsonOmitzeroTag: ptr(true),
+						Directives:                 map[string]config.DirectiveConfig{},
+						GoInitialisms:              config.GoInitialismsConfig{},
 					},
 				},
 			},

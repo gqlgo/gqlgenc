@@ -25,13 +25,10 @@ func (e EnumValue) MarshalJSON() ([]byte, error) {
 
 ## Support omitzero
 We now support omitzero introduced in Go 1.24.
-Go officially recommends omitzero instead of omitempty.
 https://pkg.go.dev/github.com/go-json-experiment/json#example-package-OmitFields
 To set omitzero in gqlgen, use the following configuration in `gqlgen.yaml`:
 ```yaml
 enable_model_json_omitzero_tag: true
-# If you want to disable omitempty, set to false.
-enable_model_json_omitempty_tag: false
 ```
 
 - Reference
@@ -62,7 +59,6 @@ To omit when undefined, use gqlgen v1.17.71 or later. The IsZero method has been
 nullable_input_omittable: true
 
 enable_model_json_omitzero_tag: true
-enable_model_json_omitempty_tag: false
 ```
 
 ```go

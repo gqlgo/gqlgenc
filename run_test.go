@@ -100,7 +100,7 @@ func Test_IntegrationTest(t *testing.T) {
 							{
 								Street: "Optional St",
 								PublicAddress: &struct {
-									Public bool "json:\"public,omitempty,omitzero\""
+									Public bool "json:\"public,omitzero\""
 								}{Public: false},
 								Typename: ptr("PublicAddress"),
 							},
@@ -128,7 +128,7 @@ func Test_IntegrationTest(t *testing.T) {
 						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
 							{
 								PublicProfile: &struct {
-									Status domain.Status "json:\"status,omitempty,omitzero\""
+									Status domain.Status "json:\"status,omitzero\""
 								}{Status: domain.StatusInactive},
 								Typename: ptr("PublicProfile"),
 							},
@@ -149,14 +149,14 @@ func Test_IntegrationTest(t *testing.T) {
 						Email: "john.doe@example.com",
 						User: &struct {
 							domain.UserFragment2 `json:"-"`
-							Name                 string "json:\"name,omitempty,omitzero\""
+							Name                 string "json:\"name,omitzero\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
 							Name:          "",
 						},
 						UserFragment1: domain.UserFragment1{
 							User: &struct {
-								Name string "json:\"name,omitempty,omitzero\""
+								Name string "json:\"name,omitzero\""
 							}{
 								Name: "John Doe",
 							},
@@ -218,8 +218,8 @@ func Test_IntegrationTest(t *testing.T) {
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
 							Street: "456 Elm St",
 							PublicAddress: &struct {
-								Public bool   "json:\"public,omitempty,omitzero\""
-								Street string "json:\"street,omitempty,omitzero\""
+								Public bool   "json:\"public,omitzero\""
+								Street string "json:\"street,omitzero\""
 							}{
 								Street: "456 Elm St",
 							},

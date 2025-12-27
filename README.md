@@ -55,7 +55,6 @@ federation: # Add this if your schema includes Apollo Federation related directi
   version: 2
 # input model config
 nullable_input_omittable: true
-enable_model_json_omitempty_tag: false
 enable_model_json_omitzero: true
 ```
 
@@ -81,7 +80,6 @@ query:
   - "./query/*.graphql" # Where are all the query files located?
 generate:
   clientInterfaceName: "GithubGraphQLClient" # Determine the name of the generated client interface
-  enableClientJsonOmitemptyTag: true # Optional: Controls whether the "omitempty" option is added to JSON tags (default: true)
 ```
 
 Execute the following command on same directory for .gqlgenc.yml
