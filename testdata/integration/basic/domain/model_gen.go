@@ -100,18 +100,6 @@ type UpdateUserPayload struct {
 	User User `json:"user"`
 }
 
-type User struct {
-	ID              string        `json:"id"`
-	Name            string        `json:"name"`
-	Email           Email         `json:"email"`
-	Settings        *UserSettings `json:"settings,omitzero"`
-	Profile         Profile       `json:"profile"`
-	OptionalProfile Profile       `json:"optionalProfile,omitzero"`
-	Address         Address       `json:"address"`
-	OptionalAddress Address       `json:"optionalAddress,omitzero"`
-	ProfilePic      string        `json:"profilePic"`
-}
-
 type UserSettings struct {
 	Theme         string `json:"theme"`
 	Notifications bool   `json:"notifications"`

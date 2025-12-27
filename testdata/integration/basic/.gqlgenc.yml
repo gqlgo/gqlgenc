@@ -15,6 +15,8 @@ gqlgen:
   enable_model_json_omitzero_tag: true
   nullable_input_omittable: true
   struct_fields_always_pointers: false
+  autobind:
+    - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
   models:
     Email:
       model: github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Email

@@ -10,6 +10,8 @@ model:
 enable_model_json_omitempty_tag: false
 enable_model_json_omitzero_tag: true
 nullable_input_omittable: true
+autobind:
+  - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
 models:
   Email:
     model: github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Email

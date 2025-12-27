@@ -37,7 +37,7 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input *domain.UpdateU
 	}
 
 	user := domain.User{
-		ID:       input.ID,
+		ID:       domain.UserID(input.ID),
 		Name:     name,
 		Settings: settings,
 	}
@@ -53,7 +53,7 @@ func (r *queryResolver) User(ctx context.Context, id *string, status *domain.Sta
 		userID = *id
 	}
 	return &domain.User{
-		ID:    userID,
+		ID:    domain.UserID(userID),
 		Name:  "John Doe",
 		Email: "john.doe@example.com",
 	}, nil
@@ -62,7 +62,7 @@ func (r *queryResolver) User(ctx context.Context, id *string, status *domain.Sta
 // OptionalUser is the resolver for the optionalUser field.
 func (r *queryResolver) OptionalUser(ctx context.Context) (*domain.User, error) {
 	return &domain.User{
-		ID:    "2",
+		ID:    domain.UserID("2"),
 		Name:  "Sam Smith",
 		Email: "sam.smith@example.com",
 	}, nil
