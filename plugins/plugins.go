@@ -11,7 +11,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/queryparser"
 )
 
-func Run(cfg *config.Config) error {
+func GenerateCode(cfg *config.Config) error {
 	// Load Query
 	querySources, err := queryparser.LoadQuerySources(cfg.GQLGencConfig.Query)
 	if err != nil {

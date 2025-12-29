@@ -138,5 +138,109 @@ func main() {
 }
 ```
 
+## Code Generation Flow
+
+The following sequence diagram illustrates the code generation flow of gqlgenc:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Main as main.go
+    participant Run as run.go
+    participant Config as config
+    participant Client as client
+    participant Introspection as introspection
+    participant QueryParser as queryparser
+    participant CodeGen as codegen
+    participant ModelGen as modelgen
+    participant QueryGen as querygen
+    participant ClientGen as clientgen
+
+    User->>Main: Execute gqlgenc command
+    Main->>Run: run()
+
+    Note over Run,Config: Configuration Loading
+    Run->>Config: FindConfigFile(".gqlgenc.yml")
+    Config-->>Run: config file path
+    Run->>Config: Load(cfgFile)
+    Config-->>Run: Config
+
+    Note over Run,Introspection: Schema Loading
+    Run->>Config: PrepareSchema(ctx)
+
+    alt Local Schema
+        Config->>Config: LoadSchema(schemaFiles)
+        Config-->>Config: GraphQL AST
+    else Remote Schema (Endpoint)
+        Config->>Client: NewClient(endpoint.URL)
+        Client-->>Config: HTTP Client
+        Config->>Client: Post(introspection.Query)
+        Client-->>Config: Schema Response
+        Config->>Introspection: SchemaFromIntrospection()
+        Introspection-->>Config: GraphQL AST
+    end
+
+    Config->>Config: GQLGenConfig.Init()
+    Config-->>Run: Initialized Config
+
+    Note over Run,ClientGen: Code Generation
+    Run->>Run: plugins.GenerateCode(cfg)
+
+    Note over Run,QueryParser: Query File Parsing
+    Run->>QueryParser: LoadQuerySources(query files)
+    QueryParser-->>Run: Query Sources
+    Run->>QueryParser: QueryDocument(schema, sources)
+    Note right of QueryParser: Parse & validate<br/>GraphQL queries
+    QueryParser-->>Run: Query Document
+    Run->>QueryParser: OperationQueryDocuments()
+    Note right of QueryParser: Split by operation<br/>(query/mutation/subscription)
+    QueryParser-->>Run: Operation Documents
+
+    Note over Run,ModelGen: Model Generation (gqlgen based)
+    Run->>ModelGen: New(cfg, operationDocs)
+    Run->>ModelGen: MutateConfig()
+    ModelGen->>ModelGen: Generate models/enums/scalars
+    Note right of ModelGen: Generate Go types<br/>for GraphQL types
+    ModelGen-->>Run: models_gen.go
+
+    Note over Run,CodeGen: Go Type Analysis
+    Run->>CodeGen: CreateOperations(queryDoc, opDocs)
+    Note right of CodeGen: Create operation structs<br/>with args & variables
+    CodeGen-->>Run: Operations
+    Run->>CodeGen: CreateGoTypes(operations)
+    Note right of CodeGen: Convert GraphQL types<br/>to Go types
+    CodeGen-->>Run: Go Types
+
+    Note over Run,QueryGen: Query Code Generation
+    Run->>QueryGen: New(cfg, operations, goTypes)
+    Run->>QueryGen: MutateConfig()
+    QueryGen->>QueryGen: RenderTemplate(template.tmpl)
+    Note right of QueryGen: Generate response types<br/>& unmarshal code
+    QueryGen-->>Run: query code with types
+
+    Note over Run,ClientGen: Client Code Generation
+    Run->>ClientGen: New(cfg, operations)
+    Run->>ClientGen: MutateConfig()
+    ClientGen->>ClientGen: RenderTemplate(template.tmpl)
+    Note right of ClientGen: Generate client methods<br/>for each operation
+    ClientGen-->>Run: client.go with methods
+
+    Run-->>Main: Success
+    Main-->>User: Generated code files
+```
+
+### Flow Description
+
+1. **Configuration Loading**: Find and load `.gqlgenc.yml` configuration file
+2. **Schema Loading**:
+   - Load schema from local files (if `schema` is specified), or
+   - Fetch schema via introspection query from remote endpoint (if `endpoint` is specified)
+3. **Query Parsing**: Load and parse GraphQL query files, validate against schema
+4. **Code Generation**:
+   - **Model Generation**: Generate Go types for GraphQL scalars, enums, and input types
+   - **Operation & Type Generation**: Convert GraphQL operations to Go operation structures and response types
+   - **Query Generation**: Generate Go code for query/mutation response types
+   - **Client Generation**: Generate client methods for executing queries/mutations
+
 ## VS
 

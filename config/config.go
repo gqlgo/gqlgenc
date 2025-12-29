@@ -131,14 +131,14 @@ func Load(configFilename string) (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) Init(ctx context.Context) error {
+func (c *Config) PrepareSchema(ctx context.Context) error {
 	if err := c.loadSchema(ctx); err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	// delete exist gen file
 	if c.GQLGenConfig.Model.IsDefined() {
-		// model gen file must be remoted before cfg.Init()
+		// model gen file must be removed before cfg.PrepareSchema()
 		_ = syscall.Unlink(c.GQLGenConfig.Model.Filename)
 	}
 
@@ -172,15 +172,15 @@ func (c *Config) loadSchema(ctx context.Context) error {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
 	} else {
-		if err := c.loadRemoteSchema(ctx); err != nil {
-			return fmt.Errorf("load remote schema failed: %w", err)
+		if err := c.introspectSchema(ctx); err != nil {
+			return fmt.Errorf("introspect schema failed: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (c *Config) loadRemoteSchema(ctx context.Context) error {
+func (c *Config) introspectSchema(ctx context.Context) error {
 	header := make(http.Header, len(c.GQLGencConfig.Endpoint.Headers))
 	for key, value := range c.GQLGencConfig.Endpoint.Headers {
 		header[key] = []string{value}
@@ -198,7 +198,7 @@ func (c *Config) loadRemoteSchema(ctx context.Context) error {
 		return fmt.Errorf("introspection query failed: %w", err)
 	}
 
-	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(c.GQLGencConfig.Endpoint.URL, res))
+	schema, err := validator.ValidateSchemaDocument(introspection.SchemaFromIntrospection(c.GQLGencConfig.Endpoint.URL, res))
 	if err != nil {
 		return fmt.Errorf("validation error: %w", err)
 	}

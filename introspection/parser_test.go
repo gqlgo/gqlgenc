@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestParseIntrospectionQuery_Parse(t *testing.T) {
+func TestSchemaFromIntrospection_Parse(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -31,9 +31,9 @@ func TestParseIntrospectionQuery_Parse(t *testing.T) {
 
 			query := readQueryResult(t, tt.filename)
 
-			ast := ParseIntrospectionQuery("test", query)
+			ast := SchemaFromIntrospection("test", query)
 			if ast == nil {
-				t.Error("ParseIntrospectionQuery() returned nil")
+				t.Error("SchemaFromIntrospection() returned nil")
 			}
 		})
 	}

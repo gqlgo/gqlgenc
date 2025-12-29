@@ -7,7 +7,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-func ParseIntrospectionQuery(url string, query Query) *ast.SchemaDocument {
+func SchemaFromIntrospection(url string, query Query) *ast.SchemaDocument {
 	parser := parser{
 		sharedPosition: &ast.Position{Src: &ast.Source{
 			Name:    "remote",

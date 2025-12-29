@@ -20,12 +20,12 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	if err := cfg.Init(ctx); err != nil {
-		return fmt.Errorf("failed to init: %w", err)
+	if err := cfg.PrepareSchema(ctx); err != nil {
+		return fmt.Errorf("failed to prepare schema: %w", err)
 	}
 
-	if err := plugins.Run(cfg); err != nil {
-		return fmt.Errorf("failed to run plugins: %w", err)
+	if err := plugins.GenerateCode(cfg); err != nil {
+		return fmt.Errorf("failed to generate code: %w", err)
 	}
 	return nil
 }
