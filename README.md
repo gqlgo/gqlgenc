@@ -165,22 +165,35 @@ sequenceDiagram
     Run->>Config: Load(cfgFile)
     Config-->>Run: Config
 
-    Note over Run,Introspection: Schema Loading
-    Run->>Config: PrepareSchema(ctx)
+    Note over Run,Introspection: Schema Loading & Initialization on Config
+    Run->>Config: Init(ctx, configFile)
+    Config->>Config: loadConfig(configFile)
+    Note right of Config: Load YAML config<br/>Validate schema/endpoint
 
     alt Local Schema
-        Config->>Config: LoadSchema(schemaFiles)
+        Config->>Config: GQLGenConfig.LoadSchema()
+        Note right of Config: Load from local files
         Config-->>Config: GraphQL AST
     else Remote Schema (Endpoint)
-        Config->>Client: NewClient(endpoint.URL)
+        Config->>Client: Use endpoint.Client or http.DefaultClient
         Client-->>Config: HTTP Client
-        Config->>Client: Post(introspection.Query)
-        Client-->>Config: Schema Response
-        Config->>Introspection: SchemaFromIntrospection()
+        Config->>Introspection: introspectionSchema(ctx, client, URL, headers)
+        Introspection->>Client: Post(introspectionQuery)
+        Client-->>Introspection: Schema Response
+        Introspection->>Introspection: Parse introspection response
+        alt Query type is null
+            Introspection->>Introspection: Initialize default Query type
+        end
         Introspection-->>Config: GraphQL AST
+        Config->>Config: Set GQLGenConfig.Schema
     end
 
+    Config->>Config: Delete existing generated files
+    Config->>Config: Initialize Models & StructTag
+    Note right of Config: Set default Models map<br/>Set default StructTag="json"
     Config->>Config: GQLGenConfig.Init()
+    Config->>Config: Sort Schema.Implements
+    Note right of Config: Sort interface implementations<br/>for deterministic output
     Config-->>Run: Initialized Config
 
     Note over Run,ClientGen: Code Generation
@@ -232,10 +245,25 @@ sequenceDiagram
 ### Flow Description
 
 1. **Configuration Loading**: Find and load `.gqlgenc.yml` configuration file
-2. **Schema Loading**:
-   - Load schema from local files (if `schema` is specified), or
-   - Fetch schema via introspection query from remote endpoint (if `endpoint` is specified)
+   - Validate that either `schema` or `endpoint` is specified (not both)
+   - Parse YAML configuration with environment variable expansion
+
+2. **Schema Loading & Initialization** (`config.Init()`):
+   - **Local Schema Path**:
+     - Load schema from local GraphQL files using glob patterns
+   - **Remote Schema Path** (Endpoint):
+     - Use custom HTTP client if provided (`endpoint.Client`), or default HTTP client
+     - Execute GraphQL introspection query to fetch schema
+     - Parse introspection response and build GraphQL AST
+     - Initialize default Query type if schema.queryType is null
+   - **Post-Schema Processing**:
+     - Delete existing generated files to ensure clean generation
+     - Initialize gqlgen config (Models map, StructTag default)
+     - Execute `GQLGenConfig.Init()` to prepare schema
+     - Sort interface implementations (`Schema.Implements`) for deterministic output
+
 3. **Query Parsing**: Load and parse GraphQL query files, validate against schema
+
 4. **Code Generation**:
    - **Model Generation**: Generate Go types for GraphQL scalars, enums, and input types
    - **Operation & Type Generation**: Convert GraphQL operations to Go operation structures and response types

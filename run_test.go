@@ -246,7 +246,7 @@ func Test_IntegrationTest(t *testing.T) {
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// Query and client generation
 			t.Chdir(tt.testDir)
-			err := run()
+			err := run(t.Context())
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("run() expected error but got nil")
