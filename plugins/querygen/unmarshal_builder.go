@@ -59,37 +59,71 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 	return statements
 }
 
+// buildFragmentUnmarshalStatement generates an Unmarshal statement for a fragment spread field.
+// このメソッドは純粋関数として、副作用なく Statement を生成する。
+func (b *UnmarshalBuilder) buildFragmentUnmarshalStatement(field FieldInfo) Statement {
+	fieldExpr := fmt.Sprintf("&t.%s", field.Name)
+	return &ErrorCheckStatement{
+		ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", fieldExpr),
+		Body: []Statement{
+			&ReturnStatement{Value: "err"},
+		},
+	}
+}
+
+// decodeNestedFields processes SubFields of a fragment spread field.
+// SubFields の categorize + 再帰処理を行い、fragment spreads と inline fragments を処理する。
+func (b *UnmarshalBuilder) decodeNestedFields(parentField FieldInfo) []Statement {
+	embeddedTargetExpr := fmt.Sprintf("t.%s", parentField.Name)
+	_, subFragmentSpreads, subInlineFragments := b.categorizeFieldsListWithPath(
+		parentField.SubFields,
+		embeddedTargetExpr,
+	)
+
+	var statements []Statement
+
+	// Fragment spreads の再帰処理（明示的）
+	subFragmentStatements := b.decodeFragmentSpreads(subFragmentSpreads)
+	statements = append(statements, subFragmentStatements...)
+
+	// Inline fragments の処理
+	subInlineStatements := b.inlineDecoder.DecodeInlineFragments(
+		embeddedTargetExpr,
+		"raw",
+		subInlineFragments,
+	)
+	statements = append(statements, subInlineStatements...)
+
+	return statements
+}
+
+// decodeSingleFragmentSpread processes a single fragment spread field.
+// 単一 fragment spread の処理（Unmarshal + SubFields）を行う。
+func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo) []Statement {
+	var statements []Statement
+
+	// Unmarshal statement の生成
+	unmarshalStmt := b.buildFragmentUnmarshalStatement(field)
+	statements = append(statements, unmarshalStmt)
+
+	// SubFields がある場合は再帰処理
+	if len(field.SubFields) > 0 {
+		subStatements := b.decodeNestedFields(field)
+		statements = append(statements, subStatements...)
+	}
+
+	return statements
+}
+
 // decodeFragmentSpreads generates statements to unmarshal embedded fields with json:"-".
 // このメソッドはイミュータブルな設計に従い、新しいステートメントスライスを返す。
 // 副作用を排除することで、コードの予測可能性とテストの容易性を向上させている。
 func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []Statement {
 	var statements []Statement
-
 	for _, field := range fragmentSpreads {
-		fieldExpr := fmt.Sprintf("&t.%s", field.Name)
-		embeddedTargetExpr := fmt.Sprintf("t.%s", field.Name)
-
-		// Unmarshal the embedded field as a whole to initialize nested unmarshallers.
-		statements = append(statements, &ErrorCheckStatement{
-			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", fieldExpr),
-			Body: []Statement{
-				&ReturnStatement{Value: "err"},
-			},
-		})
-
-		// Process nested embedded fields and inline fragments if present.
-		if len(field.SubFields) > 0 {
-			_, subFragmentSpreads, subInlineFragments := b.categorizeFieldsListWithPath(field.SubFields, embeddedTargetExpr)
-
-			// Recursively get statements from sub fragment spreads
-			subFragmentStatements := b.decodeFragmentSpreads(subFragmentSpreads)
-			statements = append(statements, subFragmentStatements...)
-
-			subInlineStatements := b.inlineDecoder.DecodeInlineFragments(embeddedTargetExpr, "raw", subInlineFragments)
-			statements = append(statements, subInlineStatements...)
-		}
+		fieldStatements := b.decodeSingleFragmentSpread(field)
+		statements = append(statements, fieldStatements...)
 	}
-
 	return statements
 }
 
