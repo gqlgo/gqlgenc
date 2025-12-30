@@ -4,37 +4,36 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
-func TestParseIntrospectionQuery_Parse(t *testing.T) {
+func TestSchemaFromIntrospection_Parse(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		filename    string
-		expectedErr error
+		name     string
+		filename string
 	}{
-		{"no mutation in schema", "testdata/introspection_result_no_mutation.json", nil},
+		{
+			name:     "no mutation in schema",
+			filename: "testdata/introspection_result_no_mutation.json",
+		},
 	}
 
-	for _, testCase := range tests {
-		test := testCase
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			query := readQueryResult(t, test.filename)
 
-			if test.expectedErr == nil {
-				require.NotPanics(t, func() {
-					ast := ParseIntrospectionQuery("test", query)
-					require.NotNil(t, ast)
-				})
-			} else {
-				require.PanicsWithValue(t, test.expectedErr, func() {
-					ast := ParseIntrospectionQuery("test", query)
-					require.Nil(t, ast)
-				})
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("parseIntrospectionQuery() panicked: %v", r)
+				}
+			}()
+
+			query := readQueryResult(t, tt.filename)
+
+			ast := SchemaFromIntrospection("test", query)
+			if ast == nil {
+				t.Error("SchemaFromIntrospection() returned nil")
 			}
 		})
 	}
@@ -44,11 +43,16 @@ func readQueryResult(t *testing.T, filename string) Query {
 	t.Helper()
 
 	data, err := os.ReadFile(filename)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Error reading file %s: %v", filename, err)
+	}
 
 	query := Query{}
+
 	err = json.Unmarshal(data, &query)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Error unmarshaling JSON: %v", err)
+	}
 
 	return query
 }

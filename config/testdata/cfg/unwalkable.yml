@@ -1,6 +1,10 @@
-schema:
-- not_walkable/**/*.graphql
-model:
-  filename: models_gen.go
-client:
-  filename: ./gen/client.go
+gqlgenc:
+  clientgen:
+    filename: ./gen/client.go
+  querygen:
+    filename: ./gen/query.go
+gqlgen:
+  schema:
+  - not_walkable/**/*.graphql
+  model:
+    filename: models_gen.go

@@ -1,3 +1,4 @@
-schema:
-  - outer
 unknown: foo
+gqlgen:
+  schema:
+    - outer

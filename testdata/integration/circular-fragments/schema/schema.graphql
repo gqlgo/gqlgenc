@@ -1,0 +1,16 @@
+directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, type: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+schema {
+  query: Query
+}
+
+type Query {
+  user: User! @goField(forceResolver: true)
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  friends: [User!]!
+}

@@ -1,0 +1,20 @@
+{{- if needsJSONImport }}
+import (
+    json "encoding/json/v2"
+    "encoding/json/jsontext"
+)
+
+{{- end}}
+{{- range $goType:= .GoTypes }}
+{{ genCode $goType }}
+{{- end}}
+
+{{- range $operation := .Operations}}
+const {{ $operation.Name|go }}Document = `{{ $operation.Document }}`
+{{- end}}
+
+var DocumentOperationNames = map[string]string{
+{{- range $operation := .Operations}}
+    {{ $operation.Name|go }}Document: "{{ $operation.Name }}",
+{{- end}}
+}

@@ -1,0 +1,117 @@
+directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, type: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+scalar JSON
+scalar Email
+
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  user(id: ID = "default-user-id", status: Status = ACTIVE): User! @goField(forceResolver: true)
+  optionalUser: User @goField(forceResolver: true)
+  article(id: ID!): Article @goField(forceResolver: true)
+  metadata(id: ID!): Metadata @goField(forceResolver: true)
+}
+
+type Mutation {
+  updateUser(input: UpdateUserInput) :UpdateUserPayload!
+}
+
+input UpdateUserInput {
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
+  name: String
+  settings: UserSettingsInput
+  tags: [String!]
+}
+
+input UserSettingsInput {
+  theme: String!
+  notifications: Boolean!
+}
+
+type UserSettings {
+  theme: String!
+  notifications: Boolean!
+}
+
+type UpdateUserPayload {
+  user: User! @goField(type: "*github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.User")
+}
+
+type User {
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
+  name: String!
+  email: Email!
+  settings: UserSettings
+  profile: Profile! @goField(forceResolver: true)
+  optionalProfile: Profile @goField(forceResolver: true)
+  address: Address! @goField(forceResolver: true)
+  optionalAddress: Address @goField(forceResolver: true)
+  profilePic(size: Int!): String! @goField(forceResolver: true)
+}
+
+union Profile = PublicProfile | PrivateProfile
+
+type PublicProfile {
+  id: ID!
+  status: Status!
+}
+
+type PrivateProfile {
+  id: ID!
+  age: Int
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+interface Address {
+  street: String!
+}
+
+type PublicAddress implements Address {
+  id: ID!
+  street: String!
+  public: Boolean!
+}
+
+type PrivateAddress implements Address {
+  id: ID!
+  street: String!
+  private: Boolean!
+}
+
+type Article {
+  id: ID!
+  title: String!
+  tags: [String!]!
+  optionalTags: [String!]
+  comments: [Comment!]!
+  optionalComments: [Comment!]
+  rating: Float!
+  optionalRating: Float
+  nullableElementsList: [String]!
+  fullyNullableList: [String]
+  statuses: [Status!]!
+  optionalStatuses: [Status!]
+  addresses: [Address!]!
+  optionalAddresses: [Address!]
+  profiles: [Profile!]!
+  optionalProfiles: [Profile!]
+  matrix: [[String!]!]!
+  optionalMatrix: [[String!]!]
+}
+
+type Comment {
+  id: ID!
+  text: String!
+}
+
+type Metadata {
+  id: ID!
+  data: JSON
+}

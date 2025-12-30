@@ -1,0 +1,16 @@
+query GetUser {
+  user {
+    ...FragmentA
+  }
+}
+
+fragment FragmentA on User {
+  id
+  name
+  ...FragmentB
+}
+
+fragment FragmentB on User {
+  email
+  ...FragmentA
+}

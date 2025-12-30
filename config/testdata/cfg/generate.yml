@@ -1,16 +1,18 @@
-model:
-  filename: ./gen/models_gen.go
-client:
-  filename: ./gen/client.go
-schema:
-  - testdata/cfg/glob/**/*.graphql
-query:
-  - "./queries/*.graphql"
-generate:
-  unamedPattern: Empty
-  prefix:
-    mutation: Hoge
-    query: Data
-  suffix:
-    mutation: Bar
-    query: Foo
+gqlgenc:
+  clientgen:
+    filename: ./gen/client.go
+  query:
+    - "./queries/*.graphql"
+  generate:
+    unamedPattern: Empty
+    prefix:
+      mutation: Hoge
+      query: Data
+    suffix:
+      mutation: Bar
+      query: Foo
+gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+  schema:
+    - testdata/cfg/glob/**/*.graphql

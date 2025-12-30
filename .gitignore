@@ -1,13 +1,3 @@
-/.gqlgenc.yml
-/models_gen.go
-/**/.graphqlconfig
-/schema.graphql
-/client.go
-/query/
-/.idea/
+run/testdata/**/actual
 
-coverage.out
-.vscode/
-
-# Actual files output by the end-to-end tests
-generator/testdata/**/actual
+gqlgenc

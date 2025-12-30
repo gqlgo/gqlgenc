@@ -1,10 +1,16 @@
 MAKEFLAGS=--no-builtin-rules --no-builtin-variables --always-make
 
+# Enable jsonv2 experiment
+export GOEXPERIMENT=jsonv2
+
 fmt:
-	goimports -local github.com/Yamashou/gqlgenc -w . && gofumpt -extra -w . && gci write -s Standard -s Default .
+	go tool golangci-lint fmt
 
 lint:
-	golangci-lint cache clean && golangci-lint run
+	go tool golangci-lint run
+
+build:
+	go build -v ./...
 
 test:
 	go test -v ./...

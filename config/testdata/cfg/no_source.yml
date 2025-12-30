@@ -1,6 +1,10 @@
-model:
-  filename: ./gen/models_gen.go
-client:
-  filename: ./gen/client.go
-query:
-  - "./queries/*.graphql"
+gqlgenc:
+  clientgen:
+    filename: ./gen/client.go
+  querygen:
+    filename: ./gen/query.go
+  query:
+    - "./queries/*.graphql"
+gqlgen:
+  model:
+    filename: ./gen/models_gen.go

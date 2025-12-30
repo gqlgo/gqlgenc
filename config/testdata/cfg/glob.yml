@@ -1,8 +1,12 @@
-model:
-  filename: ./gen/models_gen.go
-client:
-  filename: ./gen/client.go
-schema:
-  - testdata/cfg/glob/**/*.graphql
-query:
-  - "./queries/*.graphql"
+gqlgenc:
+  clientgen:
+    filename: ./gen/client.go
+  querygen:
+    filename: ./gen/query.go
+  query:
+    - "./queries/*.graphql"
+gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+  schema:
+    - testdata/cfg/glob/**/*.graphql

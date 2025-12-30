@@ -1,6 +1,0 @@
-fragment FileDataFragment on FileData {
-    mime
-    name
-    size
-}
-

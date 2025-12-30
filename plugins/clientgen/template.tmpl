@@ -1,0 +1,29 @@
+{{ reserveImport "context" }}
+
+{{ reserveImport "github.com/Yamashou/gqlgenc/v3/client" }}
+
+type Client struct {
+	client *client.Client
+}
+
+func NewClient(c *client.Client) *Client {
+	return &Client{client: c}
+}
+
+{{range $operation := .Operations}}
+func (c *Client) {{ $operation.Name|go }}(ctx context.Context{{- range $arg := $operation.Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, options ...client.Option) (*{{ $.QueryPackage }}.{{ $operation.Name | go }}, error) {
+	vars := map[string]any{
+	{{- range $args := $operation.VariableDefinitions}}
+    "{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
+	{{- end }}
+	}
+
+	var res {{ $.QueryPackage }}.{{ $operation.Name | go }}
+	if err := c.client.Post(ctx, "{{ $operation.Name }}", {{ $.QueryPackage }}.{{ $operation.Name|go }}Document, vars, &res, options...); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+{{end}}
