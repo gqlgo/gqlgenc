@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
@@ -13,7 +14,7 @@ func run() error {
 		return fmt.Errorf("failed to find config file: %w", err)
 	}
 
-	cfg, err := config.Init(cfgFile)
+	cfg, err := config.Init(context.Background(), cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %w", err)
 	}
