@@ -83,6 +83,14 @@ func Init(ctx context.Context, configFileName string) (*Config, error) {
 		_ = syscall.Unlink(c.GQLGencConfig.ClientGen.Filename)
 	}
 
+	// gqlgen.Config.Init() に必要なフィールドを初期化
+	if c.GQLGenConfig.Models == nil {
+		c.GQLGenConfig.Models = make(gqlgenconfig.TypeMap)
+	}
+	if c.GQLGenConfig.StructTag == "" {
+		c.GQLGenConfig.StructTag = "json"
+	}
+
 	if err := c.GQLGenConfig.Init(); err != nil {
 		return nil, fmt.Errorf("generating core failed: %w", err)
 	}

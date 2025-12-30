@@ -8,20 +8,181 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
-	"slices"
-	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/99designs/gqlgen/codegen/config"
-	"github.com/vektah/gqlparser/v2/ast"
 )
 
-func ptr[T any](t T) *T {
-	return &t
+func TestInit(t *testing.T) {
+	t.Parallel()
+
+	type want struct {
+		errMessage string
+		err        bool
+	}
+
+	tests := []struct {
+		name            string
+		configFile      string
+		responseFile    string
+		httpErrorStatus int // HTTPエラーをシミュレートする場合のステータスコード（0の場合は正常）
+		want            want
+	}{
+		{
+			name:       "ローカルスキーマで成功",
+			configFile: "testdata/cfg/glob.yml",
+			want: want{
+				err: false,
+			},
+		},
+		{
+			name:       "スキーマ未指定エラー",
+			configFile: "testdata/cfg/no_source.yml",
+			want: want{
+				err:        true,
+				errMessage: "neither 'schema' nor 'endpoint' specified",
+			},
+		},
+		{
+			name:         "リモートスキーマ（introspection）で成功",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_ok.json",
+			want: want{
+				err: false,
+			},
+		},
+		{
+			name:         "不正なリモートスキーマでエラー",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_invalid_schema.json",
+			want: want{
+				err:        true,
+				errMessage: "OBJECT Query: must define one or more fields",
+			},
+		},
+		{
+			name:            "introspectionクエリがHTTPエラーを返す",
+			configFile:      "testdata/cfg/endpoint_only.yml",
+			httpErrorStatus: http.StatusInternalServerError,
+			want: want{
+				err:        true,
+				errMessage: "introspection query failed",
+			},
+		},
+		{
+			name:         "schema.QueryがnullでQuery型を初期化",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_query_null.json",
+			want: want{
+				err: false,
+			},
+		},
+		{
+			name:         "インターフェース実装を含むスキーマでImplementsソート処理を実行",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_with_implements.json",
+			want: want{
+				err: false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var cfg *Config
+			var err error
+
+			if tt.responseFile != "" || tt.httpErrorStatus != 0 {
+				// リモートスキーマのテストケース（mockServerを使用）
+				var mockServer *mockRemoteServer
+				var closeServer func()
+
+				if tt.httpErrorStatus != 0 {
+					// HTTPエラーをシミュレート
+					mockServer, closeServer = newMockRemoteServerWithError(t, tt.httpErrorStatus, "Internal Server Error")
+				} else {
+					// 正常なレスポンスまたはスキーマエラー
+					mockServer, closeServer = newMockRemoteServer(t, responseFromFile(tt.responseFile))
+				}
+				defer closeServer()
+
+				// mockServerのURLとClientを設定してInit()を直接呼び出すため、
+				// 一時的な設定ファイルを作成
+				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
+				if tmpErr != nil {
+					t.Fatalf("Failed to create temp config file: %v", tmpErr)
+				}
+				defer os.Remove(tmpFile.Name())
+
+				// mockServerのURLを使った設定を書き込む
+				tmpConfig := fmt.Sprintf(`gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+    package: gen
+gqlgenc:
+  query:
+    - "./queries/*.graphql"
+  querygen:
+    filename: ./gen/query.go
+    package: gen
+  clientgen:
+    filename: ./gen/client.go
+    package: gen
+  endpoint:
+    url: %s
+`, mockServer.URL)
+				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
+					t.Fatalf("Failed to write temp config: %v", tmpErr)
+				}
+				tmpFile.Close()
+
+				// Init()を直接呼び出す（mockServerは実際のHTTPサーバーとして動作する）
+				cfg, err = Init(t.Context(), tmpFile.Name())
+			} else {
+				// ローカルスキーマのテストケース
+				cfg, err = Init(t.Context(), tt.configFile)
+			}
+
+			if tt.want.err {
+				if err == nil {
+					t.Errorf("Init() error = nil, want error")
+
+					return
+				}
+
+				if tt.want.errMessage != "" && !containsString(err.Error(), tt.want.errMessage) {
+					t.Errorf("Init() error = %v, want error containing %v", err, tt.want.errMessage)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Init() error = %v, want nil", err)
+
+				return
+			}
+
+			// 成功時は基本的な検証のみ
+			if cfg == nil {
+				t.Error("Init() returned nil config, want non-nil")
+			}
+			if cfg.GQLGenConfig == nil {
+				t.Error("Init() returned nil GQLGenConfig, want non-nil")
+			}
+			if cfg.GQLGencConfig == nil {
+				t.Error("Init() returned nil GQLGencConfig, want non-nil")
+			}
+			if cfg.GQLGenConfig.Schema == nil {
+				t.Error("Init() returned nil Schema, want non-nil")
+			}
+		})
+	}
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -278,94 +439,6 @@ func TestLoadConfigNonWindows(t *testing.T) {
 	})
 }
 
-func TestLoadConfig_LoadSchema(t *testing.T) {
-	t.Parallel()
-
-	type want struct {
-		config     *Config
-		errMessage string
-		err        bool
-	}
-
-	tests := []struct {
-		want         want
-		name         string
-		responseFile string
-	}{
-		// TODO: LoadLocalSchema
-		{
-			name:         "correct remote schema",
-			responseFile: "testdata/remote/response_ok.json",
-			want: want{
-				config: &Config{
-					GQLGencConfig: &GQLGencConfig{
-						Endpoint: &EndPointConfig{},
-					},
-					GQLGenConfig: &config.Config{},
-				},
-			},
-		},
-		{
-			name:         "invalid remote schema",
-			responseFile: "testdata/remote/response_invalid_schema.json",
-			want: want{
-				err:        true,
-				errMessage: "OBJECT Query: must define one or more fields",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			mockServer, closeServer := newMockRemoteServer(t, responseFromFile(tt.responseFile))
-			defer closeServer()
-
-			cfg := &Config{
-				GQLGenConfig: &config.Config{},
-				GQLGencConfig: &GQLGencConfig{
-					Endpoint: &EndPointConfig{
-						URL: mockServer.URL,
-					},
-				},
-			}
-			cfg.GQLGencConfig.Endpoint.Client = mockServer.client
-			//
-			//err := cfg.loadSchema(t.Context())
-			//if tt.want.err {
-			//	if err == nil {
-			//		t.Errorf("loadSchema() error = nil, want error")
-			//
-			//		return
-			//	}
-			//
-			//	if tt.want.errMessage != "" && !containsString(err.Error(), tt.want.errMessage) {
-			//		t.Errorf("loadSchema() error = %v, want error containing %v", err, tt.want.errMessage)
-			//	}
-			//
-			//	return
-			//}
-			//
-			//if err != nil {
-			//	t.Errorf("loadSchema() error = %v, want nil", err)
-			//
-			//	return
-			//}
-
-			if tt.want.config != nil {
-				opts := []cmp.Option{
-					cmpopts.IgnoreFields(config.Config{}, "Schema"),
-					cmpopts.IgnoreFields(EndPointConfig{}, "URL", "Client"),
-				}
-				if diff := cmp.Diff(tt.want.config, cfg, opts...); diff != "" {
-					t.Errorf("loadSchema() mismatch (-want +got):\n%s", diff)
-				}
-			}
-		})
-	}
-}
-
 // containsString checks if string s contains substring.
 func containsString(s, substring string) bool {
 	if len(s) < len(substring) || substring == "" {
@@ -391,7 +464,7 @@ type mockRemoteServer struct {
 func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, closeServer func()) {
 	t.Helper()
 
-	mock = &mockRemoteServer{URL: "http://mock/graphql"}
+	mock = &mockRemoteServer{}
 	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		var err error
 		mock.body, err = io.ReadAll(req.Body)
@@ -417,9 +490,11 @@ func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, cl
 		}
 	})
 
-	mock.client = &http.Client{Transport: handlerRoundTripper{handler: handler}}
+	server := httptest.NewServer(handler)
+	mock.URL = server.URL
+	mock.client = server.Client()
 
-	return mock, func() {}
+	return mock, func() { server.Close() }
 }
 
 type handlerRoundTripper struct {
@@ -446,183 +521,26 @@ func (f responseFromFile) load(t *testing.T) []byte {
 	return content
 }
 
-func TestInit(t *testing.T) {
-	t.Parallel()
+//nolint:nonamedreturns // named return "mock" with type "*mockRemoteServer" found
+func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) (mock *mockRemoteServer, closeServer func()) {
+	t.Helper()
 
-	type want struct {
-		errMessage string
-		err        bool
+	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+		writer.WriteHeader(statusCode)
+		if _, err := writer.Write([]byte(message)); err != nil {
+			t.Errorf("failed to write error response: %v", err)
+		}
+	})
+
+	server := httptest.NewServer(handler)
+	mock = &mockRemoteServer{
+		URL:    server.URL,
+		client: server.Client(),
 	}
 
-	tests := []struct {
-		name         string
-		configFile   string
-		responseFile string
-		want         want
-	}{
-		{
-			name:       "ローカルスキーマで成功",
-			configFile: "testdata/cfg/glob.yml",
-			want: want{
-				err: false,
-			},
-		},
-		{
-			name:       "スキーマ未指定エラー",
-			configFile: "testdata/cfg/no_source.yml",
-			want: want{
-				err:        true,
-				errMessage: "neither 'schema' nor 'endpoint' specified",
-			},
-		},
-		{
-			name:         "リモートスキーマ（introspection）で成功",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_ok.json",
-			want: want{
-				err: false,
-			},
-		},
-		{
-			name:         "不正なリモートスキーマでエラー",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_invalid_schema.json",
-			want: want{
-				err:        true,
-				errMessage: "OBJECT Query: must define one or more fields",
-			},
-		},
-	}
+	return mock, func() { server.Close() }
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var cfg *Config
-			var err error
-
-			if tt.responseFile != "" {
-				// リモートスキーマのテストケース（mockServerを使用）
-				mockServer, closeServer := newMockRemoteServer(t, responseFromFile(tt.responseFile))
-				defer closeServer()
-
-				// mockServerのURLとClientを設定してInit()を直接呼び出すため、
-				// 一時的な設定ファイルを作成
-				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
-				if tmpErr != nil {
-					t.Fatalf("Failed to create temp config file: %v", tmpErr)
-				}
-				defer os.Remove(tmpFile.Name())
-
-				// mockServerのURLを使った設定を書き込む
-				tmpConfig := fmt.Sprintf(`gqlgen:
-  model:
-    filename: ./gen/models_gen.go
-    package: gen
-gqlgenc:
-  query:
-    - "./queries/*.graphql"
-  querygen:
-    filename: ./gen/query.go
-    package: gen
-  clientgen:
-    filename: ./gen/client.go
-    package: gen
-  endpoint:
-    url: %s
-`, mockServer.URL)
-				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
-					t.Fatalf("Failed to write temp config: %v", tmpErr)
-				}
-				tmpFile.Close()
-
-				// loadConfigで一時ファイルを読み込んでClientを設定
-				cfg, err = loadConfig(tmpFile.Name())
-				if err != nil {
-					t.Fatalf("loadConfig() error = %v", err)
-				}
-				cfg.GQLGencConfig.Endpoint.Client = mockServer.client
-
-				// Init()の残りの処理を手動実行
-				// Load schema
-				httpClient := cfg.GQLGencConfig.Endpoint.Client
-				if httpClient == nil {
-					httpClient = http.DefaultClient
-				}
-				var schema *ast.Schema
-				schema, err = introspectionSchema(t.Context(), httpClient, cfg.GQLGencConfig.Endpoint.URL, cfg.GQLGencConfig.Endpoint.Headers)
-				if err == nil {
-					cfg.GQLGenConfig.Schema = schema
-
-					// delete exist gen file
-					if cfg.GQLGenConfig.Model.IsDefined() {
-						_ = syscall.Unlink(cfg.GQLGenConfig.Model.Filename)
-					}
-
-					if cfg.GQLGencConfig.QueryGen.IsDefined() {
-						_ = syscall.Unlink(cfg.GQLGencConfig.QueryGen.Filename)
-					}
-
-					if cfg.GQLGencConfig.ClientGen.IsDefined() {
-						_ = syscall.Unlink(cfg.GQLGencConfig.ClientGen.Filename)
-					}
-
-					// gqlgen.Config.Init() に必要なフィールドを初期化
-					if cfg.GQLGenConfig.Models == nil {
-						cfg.GQLGenConfig.Models = make(config.TypeMap)
-					}
-					if cfg.GQLGenConfig.StructTag == "" {
-						cfg.GQLGenConfig.StructTag = "json"
-					}
-
-					err = cfg.GQLGenConfig.Init()
-					if err == nil {
-						// sort Implements to ensure a deterministic output
-						for _, implements := range cfg.GQLGenConfig.Schema.Implements {
-							slices.SortFunc(implements, func(a, b *ast.Definition) int {
-								return strings.Compare(a.Name, b.Name)
-							})
-						}
-					}
-				}
-			} else {
-				// ローカルスキーマのテストケース
-				cfg, err = Init(t.Context(), tt.configFile)
-			}
-
-			if tt.want.err {
-				if err == nil {
-					t.Errorf("Init() error = nil, want error")
-
-					return
-				}
-
-				if tt.want.errMessage != "" && !containsString(err.Error(), tt.want.errMessage) {
-					t.Errorf("Init() error = %v, want error containing %v", err, tt.want.errMessage)
-				}
-
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Init() error = %v, want nil", err)
-
-				return
-			}
-
-			// 成功時は基本的な検証のみ
-			if cfg == nil {
-				t.Error("Init() returned nil config, want non-nil")
-			}
-			if cfg.GQLGenConfig == nil {
-				t.Error("Init() returned nil GQLGenConfig, want non-nil")
-			}
-			if cfg.GQLGencConfig == nil {
-				t.Error("Init() returned nil GQLGencConfig, want non-nil")
-			}
-			if cfg.GQLGenConfig.Schema == nil {
-				t.Error("Init() returned nil Schema, want non-nil")
-			}
-		})
-	}
+func ptr[T any](t T) *T {
+	return &t
 }
