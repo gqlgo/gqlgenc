@@ -46,7 +46,8 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 	statements = append(statements, fieldStatements...)
 
 	// 6. Decode fragment spreads (non-pointer embedded fields with json:"-").
-	b.decodeFragmentSpreads(&statements, fragmentSpreads)
+	fragmentStatements := b.decodeFragmentSpreads(fragmentSpreads)
+	statements = append(statements, fragmentStatements...)
 
 	// 7. Decode inline fragments (__typename based).
 	inlineStatements := b.inlineDecoder.DecodeInlineFragments(targetExpr, rawExpr, inlineFragments)
@@ -59,13 +60,17 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 }
 
 // decodeFragmentSpreads generates statements to unmarshal embedded fields with json:"-".
-func (b *UnmarshalBuilder) decodeFragmentSpreads(statements *[]Statement, fragmentSpreads []FieldInfo) {
+// このメソッドはイミュータブルな設計に従い、新しいステートメントスライスを返す。
+// 副作用を排除することで、コードの予測可能性とテストの容易性を向上させている。
+func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []Statement {
+	var statements []Statement
+
 	for _, field := range fragmentSpreads {
 		fieldExpr := fmt.Sprintf("&t.%s", field.Name)
 		embeddedTargetExpr := fmt.Sprintf("t.%s", field.Name)
 
 		// Unmarshal the embedded field as a whole to initialize nested unmarshallers.
-		*statements = append(*statements, &ErrorCheckStatement{
+		statements = append(statements, &ErrorCheckStatement{
 			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", fieldExpr),
 			Body: []Statement{
 				&ReturnStatement{Value: "err"},
@@ -76,12 +81,16 @@ func (b *UnmarshalBuilder) decodeFragmentSpreads(statements *[]Statement, fragme
 		if len(field.SubFields) > 0 {
 			_, subFragmentSpreads, subInlineFragments := b.categorizeFieldsListWithPath(field.SubFields, embeddedTargetExpr)
 
-			b.decodeFragmentSpreads(statements, subFragmentSpreads)
+			// Recursively get statements from sub fragment spreads
+			subFragmentStatements := b.decodeFragmentSpreads(subFragmentSpreads)
+			statements = append(statements, subFragmentStatements...)
 
 			subInlineStatements := b.inlineDecoder.DecodeInlineFragments(embeddedTargetExpr, "raw", subInlineFragments)
-			*statements = append(*statements, subInlineStatements...)
+			statements = append(statements, subInlineStatements...)
 		}
 	}
+
+	return statements
 }
 
 // categorizeFields separates regular fields, fragment spreads, and inline fragments.

@@ -3,7 +3,6 @@ package querygen
 import (
 	"fmt"
 	"go/types"
-	"reflect"
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
@@ -13,6 +12,8 @@ import (
 type CodeGenerator struct {
 	formatter        *CodeFormatter
 	unmarshalBuilder *UnmarshalBuilder
+	classifier       *FieldClassifier
+	analyzer         *FieldAnalyzer
 	skipUnmarshal    map[*types.TypeName]struct{}
 }
 
@@ -21,6 +22,8 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 	return &CodeGenerator{
 		formatter:        NewCodeFormatter(),
 		unmarshalBuilder: NewUnmarshalBuilder(),
+		classifier:       NewFieldClassifier(),
+		analyzer:         NewFieldAnalyzer(),
 		skipUnmarshal:    collectEmbeddedTypes(goTypes),
 	}
 }
@@ -99,48 +102,7 @@ func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 }
 
 func (g *CodeGenerator) buildFields(structType *types.Struct) []FieldInfo {
-	fields := make([]FieldInfo, 0, structType.NumFields())
-
-	for i := range structType.NumFields() {
-		field := structType.Field(i)
-		tag := structType.Tag(i)
-
-		info := FieldInfo{
-			Name:       field.Name(),
-			Type:       field.Type(),
-			TypeName:   templates.CurrentImports.LookupType(field.Type()),
-			JSONTag:    parseJSONTag(tag),
-			IsExported: field.Exported(),
-			IsEmbedded: field.Anonymous(),
-		}
-
-		if isInlineFragmentField(field, tag) {
-			info.IsInlineFragment = true
-
-			if ptrType, ok := field.Type().(*types.Pointer); ok {
-				info.IsPointer = true
-				elemType := ptrType.Elem()
-				info.PointerElemType = templates.CurrentImports.LookupType(elemType)
-			}
-		}
-
-		if info.IsEmbedded && !info.IsInlineFragment {
-			if embeddedNamed := namedStructType(field.Type()); embeddedNamed != nil {
-				if g.shouldGenerateUnmarshal(embeddedNamed) {
-					fields = append(fields, info)
-					continue
-				}
-			}
-
-			if embeddedStruct := getStructType(field.Type()); embeddedStruct != nil {
-				info.SubFields = g.buildFields(embeddedStruct)
-			}
-		}
-
-		fields = append(fields, info)
-	}
-
-	return fields
+	return g.analyzer.AnalyzeFields(structType, g.shouldGenerateUnmarshal)
 }
 
 func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
@@ -150,34 +112,6 @@ func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
 
 	_, skip := g.skipUnmarshal[named.Obj()]
 	return !skip
-}
-
-func parseJSONTag(tag string) string {
-	if tag == "" {
-		return ""
-	}
-	value := reflect.StructTag(tag).Get("json")
-	if value == "" {
-		return ""
-	}
-	if idx := strings.Index(value, ","); idx >= 0 {
-		value = value[:idx]
-	}
-	return value
-}
-
-func isInlineFragmentField(field *types.Var, tag string) bool {
-	if !field.Exported() {
-		return false
-	}
-
-	jsonTag := parseJSONTag(tag)
-	if jsonTag != "" && jsonTag != "-" {
-		return false
-	}
-
-	_, isPointer := field.Type().(*types.Pointer)
-	return isPointer
 }
 
 func getStructType(t types.Type) *types.Struct {
