@@ -156,7 +156,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := Load(tt.file)
+			cfg, err := loadConfig(tt.file)
 
 			if tt.want.err {
 				if err == nil {
@@ -201,7 +201,7 @@ func TestLoadConfigWindows(t *testing.T) {
 	t.Run("globbed filenames on Windows", func(t *testing.T) {
 		t.Parallel()
 
-		cfg, err := Load("testdata/cfg/glob.yml")
+		cfg, err := loadConfig("testdata/cfg/glob.yml")
 		if err != nil {
 			t.Errorf("loadConfig() error = %v, want nil", err)
 
@@ -223,7 +223,7 @@ func TestLoadConfigWindows(t *testing.T) {
 	t.Run("unwalkable path on Windows", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := Load("testdata/cfg/unwalkable.yml")
+		_, err := loadConfig("testdata/cfg/unwalkable.yml")
 		want := "failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."
 
 		if err == nil || err.Error() != want {
@@ -242,7 +242,7 @@ func TestLoadConfigNonWindows(t *testing.T) {
 	t.Run("globbed filenames on non-Windows", func(t *testing.T) {
 		t.Parallel()
 
-		cfg, err := Load("testdata/cfg/glob.yml")
+		cfg, err := loadConfig("testdata/cfg/glob.yml")
 		if err != nil {
 			t.Errorf("loadConfig() error = %v, want nil", err)
 
@@ -264,7 +264,7 @@ func TestLoadConfigNonWindows(t *testing.T) {
 	t.Run("unwalkable path on non-Windows", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := Load("testdata/cfg/unwalkable.yml")
+		_, err := loadConfig("testdata/cfg/unwalkable.yml")
 		want := "failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"
 
 		if err == nil || err.Error() != want {

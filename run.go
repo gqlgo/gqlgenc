@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
@@ -14,14 +13,9 @@ func run() error {
 		return fmt.Errorf("failed to find config file: %w", err)
 	}
 
-	cfg, err := config.Load(cfgFile)
+	cfg, err := config.Init(cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %w", err)
-	}
-
-	ctx := context.Background()
-	if err := cfg.PrepareSchema(ctx); err != nil {
-		return fmt.Errorf("failed to prepare schema: %w", err)
 	}
 
 	if err := plugins.GenerateCode(cfg); err != nil {
