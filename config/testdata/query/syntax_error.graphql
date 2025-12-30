@@ -1,0 +1,5 @@
+query SyntaxError {
+  todos {
+    id
+    text
+  # missing closing brace

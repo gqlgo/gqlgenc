@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,231 +17,75 @@ import (
 	"github.com/99designs/gqlgen/codegen/config"
 )
 
-func TestInit(t *testing.T) {
-	t.Parallel()
-
-	type want struct {
-		errMessage string
-		err        bool
-	}
-
-	tests := []struct {
-		name            string
-		configFile      string
-		responseFile    string
-		httpErrorStatus int // HTTPエラーをシミュレートする場合のステータスコード（0の場合は正常）
-		want            want
-	}{
-		{
-			name:       "ローカルスキーマで成功",
-			configFile: "testdata/cfg/glob.yml",
-			want: want{
-				err: false,
-			},
-		},
-		{
-			name:       "スキーマ未指定エラー",
-			configFile: "testdata/cfg/no_source.yml",
-			want: want{
-				err:        true,
-				errMessage: "neither 'schema' nor 'endpoint' specified",
-			},
-		},
-		{
-			name:         "リモートスキーマ（introspection）で成功",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_ok.json",
-			want: want{
-				err: false,
-			},
-		},
-		{
-			name:         "不正なリモートスキーマでエラー",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_invalid_schema.json",
-			want: want{
-				err:        true,
-				errMessage: "OBJECT Query: must define one or more fields",
-			},
-		},
-		{
-			name:            "introspectionクエリがHTTPエラーを返す",
-			configFile:      "testdata/cfg/endpoint_only.yml",
-			httpErrorStatus: http.StatusInternalServerError,
-			want: want{
-				err:        true,
-				errMessage: "introspection query failed",
-			},
-		},
-		{
-			name:         "schema.QueryがnullでQuery型を初期化",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_query_null.json",
-			want: want{
-				err: false,
-			},
-		},
-		{
-			name:         "インターフェース実装を含むスキーマでImplementsソート処理を実行",
-			configFile:   "testdata/cfg/endpoint_only.yml",
-			responseFile: "testdata/remote/response_with_implements.json",
-			want: want{
-				err: false,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var cfg *Config
-			var err error
-
-			if tt.responseFile != "" || tt.httpErrorStatus != 0 {
-				// リモートスキーマのテストケース（mockServerを使用）
-				var mockServer *mockRemoteServer
-				var closeServer func()
-
-				if tt.httpErrorStatus != 0 {
-					// HTTPエラーをシミュレート
-					mockServer, closeServer = newMockRemoteServerWithError(t, tt.httpErrorStatus, "Internal Server Error")
-				} else {
-					// 正常なレスポンスまたはスキーマエラー
-					mockServer, closeServer = newMockRemoteServer(t, responseFromFile(tt.responseFile))
-				}
-				defer closeServer()
-
-				// mockServerのURLとClientを設定してInit()を直接呼び出すため、
-				// 一時的な設定ファイルを作成
-				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
-				if tmpErr != nil {
-					t.Fatalf("Failed to create temp config file: %v", tmpErr)
-				}
-				defer os.Remove(tmpFile.Name())
-
-				// mockServerのURLを使った設定を書き込む
-				tmpConfig := fmt.Sprintf(`gqlgen:
-  model:
-    filename: ./gen/models_gen.go
-    package: gen
-gqlgenc:
-  query:
-    - "./queries/*.graphql"
-  querygen:
-    filename: ./gen/query.go
-    package: gen
-  clientgen:
-    filename: ./gen/client.go
-    package: gen
-  endpoint:
-    url: %s
-`, mockServer.URL)
-				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
-					t.Fatalf("Failed to write temp config: %v", tmpErr)
-				}
-				tmpFile.Close()
-
-				// Init()を直接呼び出す（mockServerは実際のHTTPサーバーとして動作する）
-				cfg, err = SchemaInit(t.Context(), tmpFile.Name())
-			} else {
-				// ローカルスキーマのテストケース
-				cfg, err = SchemaInit(t.Context(), tt.configFile)
-			}
-
-			if tt.want.err {
-				if err == nil {
-					t.Errorf("Init() error = nil, want error")
-
-					return
-				}
-
-				if tt.want.errMessage != "" && !containsString(err.Error(), tt.want.errMessage) {
-					t.Errorf("Init() error = %v, want error containing %v", err, tt.want.errMessage)
-				}
-
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Init() error = %v, want nil", err)
-
-				return
-			}
-
-			// 成功時は基本的な検証のみ
-			if cfg == nil {
-				t.Error("Init() returned nil config, want non-nil")
-			}
-			if cfg.GQLGenConfig == nil {
-				t.Error("Init() returned nil GQLGenConfig, want non-nil")
-			}
-			if cfg.GQLGencConfig == nil {
-				t.Error("Init() returned nil GQLGencConfig, want non-nil")
-			}
-			if cfg.GQLGenConfig.Schema == nil {
-				t.Error("Init() returned nil Schema, want non-nil")
-			}
-		})
-	}
-}
-
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 
+	type args struct {
+		file string
+	}
+
 	type want struct {
-		config     *Config
-		errMessage string
-		err        bool
+		config         *Config
+		schemaFilename []string
+		err            error
 	}
 
 	tests := []struct {
-		name string
-		file string
-		want want
+		name       string
+		args       args
+		want       want
+		skipOnGOOS string // このテストをスキップするOS (例: "windows", "!windows")
 	}{
 		{
-			name: "config does not exist",
-			file: "doesnotexist.yml",
+			name: "設定ファイルが存在しない場合はエラー",
+			args: args{
+				file: "doesnotexist.yml",
+			},
 			want: want{
-				err: true,
+				err: fmt.Errorf("unable to read config: open doesnotexist.yml: no such file or directory"),
 			},
 		},
 		{
-			name: "malformed config",
-			file: "testdata/cfg/malformedconfig.yml",
+			name: "不正な形式の設定ファイルはエラー",
+			args: args{
+				file: "testdata/cfg/malformedconfig.yml",
+			},
 			want: want{
-				err:        true,
-				errMessage: "unable to parse config: [1:1] string was used where mapping is expected\n>  1 | asdf\n       ^\n",
+				err: fmt.Errorf("unable to parse config: [1:1] string was used where mapping is expected\n>  1 | asdf\n       ^\n"),
 			},
 		},
 		{
-			name: "'schema' and 'endpoint' both specified",
-			file: "testdata/cfg/schema_endpoint.yml",
+			name: "schemaとendpointが両方指定されている場合はエラー",
+			args: args{
+				file: "testdata/cfg/schema_endpoint.yml",
+			},
 			want: want{
-				err:        true,
-				errMessage: "'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)",
+				err: errors.New("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)"),
 			},
 		},
 		{
-			name: "neither 'schema' nor 'endpoint' specified",
-			file: "testdata/cfg/no_source.yml",
+			name: "schemaとendpointのどちらも指定されていない場合はエラー",
+			args: args{
+				file: "testdata/cfg/no_source.yml",
+			},
 			want: want{
-				err:        true,
-				errMessage: "neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)",
+				err: errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)"),
 			},
 		},
 		{
-			name: "unknown keys",
-			file: "testdata/cfg/unknownkeys.yml",
+			name: "不明なキーが含まれている場合はエラー",
+			args: args{
+				file: "testdata/cfg/unknownkeys.yml",
+			},
 			want: want{
-				err:        true,
-				errMessage: "unknown field \"unknown\"",
+				err: fmt.Errorf("unable to parse config: [1:1] unknown field \"unknown\"\n>  1 | unknown: foo\n       ^\n   2 | gqlgen:\n   3 |   schema:\n   4 |     - outer"),
 			},
 		},
 		{
-			name: "nullable input omittable",
-			file: "testdata/cfg/nullable_input_omittable.yml",
+			name: "nullable_input_omittableが指定された設定を正しく読み込めることを確認する",
+			args: args{
+				file: "testdata/cfg/nullable_input_omittable.yml",
+			},
 			want: want{
 				config: &Config{
 					GQLGencConfig: &GQLGencConfig{
@@ -278,8 +123,10 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "omitzero",
-			file: "testdata/cfg/omitzero.yml",
+			name: "omitzeroが指定された設定を正しく読み込めることを確認する",
+			args: args{
+				file: "testdata/cfg/omitzero.yml",
+			},
 			want: want{
 				config: &Config{
 					GQLGencConfig: &GQLGencConfig{
@@ -316,127 +163,426 @@ func TestLoadConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "globパターンでスキーマファイルを読み込めることを確認する（Windows）",
+			args: args{
+				file: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				schemaFilename: []string{
+					`testdata\cfg\glob\bar\bar with spaces.graphql`,
+					`testdata\cfg\glob\foo\foo.graphql`,
+				},
+			},
+			skipOnGOOS: "!windows",
+		},
+		{
+			name: "globパターンでスキーマファイルを読み込めることを確認する（非Windows）",
+			args: args{
+				file: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				schemaFilename: []string{
+					"testdata/cfg/glob/bar/bar with spaces.graphql",
+					"testdata/cfg/glob/foo/foo.graphql",
+				},
+			},
+			skipOnGOOS: "windows",
+		},
+		{
+			name: "存在しないディレクトリを指定した場合はエラー（Windows）",
+			args: args{
+				file: "testdata/cfg/unwalkable.yml",
+			},
+			want: want{
+				err: fmt.Errorf("failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."),
+			},
+			skipOnGOOS: "!windows",
+		},
+		{
+			name: "存在しないディレクトリを指定した場合はエラー（非Windows）",
+			args: args{
+				file: "testdata/cfg/unwalkable.yml",
+			},
+			want: want{
+				err: fmt.Errorf("failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"),
+			},
+			skipOnGOOS: "windows",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := LoadConfig(tt.file)
+			// skipOnGOOSのチェック
+			if tt.skipOnGOOS != "" {
+				if tt.skipOnGOOS[0] == '!' {
+					// "!windows" の形式: 指定OS以外でスキップ
+					if runtime.GOOS != tt.skipOnGOOS[1:] {
+						t.Skipf("Skipping test on %s", runtime.GOOS)
+					}
+				} else {
+					// "windows" の形式: 指定OSでスキップ
+					if runtime.GOOS == tt.skipOnGOOS {
+						t.Skipf("Skipping test on %s", runtime.GOOS)
+					}
+				}
+			}
 
-			if tt.want.err {
+			got, err := LoadConfig(tt.args.file)
+
+			// エラーチェック
+			if tt.want.err != nil {
 				if err == nil {
-					t.Errorf("loadConfig() error = nil, want error")
-
+					t.Errorf("error = nil, want error")
 					return
 				}
-
-				if tt.want.errMessage != "" && !containsString(err.Error(), tt.want.errMessage) {
-					t.Errorf("loadConfig() error = %v, want error containing %v", err, tt.want.errMessage)
+				if tt.want.err.Error() != err.Error() {
+					t.Errorf("error message = %q, want %q", err.Error(), tt.want.err.Error())
+					return
 				}
-
+			} else if err != nil {
+				t.Errorf("error = %v, want nil", err)
 				return
 			}
 
-			if err != nil {
-				t.Errorf("loadConfig() error = %v, want nil", err)
-
-				return
+			// schemaFilenameのチェック
+			if len(tt.want.schemaFilename) > 0 {
+				if got == nil || got.GQLGenConfig == nil {
+					t.Error("config or GQLGenConfig = nil, want non-nil")
+					return
+				}
+				if diff := cmp.Diff(tt.want.schemaFilename, []string(got.GQLGenConfig.SchemaFilename)); diff != "" {
+					t.Errorf("schemaFilename diff(-want +got): %s", diff)
+				}
 			}
 
+			// configの詳細チェック
 			if tt.want.config != nil {
 				opts := []cmp.Option{
 					cmpopts.IgnoreFields(config.Config{}, "Sources"),
 					cmpopts.IgnoreFields(config.PackageConfig{}, "Filename"),
 				}
-				if diff := cmp.Diff(tt.want.config, cfg, opts...); diff != "" {
-					t.Errorf("loadConfig() mismatch (-want +got):\n%s", diff)
+				if diff := cmp.Diff(tt.want.config, got, opts...); diff != "" {
+					t.Errorf("diff(-want +got): %s", diff)
 				}
 			}
 		})
 	}
 }
 
-func TestLoadConfigWindows(t *testing.T) {
+func TestLoadSchema(t *testing.T) {
 	t.Parallel()
-	if runtime.GOOS != "windows" {
-		t.Skip("Skipping Windows-specific test on non-Windows platform")
+
+	type args struct {
+		configFile      string
+		responseFile    string
+		httpErrorStatus int
 	}
 
-	// Glob filenames test for Windows
-	t.Run("globbed filenames on Windows", func(t *testing.T) {
-		t.Parallel()
+	type want struct {
+		err error
+	}
 
-		cfg, err := LoadConfig("testdata/cfg/glob.yml")
-		if err != nil {
-			t.Errorf("loadConfig() error = %v, want nil", err)
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "ローカルスキーマで成功する",
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		{
+			name: "リモートスキーマ（introspection）で成功する",
+			args: args{
+				configFile:   "testdata/cfg/endpoint_only.yml",
+				responseFile: "testdata/remote/response_ok.json",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		{
+			name: "不正なリモートスキーマでエラー",
+			args: args{
+				configFile:   "testdata/cfg/endpoint_only.yml",
+				responseFile: "testdata/remote/response_invalid_schema.json",
+			},
+			want: want{
+				err: fmt.Errorf("OBJECT Query: must define one or more fields"),
+			},
+		},
+		{
+			name: "introspectionクエリがHTTPエラーを返す",
+			args: args{
+				configFile:      "testdata/cfg/endpoint_only.yml",
+				httpErrorStatus: http.StatusInternalServerError,
+			},
+			want: want{
+				err: fmt.Errorf("introspect schema failed: introspection query failed"),
+			},
+		},
+		{
+			name: "schema.QueryがnullでQuery型を初期化できる",
+			args: args{
+				configFile:   "testdata/cfg/endpoint_only.yml",
+				responseFile: "testdata/remote/response_query_null.json",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		{
+			name: "インターフェース実装を含むスキーマでImplementsソート処理を実行する",
+			args: args{
+				configFile:   "testdata/cfg/endpoint_only.yml",
+				responseFile: "testdata/remote/response_with_implements.json",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
 
-			return
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		want := `testdata\cfg\glob\bar\bar with spaces.graphql`
-		if got := cfg.GQLGenConfig.SchemaFilename[0]; got != want {
-			t.Errorf("loadConfig() schemaFilename[0] = %v, want %v", got, want)
-		}
+			var cfg *Config
+			var err error
 
-		want = `testdata\cfg\glob\foo\foo.graphql`
-		if got := cfg.GQLGenConfig.SchemaFilename[1]; got != want {
-			t.Errorf("loadConfig() schemaFilename[1] = %v, want %v", got, want)
-		}
-	})
+			if tt.args.responseFile != "" || tt.args.httpErrorStatus != 0 {
+				// リモートスキーマのテストケース（mockServerを使用）
+				var mockServer *mockRemoteServer
+				var closeServer func()
 
-	// Unwalkable path test for Windows
-	t.Run("unwalkable path on Windows", func(t *testing.T) {
-		t.Parallel()
+				if tt.args.httpErrorStatus != 0 {
+					// HTTPエラーをシミュレート
+					mockServer, closeServer = newMockRemoteServerWithError(t, tt.args.httpErrorStatus, "Internal Server Error")
+				} else {
+					// 正常なレスポンスまたはスキーマエラー
+					mockServer, closeServer = newMockRemoteServer(t, responseFromFile(tt.args.responseFile))
+				}
+				defer closeServer()
 
-		_, err := LoadConfig("testdata/cfg/unwalkable.yml")
-		want := "failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."
+				// mockServerのURLを使った設定を書き込む
+				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
+				if tmpErr != nil {
+					t.Fatalf("Failed to create temp config file: %v", tmpErr)
+				}
+				defer os.Remove(tmpFile.Name())
 
-		if err == nil || err.Error() != want {
-			t.Errorf("loadConfig() error = %v, want %v", err, want)
-		}
-	})
+				tmpConfig := fmt.Sprintf(`gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+    package: gen
+gqlgenc:
+  query:
+    - "./queries/*.graphql"
+  querygen:
+    filename: ./gen/query.go
+    package: gen
+  clientgen:
+    filename: ./gen/client.go
+    package: gen
+  endpoint:
+    url: %s
+`, mockServer.URL)
+				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
+					t.Fatalf("Failed to write temp config: %v", tmpErr)
+				}
+				tmpFile.Close()
+
+				cfg, err = LoadConfig(tmpFile.Name())
+				if err != nil {
+					t.Fatalf("LoadConfig() failed: %v", err)
+				}
+				err = cfg.LoadSchema(t.Context())
+			} else {
+				// ローカルスキーマのテストケース
+				cfg, err = LoadConfig(tt.args.configFile)
+				if err != nil {
+					t.Fatalf("LoadConfig() failed: %v", err)
+				}
+				err = cfg.LoadSchema(t.Context())
+			}
+
+			// エラーチェック
+			if tt.want.err != nil {
+				if err == nil {
+					t.Errorf("error = nil, want error")
+					return
+				}
+				if !containsString(err.Error(), tt.want.err.Error()) {
+					t.Errorf("error message = %q, want to contain %q", err.Error(), tt.want.err.Error())
+					return
+				}
+			} else if err != nil {
+				t.Errorf("error = %v, want nil", err)
+				return
+			}
+
+			// 成功時は基本的な検証
+			if tt.want.err == nil {
+				if cfg == nil {
+					t.Error("config = nil, want non-nil")
+				}
+				if cfg.GQLGenConfig == nil {
+					t.Error("GQLGenConfig = nil, want non-nil")
+				}
+				if cfg.GQLGencConfig == nil {
+					t.Error("GQLGencConfig = nil, want non-nil")
+				}
+				if cfg.GQLGenConfig.Schema == nil {
+					t.Error("Schema = nil, want non-nil")
+				}
+			}
+		})
+	}
 }
 
-func TestLoadConfigNonWindows(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipping non-Windows test on Windows platform")
+func TestLoadQuery(t *testing.T) {
+	type fields struct {
+		query []string
 	}
 
-	// Glob filenames test for non-Windows
-	t.Run("globbed filenames on non-Windows", func(t *testing.T) {
-		t.Parallel()
+	type args struct {
+		configFile string
+	}
 
-		cfg, err := LoadConfig("testdata/cfg/glob.yml")
-		if err != nil {
-			t.Errorf("loadConfig() error = %v, want nil", err)
+	type want struct {
+		queryDocumentNotNil          bool
+		operationQueryDocumentsCount int
+		err                          error
+	}
 
-			return
-		}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   want
+	}{
+		{
+			name: "正常なクエリファイルを読み込めることを確認する",
+			fields: fields{
+				query: []string{"testdata/query/todos.graphql"},
+			},
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				queryDocumentNotNil:          true,
+				operationQueryDocumentsCount: 1,
+				err:                          nil,
+			},
+		},
+		{
+			name: "複数のクエリファイルを読み込めることを確認する",
+			fields: fields{
+				query: []string{"testdata/query/todos.graphql", "testdata/query/create_todo.graphql"},
+			},
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				queryDocumentNotNil:          true,
+				operationQueryDocumentsCount: 2,
+				err:                          nil,
+			},
+		},
+		{
+			name: "空のクエリリストでもエラーにならない",
+			fields: fields{
+				query: []string{},
+			},
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				queryDocumentNotNil:          true,
+				operationQueryDocumentsCount: 0,
+				err:                          nil,
+			},
+		},
+		{
+			name: "構文エラーのあるクエリファイルでエラー",
+			fields: fields{
+				query: []string{"testdata/query/syntax_error.graphql"},
+			},
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				err: fmt.Errorf("Expected Name, found <EOF>"),
+			},
+		},
+		{
+			name: "スキーマに存在しないフィールドを参照するクエリでエラー",
+			fields: fields{
+				query: []string{"testdata/query/invalid_query.graphql"},
+			},
+			args: args{
+				configFile: "testdata/cfg/glob.yml",
+			},
+			want: want{
+				err: fmt.Errorf("Cannot query field"),
+			},
+		},
+	}
 
-		want := "testdata/cfg/glob/bar/bar with spaces.graphql"
-		if got := cfg.GQLGenConfig.SchemaFilename[0]; got != want {
-			t.Errorf("loadConfig() schemaFilename[0] = %v, want %v", got, want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 設定ファイルを読み込む
+			cfg, err := LoadConfig(tt.args.configFile)
+			if err != nil {
+				t.Fatalf("LoadConfig() failed: %v", err)
+			}
 
-		want = "testdata/cfg/glob/foo/foo.graphql"
-		if got := cfg.GQLGenConfig.SchemaFilename[1]; got != want {
-			t.Errorf("loadConfig() schemaFilename[1] = %v, want %v", got, want)
-		}
-	})
+			// スキーマをロード
+			err = cfg.LoadSchema(t.Context())
+			if err != nil {
+				t.Fatalf("LoadSchema() failed: %v", err)
+			}
 
-	// Unwalkable path test for non-Windows
-	t.Run("unwalkable path on non-Windows", func(t *testing.T) {
-		t.Parallel()
+			// テスト用にQuery設定を上書き
+			cfg.GQLGencConfig.Query = tt.fields.query
 
-		_, err := LoadConfig("testdata/cfg/unwalkable.yml")
-		want := "failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"
+			// LoadQueryを実行
+			err = cfg.GQLGencConfig.LoadQuery(cfg.GQLGenConfig.Schema)
 
-		if err == nil || err.Error() != want {
-			t.Errorf("\n got = %v\nwant = %v", err, want)
-		}
-	})
+			// エラーチェック
+			if tt.want.err != nil {
+				if err == nil {
+					t.Errorf("error = nil, want error")
+					return
+				}
+				if !containsString(err.Error(), tt.want.err.Error()) {
+					t.Errorf("error message = %q, want to contain %q", err.Error(), tt.want.err.Error())
+					return
+				}
+			} else if err != nil {
+				t.Errorf("error = %v, want nil", err)
+				return
+			}
+
+			// 成功時の検証
+			if tt.want.err == nil {
+				if tt.want.queryDocumentNotNil && cfg.GQLGencConfig.QueryDocument == nil {
+					t.Error("QueryDocument = nil, want non-nil")
+				}
+				if got := len(cfg.GQLGencConfig.OperationQueryDocuments); got != tt.want.operationQueryDocumentsCount {
+					t.Errorf("OperationQueryDocuments count = %d, want %d", got, tt.want.operationQueryDocumentsCount)
+				}
+			}
+		})
+	}
 }
 
 // containsString checks if string s contains substring.
