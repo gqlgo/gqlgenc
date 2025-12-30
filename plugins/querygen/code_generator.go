@@ -39,39 +39,6 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 //   - string: 生成されたコード
 //   - error: 型の解析に失敗した場合のエラー
 func (g *CodeGenerator) Generate(t types.Type) (string, error) {
-	return g.generateTypeCode(t)
-}
-
-// NeedsJSONImport は、いずれかの型が JSON インポートを必要とするかを確認する。
-//
-// パラメータ:
-//   - goTypes: チェック対象の Go 型のリスト
-//
-// 戻り値:
-//   - bool: いずれかの型で UnmarshalJSON メソッドを生成する場合は true
-func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
-	for _, t := range goTypes {
-		named, err := g.unwrapToNamed(t)
-		if err != nil {
-			continue
-		}
-		if g.shouldGenerateUnmarshal(named) {
-			return true
-		}
-	}
-	return false
-}
-
-// generateTypeCode は型定義、UnmarshalJSON メソッド、getter メソッドを含む
-// 型の完全なコードを生成する。
-//
-// パラメータ:
-//   - t: コード生成対象の Go 型
-//
-// 戻り値:
-//   - string: 生成された Go コード（型定義 + UnmarshalJSON + getters）
-//   - error: 型の解析に失敗した場合のエラー
-func (g *CodeGenerator) generateTypeCode(t types.Type) (string, error) {
 	var buf strings.Builder
 
 	// Extract type name
@@ -119,6 +86,26 @@ func (g *CodeGenerator) generateTypeCode(t types.Type) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// NeedsJSONImport は、いずれかの型が JSON インポートを必要とするかを確認する。
+//
+// パラメータ:
+//   - goTypes: チェック対象の Go 型のリスト
+//
+// 戻り値:
+//   - bool: いずれかの型で UnmarshalJSON メソッドを生成する場合は true
+func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
+	for _, t := range goTypes {
+		named, err := g.unwrapToNamed(t)
+		if err != nil {
+			continue
+		}
+		if g.shouldGenerateUnmarshal(named) {
+			return true
+		}
+	}
+	return false
 }
 
 // unwrapToNamed はtypes.Typeをポインタアンラップして*types.Namedを返す。
