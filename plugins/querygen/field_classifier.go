@@ -11,7 +11,7 @@ import (
 // 適切なコード生成を可能にする。
 type FieldClassifier struct{}
 
-// NewFieldClassifier creates a new FieldClassifier
+// NewFieldClassifier は新しい FieldClassifier を作成する。
 func NewFieldClassifier() *FieldClassifier {
 	return &FieldClassifier{}
 }
@@ -41,6 +41,13 @@ func NewFieldClassifier() *FieldClassifier {
 //	    User *UserFragment `json:"-"`  // inline fragment
 //	    Post *PostFragment `json:"-"`  // inline fragment
 //	}
+//
+// パラメータ:
+//   - field: チェック対象のフィールド変数
+//   - tag: 構造体タグの文字列
+//
+// 戻り値:
+//   - bool: inline fragment フィールドの場合は true
 func (c *FieldClassifier) IsInlineFragment(field *types.Var, tag string) bool {
 	if !field.Exported() {
 		return false
@@ -83,6 +90,12 @@ func (c *FieldClassifier) IsInlineFragment(field *types.Var, tag string) bool {
 //	    UserFields  // 埋め込みフィールド（fragment spread）
 //	    // その他のフィールド...
 //	}
+//
+// パラメータ:
+//   - field: チェック対象のフィールド情報
+//
+// 戻り値:
+//   - bool: fragment spread フィールドの場合は true
 func (c *FieldClassifier) IsFragmentSpread(field FieldInfo) bool {
 	return field.IsEmbedded && (field.JSONTag == "" || field.JSONTag == "-")
 }
@@ -91,6 +104,12 @@ func (c *FieldClassifier) IsFragmentSpread(field FieldInfo) bool {
 //
 // 通常フィールドは json:"..." タグを使って JSON から通常通りアンマーシャルされる。
 // これらは inline fragments でも fragment spreads でもない。
+//
+// パラメータ:
+//   - field: チェック対象のフィールド情報
+//
+// 戻り値:
+//   - bool: 通常フィールドの場合は true
 func (c *FieldClassifier) IsRegularField(field FieldInfo) bool {
 	return !field.IsInlineFragment && !c.IsFragmentSpread(field)
 }
@@ -105,6 +124,12 @@ func (c *FieldClassifier) IsRegularField(field FieldInfo) bool {
 //   - "" -> ""
 //
 // カンマとそれ以降のオプションは除去される。
+//
+// パラメータ:
+//   - tag: 構造体タグの文字列（例: `json:"id,omitempty"`）
+//
+// 戻り値:
+//   - string: 抽出された JSON フィールド名
 func (c *FieldClassifier) parseJSONTag(tag string) string {
 	if tag == "" {
 		return ""

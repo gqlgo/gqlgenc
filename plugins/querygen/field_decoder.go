@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-// FieldDecoder decodes JSON fields
+// FieldDecoder は JSON フィールドをデコードするステートメントを生成する。
 type FieldDecoder struct{}
 
-// NewFieldDecoder creates a new FieldDecoder
+// NewFieldDecoder は新しい FieldDecoder を作成する。
 func NewFieldDecoder() *FieldDecoder {
 	return &FieldDecoder{}
 }
@@ -26,6 +26,9 @@ func NewFieldDecoder() *FieldDecoder {
 //   - targetExpr: ターゲット構造体の式（例: "t"）
 //   - rawExpr: raw JSON マップの式（例: "raw"）
 //   - field: JSON タグを含むフィールド情報
+//
+// 戻り値:
+//   - Statement: フィールドをデコードする if ステートメント
 func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field FieldInfo) Statement {
 	fieldTarget := fmt.Sprintf("&%s.%s", targetExpr, field.Name)
 	jsonName := field.JSONTag
@@ -51,6 +54,14 @@ func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field FieldInfo) 
 //   - エクスポートされていないフィールド
 //
 // そして残りの通常フィールドに対して DecodeField ステートメントを生成する。
+//
+// パラメータ:
+//   - targetExpr: ターゲット構造体の式（例: "t"）
+//   - rawExpr: raw JSON マップの式（例: "raw"）
+//   - fields: フィールド情報のリスト
+//
+// 戻り値:
+//   - []Statement: 全ての通常フィールドをデコードするステートメントのリスト
 func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []FieldInfo) []Statement {
 	statements := make([]Statement, 0, len(fields))
 

@@ -13,7 +13,7 @@ type FieldAnalyzer struct {
 	classifier *FieldClassifier
 }
 
-// NewFieldAnalyzer creates a new FieldAnalyzer
+// NewFieldAnalyzer は新しい FieldAnalyzer を作成する。
 func NewFieldAnalyzer() *FieldAnalyzer {
 	return &FieldAnalyzer{
 		classifier: NewFieldClassifier(),
@@ -30,6 +30,13 @@ func NewFieldAnalyzer() *FieldAnalyzer {
 //
 // shouldGenerateUnmarshal コールバックは、埋め込み型が独自の UnmarshalJSON を
 // 生成すべきか、親にフラット化されるべきかを判定する。
+//
+// パラメータ:
+//   - structType: 解析対象の構造体型
+//   - shouldGenerateUnmarshal: UnmarshalJSON 生成判定コールバック
+//
+// 戻り値:
+//   - []FieldInfo: 解析されたフィールド情報のリスト
 func (a *FieldAnalyzer) AnalyzeFields(
 	structType *types.Struct,
 	shouldGenerateUnmarshal func(*types.Named) bool,
@@ -56,6 +63,14 @@ func (a *FieldAnalyzer) AnalyzeFields(
 //
 // 特殊ケース: 独自の UnmarshalJSON メソッドを持つ埋め込みフィールドは
 // 再帰的に解析されない - それら自身がアンマーシャリングを処理する。
+//
+// パラメータ:
+//   - field: 解析対象のフィールド変数
+//   - tag: 構造体タグの文字列
+//   - shouldGenerateUnmarshal: UnmarshalJSON 生成判定コールバック
+//
+// 戻り値:
+//   - FieldInfo: 解析されたフィールド情報
 func (a *FieldAnalyzer) analyzeField(
 	field *types.Var,
 	tag string,

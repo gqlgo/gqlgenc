@@ -2,13 +2,13 @@ package querygen
 
 import "fmt"
 
-// UnmarshalBuilder builds UnmarshalJSON method statements.
+// UnmarshalBuilder は UnmarshalJSON メソッドのステートメントを構築する。
 type UnmarshalBuilder struct {
 	fieldDecoder  *FieldDecoder
 	inlineDecoder *InlineFragmentDecoder
 }
 
-// NewUnmarshalBuilder creates a new UnmarshalBuilder.
+// NewUnmarshalBuilder は新しい UnmarshalBuilder を作成する。
 func NewUnmarshalBuilder() *UnmarshalBuilder {
 	return &UnmarshalBuilder{
 		fieldDecoder:  NewFieldDecoder(),
@@ -68,7 +68,14 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 }
 
 // createFragmentUnmarshalStmt は fragment spread フィールドの Unmarshal ステートメントを生成する。
+//
 // このメソッドは純粋関数として、副作用なく Statement を生成する。
+//
+// パラメータ:
+//   - field: fragment spread フィールドの情報
+//
+// 戻り値:
+//   - Statement: json.Unmarshal を呼び出すエラーチェックステートメント
 func (b *UnmarshalBuilder) createFragmentUnmarshalStmt(field FieldInfo) Statement {
 	fieldExpr := fmt.Sprintf("&t.%s", field.Name)
 	return &ErrorCheckStatement{
@@ -79,8 +86,15 @@ func (b *UnmarshalBuilder) createFragmentUnmarshalStmt(field FieldInfo) Statemen
 	}
 }
 
-// decodeNestedFields processes SubFields of a fragment spread field.
+// decodeNestedFields は fragment spread フィールドの SubFields を処理する。
+//
 // SubFields の分類 + 再帰処理を行い、fragment spreads と inline fragments を処理する。
+//
+// パラメータ:
+//   - parentField: 親の fragment spread フィールド
+//
+// 戻り値:
+//   - []Statement: SubFields をデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeNestedFields(parentField FieldInfo) []Statement {
 	embeddedTargetExpr := fmt.Sprintf("t.%s", parentField.Name)
 	_, subFragmentSpreads, subInlineFragments := b.separateFieldTypesAt(
@@ -105,8 +119,15 @@ func (b *UnmarshalBuilder) decodeNestedFields(parentField FieldInfo) []Statement
 	return statements
 }
 
-// decodeSingleFragmentSpread processes a single fragment spread field.
-// 単一 fragment spread の処理（Unmarshal + SubFields）を行う。
+// decodeSingleFragmentSpread は単一の fragment spread フィールドを処理する。
+//
+// Unmarshal ステートメントの生成と、SubFields がある場合の再帰処理を行う。
+//
+// パラメータ:
+//   - field: fragment spread フィールドの情報
+//
+// 戻り値:
+//   - []Statement: このフィールドをデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo) []Statement {
 	var statements []Statement
 
@@ -123,9 +144,16 @@ func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo) []Stateme
 	return statements
 }
 
-// decodeFragmentSpreads generates statements to unmarshal embedded fields with json:"-".
+// decodeFragmentSpreads は json:"-" を持つ埋め込みフィールドをアンマーシャルするステートメントを生成する。
+//
 // このメソッドはイミュータブルな設計に従い、新しいステートメントスライスを返す。
 // 副作用を排除することで、コードの予測可能性とテストの容易性を向上させている。
+//
+// パラメータ:
+//   - fragmentSpreads: fragment spread フィールドのリスト
+//
+// 戻り値:
+//   - []Statement: 全ての fragment spreads をデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []Statement {
 	var statements []Statement
 	for _, field := range fragmentSpreads {
@@ -136,13 +164,31 @@ func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []
 }
 
 // separateFieldTypes は通常フィールド、fragment spreads、inline fragments を分類する。
+//
 // トップレベル（targetExpr="t"）でのフィールド分類のメインエントリーポイント。
+//
+// パラメータ:
+//   - typeInfo: 分類対象の型情報
+//
+// 戻り値:
+//   - []FieldInfo: 通常フィールドのリスト
+//   - []FieldInfo: fragment spreads のリスト
+//   - []InlineFragmentInfo: inline fragments のリスト
 func (b *UnmarshalBuilder) separateFieldTypes(typeInfo TypeInfo) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	return b.separateFieldTypesList(typeInfo.Fields)
 }
 
 // separateFieldTypesList はデコード戦略によってフィールドのリストを分類する。
+//
 // デフォルトパス "t" で separateFieldTypesAt に委譲する。
+//
+// パラメータ:
+//   - fields: 分類対象のフィールドリスト
+//
+// 戻り値:
+//   - []FieldInfo: 通常フィールドのリスト
+//   - []FieldInfo: fragment spreads のリスト
+//   - []InlineFragmentInfo: inline fragments のリスト
 func (b *UnmarshalBuilder) separateFieldTypesList(fields []FieldInfo) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	return b.separateFieldTypesAt(fields, "t")
 }
@@ -153,10 +199,14 @@ func (b *UnmarshalBuilder) separateFieldTypesList(fields []FieldInfo) ([]FieldIn
 // 両方に使用される。parentPath パラメータは inline fragments のフィールド式を
 // 構築する際に使用するターゲット式（例: "t" または "t.NestedField"）を指定する。
 //
-// 3つのスライスを返す:
-//  1. 通常フィールド: 通常通りアンマーシャルされるべき JSON タグを持つフィールド
-//  2. Fragment spreads: GraphQL fragments を表す json:"-" を持つ埋め込みフィールド
-//  3. Inline fragments: 型条件付きの json:"-" を持つポインタフィールド
+// パラメータ:
+//   - fields: 分類対象のフィールドリスト
+//   - parentPath: 親パス（例: "t", "t.NestedField"）
+//
+// 戻り値:
+//   - []FieldInfo: 通常フィールド（JSON タグを持つ）
+//   - []FieldInfo: Fragment spreads（json:"-" を持つ埋め込みフィールド）
+//   - []InlineFragmentInfo: Inline fragments（型条件付きポインタフィールド）
 func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath string) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	var regularFields []FieldInfo
 	var fragmentSpreads []FieldInfo

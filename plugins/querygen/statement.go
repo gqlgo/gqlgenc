@@ -5,27 +5,39 @@ import (
 	"strings"
 )
 
-// Statement represents a code statement in the AST
+// Statement は AST におけるコードステートメントを表す。
+//
+// String メソッドは指定されたインデントレベルで文字列表現を返す。
 type Statement interface {
 	String(indent int) string
 }
 
-// VariableDecl represents a variable declaration
+// VariableDecl は変数宣言を表す。
+//
+// 例: var raw map[string]jsontext.Value
 type VariableDecl struct {
-	Name string
-	Type string
+	Name string // 変数名
+	Type string // 変数の型
 }
 
+// String は変数宣言の文字列表現を返す。
 func (v *VariableDecl) String(_ int) string {
 	return fmt.Sprintf("var %s %s", v.Name, v.Type)
 }
 
-// IfStatement represents an if statement
+// IfStatement は if 文を表す。
+//
+// 例:
+//
+//	if value, ok := raw["fieldName"]; ok {
+//	    // Body
+//	}
 type IfStatement struct {
-	Condition string
-	Body      []Statement
+	Condition string      // 条件式
+	Body      []Statement // if ブロック内のステートメント
 }
 
+// String は if 文の文字列表現を返す。
 func (i *IfStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
@@ -41,18 +53,28 @@ func (i *IfStatement) String(indent int) string {
 	return buf.String()
 }
 
-// SwitchStatement represents a switch statement
+// SwitchStatement は switch 文を表す。
+//
+// 例:
+//
+//	switch typeName {
+//	case "User":
+//	    // Body
+//	case "Post":
+//	    // Body
+//	}
 type SwitchStatement struct {
-	Expr  string
-	Cases []SwitchCase
+	Expr  string       // switch の式
+	Cases []SwitchCase // case のリスト
 }
 
-// SwitchCase は switch 文の単一の case を表す
+// SwitchCase は switch 文の単一の case を表す。
 type SwitchCase struct {
 	Value string      // case の値（例: case "User": における "User"）
 	Body  []Statement // この case で実行するステートメント
 }
 
+// String は switch 文の文字列表現を返す。
 func (s *SwitchStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
@@ -71,21 +93,27 @@ func (s *SwitchStatement) String(indent int) string {
 	return buf.String()
 }
 
-// Assignment represents an assignment statement
+// Assignment は代入文を表す。
+//
+// 例: t.User = &UserFragment{}
 type Assignment struct {
-	Target string
-	Value  string
+	Target string // 代入先
+	Value  string // 代入する値
 }
 
+// String は代入文の文字列表現を返す。
 func (a *Assignment) String(_ int) string {
 	return fmt.Sprintf("%s = %s", a.Target, a.Value)
 }
 
-// ReturnStatement represents a return statement
+// ReturnStatement は return 文を表す。
+//
+// 例: return err
 type ReturnStatement struct {
-	Value string
+	Value string // 返す値（空の場合は単なる return）
 }
 
+// String は return 文の文字列表現を返す。
 func (r *ReturnStatement) String(_ int) string {
 	if r.Value == "" {
 		return "return"
@@ -93,21 +121,31 @@ func (r *ReturnStatement) String(_ int) string {
 	return fmt.Sprintf("return %s", r.Value)
 }
 
-// RawStatement represents raw Go code
+// RawStatement は生の Go コードを表す。
+//
+// String() メソッドで文字列をそのまま返す。
 type RawStatement struct {
-	Code string
+	Code string // Go コード
 }
 
+// String は生のコードをそのまま返す。
 func (r *RawStatement) String(_ int) string {
 	return r.Code
 }
 
-// ErrorCheckStatement represents error checking pattern
+// ErrorCheckStatement はエラーチェックパターンを表す。
+//
+// 例:
+//
+//	if err := json.Unmarshal(data, &t); err != nil {
+//	    return err
+//	}
 type ErrorCheckStatement struct {
-	ErrorExpr string
-	Body      []Statement
+	ErrorExpr string      // エラーを返す式
+	Body      []Statement // err != nil の場合に実行するステートメント
 }
 
+// String はエラーチェック文の文字列表現を返す。
 func (e *ErrorCheckStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)

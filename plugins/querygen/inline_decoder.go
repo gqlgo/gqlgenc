@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// InlineFragmentDecoder decodes inline fragments
+// InlineFragmentDecoder は inline fragments をデコードするステートメントを生成する。
 type InlineFragmentDecoder struct{}
 
-// NewInlineFragmentDecoder creates a new InlineFragmentDecoder
+// NewInlineFragmentDecoder は新しい InlineFragmentDecoder を作成する。
 func NewInlineFragmentDecoder() *InlineFragmentDecoder {
 	return &InlineFragmentDecoder{}
 }
@@ -40,7 +40,8 @@ func NewInlineFragmentDecoder() *InlineFragmentDecoder {
 //   - rawExpr: raw JSON マップの式（例: "raw"）
 //   - fragments: デコードする inline fragment フィールド
 //
-// fragments が空の場合は nil を返す。
+// 戻り値:
+//   - []Statement: inline fragments をデコードするステートメントのリスト（空の場合は nil）
 func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string, fragments []InlineFragmentInfo) []Statement {
 	if len(fragments) == 0 {
 		return nil
@@ -84,6 +85,12 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 //  2. 完全な JSON データをポインタにアンマーシャル
 //
 // case の値はフィールド名で、JSON の __typename と一致する必要がある。
+//
+// パラメータ:
+//   - fragments: inline fragment フィールドのリスト
+//
+// 戻り値:
+//   - []SwitchCase: switch 文の case のリスト
 func (d *InlineFragmentDecoder) createSwitchCases(fragments []InlineFragmentInfo) []SwitchCase {
 	cases := make([]SwitchCase, 0, len(fragments))
 
