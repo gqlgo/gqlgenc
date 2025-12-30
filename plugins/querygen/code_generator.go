@@ -41,25 +41,21 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 	var buf strings.Builder
 
-	// Extract type name
-	typeName, err := g.extractTypeName(t)
+	typeName, err := g.typeName(t)
 	if err != nil {
 		return "", err
 	}
 
-	// Extract struct type
-	structType, err := g.extractStruct(t)
+	structType, err := g.structType(t)
 	if err != nil {
 		return "", err
 	}
 
-	// Extract fields
-	fields, err := g.extractFields(t)
+	fields, err := g.fields(t)
 	if err != nil {
 		return "", err
 	}
 
-	// Extract named type for unmarshal check
 	named, err := g.unwrapToNamed(t)
 	if err != nil {
 		return "", err
@@ -130,7 +126,7 @@ func (g *CodeGenerator) unwrapToNamed(t types.Type) (*types.Named, error) {
 	return named, nil
 }
 
-// extractTypeName はtypes.Typeからインポート修飾された型名を取得する。
+// typeName はtypes.Typeからインポート修飾された型名を取得する。
 //
 // このメソッドは名前付き型から、インポートパスを含む型名を生成する。
 //
@@ -140,7 +136,7 @@ func (g *CodeGenerator) unwrapToNamed(t types.Type) (*types.Named, error) {
 // 戻り値:
 //   - string: インポート修飾された型名（例: "domain.User"）
 //   - error: 型が名前付き型でない場合のエラー
-func (g *CodeGenerator) extractTypeName(t types.Type) (string, error) {
+func (g *CodeGenerator) typeName(t types.Type) (string, error) {
 	named, err := g.unwrapToNamed(t)
 	if err != nil {
 		return "", err
@@ -148,7 +144,7 @@ func (g *CodeGenerator) extractTypeName(t types.Type) (string, error) {
 	return templates.CurrentImports.LookupType(named), nil
 }
 
-// extractStruct はtypes.Typeから構造体型を取得する。
+// structType はtypes.Typeから構造体型を取得する。
 //
 // このメソッドは名前付き型の基礎型が構造体であることを検証し、
 // 構造体型を返す。
@@ -159,35 +155,35 @@ func (g *CodeGenerator) extractTypeName(t types.Type) (string, error) {
 // 戻り値:
 //   - *types.Struct: 構造体型
 //   - error: 型が構造体でない場合のエラー
-func (g *CodeGenerator) extractStruct(t types.Type) (*types.Struct, error) {
+func (g *CodeGenerator) structType(t types.Type) (*types.Struct, error) {
 	named, err := g.unwrapToNamed(t)
 	if err != nil {
 		return nil, err
 	}
-	structType, ok := named.Underlying().(*types.Struct)
+	st, ok := named.Underlying().(*types.Struct)
 	if !ok {
 		return nil, fmt.Errorf("type must have struct underlying: %v", t)
 	}
-	return structType, nil
+	return st, nil
 }
 
-// extractFields はtypes.Typeからフィールド情報を抽出する。
+// fields はtypes.Typeからフィールド情報を取得する。
 //
 // このメソッドは構造体型を取得し、FieldAnalyzerを使用して
 // フィールド情報を解析する。
 //
 // パラメータ:
-//   - t: フィールド情報を抽出する Go 型
+//   - t: フィールド情報を取得する Go 型
 //
 // 戻り値:
 //   - []FieldInfo: 解析されたフィールド情報のリスト
 //   - error: 型が構造体でない場合のエラー
-func (g *CodeGenerator) extractFields(t types.Type) ([]FieldInfo, error) {
-	structType, err := g.extractStruct(t)
+func (g *CodeGenerator) fields(t types.Type) ([]FieldInfo, error) {
+	st, err := g.structType(t)
 	if err != nil {
 		return nil, err
 	}
-	return g.analyzer.AnalyzeFields(structType, g.shouldGenerateUnmarshal), nil
+	return g.analyzer.AnalyzeFields(st, g.shouldGenerateUnmarshal), nil
 }
 
 // shouldGenerateUnmarshal は型に UnmarshalJSON メソッドを生成すべきかを判定する。
