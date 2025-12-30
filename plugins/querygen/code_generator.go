@@ -39,8 +39,6 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 //   - string: 生成されたコード
 //   - error: 型の解析に失敗した場合のエラー
 func (g *CodeGenerator) Generate(t types.Type) (string, error) {
-	var buf strings.Builder
-
 	typeName, err := g.typeName(t)
 	if err != nil {
 		return "", err
@@ -60,24 +58,21 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	shouldGenerate := g.shouldGenerateUnmarshal(named)
+
+	var buf strings.Builder
 
 	// Generate type declaration
 	buf.WriteString(g.formatTypeDecl(typeName, structType))
 
 	// Generate UnmarshalJSON if needed
-	if shouldGenerate {
+	if g.shouldGenerateUnmarshal(named) {
 		statements := g.unmarshalBuilder.BuildUnmarshalMethod(fields)
 		buf.WriteString(g.formatUnmarshalMethod(typeName, statements))
 	}
 
 	// Generate getters
 	for _, field := range fields {
-		getter := g.formatGetter(
-			typeName,
-			field.Name,
-			field.TypeName,
-		)
+		getter := g.formatGetter(typeName, field.Name, field.TypeName)
 		buf.WriteString(getter)
 	}
 
