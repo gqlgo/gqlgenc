@@ -10,9 +10,7 @@ import (
 
 // CodeGenerator は全てのジェネレータを統合し、完全な型コードを生成する。
 type CodeGenerator struct {
-	formatter        *CodeFormatter
 	unmarshalBuilder *UnmarshalBuilder
-	classifier       *FieldClassifier
 	analyzer         *FieldAnalyzer
 	skipUnmarshal    map[*types.TypeName]struct{}
 }
@@ -26,9 +24,7 @@ type CodeGenerator struct {
 // 生成をスキップするように設定する。
 func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 	return &CodeGenerator{
-		formatter:        NewCodeFormatter(),
 		unmarshalBuilder: NewUnmarshalBuilder(),
-		classifier:       NewFieldClassifier(),
 		analyzer:         NewFieldAnalyzer(),
 		skipUnmarshal:    findEmbeddedTypes(goTypes),
 	}
@@ -82,15 +78,15 @@ func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 func (g *CodeGenerator) generateTypeCode(typeInfo TypeInfo) string {
 	var buf strings.Builder
 
-	buf.WriteString(g.formatter.FormatTypeDecl(typeInfo.TypeName, typeInfo.Struct))
+	buf.WriteString(g.formatTypeDecl(typeInfo.TypeName, typeInfo.Struct))
 
 	if typeInfo.ShouldGenerateUnmarshal {
 		statements := g.unmarshalBuilder.BuildUnmarshalMethod(typeInfo)
-		buf.WriteString(g.formatter.FormatUnmarshalMethod(typeInfo.TypeName, statements))
+		buf.WriteString(g.formatUnmarshalMethod(typeInfo.TypeName, statements))
 	}
 
 	for _, field := range typeInfo.Fields {
-		getter := g.formatter.FormatGetter(
+		getter := g.formatGetter(
 			typeInfo.TypeName,
 			field.Name,
 			field.TypeName,
@@ -261,4 +257,66 @@ func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 		}
 	}
 	return result
+}
+
+// formatTypeDecl は型定義を文字列にフォーマットする。
+//
+// パラメータ:
+//   - typeName: 型名（例: "User"）
+//   - structType: 構造体型の情報
+//
+// 戻り値: フォーマットされた型定義（例: "type User struct { ... }\n"）
+func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct) string {
+	typeStr := templates.CurrentImports.LookupType(structType)
+	return fmt.Sprintf("type %s %s\n", typeName, typeStr)
+}
+
+// formatUnmarshalMethod は UnmarshalJSON メソッドを文字列にフォーマットする。
+//
+// 生成される UnmarshalJSON メソッドは、GraphQL レスポンスの JSON データを
+// 構造体にデシリアライズするために使用される。
+//
+// パラメータ:
+//   - typeName: レシーバ型の名前（例: "User"）
+//   - body: メソッド本体のステートメントリスト
+//
+// 戻り値: フォーマットされた UnmarshalJSON メソッド定義
+func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement) string {
+	var buf strings.Builder
+
+	// Method signature
+	buf.WriteString(fmt.Sprintf("func (t *%s) UnmarshalJSON(data []byte) error {\n", typeName))
+
+	// Method body
+	for _, stmt := range body {
+		buf.WriteString("\t")
+		buf.WriteString(stmt.String(1))
+		buf.WriteString("\n")
+	}
+
+	// Closing
+	buf.WriteString("}\n")
+
+	return buf.String()
+}
+
+// formatGetter は getter メソッドを文字列にフォーマットする。
+//
+// 生成される getter メソッドは nil セーフで、レシーバが nil の場合は
+// ゼロ値で初期化された構造体を返す。
+//
+// パラメータ:
+//   - typeName: レシーバ型の名前（例: "User"）
+//   - fieldName: フィールド名（例: "Name"）
+//   - fieldType: フィールドの型（例: "string"）
+//
+// 戻り値: フォーマットされた getter メソッド定義（例: "func (t *User) GetName() string { ... }"）
+func (g *CodeGenerator) formatGetter(typeName, fieldName, fieldType string) string {
+	return fmt.Sprintf(`func (t *%s) Get%s() %s {
+	if t == nil {
+		t = &%s{}
+	}
+	return t.%s
+}
+`, typeName, fieldName, fieldType, typeName, fieldName)
 }

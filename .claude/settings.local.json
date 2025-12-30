@@ -13,7 +13,9 @@
       "WebFetch(domain:spec.graphql.org)",
       "WebFetch(domain:gqlgen.com)",
       "WebFetch(domain:pkg.go.dev)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wc:*)",
+      "Bash(GOEXPERIMENT=jsonv2 go test:*)"
     ],
     "deny": []
   }
