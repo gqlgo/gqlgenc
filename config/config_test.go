@@ -142,10 +142,10 @@ gqlgenc:
 				tmpFile.Close()
 
 				// Init()を直接呼び出す（mockServerは実際のHTTPサーバーとして動作する）
-				cfg, err = Init(t.Context(), tmpFile.Name())
+				cfg, err = SchemaInit(t.Context(), tmpFile.Name())
 			} else {
 				// ローカルスキーマのテストケース
-				cfg, err = Init(t.Context(), tt.configFile)
+				cfg, err = SchemaInit(t.Context(), tt.configFile)
 			}
 
 			if tt.want.err {
@@ -322,7 +322,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := loadConfig(tt.file)
+			cfg, err := LoadConfig(tt.file)
 
 			if tt.want.err {
 				if err == nil {
@@ -367,7 +367,7 @@ func TestLoadConfigWindows(t *testing.T) {
 	t.Run("globbed filenames on Windows", func(t *testing.T) {
 		t.Parallel()
 
-		cfg, err := loadConfig("testdata/cfg/glob.yml")
+		cfg, err := LoadConfig("testdata/cfg/glob.yml")
 		if err != nil {
 			t.Errorf("loadConfig() error = %v, want nil", err)
 
@@ -389,7 +389,7 @@ func TestLoadConfigWindows(t *testing.T) {
 	t.Run("unwalkable path on Windows", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := loadConfig("testdata/cfg/unwalkable.yml")
+		_, err := LoadConfig("testdata/cfg/unwalkable.yml")
 		want := "failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."
 
 		if err == nil || err.Error() != want {
@@ -408,7 +408,7 @@ func TestLoadConfigNonWindows(t *testing.T) {
 	t.Run("globbed filenames on non-Windows", func(t *testing.T) {
 		t.Parallel()
 
-		cfg, err := loadConfig("testdata/cfg/glob.yml")
+		cfg, err := LoadConfig("testdata/cfg/glob.yml")
 		if err != nil {
 			t.Errorf("loadConfig() error = %v, want nil", err)
 
@@ -430,7 +430,7 @@ func TestLoadConfigNonWindows(t *testing.T) {
 	t.Run("unwalkable path on non-Windows", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := loadConfig("testdata/cfg/unwalkable.yml")
+		_, err := LoadConfig("testdata/cfg/unwalkable.yml")
 		want := "failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"
 
 		if err == nil || err.Error() != want {

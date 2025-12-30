@@ -14,8 +14,16 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("failed to find config file: %w", err)
 	}
 
-	cfg, err := config.Init(ctx, cfgFile)
+	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
+		return fmt.Errorf(": %w", err)
+	}
+
+	if err := cfg.LoadSchema(ctx); err != nil {
+		return fmt.Errorf("failed to load config file: %w", err)
+	}
+
+	if err := cfg.GQLGencConfig.LoadQuery(cfg.GQLGenConfig.Schema); err != nil {
 		return fmt.Errorf("failed to load config file: %w", err)
 	}
 
