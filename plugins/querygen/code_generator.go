@@ -24,24 +24,24 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 		unmarshalBuilder: NewUnmarshalBuilder(),
 		classifier:       NewFieldClassifier(),
 		analyzer:         NewFieldAnalyzer(),
-		skipUnmarshal:    collectEmbeddedTypes(goTypes),
+		skipUnmarshal:    findEmbeddedTypes(goTypes),
 	}
 }
 
 // Generate generates complete code for a type (type definition, UnmarshalJSON, getters)
 func (g *CodeGenerator) Generate(t types.Type) (string, error) {
-	typeInfo, err := g.buildTypeInfo(t)
+	typeInfo, err := g.analyzeType(t)
 	if err != nil {
 		return "", fmt.Errorf("failed to analyze type: %w", err)
 	}
 
-	return g.emit(*typeInfo), nil
+	return g.generateTypeCode(*typeInfo), nil
 }
 
 // NeedsJSONImport checks if any type needs JSON import
 func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 	for _, t := range goTypes {
-		typeInfo, err := g.buildTypeInfo(t)
+		typeInfo, err := g.analyzeType(t)
 		if err != nil {
 			continue
 		}
@@ -52,9 +52,9 @@ func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 	return false
 }
 
-// emit は型定義、UnmarshalJSON メソッド、getter メソッドを含む
+// generateTypeCode は型定義、UnmarshalJSON メソッド、getter メソッドを含む
 // 型の完全なコードを生成する。
-func (g *CodeGenerator) emit(typeInfo TypeInfo) string {
+func (g *CodeGenerator) generateTypeCode(typeInfo TypeInfo) string {
 	var buf strings.Builder
 
 	buf.WriteString(g.formatter.FormatTypeDecl(typeInfo.TypeName, typeInfo.Struct))
@@ -75,9 +75,9 @@ func (g *CodeGenerator) emit(typeInfo TypeInfo) string {
 	return buf.String()
 }
 
-// buildTypeInfo は Go 型を解析し、コード生成に必要な情報を抽出する。
+// analyzeType は Go 型を解析し、コード生成に必要な情報を返す。
 // ポインタのアンラップを処理し、型が名前付き構造体型であることを検証する。
-func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
+func (g *CodeGenerator) analyzeType(t types.Type) (*TypeInfo, error) {
 	if pointerType, ok := t.(*types.Pointer); ok {
 		t = pointerType.Elem()
 	}
@@ -93,7 +93,7 @@ func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 	}
 
 	typeName := templates.CurrentImports.LookupType(namedType)
-	fields := g.buildFields(structType)
+	fields := g.analyzeStructFields(structType)
 	shouldGenerate := g.shouldGenerateUnmarshal(namedType)
 
 	return &TypeInfo{
@@ -105,9 +105,9 @@ func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 	}, nil
 }
 
-// buildFields は FieldAnalyzer を使用して構造体型の全フィールドを解析する。
+// analyzeStructFields は FieldAnalyzer を使用して構造体型の全フィールドを解析する。
 // 埋め込みフィールド、インラインフラグメントなどを処理するアナライザに委譲する。
-func (g *CodeGenerator) buildFields(structType *types.Struct) []FieldInfo {
+func (g *CodeGenerator) analyzeStructFields(structType *types.Struct) []FieldInfo {
 	return g.analyzer.AnalyzeFields(structType, g.shouldGenerateUnmarshal)
 }
 
@@ -122,11 +122,11 @@ func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
 	return !skip
 }
 
-// getStructType は様々な型ラッパーから構造体型を抽出する。
+// unwrapToStruct は様々な型ラッパーから構造体型を取得する。
 // Named 型と Pointer 型をアンラップして、基礎となる構造体に到達する。
 //
 // 型が構造体でない場合、または構造体にアンラップできない場合は nil を返す。
-func getStructType(t types.Type) *types.Struct {
+func unwrapToStruct(t types.Type) *types.Struct {
 	switch tt := t.(type) {
 	case *types.Struct:
 		return tt
@@ -135,28 +135,28 @@ func getStructType(t types.Type) *types.Struct {
 			return st
 		}
 	case *types.Pointer:
-		return getStructType(tt.Elem())
+		return unwrapToStruct(tt.Elem())
 	}
 	return nil
 }
 
-// namedStructType は構造体を基礎型として持つ Named 型を抽出する。
+// unwrapToNamedStruct は構造体を基礎型として持つ Named 型を取得する。
 // Pointer 型をアンラップするが、構造体を基礎に持つ Named 型のみを返す。
 //
 // 型が名前付き構造体でない場合、または名前付き構造体にアンラップできない場合は nil を返す。
-func namedStructType(t types.Type) *types.Named {
+func unwrapToNamedStruct(t types.Type) *types.Named {
 	switch tt := t.(type) {
 	case *types.Named:
 		if _, ok := tt.Underlying().(*types.Struct); ok {
 			return tt
 		}
 	case *types.Pointer:
-		return namedStructType(tt.Elem())
+		return unwrapToNamedStruct(tt.Elem())
 	}
 	return nil
 }
 
-// collectEmbeddedTypes は埋め込み（匿名）フィールドとして使用されているすべての型を識別する。
+// findEmbeddedTypes は埋め込み（匿名）フィールドとして使用されているすべての型を識別する。
 //
 // これらの型は親型の UnmarshalJSON メソッドを通じてアンマーシャルされるため、
 // UnmarshalJSON の生成をスキップする必要がある。これにより、重複したアンマーシャル
@@ -171,20 +171,20 @@ func namedStructType(t types.Type) *types.Named {
 //
 // この場合、B は返されるマップに含まれ、独自の UnmarshalJSON を生成しない。
 // 代わりに、A の UnmarshalJSON が B のフィールドのアンマーシャルを処理する。
-func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
+func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 	result := make(map[*types.TypeName]struct{})
 	for _, t := range goTypes {
-		named := namedStructType(t)
+		named := unwrapToNamedStruct(t)
 		if named == nil {
 			continue
 		}
-		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by namedStructType
+		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by unwrapToNamedStruct
 		for i := range structType.NumFields() {
 			field := structType.Field(i)
 			if !field.Anonymous() {
 				continue
 			}
-			if namedField := namedStructType(field.Type()); namedField != nil {
+			if namedField := unwrapToNamedStruct(field.Type()); namedField != nil {
 				result[namedField.Obj()] = struct{}{}
 			}
 		}

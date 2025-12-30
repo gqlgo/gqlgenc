@@ -114,7 +114,7 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 	}
 }
 
-func TestUnmarshalBuilder_categorizeFieldsListWithPath(t *testing.T) {
+func TestUnmarshalBuilder_separateFieldTypesAt(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
@@ -229,7 +229,7 @@ func TestUnmarshalBuilder_categorizeFieldsListWithPath(t *testing.T) {
 			t.Parallel()
 
 			b := NewUnmarshalBuilder()
-			regularFields, fragmentSpreads, inlineFragments := b.categorizeFieldsListWithPath(tt.args.fields, tt.args.parentPath)
+			regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesAt(tt.args.fields, tt.args.parentPath)
 
 			if diff := cmp.Diff(tt.want.regularFieldsCount, len(regularFields)); diff != "" {
 				t.Errorf("regularFields count diff(-want +got): %s", diff)
@@ -246,7 +246,7 @@ func TestUnmarshalBuilder_categorizeFieldsListWithPath(t *testing.T) {
 	}
 }
 
-func TestUnmarshalBuilder_buildFragmentUnmarshalStatement(t *testing.T) {
+func TestUnmarshalBuilder_createFragmentUnmarshalStmt(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
@@ -294,7 +294,7 @@ func TestUnmarshalBuilder_buildFragmentUnmarshalStatement(t *testing.T) {
 			t.Parallel()
 
 			b := NewUnmarshalBuilder()
-			got := b.buildFragmentUnmarshalStatement(tt.args.field)
+			got := b.createFragmentUnmarshalStmt(tt.args.field)
 
 			if diff := cmp.Diff(tt.want.statementType, fmt.Sprintf("%T", got)); diff != "" {
 				t.Errorf("statement type diff(-want +got): %s", diff)

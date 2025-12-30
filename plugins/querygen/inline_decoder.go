@@ -68,7 +68,7 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 	})
 
 	// 3. Switch on typename
-	switchCases := d.buildSwitchCases(fragments)
+	switchCases := d.createSwitchCases(fragments)
 	statements = append(statements, &SwitchStatement{
 		Expr:  typeNameVar,
 		Cases: switchCases,
@@ -77,14 +77,14 @@ func (d *InlineFragmentDecoder) DecodeInlineFragments(targetExpr, rawExpr string
 	return statements
 }
 
-// buildSwitchCases は各 inline fragment の switch case を構築する。
+// createSwitchCases は各 inline fragment の switch case を構築する。
 //
 // 各 case は:
 //  1. 新しいインスタンスでポインタフィールドを初期化
 //  2. 完全な JSON データをポインタにアンマーシャル
 //
 // case の値はフィールド名で、JSON の __typename と一致する必要がある。
-func (d *InlineFragmentDecoder) buildSwitchCases(fragments []InlineFragmentInfo) []SwitchCase {
+func (d *InlineFragmentDecoder) createSwitchCases(fragments []InlineFragmentInfo) []SwitchCase {
 	cases := make([]SwitchCase, 0, len(fragments))
 
 	for _, frag := range fragments {

@@ -84,7 +84,7 @@ func (a *FieldAnalyzer) analyzeField(
 	// GraphQLのフラグメントスプレッドに対応するため、埋め込みフィールドは
 	// 独自のUnmarshalJSONメソッドを持つ場合と、親の型に展開される場合がある
 	if info.IsEmbedded && !info.IsInlineFragment {
-		if embeddedNamed := namedStructType(field.Type()); embeddedNamed != nil {
+		if embeddedNamed := unwrapToNamedStruct(field.Type()); embeddedNamed != nil {
 			// 埋め込み型が独自のUnmarshalJSONを持つ場合は、サブフィールドを解析せず早期リターン
 			if shouldGenerateUnmarshal(embeddedNamed) {
 				return info
@@ -93,7 +93,7 @@ func (a *FieldAnalyzer) analyzeField(
 
 		// 埋め込みフィールドのサブフィールドを再帰的に解析
 		// これにより、ネストした埋め込み構造もフラット化される
-		if embeddedStruct := getStructType(field.Type()); embeddedStruct != nil {
+		if embeddedStruct := unwrapToStruct(field.Type()); embeddedStruct != nil {
 			info.SubFields = a.AnalyzeFields(embeddedStruct, shouldGenerateUnmarshal)
 		}
 	}
