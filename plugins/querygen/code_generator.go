@@ -52,6 +52,8 @@ func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 	return false
 }
 
+// emit は型定義、UnmarshalJSON メソッド、getter メソッドを含む
+// 型の完全なコードを生成する。
 func (g *CodeGenerator) emit(typeInfo TypeInfo) string {
 	var buf strings.Builder
 
@@ -73,6 +75,8 @@ func (g *CodeGenerator) emit(typeInfo TypeInfo) string {
 	return buf.String()
 }
 
+// buildTypeInfo は Go 型を解析し、コード生成に必要な情報を抽出する。
+// ポインタのアンラップを処理し、型が名前付き構造体型であることを検証する。
 func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 	if pointerType, ok := t.(*types.Pointer); ok {
 		t = pointerType.Elem()
@@ -101,10 +105,14 @@ func (g *CodeGenerator) buildTypeInfo(t types.Type) (*TypeInfo, error) {
 	}, nil
 }
 
+// buildFields は FieldAnalyzer を使用して構造体型の全フィールドを解析する。
+// 埋め込みフィールド、インラインフラグメントなどを処理するアナライザに委譲する。
 func (g *CodeGenerator) buildFields(structType *types.Struct) []FieldInfo {
 	return g.analyzer.AnalyzeFields(structType, g.shouldGenerateUnmarshal)
 }
 
+// shouldGenerateUnmarshal は型に UnmarshalJSON メソッドを生成すべきかを判定する。
+// 他の型に埋め込まれている型（fragment spreads）は生成をスキップする。
 func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
 	if named == nil {
 		return false
@@ -114,6 +122,10 @@ func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
 	return !skip
 }
 
+// getStructType は様々な型ラッパーから構造体型を抽出する。
+// Named 型と Pointer 型をアンラップして、基礎となる構造体に到達する。
+//
+// 型が構造体でない場合、または構造体にアンラップできない場合は nil を返す。
 func getStructType(t types.Type) *types.Struct {
 	switch tt := t.(type) {
 	case *types.Struct:
@@ -128,6 +140,10 @@ func getStructType(t types.Type) *types.Struct {
 	return nil
 }
 
+// namedStructType は構造体を基礎型として持つ Named 型を抽出する。
+// Pointer 型をアンラップするが、構造体を基礎に持つ Named 型のみを返す。
+//
+// 型が名前付き構造体でない場合、または名前付き構造体にアンラップできない場合は nil を返す。
 func namedStructType(t types.Type) *types.Named {
 	switch tt := t.(type) {
 	case *types.Named:
@@ -140,6 +156,21 @@ func namedStructType(t types.Type) *types.Named {
 	return nil
 }
 
+// collectEmbeddedTypes は埋め込み（匿名）フィールドとして使用されているすべての型を識別する。
+//
+// これらの型は親型の UnmarshalJSON メソッドを通じてアンマーシャルされるため、
+// UnmarshalJSON の生成をスキップする必要がある。これにより、重複したアンマーシャル
+// ロジックを防ぎ、fragment spreads が正しく動作することを保証する。
+//
+// 例えば、型 A が型 B を埋め込む場合:
+//
+//	type A struct {
+//	    B  // 埋め込みフィールド（fragment spread）
+//	    ID string
+//	}
+//
+// この場合、B は返されるマップに含まれ、独自の UnmarshalJSON を生成しない。
+// 代わりに、A の UnmarshalJSON が B のフィールドのアンマーシャルを処理する。
 func collectEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 	result := make(map[*types.TypeName]struct{})
 	for _, t := range goTypes {

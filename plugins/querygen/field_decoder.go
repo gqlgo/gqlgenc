@@ -12,7 +12,20 @@ func NewFieldDecoder() *FieldDecoder {
 	return &FieldDecoder{}
 }
 
-// DecodeField creates statements for decoding a JSON field
+// DecodeField は JSON フィールドをデコードするステートメントを作成する。
+//
+// 以下のようなコードを生成する:
+//
+//	if value, ok := raw["fieldName"]; ok {
+//	    if err := json.Unmarshal(value, &t.Field); err != nil {
+//	        return err
+//	    }
+//	}
+//
+// パラメータ:
+//   - targetExpr: ターゲット構造体の式（例: "t"）
+//   - rawExpr: raw JSON マップの式（例: "raw"）
+//   - field: JSON タグを含むフィールド情報
 func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field FieldInfo) Statement {
 	fieldTarget := fmt.Sprintf("&%s.%s", targetExpr, field.Name)
 	jsonName := field.JSONTag
@@ -30,7 +43,14 @@ func (d *FieldDecoder) DecodeField(targetExpr, rawExpr string, field FieldInfo) 
 	}
 }
 
-// DecodeFields creates statements for all JSON fields
+// DecodeFields は全 JSON フィールドのステートメントを作成する。
+//
+// このメソッドは以下をフィルタリングする:
+//   - json:"-" を持つフィールド（fragment spreads と inline fragments）
+//   - JSON タグがないフィールド（埋め込みフィールド）
+//   - エクスポートされていないフィールド
+//
+// そして残りの通常フィールドに対して DecodeField ステートメントを生成する。
 func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []FieldInfo) []Statement {
 	statements := make([]Statement, 0, len(fields))
 

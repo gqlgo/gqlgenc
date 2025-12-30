@@ -20,7 +20,16 @@ func NewFieldAnalyzer() *FieldAnalyzer {
 	}
 }
 
-// AnalyzeFields は全フィールドを解析する
+// AnalyzeFields は構造体内の全フィールドを解析し、フィールド情報を抽出する。
+//
+// このメソッドは各フィールドを処理し:
+//  - フィールドマッピング用の JSON タグを抽出
+//  - inline fragments を検出（json:"-" を持つポインタフィールド）
+//  - fragment spreads を識別（json:"-" を持つ埋め込みフィールド）
+//  - 埋め込み構造体の SubFields を再帰的に解析
+//
+// shouldGenerateUnmarshal コールバックは、埋め込み型が独自の UnmarshalJSON を
+// 生成すべきか、親にフラット化されるべきかを判定する。
 func (a *FieldAnalyzer) AnalyzeFields(
 	structType *types.Struct,
 	shouldGenerateUnmarshal func(*types.Named) bool,
@@ -38,7 +47,15 @@ func (a *FieldAnalyzer) AnalyzeFields(
 	return fields
 }
 
-// analyzeField は1つのフィールドを解析して FieldInfo を返す
+// analyzeField は単一フィールドを解析し、その FieldInfo を返す。
+//
+// 解析には以下が含まれる:
+//  - フィールド名、型、JSON タグの抽出
+//  - FieldClassifier による inline fragments の検出
+//  - SubFields 再帰を使った埋め込みフィールド（fragment spreads）の処理
+//
+// 特殊ケース: 独自の UnmarshalJSON メソッドを持つ埋め込みフィールドは
+// 再帰的に解析されない - それら自身がアンマーシャリングを処理する。
 func (a *FieldAnalyzer) analyzeField(
 	field *types.Var,
 	tag string,

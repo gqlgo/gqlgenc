@@ -14,8 +14,22 @@ import (
 //go:embed template.tmpl
 var template string
 
+// RenderTemplate は埋め込みテンプレートをレンダリングしてクエリ型ファイルを生成する。
+//
+// この関数は以下の処理を行う:
+//  1. 型生成ロジックを扱う CodeGenerator を作成
+//  2. オペレーションと型データでテンプレートをレンダリング
+//  3. テンプレート関数 "genCode" と "needsJSONImport" を提供
+//  4. 生成されたコードを設定されたファイル名に書き込み
+//
+// パラメータ:
+//   - cfg: 出力場所とパッケージ名を指定する gqlgenc 設定
+//   - operations: 生成ファイルに含める GraphQL オペレーション
+//   - goTypes: コード生成対象の Go 型（オペレーションレスポンス型）
+//
+// テンプレートのレンダリングが失敗した場合はエラーを返す。
 func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
-	// Create code generator with the analyzed types
+	// 解析済みの型で CodeGenerator を作成
 	codeGen := NewCodeGenerator(goTypes)
 
 	if err := templates.Render(templates.Options{

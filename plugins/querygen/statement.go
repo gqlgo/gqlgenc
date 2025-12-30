@@ -47,9 +47,10 @@ type SwitchStatement struct {
 	Cases []SwitchCase
 }
 
+// SwitchCase は switch 文の単一の case を表す
 type SwitchCase struct {
-	Value string
-	Body  []Statement
+	Value string      // case の値（例: case "User": における "User"）
+	Body  []Statement // この case で実行するステートメント
 }
 
 func (s *SwitchStatement) String(indent int) string {

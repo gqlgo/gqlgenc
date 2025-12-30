@@ -16,7 +16,15 @@ func NewUnmarshalBuilder() *UnmarshalBuilder {
 	}
 }
 
-// BuildUnmarshalMethod constructs the complete UnmarshalJSON method body.
+// BuildUnmarshalMethod は完全な UnmarshalJSON メソッド本体を構築する。
+//
+// 生成されるメソッドは3種類のフィールドを処理する:
+//  1. 通常フィールド: JSON キーからアンマーシャル (json:"fieldName")
+//  2. Fragment spreads: json:"-" を持つ埋め込みフィールド（GraphQL fragments）
+//  3. Inline fragments: __typename に基づく型条件付きフィールド
+//
+// メソッドは jsontext.Value (json/v2) を使用して、raw JSON マップでの
+// フィールド存在チェック時の不要なアロケーションを回避する。
 func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 	var statements []Statement
 
@@ -127,17 +135,28 @@ func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []
 	return statements
 }
 
-// categorizeFields separates regular fields, fragment spreads, and inline fragments.
+// categorizeFields は通常フィールド、fragment spreads、inline fragments を分類する。
+// トップレベル（targetExpr="t"）でのフィールド分類のメインエントリーポイント。
 func (b *UnmarshalBuilder) categorizeFields(typeInfo TypeInfo) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	return b.categorizeFieldsList(typeInfo.Fields)
 }
 
-// categorizeFieldsList separates a list of fields by their decoding strategy.
+// categorizeFieldsList はデコード戦略によってフィールドのリストを分類する。
+// デフォルトパス "t" で categorizeFieldsListWithPath に委譲する。
 func (b *UnmarshalBuilder) categorizeFieldsList(fields []FieldInfo) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	return b.categorizeFieldsListWithPath(fields, "t")
 }
 
-// categorizeFieldsListWithPath separates a list of fields with a custom parent path.
+// categorizeFieldsListWithPath はカスタム親パスでフィールドのリストを分類する。
+//
+// このメソッドはトップレベルフィールドとネストフィールド（埋め込み構造体）の
+// 両方に使用される。parentPath パラメータは inline fragments のフィールド式を
+// 構築する際に使用するターゲット式（例: "t" または "t.NestedField"）を指定する。
+//
+// 3つのスライスを返す:
+//  1. 通常フィールド: 通常通りアンマーシャルされるべき JSON タグを持つフィールド
+//  2. Fragment spreads: GraphQL fragments を表す json:"-" を持つ埋め込みフィールド
+//  3. Inline fragments: 型条件付きの json:"-" を持つポインタフィールド
 func (b *UnmarshalBuilder) categorizeFieldsListWithPath(fields []FieldInfo, parentPath string) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
 	var regularFields []FieldInfo
 	var fragmentSpreads []FieldInfo

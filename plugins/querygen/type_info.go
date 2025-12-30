@@ -11,7 +11,7 @@ type TypeInfo struct {
 	ShouldGenerateUnmarshal bool
 }
 
-// FieldInfo represents information about a struct field
+// FieldInfo は構造体フィールドの情報を表す
 type FieldInfo struct {
 	Name             string
 	Type             types.Type
@@ -22,10 +22,10 @@ type FieldInfo struct {
 	IsInlineFragment bool
 	IsPointer        bool
 	PointerElemType  string
-	SubFields        []FieldInfo // For embedded fields, contains the fields of the embedded struct
+	SubFields        []FieldInfo // 埋め込みフィールドの場合、埋め込み構造体のフィールドを含む
 }
 
-// InlineFragmentInfo represents an inline fragment field
+// InlineFragmentInfo は inline fragment フィールドを表す
 type InlineFragmentInfo struct {
 	Field       FieldInfo
 	FieldExpr   string
