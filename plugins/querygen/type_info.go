@@ -2,18 +2,6 @@ package querygen
 
 import "go/types"
 
-// TypeInfo はコード生成のために解析された型情報を表す。
-//
-// この構造体は Go 型から抽出された情報を保持し、型定義、UnmarshalJSON メソッド、
-// getter メソッドの生成に使用される。
-type TypeInfo struct {
-	Named                   *types.Named  // 名前付き型
-	Struct                  *types.Struct // 構造体型
-	TypeName                string        // インポート修飾された型名（例: "domain.User"）
-	Fields                  []FieldInfo   // フィールド情報のリスト
-	ShouldGenerateUnmarshal bool          // UnmarshalJSON メソッドを生成すべきか
-}
-
 // FieldInfo は構造体フィールドの情報を表す。
 //
 // この構造体は各フィールドのメタデータを保持し、適切なアンマーシャル

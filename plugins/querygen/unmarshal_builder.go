@@ -25,7 +25,13 @@ func NewUnmarshalBuilder() *UnmarshalBuilder {
 //
 // メソッドは jsontext.Value (json/v2) を使用して、raw JSON マップでの
 // フィールド存在チェック時の不要なアロケーションを回避する。
-func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
+//
+// パラメータ:
+//   - fields: 型のフィールド情報のリスト
+//
+// 戻り値:
+//   - []Statement: UnmarshalJSON メソッド本体のステートメントリスト
+func (b *UnmarshalBuilder) BuildUnmarshalMethod(fields []FieldInfo) []Statement {
 	var statements []Statement
 
 	// 1. Declare raw map variable (using jsontext.Value for json/v2).
@@ -47,7 +53,7 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeInfo TypeInfo) []Statement {
 	rawExpr := "raw"
 
 	// 4. Separate regular fields, fragment spreads, and inline fragments.
-	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypes(typeInfo)
+	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesList(fields)
 
 	// 5. Decode regular fields from raw map.
 	fieldStatements := b.fieldDecoder.DecodeFields(targetExpr, rawExpr, regularFields)
@@ -161,21 +167,6 @@ func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []
 		statements = append(statements, fieldStatements...)
 	}
 	return statements
-}
-
-// separateFieldTypes は通常フィールド、fragment spreads、inline fragments を分類する。
-//
-// トップレベル（targetExpr="t"）でのフィールド分類のメインエントリーポイント。
-//
-// パラメータ:
-//   - typeInfo: 分類対象の型情報
-//
-// 戻り値:
-//   - []FieldInfo: 通常フィールドのリスト
-//   - []FieldInfo: fragment spreads のリスト
-//   - []InlineFragmentInfo: inline fragments のリスト
-func (b *UnmarshalBuilder) separateFieldTypes(typeInfo TypeInfo) ([]FieldInfo, []FieldInfo, []InlineFragmentInfo) {
-	return b.separateFieldTypesList(typeInfo.Fields)
 }
 
 // separateFieldTypesList はデコード戦略によってフィールドのリストを分類する。

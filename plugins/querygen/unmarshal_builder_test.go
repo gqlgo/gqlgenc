@@ -538,7 +538,7 @@ func TestUnmarshalBuilder_decodeNestedFields(t *testing.T) {
 
 func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 	type args struct {
-		typeInfo TypeInfo
+		fields []FieldInfo
 	}
 
 	type want struct {
@@ -553,17 +553,14 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 		{
 			name: "通常のフィールドのみの型の場合",
 			args: args{
-				typeInfo: TypeInfo{
-					TypeName: "User",
-					Fields: []FieldInfo{
-						{
-							Name:    "ID",
-							JSONTag: "id",
-						},
-						{
-							Name:    "Name",
-							JSONTag: "name",
-						},
+				fields: []FieldInfo{
+					{
+						Name:    "ID",
+						JSONTag: "id",
+					},
+					{
+						Name:    "Name",
+						JSONTag: "name",
 					},
 				},
 			},
@@ -577,7 +574,7 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := NewUnmarshalBuilder()
-			got := b.BuildUnmarshalMethod(tt.args.typeInfo)
+			got := b.BuildUnmarshalMethod(tt.args.fields)
 
 			if len(got) < tt.want.statementsCount {
 				t.Errorf("statements count = %d, want at least %d", len(got), tt.want.statementsCount)
