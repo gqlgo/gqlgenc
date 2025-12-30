@@ -13,12 +13,7 @@ import (
 )
 
 func introspectionSchema(ctx context.Context, httpClient *http.Client, endpoint string, header http.Header) (*ast.Schema, error) {
-	//httpClient := http.DefaultClient
-	//if c.GQLGencConfig.Endpoint.Client != nil {
-	//	httpClient = c.GQLGencConfig.Endpoint.Client
-	//}
-
-	gqlgencClient := client.NewClient(endpoint, client.WithHTTPClient(httpClient))
+	gqlgencClient := client.NewClient(endpoint, client.WithHTTPClient(httpClient), client.WithHTTPHeader(header))
 
 	var res introspection.Query
 	if err := gqlgencClient.Post(ctx, "Query", introspection.Introspection, nil, &res); err != nil {

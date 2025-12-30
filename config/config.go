@@ -16,11 +16,7 @@ import (
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin/federation"
 
-	"github.com/Yamashou/gqlgenc/v3/client"
-	"github.com/Yamashou/gqlgenc/v3/introspection"
-
 	"github.com/vektah/gqlparser/v2/ast"
-	"github.com/vektah/gqlparser/v2/validator"
 )
 
 // and represents the config file.
@@ -54,16 +50,19 @@ func Init(ctx context.Context, configFileName string) (*Config, error) {
 
 	// Load schema
 	// TODO: Add test for when SchemaFilename is not specified in config
-	if c.GQLGenConfig.SchemaFilename != nil {
+	switch {
+	case c.GQLGenConfig.SchemaFilename != nil:
 		if err := c.GQLGenConfig.LoadSchema(); err != nil {
 			return nil, fmt.Errorf("load local schema failed: %w", err)
 		}
-	} else {
+	case c.GQLGencConfig.Endpoint != nil:
 		schema, err := introspectionSchema(ctx, http.DefaultClient, c.GQLGencConfig.Endpoint.URL, c.GQLGencConfig.Endpoint.Headers)
 		if err != nil {
 			return nil, fmt.Errorf("introspect schema failed: %w", err)
 		}
 		c.GQLGenConfig.Schema = schema
+	default:
+		return nil, errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	}
 
 	// delete exist gen file
@@ -178,8 +177,4 @@ func loadConfig(configFilename string) (*Config, error) {
 	}
 
 	return &c, nil
-}
-
-
-	return nil
 }

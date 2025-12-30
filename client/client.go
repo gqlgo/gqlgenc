@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"slices"
 )
 
 type Client struct {
 	client   *http.Client
+	header   http.Header
 	endpoint string
 }
 
@@ -33,23 +33,31 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
+func WithHTTPHeader(header http.Header) Option {
+	return func(c *Client) {
+		c.header = header
+	}
+}
+
 func (c *Client) Post(ctx context.Context, operationName, query string, variables map[string]any, out any, options ...Option) error {
-	client := NewClient(c.endpoint, slices.Concat([]Option{WithHTTPClient(c.client)}, options)...)
+	for _, option := range options {
+		option(c)
+	}
 
 	// PostMultipart send multipart form with files https://gqlgen.com/reference/file-upload/ https://github.com/jaydenseric/graphql-multipart-request-spec
-	req, err := NewMultipartRequest(ctx, client.endpoint, operationName, query, variables)
+	req, err := NewMultipartRequest(ctx, c.endpoint, operationName, query, variables)
 	if err != nil {
 		return fmt.Errorf("failed to create post multipart request: %w", err)
 	}
 
 	if req == nil {
-		req, err = NewRequest(ctx, client.endpoint, operationName, query, variables)
+		req, err = NewRequest(ctx, c.endpoint, operationName, query, variables)
 		if err != nil {
 			return fmt.Errorf("failed to create post request: %w", err)
 		}
 	}
 
-	resp, err := client.client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
