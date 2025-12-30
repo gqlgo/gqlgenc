@@ -1,0 +1,508 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>config: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Yamashou/gqlgenc/v3/config/config.go (57.6%)</option>
+				
+				<option value="file1">github.com/Yamashou/gqlgenc/v3/config/file.go (48.1%)</option>
+				
+				<option value="file2">github.com/Yamashou/gqlgenc/v3/config/header_transport.go (0.0%)</option>
+				
+				<option value="file3">github.com/Yamashou/gqlgenc/v3/config/introspection.go (72.7%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package config
+
+import (
+        "bytes"
+        "context"
+        "errors"
+        "fmt"
+        "net/http"
+        "os"
+        "slices"
+        "strings"
+        "syscall"
+
+        "github.com/goccy/go-yaml"
+
+        gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
+        "github.com/99designs/gqlgen/plugin/federation"
+
+        "github.com/vektah/gqlparser/v2/ast"
+)
+
+// and represents the config file.
+type Config struct {
+        GQLGencConfig *GQLGencConfig       `yaml:"gqlgenc"`
+        GQLGenConfig  *gqlgenconfig.Config `yaml:"gqlgen"`
+}
+
+type GQLGencConfig struct {
+        QueryGen        gqlgenconfig.PackageConfig `yaml:"querygen,omitempty"`
+        ClientGen       gqlgenconfig.PackageConfig `yaml:"clientgen,omitempty"`
+        Endpoint        *EndPointConfig            `yaml:"endpoint,omitempty"`
+        Query           []string                   `yaml:"query"`
+        ExportQueryType bool                       `yaml:"export_query_type,omitempty"`
+}
+
+// EndPointConfig are the allowed options for the 'endpoint' config.
+type EndPointConfig struct {
+        // TODO: テスト
+        Headers http.Header `yaml:"headers,omitempty"`
+        URL     string      `yaml:"url"`
+        // TODO: 消す
+        Client *http.Client `yaml:"-"`
+}
+
+func Init(ctx context.Context, configFileName string) (*Config, error) <span class="cov8" title="1">{
+        c, err := loadConfig(configFileName)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf(": %w", err)
+        }</span>
+
+        // Load schema
+        // TODO: Add test for when SchemaFilename is not specified in config
+        <span class="cov8" title="1">switch </span>{
+        case c.GQLGenConfig.SchemaFilename != nil:<span class="cov8" title="1">
+                if err := c.GQLGenConfig.LoadSchema(); err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("load local schema failed: %w", err)
+                }</span>
+        case c.GQLGencConfig.Endpoint != nil:<span class="cov0" title="0">
+                httpClient := c.GQLGencConfig.Endpoint.Client
+                if httpClient == nil </span><span class="cov0" title="0">{
+                        httpClient = http.DefaultClient
+                }</span>
+                <span class="cov0" title="0">schema, err := introspectionSchema(ctx, httpClient, c.GQLGencConfig.Endpoint.URL, c.GQLGencConfig.Endpoint.Headers)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("introspect schema failed: %w", err)
+                }</span>
+                <span class="cov0" title="0">c.GQLGenConfig.Schema = schema</span>
+        default:<span class="cov0" title="0">
+                return nil, errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")</span>
+        }
+
+        // delete exist gen file
+        <span class="cov8" title="1">if c.GQLGenConfig.Model.IsDefined() </span><span class="cov8" title="1">{
+                // model gen file must be removed before cfg.PrepareSchema()
+                _ = syscall.Unlink(c.GQLGenConfig.Model.Filename)
+        }</span>
+
+        <span class="cov8" title="1">if c.GQLGencConfig.QueryGen.IsDefined() </span><span class="cov8" title="1">{
+                _ = syscall.Unlink(c.GQLGencConfig.QueryGen.Filename)
+        }</span>
+
+        <span class="cov8" title="1">if c.GQLGencConfig.ClientGen.IsDefined() </span><span class="cov8" title="1">{
+                _ = syscall.Unlink(c.GQLGencConfig.ClientGen.Filename)
+        }</span>
+
+        <span class="cov8" title="1">if err := c.GQLGenConfig.Init(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("generating core failed: %w", err)
+        }</span>
+
+        // sort Implements to ensure a deterministic output
+        <span class="cov8" title="1">for _, implements := range c.GQLGenConfig.Schema.Implements </span><span class="cov0" title="0">{
+                slices.SortFunc(implements, func(a, b *ast.Definition) int </span><span class="cov0" title="0">{
+                        return strings.Compare(a.Name, b.Name)
+                }</span>)
+        }
+
+        <span class="cov8" title="1">return c, nil</span>
+}
+
+// loadConfig loads and parses the config gqlgenc config.
+func loadConfig(configFilename string) (*Config, error) <span class="cov8" title="1">{
+        configContent, err := os.ReadFile(configFilename)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unable to read config: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">var c Config
+
+        yamlDecoder := yaml.NewDecoder(bytes.NewReader([]byte(os.ExpandEnv(string(configContent)))), yaml.DisallowUnknownField())
+        if err := yamlDecoder.Decode(&amp;c); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unable to parse config: %w", err)
+        }</span>
+
+        // validation
+        <span class="cov8" title="1">if c.GQLGenConfig.SchemaFilename != nil &amp;&amp; c.GQLGencConfig.Endpoint != nil </span><span class="cov0" title="0">{
+                return nil, errors.New("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+        }</span>
+
+        <span class="cov8" title="1">if c.GQLGenConfig.SchemaFilename == nil &amp;&amp; c.GQLGencConfig.Endpoint == nil </span><span class="cov8" title="1">{
+                return nil, errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+        }</span>
+
+        <span class="cov8" title="1">if c.GQLGencConfig.ClientGen.IsDefined() &amp;&amp; !c.GQLGencConfig.QueryGen.IsDefined() </span><span class="cov0" title="0">{
+                return nil, errors.New("'clientgen' is set, 'querygen' must be set")
+        }</span>
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // gqlgen
+
+        // check
+        <span class="cov8" title="1">if err := c.GQLGenConfig.Model.Check(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("model: %w", err)
+        }</span>
+
+        // Fill gqlgen config fields
+        // https://github.com/99designs/gqlgen/blob/3a31a752df764738b1f6e99408df3b169d514784/codegen/config/config.go#L120
+        <span class="cov8" title="1">schemaFilename, err := schemaFilenames(c.GQLGenConfig.SchemaFilename)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">c.GQLGenConfig.SchemaFilename = schemaFilename
+
+        sources, err := schemaFileSources(c.GQLGenConfig.SchemaFilename)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">if c.GQLGenConfig.Federation.Version != 0 </span><span class="cov0" title="0">{
+                fedPlugin, err := federation.New(c.GQLGenConfig.Federation.Version, c.GQLGenConfig)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to create federation plugin: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">federationSources, err := fedPlugin.InjectSourcesEarly()
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to inject federation directives: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">sources = append(sources, federationSources...)</span>
+        }
+
+        <span class="cov8" title="1">c.GQLGenConfig.Sources = sources
+
+        // gqlgen must be followings parameters
+        c.GQLGenConfig.Directives = make(map[string]gqlgenconfig.DirectiveConfig)
+        c.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: "generated.go"}
+        c.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: "generated.go"}
+        c.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: "generated.go"}
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // gqlgenc
+
+        // validation
+        if err := c.GQLGencConfig.QueryGen.Check(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("querygen: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if err := c.GQLGencConfig.ClientGen.Check(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("clientgen: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;c, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package config
+
+import (
+        "fmt"
+        "maps"
+        "os"
+        "path/filepath"
+        "regexp"
+        "slices"
+        "strings"
+
+        "github.com/vektah/gqlparser/v2/ast"
+)
+
+// looking for the closest match.
+func FindConfigFile(path string, cfgFilenames []string) (string, error) <span class="cov0" title="0">{
+        var err error
+
+        var dir string
+        if path == "." </span><span class="cov0" title="0">{
+                dir, err = os.Getwd()
+        }</span> else<span class="cov0" title="0"> {
+                dir = path
+                _, err = os.Stat(dir)
+        }</span>
+
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("unable to get directory \"%s\" to findCfg: %w", dir, err)
+        }</span>
+
+        <span class="cov0" title="0">cfg := findConfigInDir(dir, cfgFilenames)
+
+        for cfg == "" &amp;&amp; dir != filepath.Dir(dir) </span><span class="cov0" title="0">{
+                dir = filepath.Dir(dir)
+                cfg = findConfigInDir(dir, cfgFilenames)
+        }</span>
+
+        <span class="cov0" title="0">if cfg == "" </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s: %w", dir, err)
+        }</span>
+
+        <span class="cov0" title="0">return cfg, nil</span>
+}
+
+func findConfigInDir(dir string, cfgFilenames []string) string <span class="cov0" title="0">{
+        for _, cfgName := range cfgFilenames </span><span class="cov0" title="0">{
+                path := filepath.Join(dir, cfgName)
+                if _, err := os.Stat(path); err == nil </span><span class="cov0" title="0">{
+                        return path
+                }</span>
+        }
+
+        <span class="cov0" title="0">return ""</span>
+}
+
+func schemaFilenames(schemaFilenameGlobs []string) ([]string, error) <span class="cov8" title="1">{
+        path2regex := strings.NewReplacer(
+                `.`, `\.`,
+                `*`, `.+`,
+                `\`, `[\\/]`,
+                `/`, `[\\/]`,
+        )
+
+        allSchemaFilenames := make(map[string]struct{})
+
+        for _, schemaFilenameGlob := range schemaFilenameGlobs </span><span class="cov8" title="1">{
+                var schemaFilenames []string
+
+                if strings.Contains(schemaFilenameGlob, "**") </span><span class="cov8" title="1">{
+                        // for ** we want to override default globbing patterns and walk all
+                        // subdirectories to match schema files.
+                        pathParts := strings.SplitN(schemaFilenameGlob, "**", 2)
+                        rest := strings.TrimPrefix(strings.TrimPrefix(pathParts[1], `\`), `/`)
+                        // turn the rest of the glob into a regex, anchored only at the end because ** allows
+                        // for any number of dirs in between and walk will let us match against the full path name
+                        globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
+
+                        if err := filepath.Walk(pathParts[0], func(path string, _ os.FileInfo, err error) error </span><span class="cov8" title="1">{
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return fmt.Errorf("%w", err)
+                                }</span>
+
+                                <span class="cov8" title="1">if globRe.MatchString(strings.TrimPrefix(path, pathParts[0])) </span><span class="cov8" title="1">{
+                                        schemaFilenames = append(schemaFilenames, path)
+                                }</span>
+
+                                <span class="cov8" title="1">return nil</span>
+                        }); err != nil <span class="cov0" title="0">{
+                                return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        var err error
+
+                        schemaFilenames, err = filepath.Glob(schemaFilenameGlob)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, fmt.Errorf("failed to glob schema filename %s: %w", schemaFilenameGlob, err)
+                        }</span>
+                }
+
+                <span class="cov8" title="1">for _, schemaFilename := range schemaFilenames </span><span class="cov8" title="1">{
+                        allSchemaFilenames[schemaFilename] = struct{}{}
+                }</span>
+        }
+
+        <span class="cov8" title="1">return slices.Sorted(maps.Keys(allSchemaFilenames)), nil</span>
+}
+
+func schemaFileSources(schemaFilenames []string) ([]*ast.Source, error) <span class="cov8" title="1">{
+        sources := make([]*ast.Source, 0, len(schemaFilenames))
+
+        for _, schemaFilename := range schemaFilenames </span><span class="cov8" title="1">{
+                schemaFilename = filepath.ToSlash(schemaFilename)
+
+                var err error
+
+                var schemaRaw []byte
+
+                schemaRaw, err = os.ReadFile(schemaFilename)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("unable to open schema: %w", err)
+                }</span>
+
+                <span class="cov8" title="1">sources = append(sources, &amp;ast.Source{Name: schemaFilename, Input: string(schemaRaw)})</span>
+        }
+
+        <span class="cov8" title="1">return sources, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package config
+
+import (
+        "context"
+        "fmt"
+        "maps"
+        "net/http"
+)
+
+type HeaderTransport struct {
+        base   http.RoundTripper
+        header func(ctx context.Context) http.Header
+}
+
+func NewHeaderTransport(header func(ctx context.Context) http.Header) func(http.RoundTripper) http.RoundTripper <span class="cov0" title="0">{
+        return func(base http.RoundTripper) http.RoundTripper </span><span class="cov0" title="0">{
+                return &amp;HeaderTransport{
+                        base:   base,
+                        header: header,
+                }
+        }</span>
+}
+
+func (t *HeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) <span class="cov0" title="0">{
+        ctx := req.Context()
+        req = req.Clone(ctx)
+
+        header := t.header(ctx)
+        maps.Copy(req.Header, header)
+
+        resp, err := t.base.RoundTrip(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf(": %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return resp, nil</span>
+}
+
+func TransportAppend(roundTripper http.RoundTripper, newRoundTrippers ...func(http.RoundTripper) http.RoundTripper) http.RoundTripper <span class="cov0" title="0">{
+        for _, newRoundTripper := range newRoundTrippers </span><span class="cov0" title="0">{
+                roundTripper = newRoundTripper(roundTripper)
+        }</span>
+
+        <span class="cov0" title="0">return roundTripper</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package config
+
+import (
+        "context"
+        "fmt"
+        "net/http"
+
+        "github.com/Yamashou/gqlgenc/v3/client"
+        "github.com/Yamashou/gqlgenc/v3/introspection"
+
+        "github.com/vektah/gqlparser/v2/ast"
+        "github.com/vektah/gqlparser/v2/validator"
+)
+
+func introspectionSchema(ctx context.Context, httpClient *http.Client, endpoint string, header http.Header) (*ast.Schema, error) <span class="cov8" title="1">{
+        gqlgencClient := client.NewClient(endpoint, client.WithHTTPClient(httpClient), client.WithHTTPHeader(header))
+
+        var res introspection.Query
+        if err := gqlgencClient.Post(ctx, "Query", introspection.Introspection, nil, &amp;res); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("introspection query failed: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">schema, err := validator.ValidateSchemaDocument(introspection.SchemaFromIntrospection(endpoint, res))
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("validation error: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if schema.Query == nil </span><span class="cov0" title="0">{
+                schema.Query = &amp;ast.Definition{
+                        Kind: ast.Object,
+                        Name: "Query",
+                }
+                schema.Types["Query"] = schema.Query
+        }</span>
+
+        <span class="cov8" title="1">return schema, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

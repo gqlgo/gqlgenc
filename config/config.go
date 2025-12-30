@@ -56,7 +56,11 @@ func Init(ctx context.Context, configFileName string) (*Config, error) {
 			return nil, fmt.Errorf("load local schema failed: %w", err)
 		}
 	case c.GQLGencConfig.Endpoint != nil:
-		schema, err := introspectionSchema(ctx, http.DefaultClient, c.GQLGencConfig.Endpoint.URL, c.GQLGencConfig.Endpoint.Headers)
+		httpClient := c.GQLGencConfig.Endpoint.Client
+		if httpClient == nil {
+			httpClient = http.DefaultClient
+		}
+		schema, err := introspectionSchema(ctx, httpClient, c.GQLGencConfig.Endpoint.URL, c.GQLGencConfig.Endpoint.Headers)
 		if err != nil {
 			return nil, fmt.Errorf("introspect schema failed: %w", err)
 		}

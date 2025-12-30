@@ -1,0 +1,15 @@
+gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+    package: gen
+gqlgenc:
+  query:
+    - "./queries/*.graphql"
+  querygen:
+    filename: ./gen/query.go
+    package: gen
+  clientgen:
+    filename: ./gen/client.go
+    package: gen
+  endpoint:
+    url: http://mock-server.example.com/graphql

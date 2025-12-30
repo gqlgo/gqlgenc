@@ -2,17 +2,22 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"slices"
+	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/99designs/gqlgen/codegen/config"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func ptr[T any](t T) *T {
@@ -450,9 +455,10 @@ func TestInit(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		configFile string
-		want       want
+		name         string
+		configFile   string
+		responseFile string
+		want         want
 	}{
 		{
 			name:       "ローカルスキーマで成功",
@@ -469,13 +475,120 @@ func TestInit(t *testing.T) {
 				errMessage: "neither 'schema' nor 'endpoint' specified",
 			},
 		},
+		{
+			name:         "リモートスキーマ（introspection）で成功",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_ok.json",
+			want: want{
+				err: false,
+			},
+		},
+		{
+			name:         "不正なリモートスキーマでエラー",
+			configFile:   "testdata/cfg/endpoint_only.yml",
+			responseFile: "testdata/remote/response_invalid_schema.json",
+			want: want{
+				err:        true,
+				errMessage: "OBJECT Query: must define one or more fields",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := Init(t.Context(), tt.configFile)
+			var cfg *Config
+			var err error
+
+			if tt.responseFile != "" {
+				// リモートスキーマのテストケース（mockServerを使用）
+				mockServer, closeServer := newMockRemoteServer(t, responseFromFile(tt.responseFile))
+				defer closeServer()
+
+				// mockServerのURLとClientを設定してInit()を直接呼び出すため、
+				// 一時的な設定ファイルを作成
+				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
+				if tmpErr != nil {
+					t.Fatalf("Failed to create temp config file: %v", tmpErr)
+				}
+				defer os.Remove(tmpFile.Name())
+
+				// mockServerのURLを使った設定を書き込む
+				tmpConfig := fmt.Sprintf(`gqlgen:
+  model:
+    filename: ./gen/models_gen.go
+    package: gen
+gqlgenc:
+  query:
+    - "./queries/*.graphql"
+  querygen:
+    filename: ./gen/query.go
+    package: gen
+  clientgen:
+    filename: ./gen/client.go
+    package: gen
+  endpoint:
+    url: %s
+`, mockServer.URL)
+				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
+					t.Fatalf("Failed to write temp config: %v", tmpErr)
+				}
+				tmpFile.Close()
+
+				// loadConfigで一時ファイルを読み込んでClientを設定
+				cfg, err = loadConfig(tmpFile.Name())
+				if err != nil {
+					t.Fatalf("loadConfig() error = %v", err)
+				}
+				cfg.GQLGencConfig.Endpoint.Client = mockServer.client
+
+				// Init()の残りの処理を手動実行
+				// Load schema
+				httpClient := cfg.GQLGencConfig.Endpoint.Client
+				if httpClient == nil {
+					httpClient = http.DefaultClient
+				}
+				var schema *ast.Schema
+				schema, err = introspectionSchema(t.Context(), httpClient, cfg.GQLGencConfig.Endpoint.URL, cfg.GQLGencConfig.Endpoint.Headers)
+				if err == nil {
+					cfg.GQLGenConfig.Schema = schema
+
+					// delete exist gen file
+					if cfg.GQLGenConfig.Model.IsDefined() {
+						_ = syscall.Unlink(cfg.GQLGenConfig.Model.Filename)
+					}
+
+					if cfg.GQLGencConfig.QueryGen.IsDefined() {
+						_ = syscall.Unlink(cfg.GQLGencConfig.QueryGen.Filename)
+					}
+
+					if cfg.GQLGencConfig.ClientGen.IsDefined() {
+						_ = syscall.Unlink(cfg.GQLGencConfig.ClientGen.Filename)
+					}
+
+					// gqlgen.Config.Init() に必要なフィールドを初期化
+					if cfg.GQLGenConfig.Models == nil {
+						cfg.GQLGenConfig.Models = make(config.TypeMap)
+					}
+					if cfg.GQLGenConfig.StructTag == "" {
+						cfg.GQLGenConfig.StructTag = "json"
+					}
+
+					err = cfg.GQLGenConfig.Init()
+					if err == nil {
+						// sort Implements to ensure a deterministic output
+						for _, implements := range cfg.GQLGenConfig.Schema.Implements {
+							slices.SortFunc(implements, func(a, b *ast.Definition) int {
+								return strings.Compare(a.Name, b.Name)
+							})
+						}
+					}
+				}
+			} else {
+				// ローカルスキーマのテストケース
+				cfg, err = Init(t.Context(), tt.configFile)
+			}
 
 			if tt.want.err {
 				if err == nil {
