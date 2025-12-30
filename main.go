@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const version = "3.0.0"
+const version = "1.0.0-alpha1"
 
 var versionOption = flag.Bool("version", false, "gqlgenc version")
 
