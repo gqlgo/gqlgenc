@@ -40,6 +40,7 @@ func (p parser) parseIntrospectionQuery(query Query) *ast.SchemaDocument {
 	for _, directiveValue := range query.Schema.Directives {
 		doc.Directives = append(doc.Directives, p.parseDirectiveDefinition(directiveValue))
 	}
+
 	p.deprecatedDirectiveDefinition = doc.Directives.ForName("deprecated")
 
 	for _, typeVale := range p.typeMap {
@@ -70,6 +71,7 @@ func (p parser) parseSchemaDefinition(query Query, typeMap map[string]*FullType)
 
 func (p parser) parseOperationTypeDefinitionForQuery(fullType *FullType) *ast.OperationTypeDefinition {
 	var op ast.OperationTypeDefinition
+
 	op.Operation = ast.Query
 	op.Type = *fullType.Name
 	op.Position = p.sharedPosition
@@ -79,6 +81,7 @@ func (p parser) parseOperationTypeDefinitionForQuery(fullType *FullType) *ast.Op
 
 func (p parser) parseOperationTypeDefinitionForMutation(fullType *FullType) *ast.OperationTypeDefinition {
 	var op ast.OperationTypeDefinition
+
 	op.Operation = ast.Mutation
 	op.Type = *fullType.Name
 	op.Position = p.sharedPosition
@@ -92,6 +95,7 @@ func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.Dir
 		argumentDefinition := p.buildInputValue(arg)
 		args = append(args, argumentDefinition)
 	}
+
 	locations := make([]ast.DirectiveLocation, 0, len(directiveValue.Locations))
 	for _, locationValue := range directiveValue.Locations {
 		locations = append(locations, ast.DirectiveLocation(locationValue))
@@ -110,6 +114,7 @@ func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 	fieldList := make(ast.FieldList, 0, len(typeVale.Fields))
 	for _, field := range typeVale.Fields {
 		typ := p.getType(&field.Type)
+
 		args := make(ast.ArgumentDefinitionList, 0, len(field.Args))
 		for _, arg := range field.Args {
 			argumentDefinition := p.buildInputValue(arg)
@@ -148,6 +153,7 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 
 func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
 	fieldList := p.parseObjectFields(typeVale)
+
 	interfaces := make([]string, 0, len(typeVale.Interfaces))
 	for _, intf := range typeVale.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
@@ -177,6 +183,7 @@ func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
 
 func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition {
 	fieldList := p.parseObjectFields(typeVale)
+
 	interfaces := make([]string, 0, len(typeVale.Interfaces))
 	for _, intf := range typeVale.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
@@ -195,6 +202,7 @@ func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition
 
 func (p parser) parseInputObjectTypeDefinition(typeVale *FullType) *ast.Definition {
 	fieldList := p.parseInputObjectFields(typeVale)
+
 	interfaces := make([]string, 0, len(typeVale.Interfaces))
 	for _, intf := range typeVale.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
@@ -315,6 +323,7 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 		if nullableRef == nil {
 			panic("Decorated type deeper than introspection query.")
 		}
+
 		nullableType := p.getType(nullableRef)
 		nullableType.NonNull = true
 
@@ -326,6 +335,7 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 
 func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
 	var directives ast.DirectiveList
+
 	if field.IsDeprecated {
 		var arguments ast.ArgumentList
 		if field.DeprecationReason != nil {
@@ -339,6 +349,7 @@ func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
 				Position: p.sharedPosition,
 			})
 		}
+
 		deprecatedDirective := &ast.Directive{
 			Name:             "deprecated",
 			Arguments:        arguments,
@@ -398,6 +409,7 @@ func builtInScalar(fullType *FullType) bool {
 	if strings.HasPrefix(name, "__") {
 		return true
 	}
+
 	switch name {
 	case "String", "Int", "Float", "Boolean", "ID":
 		return true

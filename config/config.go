@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/config"
+	"github.com/goccy/go-yaml"
 	"github.com/gqlgo/gqlgenc/clientv2"
 	"github.com/gqlgo/gqlgenc/introspection"
-	"github.com/goccy/go-yaml"
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator"
@@ -68,14 +68,18 @@ type EndPointConfig struct {
 // findCfg searches for the config file in this directory and all parents up the tree
 // looking for the closest match
 func findCfg(path string) (string, error) {
-	var err error
-	var dir string
+	var (
+		err error
+		dir string
+	)
+
 	if path == "." {
 		dir, err = os.Getwd()
 	} else {
 		dir = path
 		_, err = os.Stat(dir)
 	}
+
 	if err != nil {
 		return "", fmt.Errorf("unable to get directory \"%s\" to findCfg: %w", dir, err)
 	}
@@ -97,7 +101,9 @@ func findCfg(path string) (string, error) {
 func findCfgInDir(dir string) string {
 	for _, cfgName := range cfgFilenames {
 		path := filepath.Join(dir, cfgName)
-		if _, err := os.Stat(path); err == nil {
+
+		_, err := os.Stat(path)
+		if err == nil {
 			return path
 		}
 	}
@@ -115,6 +121,7 @@ var path2regex = strings.NewReplacer(
 // LoadConfig loads and parses the config gqlgenc config
 func LoadConfig(filename string) (*Config, error) {
 	var cfg Config
+
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read config: %w", err)
@@ -123,7 +130,9 @@ func LoadConfig(filename string) (*Config, error) {
 	confContent := []byte(os.ExpandEnv(string(b)))
 
 	decoder := yaml.NewDecoder(bytes.NewReader(confContent), yaml.DisallowUnknownField())
-	if err := decoder.Decode(&cfg); err != nil {
+
+	err = decoder.Decode(&cfg)
+	if err != nil {
 		return nil, fmt.Errorf("unable to parse config: %w", err)
 	}
 
@@ -137,6 +146,7 @@ func LoadConfig(filename string) (*Config, error) {
 
 	// https://github.com/99designs/gqlgen/blob/3a31a752df764738b1f6e99408df3b169d514784/codegen/config/config.go#L120
 	files := StringList{}
+
 	for _, f := range cfg.SchemaFilename {
 		var matches []string
 
@@ -149,7 +159,7 @@ func LoadConfig(filename string) (*Config, error) {
 			// for any number of dirs in between and walk will let us match against the full path name
 			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
 
-			if err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -159,7 +169,8 @@ func LoadConfig(filename string) (*Config, error) {
 				}
 
 				return nil
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
 			}
 		} else {
@@ -189,8 +200,12 @@ func LoadConfig(filename string) (*Config, error) {
 
 	for _, filename := range cfg.SchemaFilename {
 		filename = filepath.ToSlash(filename)
-		var err error
-		var schemaRaw []byte
+
+		var (
+			err       error
+			schemaRaw []byte
+		)
+
 		schemaRaw, err = os.ReadFile(filename)
 		if err != nil {
 			return nil, fmt.Errorf("unable to open schema: %w", err)
@@ -201,6 +216,7 @@ func LoadConfig(filename string) (*Config, error) {
 
 	structFieldsAlwaysPointers := true
 	enableClientJsonOmitemptyTag := true
+
 	enableModelJsonOmitzeroTag := false
 	if cfg.Generate == nil {
 		cfg.Generate = &GenerateConfig{
@@ -209,12 +225,15 @@ func LoadConfig(filename string) (*Config, error) {
 			EnableClientJsonOmitzeroTag:  &enableModelJsonOmitzeroTag,
 		}
 	}
+
 	if cfg.Generate.StructFieldsAlwaysPointers == nil {
 		cfg.Generate.StructFieldsAlwaysPointers = &structFieldsAlwaysPointers
 	}
+
 	if cfg.Generate.EnableClientJsonOmitemptyTag == nil {
 		cfg.Generate.EnableClientJsonOmitemptyTag = &enableClientJsonOmitemptyTag
 	}
+
 	if cfg.Generate.EnableClientJsonOmitzeroTag == nil {
 		cfg.Generate.EnableClientJsonOmitzeroTag = &enableModelJsonOmitzeroTag
 	}
@@ -235,7 +254,8 @@ func LoadConfig(filename string) (*Config, error) {
 		EnableModelJsonOmitzeroTag:     cfg.Generate.EnableClientJsonOmitzeroTag,
 	}
 
-	if err := cfg.Client.Check(); err != nil {
+	err = cfg.Client.Check()
+	if err != nil {
 		return nil, fmt.Errorf("config.exec: %w", err)
 	}
 
@@ -245,6 +265,7 @@ func LoadConfig(filename string) (*Config, error) {
 // LoadSchema load and parses the schema from a local file or a remote server
 func (c *Config) LoadSchema(ctx context.Context) error {
 	var schema *ast.Schema
+
 	if c.SchemaFilename != nil {
 		s, err := c.loadLocalSchema()
 		if err != nil {
@@ -286,7 +307,9 @@ func (c *Config) loadRemoteSchema(ctx context.Context) (*ast.Schema, error) {
 	gqlclient := clientv2.NewClient(http.DefaultClient, c.Endpoint.URL, nil, addHeaderInterceptor)
 
 	var res introspection.Query
-	if err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil); err != nil {
+
+	err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil)
+	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 

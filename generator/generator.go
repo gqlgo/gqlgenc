@@ -22,11 +22,13 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		// only generate used models
 		if cfg.Generate.OnlyUsedModels != nil && *cfg.Generate.OnlyUsedModels {
 			var newModels []*modelgen.Object
+
 			for _, model := range build.Models {
 				if usedTypes[model.Name] {
 					newModels = append(newModels, model)
 				}
 			}
+
 			build.Models = newModels
 			build.Interfaces = nil
 		}
@@ -53,7 +55,8 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 		}
 
 		if fed, ok := fedPlugin.(plugin.EarlySourcesInjector); ok {
-			if sources, err := fed.InjectSourcesEarly(); err == nil {
+			sources, err := fed.InjectSourcesEarly()
+			if err == nil {
 				cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
 			} else {
 				return fmt.Errorf("failed to inject federation directives: %w", err)
@@ -67,11 +70,13 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
-	if err := cfg.LoadSchema(ctx); err != nil {
+	err := cfg.LoadSchema(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
-	if err := cfg.GQLConfig.Init(); err != nil {
+	err = cfg.GQLConfig.Init()
+	if err != nil {
 		return fmt.Errorf("generating core failed: %w", err)
 	}
 
@@ -101,6 +106,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	}
 
 	var plugins []plugin.Plugin
+
 	if cfg.Model.IsDefined() {
 		usedTypes := querydocument.CollectTypesFromQueryDocuments(cfg.GQLConfig.Schema, operationQueryDocuments)
 		p := &modelgen.Plugin{
@@ -112,6 +118,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	}
 
 	clientGen(cfg.GQLConfig, &plugins)
+
 	for _, p := range plugins {
 		if mut, ok := p.(plugin.ConfigMutator); ok {
 			err := mut.MutateConfig(cfg.GQLConfig)

@@ -18,7 +18,8 @@ func QueryDocumentsByOperations(schema *ast.Schema, operations ast.OperationList
 			Position:   nil,
 		}
 
-		if errs := validator.Validate(schema, queryDocument); errs != nil {
+		errs := validator.Validate(schema, queryDocument)
+		if errs != nil {
 			return nil, fmt.Errorf(": %w", errs)
 		}
 
@@ -37,11 +38,13 @@ func fragmentsInOperationDefinition(operation *ast.OperationDefinition) ast.Frag
 
 func fragmentsUnique(fragments ast.FragmentDefinitionList) ast.FragmentDefinitionList {
 	seenFragments := make(map[string]struct{}, len(fragments))
+
 	uniqueFragments := make(ast.FragmentDefinitionList, 0, len(fragments))
 	for _, fragment := range fragments {
 		if _, ok := seenFragments[fragment.Name]; ok {
 			continue
 		}
+
 		uniqueFragments = append(uniqueFragments, fragment)
 		seenFragments[fragment.Name] = struct{}{}
 	}
@@ -51,8 +54,10 @@ func fragmentsUnique(fragments ast.FragmentDefinitionList) ast.FragmentDefinitio
 
 func fragmentsInOperationWalker(selectionSet ast.SelectionSet) ast.FragmentDefinitionList {
 	var fragments ast.FragmentDefinitionList
+
 	for _, selection := range selectionSet {
 		var selectionSet ast.SelectionSet
+
 		switch selection := selection.(type) {
 		case *ast.Field:
 			selectionSet = selection.SelectionSet
