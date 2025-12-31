@@ -11,10 +11,10 @@ import (
 	"github.com/99designs/gqlgen/plugin"
 	"github.com/99designs/gqlgen/plugin/federation"
 	"github.com/99designs/gqlgen/plugin/modelgen"
-	"github.com/Yamashou/gqlgenc/clientgenv2"
-	"github.com/Yamashou/gqlgenc/config"
-	"github.com/Yamashou/gqlgenc/parsequery"
-	"github.com/Yamashou/gqlgenc/querydocument"
+	"github.com/gqlgo/gqlgenc/clientgenv2"
+	"github.com/gqlgo/gqlgenc/config"
+	"github.com/gqlgo/gqlgenc/parsequery"
+	"github.com/gqlgo/gqlgenc/querydocument"
 )
 
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {

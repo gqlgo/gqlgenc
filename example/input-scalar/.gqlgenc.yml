@@ -6,7 +6,7 @@ client:
   filename: ./gen/client.go
 models:
   Number:
-    model: github.com/Yamashou/gqlgenc/example/input-scalar/scalar.Number
+    model: github.com/gqlgo/gqlgenc/example/input-scalar/scalar.Number
 query:
   - "./query/*.graphql"
 generate:

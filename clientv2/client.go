@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/Yamashou/gqlgenc/graphqljson"
+	"github.com/gqlgo/gqlgenc/graphqljson"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 

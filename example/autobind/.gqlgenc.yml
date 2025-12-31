@@ -3,7 +3,7 @@ schema:
 model:
   filename: ./model/models_gen.go
 autobind:
-  - github.com/Yamashou/gqlgenc/example/autobind/model
+  - github.com/gqlgo/gqlgenc/example/autobind/model
 client:
   filename: ./gen/client.go
 models:

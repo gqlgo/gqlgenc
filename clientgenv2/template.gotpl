@@ -10,8 +10,8 @@
 	{{ reserveImport "time" }}
 
 
-	{{ reserveImport "github.com/Yamashou/gqlgenc/graphqljson" }}
-	{{ reserveImport "github.com/Yamashou/gqlgenc/clientv2" }}
+	{{ reserveImport "github.com/gqlgo/gqlgenc/graphqljson" }}
+	{{ reserveImport "github.com/gqlgo/gqlgenc/clientv2" }}
 
 
 	{{- if .ClientInterfaceName }}
