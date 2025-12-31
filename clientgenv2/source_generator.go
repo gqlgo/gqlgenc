@@ -31,6 +31,7 @@ type ResponseField struct {
 func (r ResponseField) FieldTypeString() string {
 	fullFieldType := r.Type.String()
 	parts := strings.Split(fullFieldType, ".")
+
 	return parts[len(parts)-1]
 }
 
@@ -47,10 +48,12 @@ func (rs ResponseFieldList) IsFragmentSpread() bool {
 func (rs ResponseFieldList) StructType() *types.Struct {
 	vars := make([]*types.Var, 0)
 	structTags := make([]string, 0)
+
 	for _, field := range rs {
 		vars = append(vars, types.NewVar(0, nil, templates.ToGo(field.Name), field.Type))
 		structTags = append(structTags, strings.Join(field.Tags, " "))
 	}
+
 	return types.NewStruct(vars, structTags)
 }
 
@@ -75,6 +78,7 @@ func (rs ResponseFieldList) MapByName() map[string]*ResponseField {
 	for _, field := range rs {
 		res[field.Name] = field
 	}
+
 	return res
 }
 
@@ -82,6 +86,7 @@ func (rs ResponseFieldList) SortByName() ResponseFieldList {
 	sort.Slice(rs, func(i, j int) bool {
 		return rs[i].Name < rs[j].Name
 	})
+
 	return rs
 }
 
@@ -97,6 +102,7 @@ type StructGenerator struct {
 func NewStructGenerator(responseFieldList ResponseFieldList) *StructGenerator {
 	currentFields := make(ResponseFieldList, 0)
 	fragmentChildrenFields := make(ResponseFieldList, 0)
+
 	for _, field := range responseFieldList {
 		if field.IsFragmentSpread {
 			fragmentChildrenFields = append(fragmentChildrenFields, field.ResponseFields...)
@@ -117,6 +123,7 @@ func NewStructGenerator(responseFieldList ResponseFieldList) *StructGenerator {
 	}
 
 	currentFields, preMergedStructSources, postMergedStructSources := mergeFieldsRecursively(currentFields, fragmentChildrenFields, preMergedStructSources, nil)
+
 	return &StructGenerator{
 		currentResponseFieldList: currentFields,
 		preMergedStructSources:   preMergedStructSources,
@@ -135,6 +142,7 @@ func mergeFieldsRecursively(targetFields, sourceFields ResponseFieldList, preMer
 			if targetField.ResponseFields.IsBasicType() {
 				continue
 			}
+
 			newPreMerged = append(newPreMerged, &StructSource{
 				Name: sourceField.FieldTypeString(),
 				Type: sourceField.ResponseFields.StructType(),
@@ -154,10 +162,13 @@ func mergeFieldsRecursively(targetFields, sourceFields ResponseFieldList, preMer
 			targetFieldsMap[sourceField.Name] = sourceField
 		}
 	}
+
 	for _, field := range targetFieldsMap {
 		responseFieldList = append(responseFieldList, field)
 	}
+
 	responseFieldList = responseFieldList.SortByName()
+
 	return responseFieldList, newPreMerged, newPostMerged
 }
 
@@ -166,6 +177,7 @@ func structSourcesMapByTypeName(sources []*StructSource) map[string]*StructSourc
 	for _, source := range sources {
 		res[source.Name] = source
 	}
+
 	return res
 }
 
@@ -178,6 +190,7 @@ func (g *StructGenerator) MergedStructSources(sources []*StructSource) []*Struct
 		if _, ok := preMergedStructSourcesMap[source.Name]; ok {
 			continue
 		}
+
 		res = append(res, source)
 	}
 
@@ -229,6 +242,7 @@ func NewLayerTypeName(base, thisField string) string {
 
 func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName string) *ResponseField {
 	var isOptional bool
+
 	switch selection := selection.(type) {
 	case *ast.Field:
 		typeName = NewLayerTypeName(typeName, templates.ToGo(selection.Alias))
@@ -237,6 +251,7 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 		isOptional = !selection.Definition.Type.NonNull
 
 		var baseType types.Type
+
 		switch {
 		case fieldsResponseFields.IsBasicType():
 			baseType = r.Type(selection.Definition.Type.Name())
@@ -275,14 +290,17 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 
 		// json tag
 		jsonTag := fmt.Sprintf(`json:"%s`, selection.Alias)
+
 		if isOptional {
 			if r.generateConfig.EnableClientJsonOmitemptyTag != nil && *r.generateConfig.EnableClientJsonOmitemptyTag {
 				jsonTag += `,omitempty`
 			}
+
 			if r.generateConfig.EnableClientJsonOmitzeroTag != nil && *r.generateConfig.EnableClientJsonOmitzeroTag {
 				jsonTag += `,omitzero`
 			}
 		}
+
 		jsonTag += `"`
 
 		// graphql tag
@@ -350,6 +368,7 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 			// フラグメントからの全フィールドを集めます
 			// collect all fields from fragment
 			allFields := make(ResponseFieldList, 0)
+
 			for _, field := range fieldsResponseFields {
 				if !field.IsFragmentSpread {
 					allFields = append(allFields, field)
@@ -438,6 +457,7 @@ func (r *SourceGenerator) expandFragmentFields(responseFields ResponseFieldList)
 			result = append(result, field)
 		}
 	}
+
 	return result
 }
 
@@ -447,15 +467,18 @@ func (r *SourceGenerator) hasFragmentSpread(fields ResponseFieldList) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
 func (r *SourceGenerator) collectFragmentFields(fields ResponseFieldList) ResponseFieldList {
 	var fragmentFields ResponseFieldList
+
 	for _, field := range fields {
 		if field.IsFragmentSpread {
 			fragmentFields = append(fragmentFields, field.ResponseFields...)
 		}
 	}
+
 	return fragmentFields
 }

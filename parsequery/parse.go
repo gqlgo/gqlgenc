@@ -10,6 +10,7 @@ import (
 
 func ParseQueryDocuments(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDocument, error) {
 	var queryDocument ast.QueryDocument
+
 	for _, querySource := range querySources {
 		query, gqlerr := parser.ParseQuery(querySource)
 		if gqlerr != nil {
@@ -19,7 +20,8 @@ func ParseQueryDocuments(schema *ast.Schema, querySources []*ast.Source) (*ast.Q
 		mergeQueryDocument(&queryDocument, query)
 	}
 
-	if errs := validator.Validate(schema, &queryDocument); errs != nil {
+	errs := validator.Validate(schema, &queryDocument)
+	if errs != nil {
 		return nil, fmt.Errorf(": %w", errs)
 	}
 

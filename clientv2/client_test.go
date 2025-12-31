@@ -960,7 +960,8 @@ func TestMarshalOmittableJSON(t *testing.T) {
 					},
 				},
 			},
-			want: []byte(`{"operationName":"query","query":"query ($input: Number!) { input }","variables":{"where":{"not":{"not":null,"id":null}}}}`),
+			// Not field is omitzero and IsSet=false, so it should be omitted
+			want: []byte(`{"operationName":"query","query":"query ($input: Number!) { input }","variables":{"where":{"not":{"id":null}}}}`),
 		},
 		{
 			name: "marshal nested - Omittable.IsSet=false",

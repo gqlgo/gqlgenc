@@ -78,7 +78,8 @@ func NewOperation(operation *ast.OperationDefinition, queryDocument *ast.QueryDo
 }
 
 func ValidateOperationList(os ast.OperationList) error {
-	if err := IsUniqueName(os); err != nil {
+	err := IsUniqueName(os)
+	if err != nil {
 		return fmt.Errorf("is not unique operation name: %w", err)
 	}
 
@@ -103,7 +104,8 @@ func (s *Source) Operations(queryDocuments []*ast.QueryDocument) ([]*Operation, 
 	queryDocumentsMap := queryDocumentMapByOperationName(queryDocuments)
 	operationArgsMap := s.operationArgsMapByOperationName()
 
-	if err := ValidateOperationList(s.queryDocument.Operations); err != nil {
+	err := ValidateOperationList(s.queryDocument.Operations)
+	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
@@ -124,6 +126,7 @@ func (s *Source) Operations(queryDocuments []*ast.QueryDocument) ([]*Operation, 
 
 func queryDocumentMapByOperationName(queryDocuments []*ast.QueryDocument) map[string]*ast.QueryDocument {
 	queryDocumentMap := make(map[string]*ast.QueryDocument)
+
 	for _, queryDocument := range queryDocuments {
 		operation := queryDocument.Operations[0]
 		queryDocumentMap[operation.Name] = queryDocument
@@ -134,6 +137,7 @@ func queryDocumentMapByOperationName(queryDocuments []*ast.QueryDocument) map[st
 
 func queryString(queryDocument *ast.QueryDocument) string {
 	var buf bytes.Buffer
+
 	astFormatter := formatter.NewFormatter(&buf)
 	astFormatter.FormatQueryDocument(queryDocument)
 
@@ -149,10 +153,12 @@ func (s *Source) OperationResponses() ([]*OperationResponse, error) {
 	operationResponse := make([]*OperationResponse, 0, len(s.queryDocument.Operations))
 	for _, operation := range s.queryDocument.Operations {
 		responseFields := s.sourceGenerator.NewResponseFields(operation.SelectionSet, operation.Name)
+
 		name := getResponseStructName(operation, s.generateConfig)
 		if s.sourceGenerator.cfg.Models.Exists(name) {
 			return nil, fmt.Errorf("%s is duplicated", name)
 		}
+
 		operationResponse = append(operationResponse, &OperationResponse{
 			Name: name,
 			Type: responseFields.StructType(),
@@ -185,6 +191,7 @@ func (s *Source) operationArgsMapByOperationName() map[string][]*Argument {
 
 func getResponseStructName(operation *ast.OperationDefinition, generateConfig *config.GenerateConfig) string {
 	name := operation.Name
+
 	if generateConfig != nil {
 		if generateConfig.Prefix != nil {
 			if operation.Operation == ast.Mutation {

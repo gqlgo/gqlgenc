@@ -57,6 +57,7 @@ func (p *Plugin) MutateConfig(cfg *config.Config) error {
 	}
 
 	var err error
+
 	operationQueryDocuments := p.operationQueryDocuments
 	if operationQueryDocuments == nil {
 		operationQueryDocuments, err = querydocument.QueryDocumentsByOperations(cfg.Schema, queryDocument.Operations)
@@ -85,7 +86,8 @@ func (p *Plugin) MutateConfig(cfg *config.Config) error {
 		return fmt.Errorf("generating operation failed: %w", err)
 	}
 
-	if err := RenderTemplate(cfg, fragments, operations, operationResponses, source.ResponseSubTypes(), p.GenerateConfig, p.Client); err != nil {
+	err = RenderTemplate(cfg, fragments, operations, operationResponses, source.ResponseSubTypes(), p.GenerateConfig, p.Client)
+	if err != nil {
 		return fmt.Errorf("template failed: %w", err)
 	}
 

@@ -311,6 +311,7 @@ func parseMultipartFiles(
 			i++
 		case []*graphql.Upload:
 			vars[k] = make([]struct{}, len(item))
+
 			var groupFiles []MultipartFile
 
 			for itemI, itemV := range item {
@@ -369,7 +370,8 @@ func prepareMultipartFormBody(
 		}
 	}
 
-	if err := writer.Close(); err != nil {
+	err := writer.Close()
+	if err != nil {
 		return "", fmt.Errorf("writer close %w", err)
 	}
 
@@ -400,6 +402,7 @@ func (c *Client) do(_ context.Context, req *http.Request, _ *GQLRequestInfo, res
 
 func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	errResponse := &ErrorResponse{}
+
 	isOKCode := httpCode < 200 || 299 < httpCode
 	if isOKCode {
 		errResponse.NetworkError = &HTTPError{
@@ -409,7 +412,8 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	}
 
 	// some servers return a graphql error with a non OK http code, try anyway to parse the body
-	if err := c.unmarshal(body, result); err != nil {
+	err := c.unmarshal(body, result)
+	if err != nil {
 		var gqlErr *GqlErrorList
 		if errors.As(err, &gqlErr) {
 			errResponse.GqlErrors = &gqlErr.Errors
@@ -433,15 +437,17 @@ type response struct {
 
 func (c *Client) unmarshal(data []byte, res any) error {
 	resp := response{}
-	if err := json.Unmarshal(data, &resp); err != nil {
+
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
 		return fmt.Errorf("failed to decode data %s: %w", string(data), err)
 	}
 
-	var err error
 	if len(resp.Errors) > 0 {
 		// try to parse standard graphql error
 		err = &GqlErrorList{}
-		if e := json.Unmarshal(data, err); e != nil {
+		e := json.Unmarshal(data, err)
+		if e != nil {
 			return fmt.Errorf("faild to parse graphql errors. Response content %s - %w", string(data), e)
 		}
 
@@ -451,7 +457,8 @@ func (c *Client) unmarshal(data []byte, res any) error {
 		}
 	}
 
-	if errData := graphqljson.UnmarshalData(resp.Data, res); errData != nil {
+	errData := graphqljson.UnmarshalData(resp.Data, res)
+	if errData != nil {
 		// if ParseDataWhenErrors is true, and we failed to unmarshal data, return the actual error
 		if c.ParseDataWhenErrors {
 			return err
@@ -490,12 +497,15 @@ func (e *Encoder) Encode(v reflect.Value) ([]byte, error) {
 	if marshaler, ok := vi.(graphql.ContextMarshaler); ok {
 		return e.encodeGQLContextMarshaler(context.Background(), marshaler)
 	}
+
 	if marshaler, ok := vi.(graphql.Marshaler); ok {
 		return e.encodeGQLMarshaler(marshaler)
 	}
+
 	if marshaler, ok := vi.(json.Marshaler); ok {
 		return e.encodeJsonMarshaler(marshaler)
 	}
+
 	if marshaler, ok := vi.(encoding.TextMarshaler); ok {
 		return e.encodeTextMarshaler(marshaler)
 	}
@@ -539,9 +549,11 @@ func (e *Encoder) encodeGQLContextMarshaler(ctx context.Context, v graphql.Conte
 	}
 
 	var buf bytes.Buffer
-	if err := v.MarshalGQLContext(ctx, &buf); err != nil {
+	err := v.MarshalGQLContext(ctx, &buf)
+	if err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }
 
@@ -553,6 +565,7 @@ func (e *Encoder) encodeGQLMarshaler(v graphql.Marshaler) ([]byte, error) {
 
 	var buf bytes.Buffer
 	v.MarshalGQL(&buf)
+
 	return buf.Bytes(), nil
 }
 
@@ -561,6 +574,7 @@ func (e *Encoder) encodeJsonMarshaler(v json.Marshaler) ([]byte, error) {
 	if isNil(reflect.ValueOf(v)) {
 		return []byte("null"), nil
 	}
+
 	return v.MarshalJSON()
 }
 
@@ -569,6 +583,7 @@ func (e *Encoder) encodeTextMarshaler(v encoding.TextMarshaler) ([]byte, error) 
 	if isNil(reflect.ValueOf(v)) {
 		return []byte("null"), nil
 	}
+
 	return json.Marshal(v)
 }
 
@@ -578,6 +593,7 @@ func (e *Encoder) encodeBool(v reflect.Value) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode bool: %v", v)
 	}
+
 	return boolValue, nil
 }
 
@@ -602,6 +618,7 @@ func (e *Encoder) encodeString(v reflect.Value) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode string: %v", v)
 	}
+
 	return stringValue, nil
 }
 
@@ -610,6 +627,7 @@ func (e *Encoder) trimQuotes(s string) string {
 	if len(s) > 1 && s[0] == '"' && s[len(s)-1] == '"' {
 		return s[1 : len(s)-1]
 	}
+
 	return s
 }
 
@@ -643,6 +661,7 @@ func isEmptyValue(v reflect.Value) bool {
 		reflect.Interface, reflect.Pointer:
 		return v.IsZero()
 	}
+
 	return false
 }
 
@@ -655,6 +674,7 @@ var isZeroerType = reflect.TypeFor[isZeroer]()
 func isZeroValue(v reflect.Value) bool {
 	// https://cs.opensource.google/go/go/+/refs/tags/go1.24.2:src/encoding/json/encode.go;l=1187-1219
 	var isZero func(v reflect.Value) bool
+
 	t := v.Type()
 	// Provide a function that uses a type's IsZero method.
 	switch {
@@ -699,6 +719,7 @@ func isZeroValue(v reflect.Value) bool {
 func (e *Encoder) encodeStruct(v reflect.Value) ([]byte, error) {
 	fields := e.prepareFields(v.Type())
 	result := make(map[string]json.RawMessage)
+
 	for _, field := range fields {
 		fieldValue := v.FieldByName(field.name)
 		if isSkipField(field.omitempty, field.omitzero, fieldValue) {
@@ -709,8 +730,10 @@ func (e *Encoder) encodeStruct(v reflect.Value) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		result[field.jsonName] = encodedValue
 	}
+
 	return json.Marshal(result)
 }
 
@@ -721,21 +744,26 @@ func (e *Encoder) encodeMap(v reflect.Value) ([]byte, error) {
 	}
 
 	result := make(map[string]json.RawMessage)
+
 	for _, key := range v.MapKeys() {
 		encodedKey, err := e.Encode(key)
 		if err != nil {
 			return nil, err
 		}
+
 		keyStr := string(encodedKey)
 		keyStr = e.trimQuotes(keyStr)
 
 		value := v.MapIndex(key)
+
 		encodedValue, err := e.Encode(value)
 		if err != nil {
 			return nil, err
 		}
+
 		result[keyStr] = encodedValue
 	}
+
 	return json.Marshal(result)
 }
 
@@ -751,8 +779,10 @@ func (e *Encoder) encodeSlice(v reflect.Value) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		result[i] = encodedValue
 	}
+
 	return json.Marshal(result)
 }
 
@@ -764,8 +794,10 @@ func (e *Encoder) encodeArray(v reflect.Value) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		result[i] = encodedValue
 	}
+
 	return json.Marshal(result)
 }
 
@@ -774,6 +806,7 @@ func (e *Encoder) encodePtr(v reflect.Value) ([]byte, error) {
 	if v.IsNil() {
 		return []byte("null"), nil
 	}
+
 	return e.Encode(v.Elem())
 }
 
@@ -782,29 +815,35 @@ func (e *Encoder) encodeInterface(v reflect.Value) ([]byte, error) {
 	if v.IsNil() {
 		return []byte("null"), nil
 	}
+
 	return e.Encode(v.Elem())
 }
 
 // prepareFields collects field information from a struct type
 func (e *Encoder) prepareFields(t reflect.Type) []fieldInfo {
 	num := t.NumField()
+
 	fields := make([]fieldInfo, 0, num)
 	for i := range num {
 		f := t.Field(i)
 		if f.PkgPath != "" && !f.Anonymous {
 			continue
 		}
+
 		jsonTag := f.Tag.Get("json")
 		if jsonTag == "-" {
 			continue
 		}
+
 		fi := fieldInfo{
 			name:     f.Name,
 			jsonName: f.Name,
 			typ:      f.Type,
 		}
+
 		if jsonTag != "" {
 			parts := strings.Split(jsonTag, ",")
+
 			fi.jsonName = parts[0]
 			if len(parts) > 1 {
 				fi.omitempty = slices.Contains(parts[1:], "omitempty")
