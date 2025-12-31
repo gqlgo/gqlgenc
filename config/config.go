@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/config"
-	"github.com/Yamashou/gqlgenc/clientv2"
-	"github.com/Yamashou/gqlgenc/introspection"
+	"github.com/gqlgo/gqlgenc/clientv2"
+	"github.com/gqlgo/gqlgenc/introspection"
 	"github.com/goccy/go-yaml"
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"

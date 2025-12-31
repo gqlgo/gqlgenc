@@ -2,7 +2,7 @@ package clientgenv2
 
 import (
 	"github.com/99designs/gqlgen/codegen/config"
-	gqlgencConfig "github.com/Yamashou/gqlgenc/config"
+	gqlgencConfig "github.com/gqlgo/gqlgenc/config"
 	"go/types"
 	"testing"
 )
