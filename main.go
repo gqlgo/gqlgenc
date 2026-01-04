@@ -34,7 +34,8 @@ var generateCmd = &cli.Command{
 			os.Exit(2)
 		}
 
-		if err := generator.Generate(ctx.Context, cfg); err != nil {
+		err = generator.Generate(ctx.Context, cfg)
+		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err.Error())
 			os.Exit(4)
 		}

@@ -47,7 +47,8 @@ import (
 // in "encoding/json".Decoder.
 func UnmarshalData(data json.RawMessage, v any) error {
 	d := newDecoder(bytes.NewBuffer(data))
-	if err := d.Decode(v); err != nil {
+	err := d.Decode(v)
+	if err != nil {
 		return fmt.Errorf(": %w", err)
 	}
 
