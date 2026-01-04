@@ -97,7 +97,8 @@ func findCfg(path string) (string, error) {
 func findCfgInDir(dir string) string {
 	for _, cfgName := range cfgFilenames {
 		path := filepath.Join(dir, cfgName)
-		if _, err := os.Stat(path); err == nil {
+		_, err := os.Stat(path)
+		if err == nil {
 			return path
 		}
 	}
@@ -123,7 +124,8 @@ func LoadConfig(filename string) (*Config, error) {
 	confContent := []byte(os.ExpandEnv(string(b)))
 
 	decoder := yaml.NewDecoder(bytes.NewReader(confContent), yaml.DisallowUnknownField())
-	if err := decoder.Decode(&cfg); err != nil {
+	err = decoder.Decode(&cfg)
+	if err != nil {
 		return nil, fmt.Errorf("unable to parse config: %w", err)
 	}
 
@@ -235,7 +237,8 @@ func LoadConfig(filename string) (*Config, error) {
 		EnableModelJsonOmitzeroTag:     cfg.Generate.EnableClientJsonOmitzeroTag,
 	}
 
-	if err := cfg.Client.Check(); err != nil {
+	err = cfg.Client.Check()
+	if err != nil {
 		return nil, fmt.Errorf("config.exec: %w", err)
 	}
 
@@ -286,7 +289,8 @@ func (c *Config) loadRemoteSchema(ctx context.Context) (*ast.Schema, error) {
 	gqlclient := clientv2.NewClient(http.DefaultClient, c.Endpoint.URL, nil, addHeaderInterceptor)
 
 	var res introspection.Query
-	if err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil); err != nil {
+	err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil)
+	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 

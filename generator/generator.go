@@ -53,11 +53,11 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 		}
 
 		if fed, ok := fedPlugin.(plugin.EarlySourcesInjector); ok {
-			if sources, err := fed.InjectSourcesEarly(); err == nil {
-				cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
-			} else {
+			sources, err := fed.InjectSourcesEarly()
+			if err != nil {
 				return fmt.Errorf("failed to inject federation directives: %w", err)
 			}
+			cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
 		} else if fed, ok := fedPlugin.(plugin.EarlySourceInjector); ok {
 			if source := fed.InjectSourceEarly(); source != nil {
 				cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, source)
@@ -67,11 +67,13 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
-	if err := cfg.LoadSchema(ctx); err != nil {
+	err := cfg.LoadSchema(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
-	if err := cfg.GQLConfig.Init(); err != nil {
+	err = cfg.GQLConfig.Init()
+	if err != nil {
 		return fmt.Errorf("generating core failed: %w", err)
 	}
 

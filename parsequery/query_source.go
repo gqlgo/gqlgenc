@@ -40,8 +40,9 @@ var path2regex = strings.NewReplacer(
 	`/`, `[\\/]`,
 )
 
-// LoadQuerySourceなどは、gqlgenがLoadConfigでSchemaを読み込む時の実装をコピーして一部修正している
-// **/test/*.graphqlなどに対応している
+// LoadQuerySources loads query sources from file names.
+// This is a modified copy of gqlgen's LoadConfig schema loading implementation.
+// Supports glob patterns like **/test/*.graphql.
 func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
 	var noGlobQueryFileNames config.StringList
 
