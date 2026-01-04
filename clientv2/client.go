@@ -433,11 +433,10 @@ type response struct {
 
 func (c *Client) unmarshal(data []byte, res any) error {
 	resp := response{}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
 		return fmt.Errorf("failed to decode data %s: %w", string(data), err)
 	}
-
-	var err error
 	if len(resp.Errors) > 0 {
 		// try to parse standard graphql error
 		err = &GqlErrorList{}
