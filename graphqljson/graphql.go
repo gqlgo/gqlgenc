@@ -100,6 +100,7 @@ func (d *Decoder) Decode(v any) error {
 	}
 
 	d.vs = [][]reflect.Value{{rv.Elem()}}
+
 	err := d.decode()
 	if err != nil {
 		return fmt.Errorf(": %w", err)

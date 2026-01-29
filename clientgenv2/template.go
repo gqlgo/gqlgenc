@@ -19,6 +19,7 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 	genGettersGenerator := &GenGettersGenerator{
 		ClientPackageName: client.Package,
 	}
+
 	err := templates.Render(templates.Options{
 		PackageName: client.Package,
 		Filename:    client.Filename,

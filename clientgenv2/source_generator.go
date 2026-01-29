@@ -46,8 +46,8 @@ func (rs ResponseFieldList) IsFragmentSpread() bool {
 }
 
 func (rs ResponseFieldList) StructType() *types.Struct {
-	vars := make([]*types.Var, 0)
-	structTags := make([]string, 0)
+	vars := make([]*types.Var, 0, len(rs))
+	structTags := make([]string, 0, len(rs))
 
 	for _, field := range rs {
 		vars = append(vars, types.NewVar(0, nil, templates.ToGo(field.Name), field.Type))

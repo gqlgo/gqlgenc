@@ -312,7 +312,7 @@ func parseMultipartFiles(
 		case []*graphql.Upload:
 			vars[k] = make([]struct{}, len(item))
 
-			var groupFiles []MultipartFile
+			groupFiles := make([]MultipartFile, 0, len(item))
 
 			for itemI, itemV := range item {
 				iStr := strconv.Itoa(i)
@@ -446,6 +446,7 @@ func (c *Client) unmarshal(data []byte, res any) error {
 	if len(resp.Errors) > 0 {
 		// try to parse standard graphql error
 		err = &GqlErrorList{}
+
 		e := json.Unmarshal(data, err)
 		if e != nil {
 			return fmt.Errorf("faild to parse graphql errors. Response content %s - %w", string(data), e)
@@ -549,6 +550,7 @@ func (e *Encoder) encodeGQLContextMarshaler(ctx context.Context, v graphql.Conte
 	}
 
 	var buf bytes.Buffer
+
 	err := v.MarshalGQLContext(ctx, &buf)
 	if err != nil {
 		return nil, err
