@@ -56,11 +56,10 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 
 		if fed, ok := fedPlugin.(plugin.EarlySourcesInjector); ok {
 			sources, err := fed.InjectSourcesEarly()
-			if err == nil {
-				cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
-			} else {
+			if err != nil {
 				return fmt.Errorf("failed to inject federation directives: %w", err)
 			}
+			cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
 		} else if fed, ok := fedPlugin.(plugin.EarlySourceInjector); ok {
 			if source := fed.InjectSourceEarly(); source != nil {
 				cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, source)
