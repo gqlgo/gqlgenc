@@ -393,6 +393,47 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 	}
 }
 
+// TestUnmarshalGraphQL_pointerInlineFragment verifies that pointer fields tagged
+// as inline fragments are correctly initialized only when the JSON contains
+// matching keys, leaving non-matching union variants as nil.
+func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
+	t.Parallel()
+	type RecurringPricing struct {
+		Interval string
+		Amount   string
+	}
+	type UsagePricing struct {
+		Terms       string
+		CappedValue string
+	}
+	type PricingDetails struct {
+		AppRecurringPricing *RecurringPricing `graphql:"... on AppRecurringPricing"`
+		AppUsagePricing     *UsagePricing     `graphql:"... on AppUsagePricing"`
+	}
+	type query struct {
+		PricingDetails PricingDetails
+	}
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"pricingDetails": {
+			"interval": "EVERY_30_DAYS",
+			"amount": "29.00"
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	want := query{
+		PricingDetails: PricingDetails{
+			AppRecurringPricing: &RecurringPricing{Interval: "EVERY_30_DAYS", Amount: "29.00"},
+			AppUsagePricing:     nil,
+		},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Error(diff)
+	}
+}
+
 // Issue https://github.com/shurcooL/githubv4/issues/18.
 func TestUnmarshalGraphQL_arrayInsideInlineFragment(t *testing.T) {
 	t.Parallel()

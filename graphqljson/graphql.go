@@ -130,6 +130,15 @@ func (d *Decoder) decode() error { //nolint:maintidx
 			var matchingFieldValue *reflect.Value
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
+				// If v is a nil pointer, check whether the key exists in the pointed-to
+				// type before initializing — preserves nil for non-matching union variants.
+				if v.Kind() == reflect.Ptr && v.IsNil() && v.CanSet() {
+					if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
+						if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() {
+							v.Set(reflect.New(elemType))
+						}
+					}
+				}
 				if v.Kind() == reflect.Ptr {
 					v = v.Elem()
 				}
