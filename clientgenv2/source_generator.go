@@ -327,11 +327,16 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 
 		// if single fields that is also a fragment spread, reuse that fragment
 		if len(fieldsResponseFields) == 1 && fieldsResponseFields[0].IsFragmentSpread {
-			typ := types.NewNamed(
+			baseType := types.NewNamed(
 				types.NewTypeName(0, r.client.Pkg(), templates.ToGo(fieldsResponseFields[0].Name), nil),
 				fieldsResponseFields.StructType(),
 				nil,
 			)
+
+			var typ types.Type = baseType
+			if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
+				typ = types.NewPointer(baseType)
+			}
 
 			return &ResponseField{
 				Name:           selection.TypeCondition,
@@ -366,11 +371,16 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 				Name: name,
 				Type: structType,
 			})
-			typ := types.NewNamed(
+			baseTyp := types.NewNamed(
 				types.NewTypeName(0, r.client.Pkg(), name, nil),
 				structType,
 				nil,
 			)
+
+			var typ types.Type = baseTyp
+			if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
+				typ = types.NewPointer(baseTyp)
+			}
 
 			return &ResponseField{
 				Name:             selection.TypeCondition,
@@ -387,11 +397,16 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 			Name: name,
 			Type: structType,
 		})
-		typ := types.NewNamed(
+		baseTyp := types.NewNamed(
 			types.NewTypeName(0, r.client.Pkg(), name, nil),
 			structType,
 			nil,
 		)
+
+		var typ types.Type = baseTyp
+		if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
+			typ = types.NewPointer(baseTyp)
+		}
 
 		return &ResponseField{
 			Name:             selection.TypeCondition,

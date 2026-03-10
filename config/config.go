@@ -202,17 +202,22 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 
 	structFieldsAlwaysPointers := true
+	inlineFragmentAlwaysPointers := false
 	enableClientJsonOmitemptyTag := true
 	enableModelJsonOmitzeroTag := false
 	if cfg.Generate == nil {
 		cfg.Generate = &GenerateConfig{
 			StructFieldsAlwaysPointers:   &structFieldsAlwaysPointers,
+			InlineFragmentAlwaysPointers: &inlineFragmentAlwaysPointers,
 			EnableClientJsonOmitemptyTag: &enableClientJsonOmitemptyTag,
 			EnableClientJsonOmitzeroTag:  &enableModelJsonOmitzeroTag,
 		}
 	}
 	if cfg.Generate.StructFieldsAlwaysPointers == nil {
 		cfg.Generate.StructFieldsAlwaysPointers = &structFieldsAlwaysPointers
+	}
+	if cfg.Generate.InlineFragmentAlwaysPointers == nil {
+		cfg.Generate.InlineFragmentAlwaysPointers = &inlineFragmentAlwaysPointers
 	}
 	if cfg.Generate.EnableClientJsonOmitemptyTag == nil {
 		cfg.Generate.EnableClientJsonOmitemptyTag = &enableClientJsonOmitemptyTag

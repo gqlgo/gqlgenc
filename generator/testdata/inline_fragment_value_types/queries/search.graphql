@@ -1,0 +1,13 @@
+query Search($query: String!) {
+    search(query: $query) {
+        __typename
+        ... on Article {
+            id
+            title
+        }
+        ... on Video {
+            id
+            duration
+        }
+    }
+}

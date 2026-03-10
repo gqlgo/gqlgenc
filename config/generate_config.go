@@ -16,9 +16,10 @@ type GenerateConfig struct {
 
 	// Deprecated: not working because v1 is deleted. Must use ClientV2
 	// if true, used client v2 in generate code
-	ClientV2                   bool  `yaml:"clientV2,omitempty"`
-	StructFieldsAlwaysPointers *bool `yaml:"structFieldsAlwaysPointers,omitempty"`
-	OnlyUsedModels             *bool `yaml:"onlyUsedModels,omitempty"`
+	ClientV2                      bool  `yaml:"clientV2,omitempty"`
+	StructFieldsAlwaysPointers    *bool `yaml:"structFieldsAlwaysPointers,omitempty"`
+	InlineFragmentAlwaysPointers  *bool `yaml:"inlineFragmentAlwaysPointers,omitempty"`
+	OnlyUsedModels                *bool `yaml:"onlyUsedModels,omitempty"`
 }
 
 func (c *GenerateConfig) ShouldGenerateClient() bool {
