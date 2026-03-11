@@ -399,10 +399,12 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	t.Parallel()
 	type RecurringPricing struct {
+		Typename *string
 		Interval string
 		Amount   string
 	}
 	type UsagePricing struct {
+		Typename    *string
 		Terms       string
 		CappedValue string
 	}
@@ -416,6 +418,7 @@ func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	var got query
 	err := graphqljson.UnmarshalData([]byte(`{
 		"pricingDetails": {
+			"typename": "RecurringPricing",
 			"interval": "EVERY_30_DAYS",
 			"amount": "29.00"
 		}
@@ -423,9 +426,10 @@ func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
+	typeName := "RecurringPricing"
 	want := query{
 		PricingDetails: PricingDetails{
-			AppRecurringPricing: &RecurringPricing{Interval: "EVERY_30_DAYS", Amount: "29.00"},
+			AppRecurringPricing: &RecurringPricing{Typename: &typeName, Interval: "EVERY_30_DAYS", Amount: "29.00"},
 			AppUsagePricing:     nil,
 		},
 	}
