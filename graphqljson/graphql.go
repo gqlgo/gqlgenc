@@ -47,6 +47,7 @@ import (
 // in "encoding/json".Decoder.
 func UnmarshalData(data json.RawMessage, v any) error {
 	d := newDecoder(bytes.NewBuffer(data))
+
 	err := d.Decode(v)
 	if err != nil {
 		return fmt.Errorf(": %w", err)
@@ -99,7 +100,8 @@ func (d *Decoder) Decode(v any) error {
 	}
 
 	d.vs = [][]reflect.Value{{rv.Elem()}}
-	if err := d.decode(); err != nil {
+	err := d.decode()
+	if err != nil {
 		return fmt.Errorf(": %w", err)
 	}
 
@@ -128,6 +130,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 
 			// The last matching one is the one considered
 			var matchingFieldValue *reflect.Value
+
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
 				// If v is a nil pointer, check whether the key exists in the pointed-to
@@ -139,9 +142,11 @@ func (d *Decoder) decode() error { //nolint:maintidx
 						}
 					}
 				}
+
 				if v.Kind() == reflect.Ptr {
 					v = v.Elem()
 				}
+
 				var f reflect.Value
 				if v.Kind() == reflect.Struct {
 					f = fieldByGraphQLName(v, key)
@@ -149,8 +154,10 @@ func (d *Decoder) decode() error { //nolint:maintidx
 						matchingFieldValue = &f
 					}
 				}
+
 				d.vs[i] = append(d.vs[i], f)
 			}
+
 			if matchingFieldValue == nil {
 				return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.vs))
 			}
@@ -159,12 +166,14 @@ func (d *Decoder) decode() error { //nolint:maintidx
 			// Read the next token, which should be the value.
 			// If it's of json.RawMessage or map type, decode the value.
 			switch matchingFieldValue.Type() {
-			case reflect.TypeOf(json.RawMessage{}):
+			case reflect.TypeFor[json.RawMessage]():
 				var data json.RawMessage
+
 				err = d.jsonDecoder.Decode(&data)
 				tok = data
-			case reflect.TypeOf(map[string]any{}):
+			case reflect.TypeFor[map[string]any]():
 				var data map[string]any
+
 				err = d.jsonDecoder.Decode(&data)
 				tok = data
 			default:
@@ -180,19 +189,24 @@ func (d *Decoder) decode() error { //nolint:maintidx
 		// Are we inside an array and seeing next value (rather than end of array)?
 		case d.state() == '[' && tok != json.Delim(']'):
 			someSliceExist := false
+
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
 				if v.Kind() == reflect.Ptr {
 					v = v.Elem()
 				}
+
 				var f reflect.Value
+
 				if v.Kind() == reflect.Slice {
 					v.Set(reflect.Append(v, reflect.Zero(v.Type().Elem()))) // v = append(v, T).
 					f = v.Index(v.Len() - 1)
 					someSliceExist = true
 				}
+
 				d.vs[i] = append(d.vs[i], f)
 			}
+
 			if !someSliceExist {
 				return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal", len(d.vs))
 			}
@@ -206,6 +220,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					// If v is not settable, skip the operation to prevent panicking.
 					continue
 				}
+
 				if v.Kind() == reflect.Ptr || v.Kind() == reflect.Slice {
 					// Set the pointer or slice to nil.
 					v.Set(reflect.Zero(v.Type()))
@@ -214,7 +229,9 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					v.Set(reflect.Zero(v.Type()))
 				}
 			}
+
 			d.popAllVs()
+
 			continue
 		case string, json.Number, bool, json.RawMessage, map[string]any:
 			for i := range d.vs {
@@ -235,8 +252,11 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				}
 
 				// Check if the type of target (or its address) implements graphql.Unmarshaler
-				var unmarshaler graphql.Unmarshaler
-				var ok bool
+				var (
+					unmarshaler graphql.Unmarshaler
+					ok          bool
+				)
+
 				if target.CanAddr() {
 					unmarshaler, ok = target.Addr().Interface().(graphql.Unmarshaler)
 				} else if target.CanInterface() {
@@ -244,23 +264,25 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				}
 
 				if ok {
-					if err := unmarshaler.UnmarshalGQL(tok); err != nil {
+					err := unmarshaler.UnmarshalGQL(tok)
+					if err != nil {
 						return fmt.Errorf("unmarshal gql error: %w", err)
 					}
 				} else {
 					// Use the standard unmarshal method for non-custom types
-					if err := unmarshalValue(tok, target); err != nil {
+					err := unmarshalValue(tok, target)
+					if err != nil {
 						return fmt.Errorf(": %w", err)
 					}
 				}
 			}
+
 			d.popAllVs()
 
 		case json.Delim:
 			switch tok {
 			case '{':
 				// Start of object.
-
 				d.pushState(tok)
 
 				frontier := make([]reflect.Value, len(d.vs)) // Places to look for GraphQL fragments/embedded structs.
@@ -277,12 +299,15 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				for len(frontier) > 0 {
 					v := frontier[0]
 					frontier = frontier[1:]
+
 					if v.Kind() == reflect.Ptr {
 						v = v.Elem()
 					}
+
 					if v.Kind() != reflect.Struct {
 						continue
 					}
+
 					for i := range v.NumField() {
 						if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
 							// Add GraphQL fragment or embedded struct.
@@ -293,7 +318,6 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				}
 			case '[':
 				// Start of array.
-
 				d.pushState(tok)
 
 				for i := range d.vs {
@@ -307,9 +331,11 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					if v.Kind() == reflect.Ptr {
 						v = v.Elem()
 					}
+
 					if v.Kind() != reflect.Slice {
 						continue
 					}
+
 					v.Set(reflect.MakeSlice(v.Type(), 0, 0)) // v = make(T, 0, 0).
 				}
 			case '}', ']':
@@ -350,12 +376,14 @@ func (d *Decoder) state() json.Delim {
 // popAllVs pops from all d.vs stacks, keeping only non-empty ones.
 func (d *Decoder) popAllVs() {
 	var nonEmpty [][]reflect.Value
+
 	for i := range d.vs {
 		d.vs[i] = d.vs[i][:len(d.vs[i])-1]
 		if len(d.vs[i]) > 0 {
 			nonEmpty = append(nonEmpty, d.vs[i])
 		}
 	}
+
 	d.vs = nonEmpty
 }
 
@@ -367,6 +395,7 @@ func fieldByGraphQLName(v reflect.Value, name string) reflect.Value {
 			// Skip unexported field.
 			continue
 		}
+
 		if hasGraphQLName(v.Type().Field(i), name) {
 			return v.Field(i)
 		}
@@ -383,14 +412,17 @@ func hasGraphQLName(f reflect.StructField, name string) bool {
 		// return caseconv.MixedCapsToLowerCamelCase(f.Name) == name
 		return strings.EqualFold(f.Name, name)
 	}
+
 	value = strings.TrimSpace(value) // TODO: Parse better.
 	if strings.HasPrefix(value, "...") {
 		// GraphQL fragment. It doesn't have a name.
 		return false
 	}
+
 	if i := strings.Index(value, "("); i != -1 {
 		value = value[:i]
 	}
+
 	if i := strings.Index(value, ":"); i != -1 {
 		value = value[:i]
 	}
@@ -404,6 +436,7 @@ func isGraphQLFragment(f reflect.StructField) bool {
 	if !ok {
 		return false
 	}
+
 	value = strings.TrimSpace(value) // TODO: Parse better.
 
 	return strings.HasPrefix(value, "...")

@@ -22,11 +22,13 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		// only generate used models
 		if cfg.Generate.OnlyUsedModels != nil && *cfg.Generate.OnlyUsedModels {
 			var newModels []*modelgen.Object
+
 			for _, model := range build.Models {
 				if usedTypes[model.Name] {
 					newModels = append(newModels, model)
 				}
 			}
+
 			build.Models = newModels
 			build.Interfaces = nil
 		}
@@ -57,6 +59,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 			if err != nil {
 				return fmt.Errorf("failed to inject federation directives: %w", err)
 			}
+
 			cfg.GQLConfig.Sources = append(cfg.GQLConfig.Sources, sources...)
 		} else if fed, ok := fedPlugin.(plugin.EarlySourceInjector); ok {
 			if source := fed.InjectSourceEarly(); source != nil {
@@ -103,6 +106,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	}
 
 	var plugins []plugin.Plugin
+
 	if cfg.Model.IsDefined() {
 		usedTypes := querydocument.CollectTypesFromQueryDocuments(cfg.GQLConfig.Schema, operationQueryDocuments)
 		p := &modelgen.Plugin{
@@ -114,6 +118,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	}
 
 	clientGen(cfg.GQLConfig, &plugins)
+
 	for _, p := range plugins {
 		if mut, ok := p.(plugin.ConfigMutator); ok {
 			err := mut.MutateConfig(cfg.GQLConfig)

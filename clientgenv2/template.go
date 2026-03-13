@@ -19,7 +19,7 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 	genGettersGenerator := &GenGettersGenerator{
 		ClientPackageName: client.Package,
 	}
-	if err := templates.Render(templates.Options{
+	err := templates.Render(templates.Options{
 		PackageName: client.Package,
 		Filename:    client.Filename,
 		Template:    template,
@@ -36,7 +36,8 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 		Funcs: map[string]any{
 			"genGetters": genGettersGenerator.GenFunc(),
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("%s generating failed: %w", client.Filename, err)
 	}
 
@@ -53,10 +54,12 @@ func (g *GenGettersGenerator) GenFunc() func(name string, p types.Type) string {
 	// To make this work we need to return a pointer to the struct if the field is a struct.
 	return func(name string, p types.Type) string {
 		var it *types.Struct
+
 		it, ok := p.(*types.Struct)
 		if !ok {
 			return ""
 		}
+
 		var buf bytes.Buffer
 
 		for i := range it.NumFields() {
