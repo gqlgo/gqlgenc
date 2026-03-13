@@ -81,6 +81,15 @@ type Decoder struct {
 	// a single JSON value into multiple GraphQL fragments or embedded structs, so
 	// we keep track of them all.
 	vs [][]reflect.Value
+
+	// vsFragTypes is parallel to vs: for stacks created from "... on TypeName"
+	// inline fragments, this holds "TypeName"; otherwise "".
+	vsFragTypes []string
+
+	// typenameByDepth maps object nesting depth (count of open '{' in parseState)
+	// to the __typename value seen at that depth. Used to discriminate which
+	// inline fragment pointer to initialize when multiple variants share a field name.
+	typenameByDepth map[int]string
 }
 
 func newDecoder(r io.Reader) *Decoder {
@@ -88,7 +97,8 @@ func newDecoder(r io.Reader) *Decoder {
 	jsonDecoder.UseNumber()
 
 	return &Decoder{
-		jsonDecoder: jsonDecoder,
+		jsonDecoder:     jsonDecoder,
+		typenameByDepth: make(map[int]string),
 	}
 }
 
@@ -100,6 +110,8 @@ func (d *Decoder) Decode(v any) error {
 	}
 
 	d.vs = [][]reflect.Value{{rv.Elem()}}
+	d.vsFragTypes = []string{""}
+
 	err := d.decode()
 	if err != nil {
 		return fmt.Errorf(": %w", err)
@@ -131,13 +143,31 @@ func (d *Decoder) decode() error { //nolint:maintidx
 			// The last matching one is the one considered
 			var matchingFieldValue *reflect.Value
 
+			// If this key is __typename, eagerly read its value so we can use it
+			// to discriminate which inline fragment pointers to initialize below.
+			// This must happen before the nil-pointer init loop.
+			var earlyReadTok json.Token
+			if key == "__typename" {
+				earlyReadTok, err = d.jsonDecoder.Token()
+				if err == io.EOF {
+					return errors.New("unexpected end of JSON input")
+				} else if err != nil {
+					return fmt.Errorf(": %w", err)
+				}
+
+				if s, ok := earlyReadTok.(string); ok {
+					d.typenameByDepth[d.objectDepth()] = s
+				}
+			}
+
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
 				// If v is a nil pointer, check whether the key exists in the pointed-to
 				// type before initializing — preserves nil for non-matching union variants.
+				// When a __typename was seen, also require the fragment type to match.
 				if v.Kind() == reflect.Ptr && v.IsNil() && v.CanSet() {
 					if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
-						if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() {
+						if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() && d.shouldInitFragPtr(i) {
 							v.Set(reflect.New(elemType))
 						}
 					}
@@ -165,19 +195,24 @@ func (d *Decoder) decode() error { //nolint:maintidx
 			// We've just consumed the current token, which was the key.
 			// Read the next token, which should be the value.
 			// If it's of json.RawMessage or map type, decode the value.
-			switch matchingFieldValue.Type() {
-			case reflect.TypeFor[json.RawMessage]():
-				var data json.RawMessage
+			// Skip reading if we already eagerly read the value above (for __typename).
+			if earlyReadTok != nil {
+				tok = earlyReadTok
+			} else {
+				switch matchingFieldValue.Type() {
+				case reflect.TypeFor[json.RawMessage]():
+					var data json.RawMessage
 
-				err = d.jsonDecoder.Decode(&data)
-				tok = data
-			case reflect.TypeFor[map[string]any]():
-				var data map[string]any
+					err = d.jsonDecoder.Decode(&data)
+					tok = data
+				case reflect.TypeFor[map[string]any]():
+					var data map[string]any
 
-				err = d.jsonDecoder.Decode(&data)
-				tok = data
-			default:
-				tok, err = d.jsonDecoder.Token()
+					err = d.jsonDecoder.Decode(&data)
+					tok = data
+				default:
+					tok, err = d.jsonDecoder.Token()
+				}
 			}
 
 			if err == io.EOF {
@@ -309,9 +344,11 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					}
 
 					for i := range v.NumField() {
-						if isGraphQLFragment(v.Type().Field(i)) || v.Type().Field(i).Anonymous {
+						field := v.Type().Field(i)
+						if isGraphQLFragment(field) || field.Anonymous {
 							// Add GraphQL fragment or embedded struct.
 							d.vs = append(d.vs, []reflect.Value{v.Field(i)})
+							d.vsFragTypes = append(d.vsFragTypes, inlineFragmentType(field))
 							frontier = append(frontier, v.Field(i))
 						}
 					}
@@ -340,6 +377,10 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				}
 			case '}', ']':
 				// End of object or array.
+				if tok == '}' {
+					delete(d.typenameByDepth, d.objectDepth())
+				}
+
 				d.popAllVs()
 				d.popState()
 			default:
@@ -375,16 +416,21 @@ func (d *Decoder) state() json.Delim {
 
 // popAllVs pops from all d.vs stacks, keeping only non-empty ones.
 func (d *Decoder) popAllVs() {
-	var nonEmpty [][]reflect.Value
+	var (
+		nonEmpty          [][]reflect.Value
+		nonEmptyFragTypes []string
+	)
 
 	for i := range d.vs {
 		d.vs[i] = d.vs[i][:len(d.vs[i])-1]
 		if len(d.vs[i]) > 0 {
 			nonEmpty = append(nonEmpty, d.vs[i])
+			nonEmptyFragTypes = append(nonEmptyFragTypes, d.vsFragTypes[i])
 		}
 	}
 
 	d.vs = nonEmpty
+	d.vsFragTypes = nonEmptyFragTypes
 }
 
 // fieldByGraphQLName returns an exported struct field of struct v
@@ -457,4 +503,53 @@ func unmarshalValue(value json.Token, v reflect.Value) error {
 	}
 
 	return nil
+}
+
+// objectDepth returns the number of currently open JSON objects ('{') in parseState.
+func (d *Decoder) objectDepth() int {
+	count := 0
+
+	for _, s := range d.parseState {
+		if s == '{' {
+			count++
+		}
+	}
+
+	return count
+}
+
+// shouldInitFragPtr reports whether the nil pointer at stack index i should be
+// initialized. When a __typename has been observed for the current object depth,
+// only the inline fragment stack whose type matches that typename is initialized;
+// all others are skipped. Non-fragment stacks are always initialized.
+func (d *Decoder) shouldInitFragPtr(i int) bool {
+	fragType := d.vsFragTypes[i]
+	if fragType == "" {
+		return true // not a typed inline fragment
+	}
+
+	typename, ok := d.typenameByDepth[d.objectDepth()]
+	if !ok {
+		return true // no __typename seen yet, fall back to field-presence check
+	}
+
+	return fragType == typename
+}
+
+// inlineFragmentType returns the concrete type name from a "... on TypeName" graphql
+// tag, or "" if the field is not a typed inline fragment.
+func inlineFragmentType(f reflect.StructField) string {
+	value, ok := f.Tag.Lookup("graphql")
+	if !ok {
+		return ""
+	}
+
+	value = strings.TrimSpace(value)
+
+	const prefix = "... on "
+	if !strings.HasPrefix(value, prefix) {
+		return ""
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(value, prefix))
 }

@@ -399,12 +399,10 @@ func TestUnmarshalGraphQL_union2(t *testing.T) {
 func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	t.Parallel()
 	type RecurringPricing struct {
-		Typename *string
 		Interval string
 		Amount   string
 	}
 	type UsagePricing struct {
-		Typename    *string
 		Terms       string
 		CappedValue string
 	}
@@ -418,7 +416,6 @@ func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	var got query
 	err := graphqljson.UnmarshalData([]byte(`{
 		"pricingDetails": {
-			"typename": "RecurringPricing",
 			"interval": "EVERY_30_DAYS",
 			"amount": "29.00"
 		}
@@ -426,7 +423,51 @@ func TestUnmarshalGraphQL_pointerInlineFragment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	typeName := "RecurringPricing"
+	want := query{
+		PricingDetails: PricingDetails{
+			AppRecurringPricing: &RecurringPricing{Interval: "EVERY_30_DAYS", Amount: "29.00"},
+			AppUsagePricing:     nil,
+		},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Error(diff)
+	}
+}
+
+// TestUnmarshalGraphQL_pointerInlineFragmentWithTypename verifies that when both
+// union variant structs contain a __typename field, the __typename value in the
+// JSON is used to initialize only the matching pointer, leaving the rest nil.
+func TestUnmarshalGraphQL_pointerInlineFragmentWithTypename(t *testing.T) {
+	t.Parallel()
+	type RecurringPricing struct {
+		Typename *string `graphql:"__typename"`
+		Interval string
+		Amount   string
+	}
+	type UsagePricing struct {
+		Typename    *string `graphql:"__typename"`
+		Terms       string
+		CappedValue string
+	}
+	type PricingDetails struct {
+		AppRecurringPricing *RecurringPricing `graphql:"... on AppRecurringPricing"`
+		AppUsagePricing     *UsagePricing     `graphql:"... on AppUsagePricing"`
+	}
+	type query struct {
+		PricingDetails PricingDetails
+	}
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"pricingDetails": {
+			"__typename": "AppRecurringPricing",
+			"interval": "EVERY_30_DAYS",
+			"amount": "29.00"
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	typeName := "AppRecurringPricing"
 	want := query{
 		PricingDetails: PricingDetails{
 			AppRecurringPricing: &RecurringPricing{Typename: &typeName, Interval: "EVERY_30_DAYS", Amount: "29.00"},
