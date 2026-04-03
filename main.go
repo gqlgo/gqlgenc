@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -12,57 +14,34 @@ import (
 
 var version = "0.33.0"
 
-var versionCmd = &cli.Command{
-	Name:  "version",
-	Usage: "print the version",
-	Action: func(ctx *cli.Context) error {
-		fmt.Println(version)
-		return nil
-	},
-}
-
-var generateCmd = &cli.Command{
-	Name:  "generate",
-	Usage: "generate a graphql client based on schema",
-	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "configdir, c", Usage: "the directory with configuration file", Value: "."},
-	},
-	Action: func(ctx *cli.Context) error {
-		configDir := ctx.String("configdir")
-
-		cfg, err := config.LoadConfigFromDefaultLocations(configDir)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err.Error())
-
-			os.Exit(2)
-		}
-
-		err = generator.Generate(ctx.Context, cfg)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err.Error())
-
-			os.Exit(4)
-		}
-
-		return nil
-	},
-}
-
 func main() {
-	app := cli.NewApp()
-	app.Name = "gqlgenc"
-	app.Description = "This is a library for quickly creating strictly typed graphql client in golang"
-	app.Usage = generateCmd.Usage
-	app.DefaultCommand = "generate"
-	app.Commands = []*cli.Command{
-		versionCmd,
-		generateCmd,
+	var (
+		showVersion = flag.Bool("version", false, "print the version")
+		configDir   = flag.String("configdir", ".", "the directory with configuration file")
+	)
+
+	flag.StringVar(configDir, "c", ".", "the directory with configuration file (shorthand)")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+
+		return
 	}
 
-	err := app.Run(os.Args)
+	cfg, err := config.LoadConfigFromDefaultLocations(*configDir)
 	if err != nil {
-		_, _ = fmt.Fprint(os.Stderr, err.Error()+"\n")
+		fmt.Fprintln(os.Stderr, err)
 
-		os.Exit(1)
+		os.Exit(2)
+	}
+
+	ctx := context.Background()
+
+	err = generator.Generate(ctx, cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+
+		os.Exit(4)
 	}
 }
