@@ -1,0 +1,57 @@
+# Case 1: Simple nested fragment spread (scalar fields only)
+fragment NameFrag on Person {
+  name
+}
+
+fragment PersonBasic on Person {
+  ...NameFrag
+  address
+}
+
+# Case 2: Nested object field merge (different struct types after merge)
+fragment ProfileBioFrag on Person {
+  profile {
+    bio
+  }
+}
+
+fragment FullProfile on Person {
+  ...ProfileBioFrag
+  profile {
+    bio
+    avatar
+  }
+}
+
+# Case 3: Multi-level nesting (FragA -> FragB -> FragC)
+fragment FragC on Person {
+  name
+}
+
+fragment FragB on Person {
+  ...FragC
+  address
+}
+
+fragment FragA on Person {
+  ...FragB
+  age
+}
+
+query GetPersonBasic {
+  person {
+    ...PersonBasic
+  }
+}
+
+query GetFullProfile {
+  person {
+    ...FullProfile
+  }
+}
+
+query GetFragA {
+  person {
+    ...FragA
+  }
+}
