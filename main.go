@@ -36,7 +36,8 @@ func main() {
 
 	ctx := context.Background()
 
-	if err := generator.Generate(ctx, cfg); err != nil {
+	err = generator.Generate(ctx, cfg)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 
 		os.Exit(4)
