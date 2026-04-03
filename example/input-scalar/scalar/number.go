@@ -27,16 +27,19 @@ func (n *Number) UnmarshalGQL(v any) error {
 	default:
 		return fmt.Errorf("Number not found Type: %d", n)
 	}
+
 	return nil
 }
 
 func (n Number) MarshalGQL(w io.Writer) {
 	var str string
+
 	switch n {
 	case NumberOne:
 		str = "ONE"
 	case NumberTwo:
 		str = "TWO"
 	}
+
 	fmt.Fprint(w, strconv.Quote(str))
 }

@@ -11,10 +11,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/goccy/go-yaml"
+
+	"github.com/99designs/gqlgen/codegen/config"
+
 	"github.com/gqlgo/gqlgenc/clientv2"
 	"github.com/gqlgo/gqlgenc/introspection"
+
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator"

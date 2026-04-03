@@ -13,10 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/99designs/gqlgen/graphql"
+
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -39,7 +41,9 @@ func TestUnmarshal(t *testing.T) {
 	t.Parallel()
 	t.Run("single error", func(t *testing.T) {
 		t.Parallel()
+
 		var path ast.Path
+
 		_ = json.Unmarshal([]byte(`["query GetUser","viewer","repositories","nsodes"]`), &path)
 		r := &fakeRes{}
 		c := &Client{}
@@ -64,11 +68,17 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("multiple errors", func(t *testing.T) {
 		t.Parallel()
+
 		var path1 ast.Path
+
 		_ = json.Unmarshal([]byte(`["query GetUser","viewer","repositories","nsodes"]`), &path1)
+
 		var path2 ast.Path
+
 		_ = json.Unmarshal([]byte(`["query GetUser"]`), &path2)
+
 		var path3 ast.Path
+
 		_ = json.Unmarshal([]byte(`["fragment LanguageFragment"]`), &path3)
 		r := &fakeRes{}
 		c := &Client{}
@@ -119,7 +129,9 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("data and error", func(t *testing.T) {
 		t.Parallel()
+
 		var path ast.Path
+
 		_ = json.Unmarshal([]byte(`["query GetUser","viewer","repositories","nsodes"]`), &path)
 		r := &fakeRes{}
 		c := &Client{}
@@ -143,7 +155,9 @@ func TestUnmarshal(t *testing.T) {
 	})
 	t.Run("response data and error still parsed", func(t *testing.T) {
 		t.Parallel()
+
 		var path ast.Path
+
 		_ = json.Unmarshal([]byte(`["query GetUser","viewer","repositories","nsodes"]`), &path)
 		r := &fakeRes{}
 		c := &Client{ParseDataWhenErrors: true}
@@ -174,6 +188,7 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("invalid json", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.unmarshal([]byte(invalidJSON), r)
@@ -182,6 +197,7 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("valid data", func(t *testing.T) {
 		t.Parallel()
+
 		res := &fakeRes{}
 		c := &Client{}
 		err := c.unmarshal([]byte(validData), res)
@@ -195,6 +211,7 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("bad data format", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.unmarshal([]byte(withBadDataFormat), r)
@@ -203,6 +220,7 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("bad data format", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.unmarshal([]byte(withBadErrorsFormat), r)
@@ -214,6 +232,7 @@ func TestParseResponse(t *testing.T) {
 	t.Parallel()
 	t.Run("single error", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.parseResponse([]byte(qqlSingleErr), 200, r)
@@ -229,6 +248,7 @@ func TestParseResponse(t *testing.T) {
 
 	t.Run("bad error format", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.parseResponse([]byte(withBadErrorsFormat), 200, r)
@@ -239,6 +259,7 @@ func TestParseResponse(t *testing.T) {
 
 	t.Run("network error with valid gql error response", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.parseResponse([]byte(qqlSingleErr), 400, r)
@@ -255,6 +276,7 @@ func TestParseResponse(t *testing.T) {
 
 	t.Run("network error with not valid gql error response", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.parseResponse([]byte(invalidJSON), 500, r)
@@ -270,6 +292,7 @@ func TestParseResponse(t *testing.T) {
 
 	t.Run("no error", func(t *testing.T) {
 		t.Parallel()
+
 		r := &fakeRes{}
 		c := &Client{}
 		err := c.parseResponse([]byte(validData), 200, r)
@@ -292,6 +315,7 @@ func TestChainInterceptor(t *testing.T) {
 	outputError := fmt.Errorf("some error")
 	requireContextValue := func(t *testing.T, ctx context.Context, key string, msg ...any) {
 		t.Helper()
+
 		val := ctx.Value(key)
 		require.NotNil(t, val, msg...)
 		require.Equal(t, someValue, val, msg...)
@@ -520,7 +544,6 @@ func (n *Number) UnmarshalGQL(v any) error {
 	case "TWO":
 		*n = NumberTwo
 	default:
-
 		return fmt.Errorf("Number not found Type: %s", str)
 	}
 
@@ -529,12 +552,14 @@ func (n *Number) UnmarshalGQL(v any) error {
 
 func (n Number) MarshalGQL(w io.Writer) {
 	var str string
+
 	switch n {
 	case NumberOne:
 		str = "ONE"
 	case NumberTwo:
 		str = "TWO"
 	}
+
 	fmt.Fprint(w, strconv.Quote(str))
 }
 
@@ -565,6 +590,7 @@ func (n *ContextNumber) UnmarshalGQLContext(_ context.Context, v any) error {
 
 func (n ContextNumber) MarshalGQLContext(_ context.Context, w io.Writer) error {
 	var str string
+
 	switch n {
 	case ContextNumberOne:
 		str = "ONE"
@@ -573,16 +599,21 @@ func (n ContextNumber) MarshalGQLContext(_ context.Context, w io.Writer) error {
 	default:
 		return fmt.Errorf("Number not found Type: %d", n)
 	}
+
 	fmt.Fprint(w, strconv.Quote(str))
+
 	return nil
 }
 
 func TestMarshalJSONValueType(t *testing.T) {
 	t.Parallel()
+
 	testDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	type args struct {
 		v any
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -682,6 +713,7 @@ func TestMarshalJSONValueType(t *testing.T) {
 
 func TestMarshalJSON(t *testing.T) {
 	t.Parallel()
+
 	type Example struct {
 		Name   string `json:"name"`
 		Number Number `json:"number"`
@@ -704,9 +736,11 @@ func TestMarshalJSON(t *testing.T) {
 	}
 
 	testDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	type args struct {
 		v any
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -872,11 +906,15 @@ func TestMarshalJSON(t *testing.T) {
 			}
 
 			var gotMap, wantMap map[string]any
-			if err := json.Unmarshal(got, &gotMap); err != nil {
+
+			err = json.Unmarshal(got, &gotMap)
+			if err != nil {
 				t.Errorf("Failed to unmarshal 'got': %s", string(got))
 				return
 			}
-			if err := json.Unmarshal(tt.want, &wantMap); err != nil {
+
+			err = json.Unmarshal(tt.want, &wantMap)
+			if err != nil {
 				t.Errorf("Failed to unmarshal err: %s", err)
 				return
 			}
@@ -890,10 +928,12 @@ func TestMarshalJSON(t *testing.T) {
 
 func TestMarshalOmittableJSON(t *testing.T) {
 	t.Parallel()
+
 	type Example struct {
 		Name   graphql.Omittable[string] `json:"name"`
 		Number graphql.Omittable[Number] `json:"number,omitzero"`
 	}
+
 	type ContextExample struct {
 		Name   graphql.Omittable[string]        `json:"name"`
 		Number graphql.Omittable[ContextNumber] `json:"number,omitzero"`
@@ -914,9 +954,11 @@ func TestMarshalOmittableJSON(t *testing.T) {
 	}
 
 	testDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	type args struct {
 		v any
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -1406,7 +1448,7 @@ func TestUnsafeChainInterceptor(t *testing.T) {
 	t.Run("should modify values through interceptors", func(t *testing.T) {
 		// Prepare test values
 		originalCtx := context.Background()
-		originalReq, _ := http.NewRequest("POST", "http://example.com", nil)
+		originalReq, _ := http.NewRequest(http.MethodPost, "http://example.com", nil)
 		originalGqlInfo := &GQLRequestInfo{
 			Request: &Request{Query: "original"},
 		}
@@ -1500,7 +1542,9 @@ func TestUnsafeChainInterceptor(t *testing.T) {
 			return func(ctx context.Context, req *http.Request, gqlInfo *GQLRequestInfo, res any, next RequestInterceptorFunc) error {
 				order = append(order, id)
 				err := next(ctx, req, gqlInfo, res)
+
 				order = append(order, -id) // Record return order as well
+
 				return err
 			}
 		}
@@ -1625,6 +1669,7 @@ func TestEncoder_encodeStruct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			encoder := &Encoder{}
+
 			got, err := encoder.encodeStruct(reflect.ValueOf(tt.input))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("encodeStruct() error = %v, wantErr %v", err, tt.wantErr)
@@ -1648,12 +1693,15 @@ func TestEncoder_encodeStruct(t *testing.T) {
 
 func Test_isEmptyValue(t *testing.T) {
 	str := "test"
+
 	type User struct {
 		Name string `json:"name,omitempty"`
 	}
+
 	type Where struct {
 		Not graphql.Omittable[*Where] `json:"not,omitempty"`
 	}
+
 	tests := []struct {
 		name  string
 		value any
@@ -1737,12 +1785,15 @@ func Test_isEmptyValue(t *testing.T) {
 
 func Test_isZeroValue(t *testing.T) {
 	str := "test"
+
 	type User struct {
 		Name string `json:"name,omitzero"`
 	}
+
 	type Where struct {
 		Not graphql.Omittable[*Where] `json:"not,omitzero"`
 	}
+
 	tests := []struct {
 		name  string
 		value any

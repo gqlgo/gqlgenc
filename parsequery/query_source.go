@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/config"
+
 	"github.com/vektah/gqlparser/v2/ast"
 )
 

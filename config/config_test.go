@@ -11,44 +11,51 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/99designs/gqlgen/codegen/config"
 )
 
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("config does not exist", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("doesnotexist.yml")
 		require.Error(t, err)
 	})
 
 	t.Run("malformed config", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("testdata/cfg/malformedconfig.yml")
 		require.EqualError(t, err, "unable to parse config: [1:1] string was used where mapping is expected\n>  1 | asdf\n       ^\n")
 	})
 
 	t.Run("'schema' and 'endpoint' both specified", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("testdata/cfg/schema_endpoint.yml")
 		require.EqualError(t, err, "'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	})
 
 	t.Run("neither 'schema' nor 'endpoint' specified", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("testdata/cfg/no_source.yml")
 		require.EqualError(t, err, "neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	})
 
 	t.Run("unknown keys", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("testdata/cfg/unknownkeys.yml")
 		require.EqualError(t, err, "unable to parse config: [3:1] unknown field \"unknown\"\n   1 | schema:\n   2 |   - outer\n>  3 | unknown: foo\n       ^\n")
 	})
 
 	t.Run("globbed filenames", func(t *testing.T) {
 		t.Parallel()
+
 		loadConfig, err := LoadConfig("testdata/cfg/glob.yml")
 		require.NoError(t, err)
 
@@ -63,6 +70,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("unwalkable path", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := LoadConfig("testdata/cfg/unwalkable.yml")
 		if runtime.GOOS == "windows" {
 			require.EqualError(t, err, "failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified.")
@@ -73,6 +81,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("generate", func(t *testing.T) {
 		t.Parallel()
+
 		loadConfig, err := LoadConfig("testdata/cfg/generate.yml")
 		require.NoError(t, err)
 		require.Equal(t, true, loadConfig.Generate.ShouldGenerateClient())
@@ -85,6 +94,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("generate skip client", func(t *testing.T) {
 		t.Parallel()
+
 		c, err := LoadConfig("testdata/cfg/generate_client_false.yml")
 		require.NoError(t, err)
 
@@ -93,6 +103,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("nullable input omittable", func(t *testing.T) {
 		t.Parallel()
+
 		c, err := LoadConfig("testdata/cfg/nullable_input_omittable.yml")
 		require.NoError(t, err)
 
@@ -100,6 +111,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 	t.Run("omitempty, omitzero", func(t *testing.T) {
 		t.Parallel()
+
 		c, err := LoadConfig("testdata/cfg/omitempty_omitzero.yml")
 		require.NoError(t, err)
 
@@ -148,6 +160,7 @@ func TestLoadConfig_LoadSchema(t *testing.T) {
 
 type mockRemoteServer struct {
 	*httptest.Server
+
 	body []byte
 }
 
@@ -157,10 +170,12 @@ func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, cl
 	mock = &mockRemoteServer{
 		Server: httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 			var err error
+
 			mock.body, err = io.ReadAll(req.Body)
 			require.NoError(t, err)
 
 			var responseBody []byte
+
 			switch v := response.(type) {
 			case json.RawMessage:
 				responseBody = v

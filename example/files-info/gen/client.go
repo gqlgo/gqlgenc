@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql"
+
 	"github.com/gqlgo/gqlgenc/clientv2"
 )
 

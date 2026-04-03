@@ -23,6 +23,7 @@ func main() {
 				return next(ctx, req, gqlInfo, res)
 			}),
 	}
+
 	getUser, err := githubClient.GetUser(ctx, 10, 10)
 	if err != nil {
 		if handledError, ok := err.(*clientv2.ErrorResponse); ok {
@@ -30,12 +31,15 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "unhandled error: %s\n", err.Error())
 		}
+
 		os.Exit(1)
 	}
 
 	fmt.Println(*getUser.Viewer.Name, getUser.Viewer.Repositories.Nodes[0].Name)
+
 	for _, repository := range getUser.Viewer.Repositories.Nodes {
 		fmt.Println(repository.Name)
+
 		for _, language := range repository.Languages.Nodes {
 			fmt.Println(language.Name)
 		}
@@ -47,6 +51,7 @@ func main() {
 			} else {
 				fmt.Fprintf(os.Stderr, "unhandled error: %s\n", err.Error())
 			}
+
 			os.Exit(1)
 		}
 

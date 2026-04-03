@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gqlgo/gqlgenc/config"
-	"github.com/gqlgo/gqlgenc/generator"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/gqlgo/gqlgenc/config"
+	"github.com/gqlgo/gqlgenc/generator"
 )
 
 type Suite struct {
@@ -67,6 +68,7 @@ func (s *Suite) TestGenerator_withTestData() {
 					err = os.WriteFile(expectedPath, []byte(content), 0o644)
 					s.Require().NoError(err)
 				}
+
 				return
 			}
 
@@ -100,37 +102,48 @@ func (s *Suite) useDirForTest(dir string) {
 
 func (s *Suite) loadFiles(dir string) map[string]string {
 	files := make(map[string]string)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
 		return files
 	}
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
+
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
+
 		rel, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
+
 		files[rel] = string(content)
+
 		return nil
 	})
 	s.Require().NoError(err)
+
 	return files
 }
 
 func (s *Suite) getTestDirs() []string {
 	dirs, err := os.ReadDir("testdata")
 	s.Require().NoError(err)
+
 	var testDirs []string
+
 	for _, dir := range dirs {
 		if !dir.IsDir() {
 			continue
 		}
+
 		testDirs = append(testDirs, dir.Name())
 	}
+
 	return testDirs
 }
