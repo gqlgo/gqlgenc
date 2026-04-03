@@ -13,6 +13,7 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+    - run: go mod download
     - uses: golangci/golangci-lint-action@v8
       with:
         version: latest
