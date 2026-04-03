@@ -954,7 +954,7 @@ func TestMarshalOmittableJSON(t *testing.T) {
 									var a *string
 									return graphql.OmittableOf(a)
 								}(),
-								Not: graphql.Omittable[*WhereInput]{},
+								Not: graphql.OmittableOf[*WhereInput](nil),
 							}),
 						},
 					},

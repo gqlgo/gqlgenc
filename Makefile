@@ -8,3 +8,6 @@ lint:
 
 test:
 	go test -v ./...
+
+compat:
+	go tool gorelease
