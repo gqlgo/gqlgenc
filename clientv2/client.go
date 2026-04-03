@@ -312,7 +312,7 @@ func parseMultipartFiles(
 		case []*graphql.Upload:
 			vars[k] = make([]struct{}, len(item))
 
-			var groupFiles []MultipartFile
+			groupFiles := make([]MultipartFile, 0, len(item))
 
 			for itemI, itemV := range item {
 				iStr := strconv.Itoa(i)
