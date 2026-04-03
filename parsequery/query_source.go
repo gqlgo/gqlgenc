@@ -47,6 +47,7 @@ func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
 	var noGlobQueryFileNames config.StringList
 
 	var err error
+
 	preGlobbing := queryFileNames
 	for _, f := range preGlobbing {
 		var matches []string
@@ -60,7 +61,7 @@ func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
 			// for any number of dirs in between and walk will let us match against the full path name
 			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
 
-			if err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -70,7 +71,8 @@ func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
 				}
 
 				return nil
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
 			}
 		} else {
@@ -92,8 +94,12 @@ func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
 	querySources := make([]*ast.Source, 0, len(noGlobQueryFileNames))
 	for _, filename := range noGlobQueryFileNames {
 		filename = filepath.ToSlash(filename)
-		var err error
-		var schemaRaw []byte
+
+		var (
+			err       error
+			schemaRaw []byte
+		)
+
 		schemaRaw, err = os.ReadFile(filename)
 		if err != nil {
 			return nil, fmt.Errorf("unable to open schema: %w", err)

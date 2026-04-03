@@ -57,6 +57,7 @@ func (p *Plugin) MutateConfig(cfg *config.Config) error {
 	}
 
 	var err error
+
 	operationQueryDocuments := p.operationQueryDocuments
 	if operationQueryDocuments == nil {
 		operationQueryDocuments, err = querydocument.QueryDocumentsByOperations(cfg.Schema, queryDocument.Operations)
