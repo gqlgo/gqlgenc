@@ -17,6 +17,7 @@ func main() {
 		RequestInterceptor: clientv2.ChainInterceptor(),
 		CustomDo: func(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res any) error {
 			fmt.Println("Do request")
+
 			r, err := io.ReadAll(req.Body)
 			if err != nil {
 				return err

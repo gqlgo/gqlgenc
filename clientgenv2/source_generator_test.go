@@ -1,10 +1,12 @@
 package clientgenv2
 
 import (
-	"github.com/99designs/gqlgen/codegen/config"
-	gqlgencConfig "github.com/gqlgo/gqlgenc/config"
 	"go/types"
 	"testing"
+
+	"github.com/99designs/gqlgen/codegen/config"
+
+	gqlgencConfig "github.com/gqlgo/gqlgenc/config"
 )
 
 func createTestStruct(fields []*types.Var, tags []string) *types.Struct {
@@ -222,12 +224,15 @@ func TestMergeFieldsRecursively(t *testing.T) {
 				if tt.expectedFields[i].Name != resultFields[i].Name {
 					t.Errorf("Field name does not match: got %v, want %v", resultFields[i].Name, tt.expectedFields[i].Name)
 				}
+
 				if tt.expectedFields[i].Type.String() != resultFields[i].Type.String() {
 					t.Errorf("Field type does not match: got %v, want %v", resultFields[i].Type.String(), tt.expectedFields[i].Type.String())
 				}
+
 				if len(tt.expectedFields[i].Tags) != len(resultFields[i].Tags) {
 					t.Errorf("Number of tags does not match: got %v, want %v", len(resultFields[i].Tags), len(tt.expectedFields[i].Tags))
 				}
+
 				for j, tag := range tt.expectedFields[i].Tags {
 					if tag != resultFields[i].Tags[j] {
 						t.Errorf("Tag does not match: got %v, want %v", resultFields[i].Tags[j], tag)
@@ -322,6 +327,7 @@ func TestFragmentSpreadExpansionInInlineFragment(t *testing.T) {
 	if !foundID {
 		t.Errorf("Expected to find 'id' field from fragment")
 	}
+
 	if !foundName {
 		t.Errorf("Expected to find 'name' field from fragment")
 	}
@@ -331,6 +337,7 @@ func TestFragmentSpreadExpansionInInlineFragment(t *testing.T) {
 	// フラグメントスプレッドを含むフィールドから、すべてのフィールドを集める
 	// Collect all fields from fields containing fragment spreads
 	allFields := make(ResponseFieldList, 0)
+
 	for _, field := range responseFields {
 		if !field.IsFragmentSpread {
 			allFields = append(allFields, field)
@@ -370,9 +377,11 @@ func TestFragmentSpreadExpansionInInlineFragment(t *testing.T) {
 	if !foundLanguages {
 		t.Errorf("Expected to find 'languages' field")
 	}
+
 	if !foundID {
 		t.Errorf("Expected to find 'id' field from fragment")
 	}
+
 	if !foundName {
 		t.Errorf("Expected to find 'name' field from fragment")
 	}

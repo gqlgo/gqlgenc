@@ -1,6 +1,6 @@
 package model
 
-// Represents an object which can take actions on GitHub. Typically a User or Bot.
+// Actor represents an object which can take actions on GitHub. Typically a User or Bot.
 type Actor interface {
 	IsActor()
 	// A URL pointing to the actor's public avatar.

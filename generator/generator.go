@@ -11,6 +11,7 @@ import (
 	"github.com/99designs/gqlgen/plugin"
 	"github.com/99designs/gqlgen/plugin/federation"
 	"github.com/99designs/gqlgen/plugin/modelgen"
+
 	"github.com/gqlgo/gqlgenc/clientgenv2"
 	"github.com/gqlgo/gqlgenc/config"
 	"github.com/gqlgo/gqlgenc/parsequery"

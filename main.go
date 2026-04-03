@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/gqlgo/gqlgenc/config"
 	"github.com/gqlgo/gqlgenc/generator"
-	"github.com/urfave/cli/v2"
 )
 
 var version = "0.33.0"

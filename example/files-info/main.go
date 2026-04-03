@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/99designs/gqlgen/graphql"
+
 	"github.com/gqlgo/gqlgenc/clientv2"
 	"github.com/gqlgo/gqlgenc/example/files-info/gen"
 )
@@ -54,6 +55,7 @@ func main() {
 	fmt.Println("Queries list")
 
 	fmt.Println("Request: FileInfo")
+
 	uFile, err := NewUploadFile(FilesDir + "color-bars-600.png")
 	if err != nil {
 		fmt.Println(err.Error())
@@ -65,9 +67,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Printf("Response: %#+v\n\n", fileInfoResp)
 
 	fmt.Println("Request: FilesInfo")
+
 	uFiles, err := getFiles(files...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
@@ -79,6 +83,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Printf("Response: %#v\n\n", filesInfoResp)
 
 	fmt.Println("Mutations list")
@@ -96,6 +101,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Printf("Response: %#v\n\n", uploadFileResp)
 
 	fmt.Println("Request: UploadFiles")
@@ -111,6 +117,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Printf("Response: %#v\n\n", uploadFilesResp)
 
 	fmt.Println("Multiple queries in one request")

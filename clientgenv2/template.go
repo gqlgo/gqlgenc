@@ -9,6 +9,7 @@ import (
 
 	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/codegen/templates"
+
 	gqlgencConfig "github.com/gqlgo/gqlgenc/config"
 )
 

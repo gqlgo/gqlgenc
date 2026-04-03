@@ -5,9 +5,11 @@ import (
 
 	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin"
+
 	gqlgencConfig "github.com/gqlgo/gqlgenc/config"
 	"github.com/gqlgo/gqlgenc/parsequery"
 	"github.com/gqlgo/gqlgenc/querydocument"
+
 	"github.com/vektah/gqlparser/v2/ast"
 )
 

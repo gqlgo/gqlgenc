@@ -26,6 +26,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Println(*getProfile.Viewer.AvatarURL, getProfile.Viewer.RecordsCount, getProfile.Viewer.WatchedCount)
 
 	list, err := annictClient.SearchWorks(ctx, []string{"2017-spring"})
@@ -45,6 +46,7 @@ func main() {
 	}
 
 	work := getWork.SearchWorks.Nodes[0]
+
 	_, err = annictClient.UpdateWorkStatus(ctx, work.ID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
@@ -70,6 +72,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %s", err.Error())
 		os.Exit(1)
 	}
+
 	fmt.Println(res.Viewer.Works.Edges[0].Node.Title, res.Viewer.Works.Edges[0].Cursor, len(res.Viewer.Works.Edges))
 }
 
