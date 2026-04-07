@@ -42,6 +42,9 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 			return nil, fmt.Errorf("%s is duplicated", fragment.Name)
 		}
 
+		// When fragment spreads are present, apply the same merge strategy used by Operations.
+		// Flatten spread fields and deduplicate them so the graphqljson decoder can
+		// unmarshal all fields directly without traversing named pointer fields.
 		var structType *types.Struct
 		if s.sourceGenerator.hasFragmentSpread(responseFields) {
 			flattened := flattenFragmentSpreads(responseFields)
