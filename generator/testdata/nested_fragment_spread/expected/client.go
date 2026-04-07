@@ -45,6 +45,15 @@ func (t *PersonBasic) GetName() string {
 	return t.Name
 }
 
+func (t *PersonBasic) GetNameFrag() *NameFrag {
+	if t == nil {
+		t = &PersonBasic{}
+	}
+	return &NameFrag{
+		Name: t.Name,
+	}
+}
+
 type ProfileBioFrag struct {
 	Profile ProfileBioFrag_Profile "json:\"profile\" graphql:\"profile\""
 }
@@ -65,6 +74,17 @@ func (t *FullProfile) GetProfile() *FullProfile_Profile {
 		t = &FullProfile{}
 	}
 	return &t.Profile
+}
+
+func (t *FullProfile) GetProfileBioFrag() *ProfileBioFrag {
+	if t == nil {
+		t = &FullProfile{}
+	}
+	return &ProfileBioFrag{
+		Profile: ProfileBioFrag_Profile{
+			Bio: t.Profile.Bio,
+		},
+	}
 }
 
 type FragC struct {
@@ -96,6 +116,15 @@ func (t *FragB) GetName() string {
 	return t.Name
 }
 
+func (t *FragB) GetFragC() *FragC {
+	if t == nil {
+		t = &FragB{}
+	}
+	return &FragC{
+		Name: t.Name,
+	}
+}
+
 type FragA struct {
 	Address string "json:\"address\" graphql:\"address\""
 	Age     int    "json:\"age\" graphql:\"age\""
@@ -119,6 +148,16 @@ func (t *FragA) GetName() string {
 		t = &FragA{}
 	}
 	return t.Name
+}
+
+func (t *FragA) GetFragB() *FragB {
+	if t == nil {
+		t = &FragA{}
+	}
+	return &FragB{
+		Address: t.Address,
+		Name:    t.Name,
+	}
 }
 
 type ProfileBioFrag_Profile struct {

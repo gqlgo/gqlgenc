@@ -29,9 +29,24 @@ func NewSource(schema *ast.Schema, queryDocument *ast.QueryDocument, sourceGener
 	}
 }
 
-type Fragment struct {
+// SpreadFragmentInfo holds metadata about a fragment spread that was merged
+// into a parent fragment. Used to generate conversion getters.
+type SpreadFragmentInfo struct {
+	// Name is the spread fragment's type name (e.g., "NameFrag").
 	Name string
+	// Type is the spread fragment's resolved Go type.
 	Type types.Type
+}
+
+// Fragment represents a named GraphQL fragment definition and its generated Go type.
+type Fragment struct {
+	// Name is the fragment's name as declared in GraphQL.
+	Name string
+	// Type is the Go struct type generated for this fragment.
+	Type types.Type
+	// SpreadFragments lists fragment spreads that were flattened into this fragment.
+	// Conversion getters are generated for each entry.
+	SpreadFragments []*SpreadFragmentInfo
 }
 
 func (s *Source) Fragments() ([]*Fragment, error) {
@@ -46,7 +61,11 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 		// Flatten spread fields and deduplicate them so the graphqljson decoder can
 		// unmarshal all fields directly without traversing named pointer fields.
 		var structType *types.Struct
+		var spreadFragments []*SpreadFragmentInfo
 		if s.sourceGenerator.hasFragmentSpread(responseFields) {
+			// Collect spread fragment info before flattening (for conversion getter generation).
+			spreadFragments = collectSpreadFragmentInfo(responseFields)
+
 			flattened := flattenFragmentSpreads(responseFields)
 			generator := NewStructGenerator(flattened)
 			s.sourceGenerator.StructSources = generator.MergedStructSources(s.sourceGenerator.StructSources)
@@ -56,8 +75,9 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 		}
 
 		fragment := &Fragment{
-			Name: fragment.Name,
-			Type: structType,
+			Name:            fragment.Name,
+			Type:            structType,
+			SpreadFragments: spreadFragments,
 		}
 
 		fragments = append(fragments, fragment)
