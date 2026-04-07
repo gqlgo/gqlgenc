@@ -500,3 +500,22 @@ func (r *SourceGenerator) collectFragmentFields(fields ResponseFieldList) Respon
 
 	return fragmentFields
 }
+
+// flattenFragmentSpreads recursively replaces fragment spread fields with their
+// child fields. This ensures that nested fragment spreads (e.g., FragA -> FragB -> FragC)
+// are fully expanded before struct generation.
+func flattenFragmentSpreads(fields ResponseFieldList) ResponseFieldList {
+	result := make(ResponseFieldList, 0, len(fields))
+
+	for _, field := range fields {
+		if field.IsFragmentSpread {
+			// Replace the spread with its children, recursively flattening
+			expanded := flattenFragmentSpreads(field.ResponseFields)
+			result = append(result, expanded...)
+		} else {
+			result = append(result, field)
+		}
+	}
+
+	return result
+}
