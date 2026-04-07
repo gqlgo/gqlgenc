@@ -1,0 +1,16 @@
+type Query {
+  person: Person!
+}
+
+type Person {
+  name: String!
+  address: String!
+  age: Int!
+  profile: Profile!
+}
+
+type Profile {
+  bio: String!
+  avatar: String!
+  website: String!
+}

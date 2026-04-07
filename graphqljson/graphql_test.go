@@ -913,3 +913,159 @@ func TestUnmarshalGQL_pointerArrayReset(t *testing.T) {
 		t.Error(diff)
 	}
 }
+
+// TestUnmarshalGraphQL_nestedFragmentSpread_simple tests issue #291:
+// A fragment definition that spreads another fragment with scalar fields only.
+func TestUnmarshalGraphQL_nestedFragmentSpread_simple(t *testing.T) {
+	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
+	t.Parallel()
+
+	// Simulates generated code after fix: flat fields (merged from NameFrag)
+	type PersonBasic struct {
+		Name    string `json:"name" graphql:"name"`
+		Address string `json:"address" graphql:"address"`
+	}
+
+	type query struct {
+		Person PersonBasic
+	}
+
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"person": {
+			"name": "Alice",
+			"address": "123 Main St"
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("simple nested fragment spread: %v", err)
+	}
+
+	want := query{
+		Person: PersonBasic{Name: "Alice", Address: "123 Main St"},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("mismatch:\n%s", diff)
+	}
+}
+
+// TestUnmarshalGraphQL_nestedFragmentSpread_multipleWithOverlap tests issue #291:
+// Multiple fragment spreads with overlapping fields, merged into flat struct.
+func TestUnmarshalGraphQL_nestedFragmentSpread_multipleWithOverlap(t *testing.T) {
+	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
+	t.Parallel()
+
+	// FragA has {name}, FragB has {name, age}, merged into {address, age, name}
+	type MergedFrag struct {
+		Address string `json:"address" graphql:"address"`
+		Age     int    `json:"age" graphql:"age"`
+		Name    string `json:"name" graphql:"name"`
+	}
+
+	type query struct {
+		Person MergedFrag
+	}
+
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"person": {
+			"name": "Bob",
+			"age": 30,
+			"address": "456 Oak Ave"
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("multiple fragment spreads with overlap: %v", err)
+	}
+
+	want := query{
+		Person: MergedFrag{Address: "456 Oak Ave", Age: 30, Name: "Bob"},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("mismatch:\n%s", diff)
+	}
+}
+
+// TestUnmarshalGraphQL_nestedFragmentSpread_nestedObjectMerge tests issue #291:
+// Fragment spreads where a nested object field gets merged with different types.
+func TestUnmarshalGraphQL_nestedFragmentSpread_nestedObjectMerge(t *testing.T) {
+	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
+	t.Parallel()
+
+	// ProfileBioFrag selects profile{bio}, FullProfile adds profile{avatar}
+	// After merge: profile has both bio and avatar
+	type FullProfileProfile struct {
+		Avatar string `json:"avatar" graphql:"avatar"`
+		Bio    string `json:"bio" graphql:"bio"`
+	}
+
+	type FullProfile struct {
+		Profile FullProfileProfile `json:"profile" graphql:"profile"`
+	}
+
+	type query struct {
+		Person FullProfile
+	}
+
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"person": {
+			"profile": {
+				"bio": "Developer",
+				"avatar": "https://example.com/avatar.png"
+			}
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("nested object merge: %v", err)
+	}
+
+	want := query{
+		Person: FullProfile{
+			Profile: FullProfileProfile{
+				Avatar: "https://example.com/avatar.png",
+				Bio:    "Developer",
+			},
+		},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("mismatch:\n%s", diff)
+	}
+}
+
+// TestUnmarshalGraphQL_nestedFragmentSpread_multiLevel tests issue #291:
+// Three levels of nesting: FragA -> FragB -> FragC, all flattened.
+func TestUnmarshalGraphQL_nestedFragmentSpread_multiLevel(t *testing.T) {
+	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
+	t.Parallel()
+
+	// FragC{name} -> FragB{name,address} -> FragA{name,address,age}
+	type FragA struct {
+		Address string `json:"address" graphql:"address"`
+		Age     int    `json:"age" graphql:"age"`
+		Name    string `json:"name" graphql:"name"`
+	}
+
+	type query struct {
+		Person FragA
+	}
+
+	var got query
+	err := graphqljson.UnmarshalData([]byte(`{
+		"person": {
+			"name": "Charlie",
+			"address": "789 Pine Rd",
+			"age": 25
+		}
+	}`), &got)
+	if err != nil {
+		t.Fatalf("multi-level nested fragment: %v", err)
+	}
+
+	want := query{
+		Person: FragA{Address: "789 Pine Rd", Age: 25, Name: "Charlie"},
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("mismatch:\n%s", diff)
+	}
+}
