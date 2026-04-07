@@ -917,7 +917,6 @@ func TestUnmarshalGQL_pointerArrayReset(t *testing.T) {
 // TestUnmarshalGraphQL_nestedFragmentSpread_simple tests issue #291:
 // A fragment definition that spreads another fragment with scalar fields only.
 func TestUnmarshalGraphQL_nestedFragmentSpread_simple(t *testing.T) {
-	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
 	t.Parallel()
 
 	// Simulates generated code after fix: flat fields (merged from NameFrag)
@@ -952,7 +951,6 @@ func TestUnmarshalGraphQL_nestedFragmentSpread_simple(t *testing.T) {
 // TestUnmarshalGraphQL_nestedFragmentSpread_multipleWithOverlap tests issue #291:
 // Multiple fragment spreads with overlapping fields, merged into flat struct.
 func TestUnmarshalGraphQL_nestedFragmentSpread_multipleWithOverlap(t *testing.T) {
-	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
 	t.Parallel()
 
 	// FragA has {name}, FragB has {name, age}, merged into {address, age, name}
@@ -989,7 +987,6 @@ func TestUnmarshalGraphQL_nestedFragmentSpread_multipleWithOverlap(t *testing.T)
 // TestUnmarshalGraphQL_nestedFragmentSpread_nestedObjectMerge tests issue #291:
 // Fragment spreads where a nested object field gets merged with different types.
 func TestUnmarshalGraphQL_nestedFragmentSpread_nestedObjectMerge(t *testing.T) {
-	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
 	t.Parallel()
 
 	// ProfileBioFrag selects profile{bio}, FullProfile adds profile{avatar}
@@ -1036,7 +1033,6 @@ func TestUnmarshalGraphQL_nestedFragmentSpread_nestedObjectMerge(t *testing.T) {
 // TestUnmarshalGraphQL_nestedFragmentSpread_multiLevel tests issue #291:
 // Three levels of nesting: FragA -> FragB -> FragC, all flattened.
 func TestUnmarshalGraphQL_nestedFragmentSpread_multiLevel(t *testing.T) {
-	t.Skip("issue #291: nested fragment spread unmarshal fails with named pointer field")
 	t.Parallel()
 
 	// FragC{name} -> FragB{name,address} -> FragA{name,address,age}

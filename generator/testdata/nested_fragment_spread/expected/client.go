@@ -28,21 +28,21 @@ func (t *NameFrag) GetName() string {
 }
 
 type PersonBasic struct {
-	NameFrag *NameFrag
-	Address  string "json:\"address\" graphql:\"address\""
+	Address string "json:\"address\" graphql:\"address\""
+	Name    string "json:\"name\" graphql:\"name\""
 }
 
-func (t *PersonBasic) GetNameFrag() *NameFrag {
-	if t == nil {
-		t = &PersonBasic{}
-	}
-	return t.NameFrag
-}
 func (t *PersonBasic) GetAddress() string {
 	if t == nil {
 		t = &PersonBasic{}
 	}
 	return t.Address
+}
+func (t *PersonBasic) GetName() string {
+	if t == nil {
+		t = &PersonBasic{}
+	}
+	return t.Name
 }
 
 type ProfileBioFrag struct {
@@ -57,16 +57,9 @@ func (t *ProfileBioFrag) GetProfile() *ProfileBioFrag_Profile {
 }
 
 type FullProfile struct {
-	ProfileBioFrag *ProfileBioFrag
-	Profile        FullProfile_Profile "json:\"profile\" graphql:\"profile\""
+	Profile FullProfile_Profile "json:\"profile\" graphql:\"profile\""
 }
 
-func (t *FullProfile) GetProfileBioFrag() *ProfileBioFrag {
-	if t == nil {
-		t = &FullProfile{}
-	}
-	return t.ProfileBioFrag
-}
 func (t *FullProfile) GetProfile() *FullProfile_Profile {
 	if t == nil {
 		t = &FullProfile{}
@@ -86,39 +79,46 @@ func (t *FragC) GetName() string {
 }
 
 type FragB struct {
-	FragC   *FragC
 	Address string "json:\"address\" graphql:\"address\""
+	Name    string "json:\"name\" graphql:\"name\""
 }
 
-func (t *FragB) GetFragC() *FragC {
-	if t == nil {
-		t = &FragB{}
-	}
-	return t.FragC
-}
 func (t *FragB) GetAddress() string {
 	if t == nil {
 		t = &FragB{}
 	}
 	return t.Address
 }
-
-type FragA struct {
-	FragB *FragB
-	Age   int "json:\"age\" graphql:\"age\""
+func (t *FragB) GetName() string {
+	if t == nil {
+		t = &FragB{}
+	}
+	return t.Name
 }
 
-func (t *FragA) GetFragB() *FragB {
+type FragA struct {
+	Address string "json:\"address\" graphql:\"address\""
+	Age     int    "json:\"age\" graphql:\"age\""
+	Name    string "json:\"name\" graphql:\"name\""
+}
+
+func (t *FragA) GetAddress() string {
 	if t == nil {
 		t = &FragA{}
 	}
-	return t.FragB
+	return t.Address
 }
 func (t *FragA) GetAge() int {
 	if t == nil {
 		t = &FragA{}
 	}
 	return t.Age
+}
+func (t *FragA) GetName() string {
+	if t == nil {
+		t = &FragA{}
+	}
+	return t.Name
 }
 
 type ProfileBioFrag_Profile struct {

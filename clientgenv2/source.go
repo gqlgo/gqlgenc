@@ -42,9 +42,19 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 			return nil, fmt.Errorf("%s is duplicated", fragment.Name)
 		}
 
+		var structType *types.Struct
+		if s.sourceGenerator.hasFragmentSpread(responseFields) {
+			flattened := flattenFragmentSpreads(responseFields)
+			generator := NewStructGenerator(flattened)
+			s.sourceGenerator.StructSources = generator.MergedStructSources(s.sourceGenerator.StructSources)
+			structType = generator.GetCurrentResponseFieldList().StructType()
+		} else {
+			structType = responseFields.StructType()
+		}
+
 		fragment := &Fragment{
 			Name: fragment.Name,
-			Type: responseFields.StructType(),
+			Type: structType,
 		}
 
 		fragments = append(fragments, fragment)
