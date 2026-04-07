@@ -21,9 +21,7 @@ func serverURL(t *testing.T) string {
 	return v
 }
 
-// TestE2E_GetPersonBasic tests that the generated client can unmarshal
-// a response for a query using nested fragment spreads (issue #291).
-// After fix: PersonBasic has flat fields {Address, Name} merged from NameFrag.
+// TestE2E_GetPersonBasic tests simple nested fragment spread with conversion getter.
 func TestE2E_GetPersonBasic(t *testing.T) {
 	client := generated.NewClient(http.DefaultClient, serverURL(t), &clientv2.Options{})
 
@@ -37,20 +35,22 @@ func TestE2E_GetPersonBasic(t *testing.T) {
 		t.Fatal("person is nil")
 	}
 
-	t.Logf("Address: %q", person.GetAddress())
-	t.Logf("Name: %q", person.GetName())
-
 	if person.GetName() == "" {
-		t.Error("expected non-empty name (merged from NameFrag)")
+		t.Error("expected non-empty name")
 	}
 
 	if person.GetAddress() == "" {
 		t.Error("expected non-empty address")
 	}
+
+	// Conversion getter: PersonBasic -> NameFrag
+	nameFrag := person.GetNameFrag()
+	if nameFrag.GetName() != person.GetName() {
+		t.Errorf("GetNameFrag().Name = %q, want %q", nameFrag.GetName(), person.GetName())
+	}
 }
 
-// TestE2E_GetFullProfile tests nested object field merge case.
-// After fix: FullProfile has merged Profile {Avatar, Bio} without ProfileBioFrag pointer.
+// TestE2E_GetFullProfile tests nested object field merge with conversion getter.
 func TestE2E_GetFullProfile(t *testing.T) {
 	client := generated.NewClient(http.DefaultClient, serverURL(t), &clientv2.Options{})
 
@@ -64,20 +64,23 @@ func TestE2E_GetFullProfile(t *testing.T) {
 		t.Fatal("person is nil")
 	}
 
-	profile := person.GetProfile()
-	t.Logf("Profile Bio: %q, Avatar: %q", profile.GetBio(), profile.GetAvatar())
-
-	if profile.GetBio() == "" {
-		t.Error("expected non-empty bio from merged profile")
+	if person.GetProfile().GetBio() == "" {
+		t.Error("expected non-empty bio")
 	}
 
-	if profile.GetAvatar() == "" {
-		t.Error("expected non-empty avatar from merged profile")
+	if person.GetProfile().GetAvatar() == "" {
+		t.Error("expected non-empty avatar")
+	}
+
+	// Conversion getter: FullProfile -> ProfileBioFrag (different nested struct type)
+	profileBioFrag := person.GetProfileBioFrag()
+	if profileBioFrag.GetProfile().GetBio() != person.GetProfile().GetBio() {
+		t.Errorf("GetProfileBioFrag().Profile.Bio = %q, want %q",
+			profileBioFrag.GetProfile().GetBio(), person.GetProfile().GetBio())
 	}
 }
 
-// TestE2E_GetFragA tests multi-level nesting (FragA -> FragB -> FragC).
-// After fix: FragA has flat fields {Address, Age} plus FragC *FragC from FragB's spread.
+// TestE2E_GetFragA tests multi-level nesting with conversion getter chain.
 func TestE2E_GetFragA(t *testing.T) {
 	client := generated.NewClient(http.DefaultClient, serverURL(t), &clientv2.Options{})
 
@@ -91,16 +94,26 @@ func TestE2E_GetFragA(t *testing.T) {
 		t.Fatal("person is nil")
 	}
 
-	t.Logf("Age: %d", person.GetAge())
-	t.Logf("Address: %q", person.GetAddress())
-
-	if person.GetAddress() == "" {
-		t.Error("expected non-empty address (merged from FragB)")
+	if person.GetName() == "" {
+		t.Error("expected non-empty name")
 	}
 
-	t.Logf("Name: %q", person.GetName())
+	if person.GetAddress() == "" {
+		t.Error("expected non-empty address")
+	}
 
-	if person.GetName() == "" {
-		t.Error("expected non-empty name (merged from FragC via FragB)")
+	// Conversion getter chain: FragA -> FragB -> FragC
+	fragB := person.GetFragB()
+	if fragB.GetAddress() != person.GetAddress() {
+		t.Errorf("GetFragB().Address = %q, want %q", fragB.GetAddress(), person.GetAddress())
+	}
+
+	if fragB.GetName() != person.GetName() {
+		t.Errorf("GetFragB().Name = %q, want %q", fragB.GetName(), person.GetName())
+	}
+
+	fragC := fragB.GetFragC()
+	if fragC.GetName() != person.GetName() {
+		t.Errorf("GetFragB().GetFragC().Name = %q, want %q", fragC.GetName(), person.GetName())
 	}
 }
