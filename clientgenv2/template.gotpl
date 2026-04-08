@@ -36,6 +36,7 @@
 	type  {{ .Name | go  }} {{ .Type | ref }}
 
     {{ genGetters (.Name|go) .Type }}
+    {{ genConversionGetters (.Name|go) .SpreadFragments }}
 {{- end }}
 
 {{- range $name, $element := .StructSources }}
