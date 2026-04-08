@@ -500,3 +500,40 @@ func (r *SourceGenerator) collectFragmentFields(fields ResponseFieldList) Respon
 
 	return fragmentFields
 }
+
+// collectSpreadFragmentInfo extracts direct fragment spread info from a ResponseFieldList.
+// Only collects the immediate spreads (not recursive), since each fragment generates
+// its own conversion getters for its direct spreads, enabling chaining.
+func collectSpreadFragmentInfo(fields ResponseFieldList) []*SpreadFragmentInfo {
+	var result []*SpreadFragmentInfo
+
+	for _, field := range fields {
+		if field.IsFragmentSpread {
+			result = append(result, &SpreadFragmentInfo{
+				Name: field.Name,
+				Type: field.Type,
+			})
+		}
+	}
+
+	return result
+}
+
+// flattenFragmentSpreads recursively replaces fragment spread fields with their
+// child fields. This ensures that nested fragment spreads (e.g., FragA -> FragB -> FragC)
+// are fully expanded before struct generation.
+func flattenFragmentSpreads(fields ResponseFieldList) ResponseFieldList {
+	result := make(ResponseFieldList, 0, len(fields))
+
+	for _, field := range fields {
+		if field.IsFragmentSpread {
+			// Replace the spread with its children, recursively flattening
+			expanded := flattenFragmentSpreads(field.ResponseFields)
+			result = append(result, expanded...)
+		} else {
+			result = append(result, field)
+		}
+	}
+
+	return result
+}
