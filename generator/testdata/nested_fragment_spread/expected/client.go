@@ -160,6 +160,143 @@ func (t *FragA) GetFragB() *FragB {
 	}
 }
 
+type AgeFrag struct {
+	Age int "json:\"age\" graphql:\"age\""
+}
+
+func (t *AgeFrag) GetAge() int {
+	if t == nil {
+		t = &AgeFrag{}
+	}
+	return t.Age
+}
+
+type NameAgeFrag struct {
+	Name string "json:\"name\" graphql:\"name\""
+	Age  int    "json:\"age\" graphql:\"age\""
+}
+
+func (t *NameAgeFrag) GetName() string {
+	if t == nil {
+		t = &NameAgeFrag{}
+	}
+	return t.Name
+}
+func (t *NameAgeFrag) GetAge() int {
+	if t == nil {
+		t = &NameAgeFrag{}
+	}
+	return t.Age
+}
+
+type MultiSpreadOverlap struct {
+	Address string "json:\"address\" graphql:\"address\""
+	Age     int    "json:\"age\" graphql:\"age\""
+	Name    string "json:\"name\" graphql:\"name\""
+}
+
+func (t *MultiSpreadOverlap) GetAddress() string {
+	if t == nil {
+		t = &MultiSpreadOverlap{}
+	}
+	return t.Address
+}
+func (t *MultiSpreadOverlap) GetAge() int {
+	if t == nil {
+		t = &MultiSpreadOverlap{}
+	}
+	return t.Age
+}
+func (t *MultiSpreadOverlap) GetName() string {
+	if t == nil {
+		t = &MultiSpreadOverlap{}
+	}
+	return t.Name
+}
+
+func (t *MultiSpreadOverlap) GetAgeFrag() *AgeFrag {
+	if t == nil {
+		t = &MultiSpreadOverlap{}
+	}
+	return &AgeFrag{
+		Age: t.Age,
+	}
+}
+func (t *MultiSpreadOverlap) GetNameAgeFrag() *NameAgeFrag {
+	if t == nil {
+		t = &MultiSpreadOverlap{}
+	}
+	return &NameAgeFrag{
+		Name: t.Name,
+		Age:  t.Age,
+	}
+}
+
+type DirectOverlap struct {
+	Age  int    "json:\"age\" graphql:\"age\""
+	Name string "json:\"name\" graphql:\"name\""
+}
+
+func (t *DirectOverlap) GetAge() int {
+	if t == nil {
+		t = &DirectOverlap{}
+	}
+	return t.Age
+}
+func (t *DirectOverlap) GetName() string {
+	if t == nil {
+		t = &DirectOverlap{}
+	}
+	return t.Name
+}
+
+func (t *DirectOverlap) GetNameFrag() *NameFrag {
+	if t == nil {
+		t = &DirectOverlap{}
+	}
+	return &NameFrag{
+		Name: t.Name,
+	}
+}
+
+type NicknameFrag struct {
+	Nickname *string "json:\"nickname,omitempty\" graphql:\"nickname\""
+}
+
+func (t *NicknameFrag) GetNickname() *string {
+	if t == nil {
+		t = &NicknameFrag{}
+	}
+	return t.Nickname
+}
+
+type PersonWithNickname struct {
+	Name     string  "json:\"name\" graphql:\"name\""
+	Nickname *string "json:\"nickname,omitempty\" graphql:\"nickname\""
+}
+
+func (t *PersonWithNickname) GetName() string {
+	if t == nil {
+		t = &PersonWithNickname{}
+	}
+	return t.Name
+}
+func (t *PersonWithNickname) GetNickname() *string {
+	if t == nil {
+		t = &PersonWithNickname{}
+	}
+	return t.Nickname
+}
+
+func (t *PersonWithNickname) GetNicknameFrag() *NicknameFrag {
+	if t == nil {
+		t = &PersonWithNickname{}
+	}
+	return &NicknameFrag{
+		Nickname: t.Nickname,
+	}
+}
+
 type ProfileBioFrag_Profile struct {
 	Bio string "json:\"bio\" graphql:\"bio\""
 }
@@ -229,6 +366,31 @@ func (t *GetFullProfile_Person_FullProfile_Profile) GetBio() string {
 	return t.Bio
 }
 
+type GetPersonDirect_Person struct {
+	Address string "json:\"address\" graphql:\"address\""
+	Age     int    "json:\"age\" graphql:\"age\""
+	Name    string "json:\"name\" graphql:\"name\""
+}
+
+func (t *GetPersonDirect_Person) GetAddress() string {
+	if t == nil {
+		t = &GetPersonDirect_Person{}
+	}
+	return t.Address
+}
+func (t *GetPersonDirect_Person) GetAge() int {
+	if t == nil {
+		t = &GetPersonDirect_Person{}
+	}
+	return t.Age
+}
+func (t *GetPersonDirect_Person) GetName() string {
+	if t == nil {
+		t = &GetPersonDirect_Person{}
+	}
+	return t.Name
+}
+
 type GetPersonBasic struct {
 	Person *PersonBasic "json:\"person\" graphql:\"person\""
 }
@@ -262,6 +424,61 @@ func (t *GetFragA) GetPerson() *FragA {
 	return t.Person
 }
 
+type GetMultiSpreadOverlap struct {
+	Person *MultiSpreadOverlap "json:\"person\" graphql:\"person\""
+}
+
+func (t *GetMultiSpreadOverlap) GetPerson() *MultiSpreadOverlap {
+	if t == nil {
+		t = &GetMultiSpreadOverlap{}
+	}
+	return t.Person
+}
+
+type GetDirectOverlap struct {
+	Person *DirectOverlap "json:\"person\" graphql:\"person\""
+}
+
+func (t *GetDirectOverlap) GetPerson() *DirectOverlap {
+	if t == nil {
+		t = &GetDirectOverlap{}
+	}
+	return t.Person
+}
+
+type GetPersonWithNickname struct {
+	Person *PersonWithNickname "json:\"person\" graphql:\"person\""
+}
+
+func (t *GetPersonWithNickname) GetPerson() *PersonWithNickname {
+	if t == nil {
+		t = &GetPersonWithNickname{}
+	}
+	return t.Person
+}
+
+type GetPersonDirect struct {
+	Person GetPersonDirect_Person "json:\"person\" graphql:\"person\""
+}
+
+func (t *GetPersonDirect) GetPerson() *GetPersonDirect_Person {
+	if t == nil {
+		t = &GetPersonDirect{}
+	}
+	return &t.Person
+}
+
+type GetPeople struct {
+	People []*PersonBasic "json:\"people\" graphql:\"people\""
+}
+
+func (t *GetPeople) GetPeople() []*PersonBasic {
+	if t == nil {
+		t = &GetPeople{}
+	}
+	return t.People
+}
+
 const GetPersonBasicDocument = `query GetPersonBasic {
 	person {
 		... PersonBasic
@@ -269,10 +486,10 @@ const GetPersonBasicDocument = `query GetPersonBasic {
 }
 fragment PersonBasic on Person {
 	... NameFrag
-	address
+	address @dummy_custom(value: "742 Evergreen Terrace")
 }
 fragment NameFrag on Person {
-	name
+	name @dummy_custom(value: "Homer Simpson")
 }
 `
 
@@ -299,13 +516,13 @@ const GetFullProfileDocument = `query GetFullProfile {
 fragment FullProfile on Person {
 	... ProfileBioFrag
 	profile {
-		bio
-		avatar
+		bio @dummy_custom(value: "Nuclear safety inspector")
+		avatar @dummy_custom(value: "https://example.com/homer.png")
 	}
 }
 fragment ProfileBioFrag on Person {
 	profile {
-		bio
+		bio @dummy_custom(value: "Nuclear safety inspector")
 	}
 }
 `
@@ -332,14 +549,14 @@ const GetFragADocument = `query GetFragA {
 }
 fragment FragA on Person {
 	... FragB
-	age
+	age @dummy_int(min: 39, max: 39)
 }
 fragment FragB on Person {
 	... FragC
-	address
+	address @dummy_custom(value: "742 Evergreen Terrace")
 }
 fragment FragC on Person {
-	name
+	name @dummy_custom(value: "Homer Simpson")
 }
 `
 
@@ -358,8 +575,161 @@ func (c *Client) GetFragA(ctx context.Context, interceptors ...clientv2.RequestI
 	return &res, nil
 }
 
+const GetMultiSpreadOverlapDocument = `query GetMultiSpreadOverlap {
+	person {
+		... MultiSpreadOverlap
+	}
+}
+fragment MultiSpreadOverlap on Person {
+	... AgeFrag
+	... NameAgeFrag
+	address @dummy_custom(value: "Springfield")
+}
+fragment AgeFrag on Person {
+	age @dummy_int(min: 39, max: 39)
+}
+fragment NameAgeFrag on Person {
+	name @dummy_custom(value: "Homer")
+	age @dummy_int(min: 39, max: 39)
+}
+`
+
+func (c *Client) GetMultiSpreadOverlap(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetMultiSpreadOverlap, error) {
+	vars := map[string]any{}
+
+	var res GetMultiSpreadOverlap
+	if err := c.Client.Post(ctx, "GetMultiSpreadOverlap", GetMultiSpreadOverlapDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+const GetDirectOverlapDocument = `query GetDirectOverlap {
+	person {
+		... DirectOverlap
+	}
+}
+fragment DirectOverlap on Person {
+	... NameFrag
+	name @dummy_custom(value: "Homer Simpson")
+	age @dummy_int(min: 10, max: 10)
+}
+fragment NameFrag on Person {
+	name @dummy_custom(value: "Homer Simpson")
+}
+`
+
+func (c *Client) GetDirectOverlap(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetDirectOverlap, error) {
+	vars := map[string]any{}
+
+	var res GetDirectOverlap
+	if err := c.Client.Post(ctx, "GetDirectOverlap", GetDirectOverlapDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+const GetPersonWithNicknameDocument = `query GetPersonWithNickname {
+	person {
+		... PersonWithNickname
+	}
+}
+fragment PersonWithNickname on Person {
+	... NicknameFrag
+	name @dummy_custom(value: "Homer Simpson")
+}
+fragment NicknameFrag on Person {
+	nickname @dummy_custom(value: "Homie")
+}
+`
+
+func (c *Client) GetPersonWithNickname(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetPersonWithNickname, error) {
+	vars := map[string]any{}
+
+	var res GetPersonWithNickname
+	if err := c.Client.Post(ctx, "GetPersonWithNickname", GetPersonWithNicknameDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+const GetPersonDirectDocument = `query GetPersonDirect {
+	person {
+		name @dummy_custom(value: "Marge Simpson")
+		address @dummy_custom(value: "742 Evergreen Terrace")
+		age @dummy_int(min: 36, max: 36)
+	}
+}
+`
+
+func (c *Client) GetPersonDirect(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetPersonDirect, error) {
+	vars := map[string]any{}
+
+	var res GetPersonDirect
+	if err := c.Client.Post(ctx, "GetPersonDirect", GetPersonDirectDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+const GetPeopleDocument = `query GetPeople ($limit: Int!) {
+	people(limit: $limit) @dummy_list_size(size: 2) {
+		... PersonBasic
+	}
+}
+fragment PersonBasic on Person {
+	... NameFrag
+	address @dummy_custom(value: "742 Evergreen Terrace")
+}
+fragment NameFrag on Person {
+	name @dummy_custom(value: "Homer Simpson")
+}
+`
+
+func (c *Client) GetPeople(ctx context.Context, limit int, interceptors ...clientv2.RequestInterceptor) (*GetPeople, error) {
+	vars := map[string]any{
+		"limit": limit,
+	}
+
+	var res GetPeople
+	if err := c.Client.Post(ctx, "GetPeople", GetPeopleDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
-	GetPersonBasicDocument: "GetPersonBasic",
-	GetFullProfileDocument: "GetFullProfile",
-	GetFragADocument:       "GetFragA",
+	GetPersonBasicDocument:        "GetPersonBasic",
+	GetFullProfileDocument:        "GetFullProfile",
+	GetFragADocument:              "GetFragA",
+	GetMultiSpreadOverlapDocument: "GetMultiSpreadOverlap",
+	GetDirectOverlapDocument:      "GetDirectOverlap",
+	GetPersonWithNicknameDocument: "GetPersonWithNickname",
+	GetPersonDirectDocument:       "GetPersonDirect",
+	GetPeopleDocument:             "GetPeople",
 }

@@ -1,11 +1,17 @@
+directive @dummy_custom(value: String!) on FIELD
+directive @dummy_list_size(size: Int!) on FIELD
+directive @dummy_int(min: Int, max: Int) on FIELD
+
 type Query {
   person: Person!
+  people(limit: Int!): [Person!]!
 }
 
 type Person {
   name: String!
   address: String!
   age: Int!
+  nickname: String
   profile: Profile!
 }
 
