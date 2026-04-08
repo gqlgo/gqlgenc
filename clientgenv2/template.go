@@ -122,7 +122,6 @@ func (g *GenGettersGenerator) returnTypeName(t types.Type, nested bool) string {
 // for spread fragments. Each getter constructs the original fragment type from the
 // flattened parent struct's fields.
 func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) func(ownerName string, spreads []*SpreadFragmentInfo) string {
-	// Build a map of fragment name -> resolved Fragment for type lookup.
 	fragmentMap := make(map[string]*Fragment, len(allFragments))
 	for _, f := range allFragments {
 		fragmentMap[f.Name] = f
@@ -136,45 +135,65 @@ func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) fu
 		var buf bytes.Buffer
 
 		for _, spread := range spreads {
-			targetFragment, ok := fragmentMap[spread.Name]
-			if !ok {
+			targetStruct := resolveTargetFragment(fragmentMap, spread)
+			if targetStruct == nil {
 				continue
 			}
 
-			targetStruct, ok := targetFragment.Type.(*types.Struct)
-			if !ok {
-				continue
-			}
-
-			targetTypeName := g.typeName(spread.Type)
-
-			buf.WriteString("func (t *" + ownerName + ") Get" + targetTypeName + "() *" + targetTypeName + " {\n")
-			buf.WriteString("if t == nil {\n t = &" + ownerName + "{}\n}\n")
-			buf.WriteString("return &" + targetTypeName + "{\n")
-			g.writeStructLiteral(&buf, targetStruct, "t")
-			buf.WriteString("}\n}\n")
+			g.writeConversionGetter(&buf, ownerName, g.typeName(spread.Type), targetStruct)
 		}
 
 		return buf.String()
 	}
 }
 
-// writeStructLiteral writes field assignments for a struct literal, recursively
-// handling nested structs with different types.
+// resolveTargetFragment looks up a spread fragment's definition and returns its
+// underlying struct type, or nil if not found.
+func resolveTargetFragment(fragmentMap map[string]*Fragment, spread *SpreadFragmentInfo) *types.Struct {
+	targetFragment, ok := fragmentMap[spread.Name]
+	if !ok {
+		return nil
+	}
+
+	targetStruct, ok := targetFragment.Type.(*types.Struct)
+	if !ok {
+		return nil
+	}
+
+	return targetStruct
+}
+
+// writeConversionGetter writes a single conversion getter method that constructs
+// the target fragment type from the owner struct's fields.
+func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName string, targetTypeName string, targetStruct *types.Struct) {
+	buf.WriteString("func (t *" + ownerName + ") Get" + targetTypeName + "() *" + targetTypeName + " {\n")
+	buf.WriteString("if t == nil {\n t = &" + ownerName + "{}\n}\n")
+	buf.WriteString("return &" + targetTypeName + "{\n")
+	g.writeStructLiteral(buf, targetStruct, "t")
+	buf.WriteString("}\n}\n")
+}
+
+// writeStructLiteral writes field assignments for a struct literal, delegating
+// each field to writeFieldAssignment.
 func (g *GenGettersGenerator) writeStructLiteral(buf *bytes.Buffer, targetStruct *types.Struct, sourceExpr string) {
 	for i := range targetStruct.NumFields() {
-		field := targetStruct.Field(i)
-		fieldName := field.Name()
+		g.writeFieldAssignment(buf, targetStruct.Field(i), sourceExpr)
+	}
+}
 
-		targetFieldStruct := underlyingStruct(field.Type())
-		if targetFieldStruct != nil {
-			// Nested struct field — check if types differ and need recursive construction.
-			buf.WriteString(fieldName + ": " + g.typeName(field.Type()) + "{\n")
-			g.writeStructLiteral(buf, targetFieldStruct, sourceExpr+"."+fieldName)
-			buf.WriteString("},\n")
-		} else {
-			buf.WriteString(fieldName + ": " + sourceExpr + "." + fieldName + ",\n")
-		}
+// writeFieldAssignment writes a single field assignment in a struct literal.
+// For named struct types, it recursively constructs a nested struct literal.
+// For other types, it directly assigns from the source expression.
+func (g *GenGettersGenerator) writeFieldAssignment(buf *bytes.Buffer, field *types.Var, sourceExpr string) {
+	fieldName := field.Name()
+
+	nestedStruct := underlyingStruct(field.Type())
+	if nestedStruct != nil {
+		buf.WriteString(fieldName + ": " + g.typeName(field.Type()) + "{\n")
+		g.writeStructLiteral(buf, nestedStruct, sourceExpr+"."+fieldName)
+		buf.WriteString("},\n")
+	} else {
+		buf.WriteString(fieldName + ": " + sourceExpr + "." + fieldName + ",\n")
 	}
 }
 
