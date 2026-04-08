@@ -3,10 +3,11 @@
 package generated
 
 type Person struct {
-	Name    string   `json:"name"`
-	Address string   `json:"address"`
-	Age     int      `json:"age"`
-	Profile *Profile `json:"profile"`
+	Name     string   `json:"name"`
+	Address  string   `json:"address"`
+	Age      int      `json:"age"`
+	Nickname *string  `json:"nickname,omitempty"`
+	Profile  *Profile `json:"profile"`
 }
 
 type Profile struct {

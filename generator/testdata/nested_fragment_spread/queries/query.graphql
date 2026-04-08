@@ -1,41 +1,41 @@
 # Case 1: Simple nested fragment spread (scalar fields only)
 fragment NameFrag on Person {
-  name
+  name @dummy_custom(value: "Homer Simpson")
 }
 
 fragment PersonBasic on Person {
   ...NameFrag
-  address
+  address @dummy_custom(value: "742 Evergreen Terrace")
 }
 
 # Case 2: Nested object field merge (different struct types after merge)
 fragment ProfileBioFrag on Person {
   profile {
-    bio
+    bio @dummy_custom(value: "Nuclear safety inspector")
   }
 }
 
 fragment FullProfile on Person {
   ...ProfileBioFrag
   profile {
-    bio
-    avatar
+    bio @dummy_custom(value: "Nuclear safety inspector")
+    avatar @dummy_custom(value: "https://example.com/homer.png")
   }
 }
 
 # Case 3: Multi-level nesting (FragA -> FragB -> FragC)
 fragment FragC on Person {
-  name
+  name @dummy_custom(value: "Homer Simpson")
 }
 
 fragment FragB on Person {
   ...FragC
-  address
+  address @dummy_custom(value: "742 Evergreen Terrace")
 }
 
 fragment FragA on Person {
   ...FragB
-  age
+  age @dummy_int(min: 39, max: 39)
 }
 
 query GetPersonBasic {
@@ -53,5 +53,72 @@ query GetFullProfile {
 query GetFragA {
   person {
     ...FragA
+  }
+}
+
+# Case 4: Multiple fragment spreads with field overlap
+fragment AgeFrag on Person {
+  age @dummy_int(min: 39, max: 39)
+}
+
+fragment NameAgeFrag on Person {
+  name @dummy_custom(value: "Homer")
+  age @dummy_int(min: 39, max: 39)
+}
+
+fragment MultiSpreadOverlap on Person {
+  ...AgeFrag
+  ...NameAgeFrag
+  address @dummy_custom(value: "Springfield")
+}
+
+query GetMultiSpreadOverlap {
+  person {
+    ...MultiSpreadOverlap
+  }
+}
+
+# Case 5: Fragment spread + direct field overlap
+fragment DirectOverlap on Person {
+  ...NameFrag
+  name @dummy_custom(value: "Homer Simpson")
+  age @dummy_int(min: 10, max: 10)
+}
+
+query GetDirectOverlap {
+  person {
+    ...DirectOverlap
+  }
+}
+
+# Case 6: Fragment with nullable field
+fragment NicknameFrag on Person {
+  nickname @dummy_custom(value: "Homie")
+}
+
+fragment PersonWithNickname on Person {
+  ...NicknameFrag
+  name @dummy_custom(value: "Homer Simpson")
+}
+
+query GetPersonWithNickname {
+  person {
+    ...PersonWithNickname
+  }
+}
+
+# Case 7: Non-fragment query coexists with fragment queries
+query GetPersonDirect {
+  person {
+    name @dummy_custom(value: "Marge Simpson")
+    address @dummy_custom(value: "742 Evergreen Terrace")
+    age @dummy_int(min: 36, max: 36)
+  }
+}
+
+# Case 8: Fragment in list query
+query GetPeople($limit: Int!) {
+  people(limit: $limit) @dummy_list_size(size: 2) {
+    ...PersonBasic
   }
 }
