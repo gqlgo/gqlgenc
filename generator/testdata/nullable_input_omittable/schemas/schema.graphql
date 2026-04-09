@@ -1,0 +1,21 @@
+directive @dummy_custom(value: String!) on FIELD
+directive @dummy_int(min: Int, max: Int) on FIELD
+directive @dummy_bool on FIELD
+directive @dummy_list_size(size: Int!) on FIELD
+
+type Query {
+    users(filter: UserFilter): [User!]!
+}
+
+input UserFilter {
+    name: String
+    age: Int
+    active: Boolean
+}
+
+type User {
+    id: ID!
+    name: String!
+    age: Int
+    active: Boolean!
+}

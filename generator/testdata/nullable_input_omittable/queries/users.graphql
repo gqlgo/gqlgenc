@@ -1,0 +1,8 @@
+query ListUsers($filter: UserFilter) {
+    users(filter: $filter) @dummy_list_size(size: 2) {
+        id @dummy_custom(value: "user-1")
+        name @dummy_custom(value: "Alice")
+        age @dummy_int(min: 25, max: 25)
+        active @dummy_bool
+    }
+}

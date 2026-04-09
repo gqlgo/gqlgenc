@@ -1,0 +1,24 @@
+fragment UserProfile on User {
+    name @dummy_custom(value: "Alice")
+    profile {
+        bio @dummy_custom(value: "Software engineer")
+    }
+}
+
+query GetUser($id: ID!) {
+    user(id: $id) {
+        ...UserProfile
+        id @dummy_custom(value: "user-789")
+    }
+}
+
+query GetUserDirect($id: ID!) {
+    user(id: $id) {
+        id @dummy_custom(value: "user-direct")
+        name @dummy_custom(value: "Bob")
+        profile {
+            bio @dummy_custom(value: "Designer")
+            avatar @dummy_custom(value: "https://example.com/bob.png")
+        }
+    }
+}

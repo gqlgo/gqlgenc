@@ -1,0 +1,27 @@
+query GetPost($id: ID!) {
+    post(id: $id) {
+        id
+        title
+        content
+        author {
+            id
+            name
+        }
+    }
+}
+
+mutation CreateUser($input: CreateUserInput!) {
+    createUser(input: $input) {
+        id
+        name
+        email
+    }
+}
+
+mutation UpdatePost($id: ID!, $input: UpdatePostInput!) {
+    updatePost(id: $id, input: $input) {
+        id
+        title
+        content
+    }
+}
