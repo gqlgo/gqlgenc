@@ -23,14 +23,21 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		// only generate used models
 		if cfg.Generate.OnlyUsedModels != nil && *cfg.Generate.OnlyUsedModels {
 			var newModels []*modelgen.Object
-
 			for _, model := range build.Models {
 				if usedTypes[model.Name] {
 					newModels = append(newModels, model)
 				}
 			}
-
 			build.Models = newModels
+
+			var newEnums []*modelgen.Enum
+			for _, enum := range build.Enums {
+				if usedTypes[enum.Name] {
+					newEnums = append(newEnums, enum)
+				}
+			}
+			build.Enums = newEnums
+
 			build.Interfaces = nil
 		}
 

@@ -19,8 +19,19 @@ type Todo {
     id: ID!
     text: String!
     userId: String!
+    status: TodoStatus!
 }
 
 type TodoPage {
     todos: [Todo!]!
+}
+
+enum TodoStatus {
+    OPEN
+    DONE
+}
+
+enum UnusedEnum {
+    FOO
+    BAR
 }
