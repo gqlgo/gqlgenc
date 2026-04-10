@@ -2,6 +2,7 @@ mutation CreateMany($todos: NewTodos!) {
     createTodos(input: $todos) {
         todos {
             id
+            status
         }
     }
 }

@@ -17,7 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type CreateMany_CreateTodos_Todos struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID     string     "json:\"id\" graphql:\"id\""
+	Status TodoStatus "json:\"status\" graphql:\"status\""
 }
 
 func (t *CreateMany_CreateTodos_Todos) GetID() string {
@@ -25,6 +26,12 @@ func (t *CreateMany_CreateTodos_Todos) GetID() string {
 		t = &CreateMany_CreateTodos_Todos{}
 	}
 	return t.ID
+}
+func (t *CreateMany_CreateTodos_Todos) GetStatus() *TodoStatus {
+	if t == nil {
+		t = &CreateMany_CreateTodos_Todos{}
+	}
+	return &t.Status
 }
 
 type CreateMany_CreateTodos struct {
@@ -53,6 +60,7 @@ const CreateManyDocument = `mutation CreateMany ($todos: NewTodos!) {
 	createTodos(input: $todos) {
 		todos {
 			id
+			status
 		}
 	}
 }
