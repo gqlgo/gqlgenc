@@ -121,39 +121,30 @@ func TestCollectTypesFromQueryDocuments(t *testing.T) {
 
 		require.True(t, usedTypes["NewTodos"], "input type from variable definition should be collected")
 		require.True(t, usedTypes["NewTodo"], "nested input type should be collected recursively")
+		require.False(t, usedTypes["TodoStatus"], "enum not selected in response should not be collected")
+		require.False(t, usedTypes["UnusedEnum"], "unreferenced enum should not be collected")
 	})
 
-	t.Run("multiple queries", func(t *testing.T) {
+	t.Run("enum in fragment spread", func(t *testing.T) {
 		t.Parallel()
 
-		schema := gqlparser.MustLoadSchema(&ast.Source{Input: testSchema})
+		schema, docs := loadSchemaAndQuery(t, `
+			fragment TodoFields on Todo {
+				id
+				status
+			}
 
-		q1, errs := gqlparser.LoadQuery(schema, `
-			mutation CreateMany($todos: NewTodos!) {
-				createTodos(input: $todos) {
-					todos { id status }
+			query GetTodos {
+				todos {
+					...TodoFields
 				}
 			}
 		`)
-		require.Empty(t, errs)
-
-		q2, errs := gqlparser.LoadQuery(schema, `
-			query GetBySortOrder($order: SortOrder!) {
-				todosBySortOrder(order: $order) { id }
-			}
-		`)
-		require.Empty(t, errs)
-
-		allOps := append(q1.Operations, q2.Operations...)
-		docs, err := querydocument.QueryDocumentsByOperations(schema, allOps)
-		require.NoError(t, err)
 
 		usedTypes := querydocument.CollectTypesFromQueryDocuments(schema, docs)
 
-		require.True(t, usedTypes["TodoStatus"], "enum from response field should be collected")
-		require.True(t, usedTypes["SortOrder"], "enum from argument should be collected")
-		require.True(t, usedTypes["NewTodos"], "input type should be collected")
-		require.True(t, usedTypes["NewTodo"], "nested input type should be collected")
+		require.True(t, usedTypes["TodoStatus"], "enum selected inside a fragment spread should be collected")
 		require.False(t, usedTypes["UnusedEnum"], "unreferenced enum should not be collected")
 	})
+
 }
