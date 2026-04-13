@@ -1,5 +1,6 @@
 type Query {
     todos: [Todo!]!
+    todosBySortOrder(order: SortOrder!): [Todo!]!
 }
 
 input NewTodo {
@@ -20,6 +21,7 @@ type Todo {
     text: String!
     userId: String!
     status: TodoStatus!
+    unusedField: UnusedEnum
 }
 
 type TodoPage {
@@ -29,6 +31,11 @@ type TodoPage {
 enum TodoStatus {
     OPEN
     DONE
+}
+
+enum SortOrder {
+    ASC
+    DESC
 }
 
 enum UnusedEnum {
