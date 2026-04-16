@@ -17,7 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type CreateMany_CreateTodos_Todos struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID     string     "json:\"id\" graphql:\"id\""
+	Status TodoStatus "json:\"status\" graphql:\"status\""
 }
 
 func (t *CreateMany_CreateTodos_Todos) GetID() string {
@@ -25,6 +26,12 @@ func (t *CreateMany_CreateTodos_Todos) GetID() string {
 		t = &CreateMany_CreateTodos_Todos{}
 	}
 	return t.ID
+}
+func (t *CreateMany_CreateTodos_Todos) GetStatus() *TodoStatus {
+	if t == nil {
+		t = &CreateMany_CreateTodos_Todos{}
+	}
+	return &t.Status
 }
 
 type CreateMany_CreateTodos struct {
@@ -38,6 +45,17 @@ func (t *CreateMany_CreateTodos) GetTodos() []*CreateMany_CreateTodos_Todos {
 	return t.Todos
 }
 
+type GetBySortOrder_TodosBySortOrder struct {
+	ID string "json:\"id\" graphql:\"id\""
+}
+
+func (t *GetBySortOrder_TodosBySortOrder) GetID() string {
+	if t == nil {
+		t = &GetBySortOrder_TodosBySortOrder{}
+	}
+	return t.ID
+}
+
 type CreateMany struct {
 	CreateTodos *CreateMany_CreateTodos "json:\"createTodos,omitempty\" graphql:\"createTodos\""
 }
@@ -49,10 +67,22 @@ func (t *CreateMany) GetCreateTodos() *CreateMany_CreateTodos {
 	return t.CreateTodos
 }
 
+type GetBySortOrder struct {
+	TodosBySortOrder []*GetBySortOrder_TodosBySortOrder "json:\"todosBySortOrder\" graphql:\"todosBySortOrder\""
+}
+
+func (t *GetBySortOrder) GetTodosBySortOrder() []*GetBySortOrder_TodosBySortOrder {
+	if t == nil {
+		t = &GetBySortOrder{}
+	}
+	return t.TodosBySortOrder
+}
+
 const CreateManyDocument = `mutation CreateMany ($todos: NewTodos!) {
 	createTodos(input: $todos) {
 		todos {
 			id
+			status
 		}
 	}
 }
@@ -75,6 +105,31 @@ func (c *Client) CreateMany(ctx context.Context, todos NewTodos, interceptors ..
 	return &res, nil
 }
 
+const GetBySortOrderDocument = `query GetBySortOrder ($order: SortOrder!) {
+	todosBySortOrder(order: $order) {
+		id
+	}
+}
+`
+
+func (c *Client) GetBySortOrder(ctx context.Context, order SortOrder, interceptors ...clientv2.RequestInterceptor) (*GetBySortOrder, error) {
+	vars := map[string]any{
+		"order": order,
+	}
+
+	var res GetBySortOrder
+	if err := c.Client.Post(ctx, "GetBySortOrder", GetBySortOrderDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
-	CreateManyDocument: "CreateMany",
+	CreateManyDocument:     "CreateMany",
+	GetBySortOrderDocument: "GetBySortOrder",
 }

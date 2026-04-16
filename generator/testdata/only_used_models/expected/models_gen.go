@@ -2,6 +2,13 @@
 
 package generated
 
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
 type NewTodo struct {
 	Text   string `json:"text"`
 	UserID string `json:"userId"`
@@ -9,4 +16,114 @@ type NewTodo struct {
 
 type NewTodos struct {
 	Todos []*NewTodo `json:"todos"`
+}
+
+type SortOrder string
+
+const (
+	SortOrderAsc  SortOrder = "ASC"
+	SortOrderDesc SortOrder = "DESC"
+)
+
+var AllSortOrder = []SortOrder{
+	SortOrderAsc,
+	SortOrderDesc,
+}
+
+func (e SortOrder) IsValid() bool {
+	switch e {
+	case SortOrderAsc, SortOrderDesc:
+		return true
+	}
+	return false
+}
+
+func (e SortOrder) String() string {
+	return string(e)
+}
+
+func (e *SortOrder) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SortOrder(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SortOrder", str)
+	}
+	return nil
+}
+
+func (e SortOrder) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SortOrder) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortOrder) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TodoStatus string
+
+const (
+	TodoStatusOpen TodoStatus = "OPEN"
+	TodoStatusDone TodoStatus = "DONE"
+)
+
+var AllTodoStatus = []TodoStatus{
+	TodoStatusOpen,
+	TodoStatusDone,
+}
+
+func (e TodoStatus) IsValid() bool {
+	switch e {
+	case TodoStatusOpen, TodoStatusDone:
+		return true
+	}
+	return false
+}
+
+func (e TodoStatus) String() string {
+	return string(e)
+}
+
+func (e *TodoStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoStatus", str)
+	}
+	return nil
+}
+
+func (e TodoStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TodoStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TodoStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
