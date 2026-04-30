@@ -1,0 +1,8 @@
+type Query {
+    getThing: Thing
+}
+
+type Thing {
+    id: ID!
+    flag: Boolean
+}

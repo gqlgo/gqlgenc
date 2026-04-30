@@ -1,0 +1,6 @@
+query GetThing {
+    getThing {
+        id
+        flag
+    }
+}
