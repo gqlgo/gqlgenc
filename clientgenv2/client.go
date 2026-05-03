@@ -24,6 +24,9 @@ type Plugin struct {
 }
 
 func New(queryDocument *ast.QueryDocument, operationQueryDocuments []*ast.QueryDocument, client config.PackageConfig, generateConfig *gqlgencConfig.GenerateConfig) *Plugin {
+	if generateConfig == nil {
+		generateConfig = &gqlgencConfig.GenerateConfig{}
+	}
 	return &Plugin{
 		queryDocument:           queryDocument,
 		operationQueryDocuments: operationQueryDocuments,
@@ -33,6 +36,9 @@ func New(queryDocument *ast.QueryDocument, operationQueryDocuments []*ast.QueryD
 }
 
 func NewWithQueryDocument(queryFilePaths []string, client config.PackageConfig, generateConfig *gqlgencConfig.GenerateConfig) *Plugin {
+	if generateConfig == nil {
+		generateConfig = &gqlgencConfig.GenerateConfig{}
+	}
 	return &Plugin{
 		queryFilePaths: queryFilePaths,
 		Client:         client,
