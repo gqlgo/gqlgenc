@@ -22,7 +22,7 @@ type Source struct {
 
 func NewSource(schema *ast.Schema, queryDocument *ast.QueryDocument, sourceGenerator *SourceGenerator, generateConfig *config.GenerateConfig) *Source {
 	if generateConfig == nil {
-		generateConfig = &config.GenerateConfig{}
+		generateConfig = new(config.GenerateConfig)
 	}
 	return &Source{
 		schema:          schema,

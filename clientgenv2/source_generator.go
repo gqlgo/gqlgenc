@@ -222,7 +222,7 @@ type SourceGenerator struct {
 
 func NewSourceGenerator(cfg *config.Config, client config.PackageConfig, generateConfig *gqlgencConfig.GenerateConfig) *SourceGenerator {
 	if generateConfig == nil {
-		generateConfig = &gqlgencConfig.GenerateConfig{}
+		generateConfig = new(gqlgencConfig.GenerateConfig)
 	}
 	return &SourceGenerator{
 		cfg:            cfg,
