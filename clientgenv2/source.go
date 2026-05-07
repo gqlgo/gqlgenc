@@ -21,6 +21,9 @@ type Source struct {
 }
 
 func NewSource(schema *ast.Schema, queryDocument *ast.QueryDocument, sourceGenerator *SourceGenerator, generateConfig *config.GenerateConfig) *Source {
+	if generateConfig == nil {
+		generateConfig = new(config.GenerateConfig)
+	}
 	return &Source{
 		schema:          schema,
 		queryDocument:   queryDocument,
