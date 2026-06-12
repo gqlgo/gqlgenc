@@ -96,9 +96,9 @@ import (
 func main() {
 	ctx := context.Background()
 
-	c := query.NewClient(client.NewClient("https://api.example.com/graphql"))
+	c := client.NewClient("https://api.example.com/graphql")
 
-	res, err := c.GetUser(ctx, "user-1")
+	res, err := client.Do(ctx, c, query.GetUserOp, query.GetUserVars{ID: "user-1"})
 	if err != nil {
 		// エラー処理
 	}
@@ -118,7 +118,7 @@ func main() {
 |---|---|---|
 | `query` | `[]string` | クエリファイルのパス（glob 可） |
 | `querygen` | `filename` / `package` | レスポンス型・UnmarshalJSON・クエリドキュメント定数の生成先。`package` 省略時はディレクトリ名から導出 |
-| `clientgen` | `filename` / `package` | クライアントメソッドの生成先。指定する場合は `querygen` の指定も必須 |
+| `clientgen` | `filename` / `package` | 型付き variables 構造体と `client.Operation` 値の生成先。指定する場合は `querygen` の指定も必須 |
 | `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
 | `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる |
 
@@ -171,16 +171,22 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 ### client_gen.go（clientgen）
 
-ランタイムの `client.Client` をラップする `Client` 型と、オペレーションごとの実行メソッドを生成します。オペレーションの変数定義がそのままメソッド引数になります。
+オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します。実行は `client.Do` で行い、変数名や型のミスはコンパイルエラーになります。
 
 ```go
-func (c *Client) UserOperation(ctx context.Context, articleID string, size *int, options ...client.Option) (*domain.UserOperation, error)
+type UserOperationVars struct {
+	ArticleID string `json:"articleId"`
+	Size      *int   `json:"size"`
+}
+
+var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
+	Name:     "UserOperation",
+	Document: domain.UserOperationDocument,
+}
 ```
 
-オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）も生成され、`client.Do` で型付きのまま実行できます。変数名や型のミスはコンパイルエラーになります。
-
 ```go
-res, err := client.Do(ctx, rawClient, query.UserOperationOp, query.UserOperationVars{
+res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
 	ArticleID: "article-1",
 	Size:      &size,
 })
@@ -193,8 +199,8 @@ res, err := client.Do(ctx, rawClient, query.UserOperationOp, query.UserOperation
 - `client.NewClient(endpoint string, options ...Option) *Client`
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
-- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — 生成されたクライアントメソッドから呼ばれる低レベル API
-- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する。`graphql.Upload` を含むオペレーションには非対応（生成メソッドまたは `Post` を使う）
+- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する。`graphql.Upload` を含むオペレーションには非対応（`Post` を使う）
+- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — map 変数でオペレーションを実行する低レベル API。`graphql.Upload` を含むオペレーション（multipart）はこちらを使う
 
 ### リクエスト仕様
 
@@ -250,7 +256,7 @@ input := UpdateUserInput{
 | `codegen` | オペレーションと Go 型（go/types）の構築 |
 | `plugins/modelgen` | gqlgen modelgen のラップ（未使用型のフィルタリング） |
 | `plugins/querygen` | レスポンス型・UnmarshalJSON・ドキュメント定数の生成 |
-| `plugins/clientgen` | クライアントメソッドの生成 |
+| `plugins/clientgen` | 型付き Operation 値の生成 |
 | `client` | ランタイムの HTTP クライアント |
 
 ## 開発
