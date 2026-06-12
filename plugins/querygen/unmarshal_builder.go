@@ -16,31 +16,129 @@ func NewUnmarshalBuilder() *UnmarshalBuilder {
 	}
 }
 
-// BuildUnmarshalMethod は完全な UnmarshalJSON メソッド本体を構築する。
+// BuildUnmarshalMethod は完全な UnmarshalJSONFrom メソッド本体を構築する。
 //
-// 生成されるメソッドは3種類のフィールドを処理する:
-//  1. 通常フィールド: JSON キーからアンマーシャル (json:"fieldName")
-//  2. Fragment spreads: json:"-" を持つ埋め込みフィールド（GraphQL fragments）
-//  3. Inline fragments: __typename に基づく型条件付きフィールド
+// 生成されるメソッドは jsontext.Decoder から直接デコードする (json/v2 の
+// UnmarshalerFrom)。フィールド構成によって2つのモードを使い分ける:
 //
-// メソッドは jsontext.Value (json/v2) を使用して、raw JSON マップでの
-// フィールド存在チェック時の不要なアロケーションを回避する。
+//  1. ストリーミングモード: 通常フィールドのみの型。トークンを1パスで読み、
+//     各フィールドへ直接デコードする。中間バッファを作らない。
+//  2. バッファモード: fragment spreads (json:"-" の埋め込みフィールド) や
+//     inline fragments (__typename による型分岐) を含む型。同じ JSON データを
+//     複数のターゲットへデコードする必要があるため、値全体を一度だけバッファする。
 //
 // パラメータ:
 //   - fields: 型のフィールド情報のリスト
 //
 // 戻り値:
-//   - []Statement: UnmarshalJSON メソッド本体のステートメントリスト
+//   - []Statement: UnmarshalJSONFrom メソッド本体のステートメントリスト
 func (b *UnmarshalBuilder) BuildUnmarshalMethod(fields []FieldInfo) []Statement {
+	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesList(fields)
+
+	if len(fragmentSpreads) == 0 && len(inlineFragments) == 0 {
+		return b.buildStreamingMethod(regularFields)
+	}
+
+	return b.buildBufferedMethod(regularFields, fragmentSpreads, inlineFragments)
+}
+
+// buildStreamingMethod は通常フィールドのみの型のメソッド本体を構築する。
+//
+// トークンを1パスで読み、メンバー名の switch で各フィールドへ
+// json.UnmarshalDecode する。未知のメンバーは SkipValue で読み飛ばす。
+// JSON null は値を消費してゼロ値のまま返す。
+//
+// パラメータ:
+//   - regularFields: 通常フィールドのリスト
+//
+// 戻り値:
+//   - []Statement: メソッド本体のステートメントリスト
+func (b *UnmarshalBuilder) buildStreamingMethod(regularFields []FieldInfo) []Statement {
 	var statements []Statement
 
-	// 1. Declare raw map variable (using jsontext.Value for json/v2).
+	// 1. JSON null は値を消費してゼロ値のまま返す。
+	statements = append(statements, &IfStatement{
+		Condition: "dec.PeekKind() == 'n'",
+		Body: []Statement{
+			&RawStatement{Code: "_, err := dec.ReadToken()"},
+			&ReturnStatement{Value: "err"},
+		},
+	})
+
+	// 2. オブジェクト開始トークンを読む。
+	statements = append(statements,
+		&RawStatement{Code: "tok, err := dec.ReadToken()"},
+		&IfStatement{
+			Condition: "err != nil",
+			Body:      []Statement{&ReturnStatement{Value: "err"}},
+		},
+		&IfStatement{
+			Condition: "tok.Kind() != '{'",
+			Body: []Statement{
+				&ReturnStatement{Value: `fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())`},
+			},
+		},
+	)
+
+	// 3. メンバー名ごとに対応するフィールドへストリーミングデコードする。
+	statements = append(statements, &ForStatement{
+		Condition: "dec.PeekKind() != '}'",
+		Body: []Statement{
+			&RawStatement{Code: "name, err := dec.ReadToken()"},
+			&IfStatement{
+				Condition: "err != nil",
+				Body:      []Statement{&ReturnStatement{Value: "err"}},
+			},
+			&SwitchStatement{
+				Expr:  "name.String()",
+				Cases: b.fieldDecoder.DecodeFieldCases("t", regularFields),
+				Default: []Statement{
+					&ErrorCheckStatement{
+						ErrorExpr: "dec.SkipValue()",
+						Body:      []Statement{&ReturnStatement{Value: "err"}},
+					},
+				},
+			},
+		},
+	})
+
+	// 4. オブジェクト終了トークンを読む。
+	statements = append(statements, &RawStatement{Code: "if _, err := dec.ReadToken(); err != nil {\n\t\treturn err\n\t}"})
+	statements = append(statements, &ReturnStatement{Value: "nil"})
+
+	return statements
+}
+
+// buildBufferedMethod は fragment を含む型のメソッド本体を構築する。
+//
+// 同じ JSON データを親フィールドと fragment の両方へデコードする必要が
+// あるため、dec.ReadValue で値全体を一度だけバッファし、従来どおり
+// raw マップ経由でフィールドをデコードする。
+//
+// パラメータ:
+//   - regularFields: 通常フィールドのリスト
+//   - fragmentSpreads: fragment spread フィールドのリスト
+//   - inlineFragments: inline fragment フィールドのリスト
+//
+// 戻り値:
+//   - []Statement: メソッド本体のステートメントリスト
+func (b *UnmarshalBuilder) buildBufferedMethod(regularFields, fragmentSpreads []FieldInfo, inlineFragments []InlineFragmentInfo) []Statement {
+	var statements []Statement
+
+	// 1. 値全体を一度だけバッファする。
+	statements = append(statements,
+		&RawStatement{Code: "data, err := dec.ReadValue()"},
+		&IfStatement{
+			Condition: "err != nil",
+			Body:      []Statement{&ReturnStatement{Value: "err"}},
+		},
+	)
+
+	// 2. raw マップへデコードする。
 	statements = append(statements, &VariableDecl{
 		Name: "raw",
 		Type: "map[string]jsontext.Value",
 	})
-
-	// 2. Unmarshal data into raw map.
 	statements = append(statements, &ErrorCheckStatement{
 		ErrorExpr: "json.Unmarshal(data, &raw)",
 		Body: []Statement{
@@ -48,26 +146,16 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(fields []FieldInfo) []Statement 
 		},
 	})
 
-	// 3. Define target and raw expressions for field decoding.
-	targetExpr := "t"
-	rawExpr := "raw"
+	// 3. Decode regular fields from raw map.
+	statements = append(statements, b.fieldDecoder.DecodeFields("t", "raw", regularFields)...)
 
-	// 4. Separate regular fields, fragment spreads, and inline fragments.
-	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesList(fields)
+	// 4. Decode fragment spreads (non-pointer embedded fields with json:"-").
+	statements = append(statements, b.decodeFragmentSpreads(fragmentSpreads)...)
 
-	// 5. Decode regular fields from raw map.
-	fieldStatements := b.fieldDecoder.DecodeFields(targetExpr, rawExpr, regularFields)
-	statements = append(statements, fieldStatements...)
+	// 5. Decode inline fragments (__typename based).
+	statements = append(statements, b.inlineDecoder.DecodeInlineFragments("t", "raw", inlineFragments)...)
 
-	// 6. Decode fragment spreads (non-pointer embedded fields with json:"-").
-	fragmentStatements := b.decodeFragmentSpreads(fragmentSpreads)
-	statements = append(statements, fragmentStatements...)
-
-	// 7. Decode inline fragments (__typename based).
-	inlineStatements := b.inlineDecoder.DecodeInlineFragments(targetExpr, rawExpr, inlineFragments)
-	statements = append(statements, inlineStatements...)
-
-	// 8. Return nil on success.
+	// 6. Return nil on success.
 	statements = append(statements, &ReturnStatement{Value: "nil"})
 
 	return statements

@@ -5,6 +5,7 @@ package domain
 import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"fmt"
 )
 
 type PrivateAddressFields struct {
@@ -97,15 +98,36 @@ type UpdateUser struct {
 	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitzero\""
 }
 
-func (t *UpdateUser) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UpdateUser) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["updateUser"]; ok {
-		if err := json.Unmarshal(value, &t.UpdateUser); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
 		}
+		switch name.String() {
+		case "updateUser":
+			if err := json.UnmarshalDecode(dec, &t.UpdateUser); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -120,15 +142,36 @@ type UpdateUser_UpdateUser struct {
 	User UpdateUser_UpdateUser_User "json:\"user,omitzero\""
 }
 
-func (t *UpdateUser_UpdateUser) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UpdateUser_UpdateUser) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["user"]; ok {
-		if err := json.Unmarshal(value, &t.User); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
 		}
+		switch name.String() {
+		case "user":
+			if err := json.UnmarshalDecode(dec, &t.User); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -144,20 +187,40 @@ type UpdateUser_UpdateUser_User struct {
 	Settings *UpdateUser_UpdateUser_User_Settings "json:\"settings\""
 }
 
-func (t *UpdateUser_UpdateUser_User) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UpdateUser_UpdateUser_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["name"]; ok {
-		if err := json.Unmarshal(value, &t.Name); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "name":
+			if err := json.UnmarshalDecode(dec, &t.Name); err != nil {
+				return err
+			}
+		case "settings":
+			if err := json.UnmarshalDecode(dec, &t.Settings); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["settings"]; ok {
-		if err := json.Unmarshal(value, &t.Settings); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -179,20 +242,40 @@ type UpdateUser_UpdateUser_User_Settings struct {
 	Theme         string "json:\"theme,omitzero\""
 }
 
-func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UpdateUser_UpdateUser_User_Settings) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["notifications"]; ok {
-		if err := json.Unmarshal(value, &t.Notifications); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "notifications":
+			if err := json.UnmarshalDecode(dec, &t.Notifications); err != nil {
+				return err
+			}
+		case "theme":
+			if err := json.UnmarshalDecode(dec, &t.Theme); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["theme"]; ok {
-		if err := json.Unmarshal(value, &t.Theme); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -255,7 +338,11 @@ type UserFragment1_Profile struct {
 	Typename *string "json:\"__typename\""
 }
 
-func (t *UserFragment1_Profile) UnmarshalJSON(data []byte) error {
+func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -314,15 +401,36 @@ type UserFragment2 struct {
 	Name string "json:\"name,omitzero\""
 }
 
-func (t *UserFragment2) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserFragment2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["name"]; ok {
-		if err := json.Unmarshal(value, &t.Name); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
 		}
+		switch name.String() {
+		case "name":
+			if err := json.UnmarshalDecode(dec, &t.Name); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -340,30 +448,48 @@ type UserOperation struct {
 	User         UserOperation_User          "json:\"user,omitzero\""
 }
 
-func (t *UserOperation) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["article"]; ok {
-		if err := json.Unmarshal(value, &t.Article); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "article":
+			if err := json.UnmarshalDecode(dec, &t.Article); err != nil {
+				return err
+			}
+		case "metadata":
+			if err := json.UnmarshalDecode(dec, &t.Metadata); err != nil {
+				return err
+			}
+		case "optionalUser":
+			if err := json.UnmarshalDecode(dec, &t.OptionalUser); err != nil {
+				return err
+			}
+		case "user":
+			if err := json.UnmarshalDecode(dec, &t.User); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["metadata"]; ok {
-		if err := json.Unmarshal(value, &t.Metadata); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalUser"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalUser); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["user"]; ok {
-		if err := json.Unmarshal(value, &t.User); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -413,100 +539,104 @@ type UserOperation_Article struct {
 	Title                string                                      "json:\"title,omitzero\""
 }
 
-func (t *UserOperation_Article) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation_Article) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["addresses"]; ok {
-		if err := json.Unmarshal(value, &t.Addresses); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "addresses":
+			if err := json.UnmarshalDecode(dec, &t.Addresses); err != nil {
+				return err
+			}
+		case "comments":
+			if err := json.UnmarshalDecode(dec, &t.Comments); err != nil {
+				return err
+			}
+		case "fullyNullableList":
+			if err := json.UnmarshalDecode(dec, &t.FullyNullableList); err != nil {
+				return err
+			}
+		case "id":
+			if err := json.UnmarshalDecode(dec, &t.ID); err != nil {
+				return err
+			}
+		case "matrix":
+			if err := json.UnmarshalDecode(dec, &t.Matrix); err != nil {
+				return err
+			}
+		case "nullableElementsList":
+			if err := json.UnmarshalDecode(dec, &t.NullableElementsList); err != nil {
+				return err
+			}
+		case "optionalAddresses":
+			if err := json.UnmarshalDecode(dec, &t.OptionalAddresses); err != nil {
+				return err
+			}
+		case "optionalComments":
+			if err := json.UnmarshalDecode(dec, &t.OptionalComments); err != nil {
+				return err
+			}
+		case "optionalMatrix":
+			if err := json.UnmarshalDecode(dec, &t.OptionalMatrix); err != nil {
+				return err
+			}
+		case "optionalProfiles":
+			if err := json.UnmarshalDecode(dec, &t.OptionalProfiles); err != nil {
+				return err
+			}
+		case "optionalRating":
+			if err := json.UnmarshalDecode(dec, &t.OptionalRating); err != nil {
+				return err
+			}
+		case "optionalStatuses":
+			if err := json.UnmarshalDecode(dec, &t.OptionalStatuses); err != nil {
+				return err
+			}
+		case "optionalTags":
+			if err := json.UnmarshalDecode(dec, &t.OptionalTags); err != nil {
+				return err
+			}
+		case "profiles":
+			if err := json.UnmarshalDecode(dec, &t.Profiles); err != nil {
+				return err
+			}
+		case "rating":
+			if err := json.UnmarshalDecode(dec, &t.Rating); err != nil {
+				return err
+			}
+		case "statuses":
+			if err := json.UnmarshalDecode(dec, &t.Statuses); err != nil {
+				return err
+			}
+		case "tags":
+			if err := json.UnmarshalDecode(dec, &t.Tags); err != nil {
+				return err
+			}
+		case "title":
+			if err := json.UnmarshalDecode(dec, &t.Title); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["comments"]; ok {
-		if err := json.Unmarshal(value, &t.Comments); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["fullyNullableList"]; ok {
-		if err := json.Unmarshal(value, &t.FullyNullableList); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.ID); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["matrix"]; ok {
-		if err := json.Unmarshal(value, &t.Matrix); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["nullableElementsList"]; ok {
-		if err := json.Unmarshal(value, &t.NullableElementsList); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalAddresses"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalAddresses); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalComments"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalComments); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalMatrix"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalMatrix); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalProfiles"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalProfiles); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalRating"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalRating); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalStatuses"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalStatuses); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["optionalTags"]; ok {
-		if err := json.Unmarshal(value, &t.OptionalTags); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["profiles"]; ok {
-		if err := json.Unmarshal(value, &t.Profiles); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["rating"]; ok {
-		if err := json.Unmarshal(value, &t.Rating); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["statuses"]; ok {
-		if err := json.Unmarshal(value, &t.Statuses); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["tags"]; ok {
-		if err := json.Unmarshal(value, &t.Tags); err != nil {
-			return err
-		}
-	}
-	if value, ok := raw["title"]; ok {
-		if err := json.Unmarshal(value, &t.Title); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -625,7 +755,11 @@ type UserOperation_Article_Addresses struct {
 	Street               string "json:\"street,omitzero\""
 }
 
-func (t *UserOperation_Article_Addresses) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -667,20 +801,40 @@ type UserOperation_Article_Comments struct {
 	Text string "json:\"text,omitzero\""
 }
 
-func (t *UserOperation_Article_Comments) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation_Article_Comments) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.ID); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "id":
+			if err := json.UnmarshalDecode(dec, &t.ID); err != nil {
+				return err
+			}
+		case "text":
+			if err := json.UnmarshalDecode(dec, &t.Text); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["text"]; ok {
-		if err := json.Unmarshal(value, &t.Text); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -708,7 +862,11 @@ type UserOperation_Article_OptionalAddresses struct {
 	Street   string  "json:\"street,omitzero\""
 }
 
-func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -779,20 +937,40 @@ type UserOperation_Article_OptionalComments struct {
 	Text string "json:\"text,omitzero\""
 }
 
-func (t *UserOperation_Article_OptionalComments) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation_Article_OptionalComments) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.ID); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "id":
+			if err := json.UnmarshalDecode(dec, &t.ID); err != nil {
+				return err
+			}
+		case "text":
+			if err := json.UnmarshalDecode(dec, &t.Text); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["text"]; ok {
-		if err := json.Unmarshal(value, &t.Text); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -819,7 +997,11 @@ type UserOperation_Article_OptionalProfiles struct {
 	Typename *string "json:\"__typename\""
 }
 
-func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -879,7 +1061,11 @@ type UserOperation_Article_Profiles struct {
 	PublicProfileFields  "json:\"-\""
 }
 
-func (t *UserOperation_Article_Profiles) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_Article_Profiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -910,20 +1096,40 @@ type UserOperation_Metadata struct {
 	ID   string  "json:\"id,omitzero\""
 }
 
-func (t *UserOperation_Metadata) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation_Metadata) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["data"]; ok {
-		if err := json.Unmarshal(value, &t.Data); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "data":
+			if err := json.UnmarshalDecode(dec, &t.Data); err != nil {
+				return err
+			}
+		case "id":
+			if err := json.UnmarshalDecode(dec, &t.ID); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["id"]; ok {
-		if err := json.Unmarshal(value, &t.ID); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -945,20 +1151,40 @@ type UserOperation_OptionalUser struct {
 	Name  string "json:\"name,omitzero\""
 }
 
-func (t *UserOperation_OptionalUser) UnmarshalJSON(data []byte) error {
-	var raw map[string]jsontext.Value
-	if err := json.Unmarshal(data, &raw); err != nil {
+func (t *UserOperation_OptionalUser) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if dec.PeekKind() == 'n' {
+		_, err := dec.ReadToken()
 		return err
 	}
-	if value, ok := raw["email"]; ok {
-		if err := json.Unmarshal(value, &t.Email); err != nil {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != '{' {
+		return fmt.Errorf("unexpected JSON kind %v, expected object", tok.Kind())
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
 			return err
+		}
+		switch name.String() {
+		case "email":
+			if err := json.UnmarshalDecode(dec, &t.Email); err != nil {
+				return err
+			}
+		case "name":
+			if err := json.UnmarshalDecode(dec, &t.Name); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
-	if value, ok := raw["name"]; ok {
-		if err := json.Unmarshal(value, &t.Name); err != nil {
-			return err
-		}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -996,7 +1222,11 @@ type UserOperation_User struct {
 	SmallPic        string                              "json:\"smallPic,omitzero\""
 }
 
-func (t *UserOperation_User) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1196,7 +1426,11 @@ type UserOperation_User_Address struct {
 	Street               string "json:\"street,omitzero\""
 }
 
-func (t *UserOperation_User_Address) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1246,7 +1480,11 @@ type UserOperation_User_OptionalAddress struct {
 	Street   string  "json:\"street,omitzero\""
 }
 
-func (t *UserOperation_User_OptionalAddress) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1321,7 +1559,11 @@ type UserOperation_User_OptionalProfile struct {
 	PublicProfileFields  "json:\"-\""
 }
 
-func (t *UserOperation_User_OptionalProfile) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User_OptionalProfile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1352,7 +1594,11 @@ type UserOperation_User_Profile struct {
 	PublicProfileFields  "json:\"-\""
 }
 
-func (t *UserOperation_User_Profile) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1388,7 +1634,11 @@ type UserOperation_User_Profile2 struct {
 	Typename *string "json:\"__typename\""
 }
 
-func (t *UserOperation_User_Profile2) UnmarshalJSON(data []byte) error {
+func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -92,29 +93,50 @@ func (er *errorResponse) Error() string {
 	return string(content)
 }
 
-// response is a GraphQL layer response from a handler.
-type response struct {
-	Data   jsontext.Value `json:"data"`
-	Errors jsontext.Value `json:"errors"`
-}
-
+// unmarshalResponse decodes a GraphQL response body in a single pass.
+// The "data" member is streamed directly into out, and the "errors" member
+// is decoded into a gqlerror.List without reparsing the body.
 func unmarshalResponse(respBody []byte, out any) error {
-	resp := response{}
-	if err := json.Unmarshal(respBody, &resp); err != nil {
+	dec := jsontext.NewDecoder(bytes.NewReader(respBody))
+
+	tok, err := dec.ReadToken()
+	if err != nil {
 		return fmt.Errorf("failed to decode response %q: %w", respBody, err)
 	}
-
-	if err := json.Unmarshal(resp.Data, out); err != nil {
-		return fmt.Errorf("failed to decode response data %q: %w", resp.Data, err)
+	if tok.Kind() != '{' {
+		return fmt.Errorf("failed to decode response %q: unexpected JSON kind %v, expected object", respBody, tok.Kind())
 	}
 
-	if len(resp.Errors) > 0 {
-		gqlErrs := &gqlErrors{}
-		if err := json.Unmarshal(respBody, gqlErrs); err != nil {
-			return fmt.Errorf("failed to decode response error %q: %w", respBody, err)
+	var dataSeen bool
+	var errs gqlerror.List
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
+			return fmt.Errorf("failed to decode response %q: %w", respBody, err)
 		}
+		switch name.String() {
+		case "data":
+			dataSeen = true
+			if err := json.UnmarshalDecode(dec, out); err != nil {
+				return fmt.Errorf("failed to decode response data %q: %w", respBody, err)
+			}
+		case "errors":
+			if err := json.UnmarshalDecode(dec, &errs); err != nil {
+				return fmt.Errorf("failed to decode response error %q: %w", respBody, err)
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return fmt.Errorf("failed to decode response %q: %w", respBody, err)
+			}
+		}
+	}
 
-		return gqlErrs
+	if len(errs) > 0 {
+		return &gqlErrors{Errors: errs}
+	}
+
+	if !dataSeen {
+		return fmt.Errorf("failed to decode response %q: no data or errors member", respBody)
 	}
 
 	return nil

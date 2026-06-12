@@ -93,7 +93,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err:  errors.New(`failed to decode response data "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 		{
@@ -108,7 +108,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "": jsontext: unexpected EOF`),
+				err:  errors.New(`failed to decode response "": EOF`),
 			},
 		},
 		{
@@ -123,7 +123,37 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data "\"invalid data format\"": json: cannot unmarshal JSON string into Go map[string]interface {}`),
+				err:  errors.New(`failed to decode response data "{\"data\":\"invalid data format\"}": json: cannot unmarshal JSON string into Go map[string]interface {} within "/data"`),
+			},
+		},
+		{
+			name: "Errors only response without data",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte(`{"errors":[{"message":"Request error"}]}`),
+				out:      &map[string]any{},
+			},
+			want: want{
+				data: &map[string]any{},
+				err:  &gqlErrors{Errors: gqlerror.List{{Message: "Request error"}}},
+			},
+		},
+		{
+			name: "Empty object response",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte(`{}`),
+				out:      &map[string]any{},
+			},
+			want: want{
+				data: &map[string]any{},
+				err:  errors.New(`failed to decode response "{}": no data or errors member`),
 			},
 		},
 	}
@@ -299,7 +329,7 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: errors.New(`http status is OK but failed to decode response "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err: errors.New(`http status is OK but failed to decode response data "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 	}

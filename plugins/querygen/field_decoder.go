@@ -78,3 +78,62 @@ func (d *FieldDecoder) DecodeFields(targetExpr, rawExpr string, fields []FieldIn
 
 	return statements
 }
+
+// DecodeFieldCase はストリーミングデコード用の switch case を作成する。
+//
+// 以下のようなコードの case を生成する:
+//
+//	case "fieldName":
+//	    if err := json.UnmarshalDecode(dec, &t.Field); err != nil {
+//	        return err
+//	    }
+//
+// パラメータ:
+//   - targetExpr: ターゲット構造体の式（例: "t"）
+//   - field: JSON タグを含むフィールド情報
+//
+// 戻り値:
+//   - SwitchCase: フィールドをデコードする switch case
+func (d *FieldDecoder) DecodeFieldCase(targetExpr string, field FieldInfo) SwitchCase {
+	fieldTarget := fmt.Sprintf("&%s.%s", targetExpr, field.Name)
+
+	return SwitchCase{
+		Value: field.JSONTag,
+		Body: []Statement{
+			&ErrorCheckStatement{
+				ErrorExpr: fmt.Sprintf("json.UnmarshalDecode(dec, %s)", fieldTarget),
+				Body: []Statement{
+					&ReturnStatement{Value: "err"},
+				},
+			},
+		},
+	}
+}
+
+// DecodeFieldCases は全 JSON フィールドの switch case を作成する。
+//
+// DecodeFields と同じ条件でフィールドをフィルタリングし、
+// 残りの通常フィールドに対して DecodeFieldCase を生成する。
+//
+// パラメータ:
+//   - targetExpr: ターゲット構造体の式（例: "t"）
+//   - fields: フィールド情報のリスト
+//
+// 戻り値:
+//   - []SwitchCase: 全ての通常フィールドをデコードする switch case のリスト
+func (d *FieldDecoder) DecodeFieldCases(targetExpr string, fields []FieldInfo) []SwitchCase {
+	cases := make([]SwitchCase, 0, len(fields))
+
+	for _, field := range fields {
+		if field.JSONTag == "" || field.JSONTag == "-" {
+			continue
+		}
+		if !field.IsExported {
+			continue
+		}
+
+		cases = append(cases, d.DecodeFieldCase(targetExpr, field))
+	}
+
+	return cases
+}

@@ -20,7 +20,7 @@ type CodeGenerator struct {
 // パラメータ:
 //   - goTypes: 生成対象の全ての Go 型のリスト
 //
-// このコンストラクタは埋め込み型を識別し、それらの型に対する UnmarshalJSON の
+// このコンストラクタは埋め込み型を識別し、それらの型に対する UnmarshalJSONFrom の
 // 生成をスキップするように設定する。
 func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 	return &CodeGenerator{
@@ -30,7 +30,7 @@ func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
 	}
 }
 
-// Generate は型の完全なコードを生成する（型定義、UnmarshalJSON、getter メソッド）。
+// Generate は型の完全なコードを生成する（型定義、UnmarshalJSONFrom、getter メソッド）。
 //
 // パラメータ:
 //   - t: コード生成対象の Go 型
@@ -85,7 +85,7 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 //   - goTypes: チェック対象の Go 型のリスト
 //
 // 戻り値:
-//   - bool: いずれかの型で UnmarshalJSON メソッドを生成する場合は true
+//   - bool: いずれかの型で UnmarshalJSONFrom メソッドを生成する場合は true
 func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 	for _, t := range goTypes {
 		named, err := g.unwrapToNamed(t)
@@ -181,16 +181,16 @@ func (g *CodeGenerator) fields(t types.Type) ([]FieldInfo, error) {
 	return g.analyzer.AnalyzeFields(st, g.shouldGenerateUnmarshal), nil
 }
 
-// shouldGenerateUnmarshal は型に UnmarshalJSON メソッドを生成すべきかを判定する。
+// shouldGenerateUnmarshal は型に UnmarshalJSONFrom メソッドを生成すべきかを判定する。
 //
-// 他の型に埋め込まれている型（fragment spreads）は、親型の UnmarshalJSON で
-// 処理されるため、独自の UnmarshalJSON の生成をスキップする。
+// 他の型に埋め込まれている型（fragment spreads）は、親型の UnmarshalJSONFrom で
+// 処理されるため、独自の UnmarshalJSONFrom の生成をスキップする。
 //
 // パラメータ:
 //   - named: 判定対象の名前付き型
 //
 // 戻り値:
-//   - bool: UnmarshalJSON を生成すべき場合は true
+//   - bool: UnmarshalJSONFrom を生成すべき場合は true
 func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
 	if named == nil {
 		return false
@@ -248,8 +248,8 @@ func unwrapToNamedStruct(t types.Type) *types.Named {
 
 // findEmbeddedTypes は埋め込み（匿名）フィールドとして使用されているすべての型を識別する。
 //
-// これらの型は親型の UnmarshalJSON メソッドを通じてアンマーシャルされるため、
-// UnmarshalJSON の生成をスキップする必要がある。これにより、重複したアンマーシャル
+// これらの型は親型の UnmarshalJSONFrom メソッドを通じてアンマーシャルされるため、
+// UnmarshalJSONFrom の生成をスキップする必要がある。これにより、重複したアンマーシャル
 // ロジックを防ぎ、GraphQL の fragment spreads が正しく動作することを保証する。
 //
 // 例:
@@ -259,8 +259,8 @@ func unwrapToNamedStruct(t types.Type) *types.Named {
 //	    ID string
 //	}
 //
-// この場合、B は返されるマップに含まれ、独自の UnmarshalJSON を生成しない。
-// 代わりに、A の UnmarshalJSON が B のフィールドのアンマーシャルを処理する。
+// この場合、B は返されるマップに含まれ、独自の UnmarshalJSONFrom を生成しない。
+// 代わりに、A の UnmarshalJSONFrom が B のフィールドのアンマーシャルを処理する。
 //
 // パラメータ:
 //   - goTypes: チェック対象の全ての Go 型のリスト
@@ -300,21 +300,21 @@ func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct
 	return fmt.Sprintf("type %s %s\n", typeName, typeStr)
 }
 
-// formatUnmarshalMethod は UnmarshalJSON メソッドを文字列にフォーマットする。
+// formatUnmarshalMethod は UnmarshalJSONFrom メソッドを文字列にフォーマットする。
 //
-// 生成される UnmarshalJSON メソッドは、GraphQL レスポンスの JSON データを
+// 生成される UnmarshalJSONFrom メソッドは、GraphQL レスポンスの JSON データを
 // 構造体にデシリアライズするために使用される。
 //
 // パラメータ:
 //   - typeName: レシーバ型の名前（例: "User"）
 //   - body: メソッド本体のステートメントリスト
 //
-// 戻り値: フォーマットされた UnmarshalJSON メソッド定義
+// 戻り値: フォーマットされた UnmarshalJSONFrom メソッド定義
 func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement) string {
 	var buf strings.Builder
 
 	// Method signature
-	buf.WriteString(fmt.Sprintf("func (t *%s) UnmarshalJSON(data []byte) error {\n", typeName))
+	buf.WriteString(fmt.Sprintf("func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", typeName))
 
 	// Method body
 	for _, stmt := range body {

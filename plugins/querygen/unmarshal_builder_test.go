@@ -123,9 +123,9 @@ func TestUnmarshalBuilder_separateFieldTypesAt(t *testing.T) {
 	}
 
 	type want struct {
-		regularFieldsCount    int
-		fragmentSpreadsCount  int
-		inlineFragmentsCount  int
+		regularFieldsCount   int
+		fragmentSpreadsCount int
+		inlineFragmentsCount int
 	}
 
 	tests := []struct {
@@ -537,12 +537,15 @@ func TestUnmarshalBuilder_decodeNestedFields(t *testing.T) {
 }
 
 func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		fields []FieldInfo
 	}
 
 	type want struct {
-		statementsCount int
+		contains    []string
+		notContains []string
 	}
 
 	tests := []struct {
@@ -551,38 +554,122 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 		want want
 	}{
 		{
-			name: "通常のフィールドのみの型の場合",
+			// fragment を含まない型はトークンを1パスで読むストリーミングモードになる
+			name: "通常のフィールドのみの型はストリーミングモードで生成される",
 			args: args{
 				fields: []FieldInfo{
 					{
-						Name:    "ID",
-						JSONTag: "id",
+						Name:       "ID",
+						JSONTag:    "id",
+						IsExported: true,
 					},
 					{
-						Name:    "Name",
-						JSONTag: "name",
+						Name:       "Name",
+						JSONTag:    "name",
+						IsExported: true,
 					},
 				},
 			},
 			want: want{
-				// VariableDecl + Unmarshal + Return = 最低3個
-				statementsCount: 3,
+				contains: []string{
+					"dec.PeekKind() == 'n'",
+					"tok, err := dec.ReadToken()",
+					"for dec.PeekKind() != '}' {",
+					"switch name.String() {",
+					`case "id":`,
+					"json.UnmarshalDecode(dec, &t.ID)",
+					`case "name":`,
+					"json.UnmarshalDecode(dec, &t.Name)",
+					"default:",
+					"dec.SkipValue()",
+				},
+				notContains: []string{
+					"map[string]jsontext.Value",
+					"dec.ReadValue()",
+				},
+			},
+		},
+		{
+			// fragment spread を含む型は値全体を一度バッファするモードになる
+			name: "fragment spreadを含む型はバッファモードで生成される",
+			args: args{
+				fields: []FieldInfo{
+					{
+						Name:       "ID",
+						JSONTag:    "id",
+						IsExported: true,
+					},
+					{
+						Name:       "UserFragment",
+						IsEmbedded: true,
+						JSONTag:    "-",
+					},
+				},
+			},
+			want: want{
+				contains: []string{
+					"data, err := dec.ReadValue()",
+					"var raw map[string]jsontext.Value",
+					"json.Unmarshal(data, &raw)",
+					`value, ok := raw["id"]; ok`,
+					"json.Unmarshal(data, &t.UserFragment)",
+				},
+				notContains: []string{
+					"switch name.String() {",
+				},
+			},
+		},
+		{
+			// inline fragment を含む型もバッファモードになる
+			name: "inline fragmentを含む型はバッファモードで生成される",
+			args: args{
+				fields: []FieldInfo{
+					{
+						Name:             "User",
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PointerElemType:  "UserFragment",
+					},
+				},
+			},
+			want: want{
+				contains: []string{
+					"data, err := dec.ReadValue()",
+					"var raw map[string]jsontext.Value",
+					`typename, ok := raw["__typename"]; ok`,
+					"json.Unmarshal(data, t.User)",
+				},
+				notContains: []string{
+					"switch name.String() {",
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			b := NewUnmarshalBuilder()
 			got := b.BuildUnmarshalMethod(tt.args.fields)
 
-			if len(got) < tt.want.statementsCount {
-				t.Errorf("statements count = %d, want at least %d", len(got), tt.want.statementsCount)
+			var buf strings.Builder
+			for _, stmt := range got {
+				buf.WriteString(stmt.String(1))
+				buf.WriteString("\n")
+			}
+			gotString := buf.String()
+
+			for _, contains := range tt.want.contains {
+				if !strings.Contains(gotString, contains) {
+					t.Errorf("generated code does not contain %q:\n%s", contains, gotString)
+				}
 			}
 
-			// 最初は VariableDecl であることを確認
-			if _, ok := got[0].(*VariableDecl); !ok {
-				t.Errorf("first statement is not VariableDecl, got: %T", got[0])
+			for _, notContains := range tt.want.notContains {
+				if strings.Contains(gotString, notContains) {
+					t.Errorf("generated code unexpectedly contains %q:\n%s", notContains, gotString)
+				}
 			}
 
 			// 最後は ReturnStatement であることを確認
