@@ -3,19 +3,9 @@
 package query
 
 import (
-	"context"
-
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 )
-
-type Client struct {
-	client *client.Client
-}
-
-func NewClient(c *client.Client) *Client {
-	return &Client{client: c}
-}
 
 type UpdateUserVars struct {
 	Input domain.UpdateUserInput `json:"input"`
@@ -24,19 +14,6 @@ type UpdateUserVars struct {
 var UpdateUserOp = client.Operation[UpdateUserVars, domain.UpdateUser]{
 	Name:     "UpdateUser",
 	Document: domain.UpdateUserDocument,
-}
-
-func (c *Client) UpdateUser(ctx context.Context, input domain.UpdateUserInput, options ...client.Option) (*domain.UpdateUser, error) {
-	vars := map[string]any{
-		"input": input,
-	}
-
-	var res domain.UpdateUser
-	if err := c.client.Post(ctx, "UpdateUser", domain.UpdateUserDocument, vars, &res, options...); err != nil {
-		return nil, err
-	}
-
-	return &res, nil
 }
 
 type UserOperationVars struct {
@@ -50,21 +27,4 @@ type UserOperationVars struct {
 var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
 	Name:     "UserOperation",
 	Document: domain.UserOperationDocument,
-}
-
-func (c *Client) UserOperation(ctx context.Context, articleID string, metadataID string, size *int, userID *string, userStatus *domain.Status, options ...client.Option) (*domain.UserOperation, error) {
-	vars := map[string]any{
-		"articleId":  articleID,
-		"metadataId": metadataID,
-		"size":       size,
-		"userId":     userID,
-		"userStatus": userStatus,
-	}
-
-	var res domain.UserOperation
-	if err := c.client.Post(ctx, "UserOperation", domain.UserOperationDocument, vars, &res, options...); err != nil {
-		return nil, err
-	}
-
-	return &res, nil
 }
