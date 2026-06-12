@@ -1,6 +1,6 @@
 module github.com/Yamashou/gqlgenc/v3
 
-go 1.25.2
+go 1.27
 
 require (
 	github.com/99designs/gqlgen v0.17.73
