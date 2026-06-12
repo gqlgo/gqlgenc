@@ -1,362 +1,259 @@
 # gqlgenc
 
-## What is gqlgenc ?
+[gqlgen](https://github.com/99designs/gqlgen) をベースにした、Go 用 GraphQL クライアントのコードジェネレータおよびランタイムライブラリ。
 
-This is Go library for building GraphQL client with [gqlgen](https://github.com/99designs/gqlgen)
+## 概要
 
-### Query First, not Code First
+gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から型安全な Go のクライアントコードを自動生成するツールです。コードを起点にする Code First ではなく、クエリを起点にコードを生成する Query First を採用しています。
 
-However, as I work with [gqlgen](https://github.com/99designs/gqlgen) and [graphql-code-generator](https://graphql-code-generator.com/) every day, I find out the beauty of automatic generation.
-So I want to automatically generate types.
+- gqlgen ベース。モデル生成には gqlgen の modelgen プラグインをそのまま利用し、設定も gqlgen の形式を踏襲します
+- 生成コードとランタイムは `encoding/json/v2` / `encoding/json/jsontext` を使用します
 
-### based on gqlgen
+## 動作要件
 
-- [Khan/genqlient](https://github.com/Khan/genqlient) is built from scratch as its own system. However, since gqlgenc is based on gqlgen, knowledge learned from either can be directly applied.
+- Go 1.27 以上
+- ビルド・テスト時に環境変数 `GOEXPERIMENT=jsonv2` の設定が必要です（`encoding/json/v2` を使用するため）
 
-## Usage
+## インストール
 
-```shell script
+```shell
 go get -tool github.com/Yamashou/gqlgenc/v3@latest
-or
+# または
 go install github.com/Yamashou/gqlgenc/v3@latest
 ```
 
-## How to use
+## 使い方
 
-### Client Codes Only
+### 1. 設定ファイルを書く
 
-```yaml
-# schema for query
-schema:
-  - ""
-endpoint:
-  url: https://api.annict.com/graphql # Where do you want to send your request?
-  headers: # If you need header for getting introspection query, set it
-    Authorization: "Bearer ${ANNICT_KEY}" # support environment variables
-# client to generate
-client:
-  package: generated
-  filename: ./client.go # Where should any generated client go?
-# query to generate
-query:
-  source: "./query/*.graphql" # Where are all the query files located?
-  package: generated
-  filename: ./client.go # Where should any generated client go?
-# query to generate
-model:
- package: generated
- filename: ./models_gen.go # https://github.com/99designs/gqlgen/tree/master/plugin/modelgen
-models:
-  Int:
-    model: github.com/99designs/gqlgen/graphql.Int64
-  Date:
-    model: github.com/99designs/gqlgen/graphql.Time
-federation: # Add this if your schema includes Apollo Federation related directives
-  version: 2
-# input model config
-nullable_input_omittable: true
-enable_model_json_omitzero: true
-```
+カレントディレクトリ（見つからない場合は親ディレクトリを順に遡る）の `.gqlgenc.yml` / `gqlgenc.yml` / `.gqlgenc.yaml` / `gqlgenc.yaml` を読み込みます。設定ファイルは `gqlgenc` と `gqlgen` の2セクションで構成されます。
 
-Load a schema from a local file:
+ローカルのスキーマファイルから生成する例:
 
 ```yaml
-model:
-  package: generated
-  filename: ./models_gen.go # https://github.com/99designs/gqlgen/tree/master/plugin/modelgen
-client:
-  package: generated
-  filename: ./client.go # Where should any generated client go?
-models:
-  Int:
-    model: github.com/99designs/gqlgen/graphql.Int64
-  Date:
-    model: github.com/99designs/gqlgen/graphql.Time
-federation: # Add this if your schema includes Apollo Federation related directives
-  version: 2
-schema:
-  - "schema/**/*.graphql" # Where are all the schema files located?
-query:
-  - "./query/*.graphql" # Where are all the query files located?
-generate:
-  clientInterfaceName: "GithubGraphQLClient" # Determine the name of the generated client interface
+gqlgenc:
+  query:
+    - ./query/*.graphql
+  querygen:
+    filename: ./domain/query_gen.go
+  clientgen:
+    filename: ./query/client_gen.go
+gqlgen:
+  schema:
+    - ./schema/*.graphql
+  model:
+    filename: ./domain/model_gen.go
+  enable_model_json_omitzero_tag: true
+  nullable_input_omittable: true
+  struct_fields_always_pointers: false
+  autobind:
+    - github.com/example/myapp/domain
+  models:
+    Email:
+      model: github.com/example/myapp/domain.Email
 ```
 
-Execute the following command on same directory for .gqlgenc.yml
+リモートサーバーからイントロスペクションでスキーマを取得する場合は、`gqlgen.schema` の代わりに `gqlgenc.endpoint` を指定します。
 
-```shell script
+```yaml
+gqlgenc:
+  endpoint:
+    url: https://api.example.com/graphql
+    headers:
+      Authorization: "Bearer ${TOKEN}" # 環境変数を展開できる
+  query:
+    - ./query/*.graphql
+  querygen:
+    filename: ./gen/query_gen.go
+  clientgen:
+    filename: ./gen/client_gen.go
+gqlgen:
+  model:
+    filename: ./gen/model_gen.go
+```
+
+### 2. コードを生成する
+
+設定ファイルのあるディレクトリで実行します。
+
+```shell
 gqlgenc
 ```
 
-or if you want to specify a different directory where .gqlgenc.yml file resides
-(e.g. in this example the directory is *schemas*):
-
-```shell script
-gqlgenc generate --configdir schemas
-```
-
-### With gqlgen
-
-Do this when creating a server and client for Go.
-You create your own entrypoint for gqlgen.
-This use case is very useful for testing your server.
-
+### 3. 生成されたクライアントを使う
 
 ```go
 package main
 
 import (
-	"fmt"
-	"os"
+	"context"
 
-	"github.com/Yamashou/gqlgenc/v3/clientgen"
+	"github.com/Yamashou/gqlgenc/v3/client"
 
-	"github.com/99designs/gqlgen/api"
-	"github.com/99designs/gqlgen/codegen/config"
+	"github.com/example/myapp/query"
 )
 
 func main() {
-	cfg, err := config.LoadConfigFromDefaultLocations()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to load config", err.Error())
-		os.Exit(2)
-	}
-	queries := []string{"client.query", "fragemt.query"}
-	clientPackage := config.PackageConfig{
-		Filename: "./client.go",
-		Package:  "gen",
-	}
+	ctx := context.Background()
 
-	clientPlugin := clientgen.New(queries, clientPackage, nil)
-	err = api.Generate(cfg,
-		api.AddPlugin(clientPlugin),
-	)
+	c := query.NewClient(client.NewClient("https://api.example.com/graphql"))
+
+	res, err := c.GetUser(ctx, "user-1")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(3)
+		// エラー処理
 	}
+	_ = res
 }
 ```
 
-## Code Generation Flow
+動作する完全なサンプルは `testdata/integration/basic/` と `run_test.go` を参照してください。
 
-The following sequence diagram illustrates the code generation flow of gqlgenc:
+## 設定仕様
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Main as main.go
-    participant Run as run.go
-    participant Config as config
-    participant Client as client
-    participant Introspection as introspection
-    participant QueryParser as queryparser
-    participant CodeGen as codegen
-    participant ModelGen as modelgen
-    participant QueryGen as querygen
-    participant ClientGen as clientgen
+設定ファイルは YAML 形式で、読み込み時に `os.ExpandEnv` によって環境変数（`${VAR}` / `$VAR`）が展開されます。未知のキーがあるとエラーになります。
 
-    User->>Main: Execute gqlgenc command
-    Main->>Run: run()
+### gqlgenc セクション
 
-    Note over Run,Config: Configuration Loading (TestLoadConfig)
-    Run->>Config: FindConfigFile(".gqlgenc.yml")
-    Config-->>Run: config file path
+| キー | 型 | 説明 |
+|---|---|---|
+| `query` | `[]string` | クエリファイルのパス（glob 可） |
+| `querygen` | `filename` / `package` | レスポンス型・UnmarshalJSON・クエリドキュメント定数の生成先。`package` 省略時はディレクトリ名から導出 |
+| `clientgen` | `filename` / `package` | クライアントメソッドの生成先。指定する場合は `querygen` の指定も必須 |
+| `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
+| `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる |
 
-    Run->>Config: LoadConfig(cfgFile)
-    Note right of Config: [TestLoadConfig]<br/>Read config file<br/>Parse YAML with env expansion
+### gqlgen セクション
 
-    alt Config validation error
-        Config->>Config: Check schema/endpoint
-        Note right of Config: Error if both specified<br/>Error if neither specified
-        Config-->>Run: Error
-    else Config validation success
-        Config->>Config: Validate model config
-        Config->>Config: Set schema filenames (glob)
-        Config->>Config: Set default gqlgen fields
-        Note right of Config: Directives, Exec, Resolver,<br/>Federation configs
-        Config-->>Run: Config
-    end
+gqlgen の `codegen/config.Config` をそのまま埋め込んでいるため、gqlgen と同じ設定が使えます。主なもの:
 
-    Note over Run,Introspection: Schema Loading & Initialization (TestLoadSchema)
-    Run->>Config: LoadSchema(ctx)
+| キー | 説明 |
+|---|---|
+| `schema` | スキーマファイルのパス（glob 可、`**` 対応）。`gqlgenc.endpoint` と排他 |
+| `model` | gqlgen modelgen による model_gen.go の生成先 |
+| `models` | GraphQL 型と Go 型のバインド設定 |
+| `autobind` | 指定パッケージから同名の Go 型を自動バインド |
+| `federation.version` | Apollo Federation ディレクティブを含むスキーマへの対応 |
+| `enable_model_json_omitzero_tag` | モデルの json タグに omitzero を付与 |
+| `nullable_input_omittable` | nullable な input フィールドを `graphql.Omittable` にして null / undefined を区別 |
+| `struct_fields_always_pointers` | モデルのフィールドを常にポインタにするか |
 
-    alt Local Schema
-        Config->>Config: GQLGenConfig.LoadSchema()
-        Note right of Config: [TestLoadSchema]<br/>Load from local files
-        Config-->>Config: GraphQL AST
-    else Remote Schema (Endpoint)
-        Config->>Client: Use endpoint.Client or http.DefaultClient
-        Client-->>Config: HTTP Client
-        Config->>Introspection: introspectionSchema(ctx, client, URL, headers)
-        Introspection->>Client: Post(introspectionQuery)
+なお `directives` / `exec` / `resolver` / `federation` の生成先設定はクライアント生成では使用しないため、内部で固定値に上書きされます。
 
-        alt HTTP Error
-            Client-->>Introspection: Error (500, 404, etc)
-            Introspection-->>Config: Error
-            Config-->>Run: Error
-        else Success
-            Client-->>Introspection: Schema Response
-            Introspection->>Introspection: Parse introspection response
+### バリデーションルール
 
-            alt Invalid Schema
-                Introspection->>Introspection: Validate schema
-                Introspection-->>Config: Validation Error
-                Config-->>Run: Error
-            else Valid Schema
-                alt Query type is null
-                    Introspection->>Introspection: Initialize default Query type
-                end
-                Introspection-->>Config: GraphQL AST
-                Config->>Config: Set GQLGenConfig.Schema
-            end
-        end
-    end
+- `gqlgen.schema` と `gqlgenc.endpoint` はどちらか一方を必ず指定する（両方指定・両方未指定はエラー）
+- `clientgen` を指定する場合は `querygen` の指定が必須
+- クエリ全体でオペレーション名が重複しているとエラー
 
-    Config->>Config: Delete existing generated files
-    Note right of Config: Unlink model, query,<br/>client gen files
-    Config->>Config: Initialize Models & StructTag
-    Note right of Config: Set default Models map<br/>Set default StructTag="json"
-    Config->>Config: GQLGenConfig.Init()
-    Config->>Config: Sort Schema.Implements
-    Note right of Config: [TestLoadSchema]<br/>Sort interface implementations<br/>for deterministic output
-    Config-->>Run: Initialized Config
+## 生成されるコード
 
-    Note over Run,QueryParser: Query File Parsing (TestLoadQuery)
-    Run->>Config: GQLGencConfig.LoadQuery(schema)
-    Config->>QueryParser: LoadQuerySources(query files)
+生成実行時、既存の生成ファイル（model / querygen / clientgen）は事前に削除されます。生成後は goimports で整形されます。
 
-    alt Query file not found or syntax error
-        QueryParser-->>Config: Error
-        Config-->>Run: Error
-    else Query files loaded
-        QueryParser-->>Config: Query Sources
-        Config->>QueryParser: QueryDocument(schema, sources)
-        Note right of QueryParser: [TestLoadQuery]<br/>Parse & validate<br/>GraphQL queries
+### model_gen.go（modelgen）
 
-        alt Query validation error
-            QueryParser-->>Config: Error (unknown field, etc)
-            Config-->>Run: Error
-        else Valid queries
-            QueryParser-->>Config: Query Document
-            Config->>QueryParser: OperationQueryDocuments()
-            Note right of QueryParser: [TestLoadQuery]<br/>Split by operation<br/>(query/mutation/subscription)
-            QueryParser-->>Config: Operation Documents
-            Config->>Config: Set QueryDocument & OperationQueryDocuments
-            Config-->>Run: Success
-        end
-    end
+gqlgen 標準の modelgen プラグインで input 型・enum などを生成します。gqlgenc は MutateHook で次のフィルタリングを行います。
 
-    Note over Run,ClientGen: Code Generation
-    Run->>Run: plugins.GenerateCode(cfg)
+- `querygen` または `clientgen` が定義されている場合: すべての型を生成する（レスポンスのデシリアライズに必要なため）
+- どちらも未定義の場合: Input 型は常に生成し、Object 型と Enum 型はクエリで使用されているものだけを生成する。使用判定はオペレーションの変数定義（Input 型はフィールドを再帰的に辿る）とセレクションセット（レスポンスフィールドの enum）から行う
 
-    Note over Run,ModelGen: Model Generation (gqlgen based)
-    Run->>ModelGen: New(cfg, operationDocs)
-    Run->>ModelGen: MutateConfig()
-    ModelGen->>ModelGen: Generate models/enums/scalars
-    Note right of ModelGen: Generate Go types<br/>for GraphQL types
-    ModelGen-->>Run: models_gen.go
+enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[gqlgen#3663](https://github.com/99designs/gqlgen/pull/3663)）、json.Marshal でそのままシリアライズできます。
 
-    Note over Run,CodeGen: Go Type Analysis
-    Run->>CodeGen: CreateOperations(queryDoc, opDocs)
-    Note right of CodeGen: Create operation structs<br/>with args & variables
-    CodeGen-->>Run: Operations
-    Run->>CodeGen: CreateGoTypes(operations)
-    Note right of CodeGen: Convert GraphQL types<br/>to Go types
-    CodeGen-->>Run: Go Types
+### query_gen.go（querygen）
 
-    Note over Run,QueryGen: Query Code Generation
-    Run->>QueryGen: New(cfg, operations, goTypes)
-    Run->>QueryGen: MutateConfig()
-    QueryGen->>QueryGen: RenderTemplate(template.tmpl)
-    Note right of QueryGen: Generate response types<br/>& unmarshal code
-    QueryGen-->>Run: query code with types
+オペレーションごとに以下を生成します。
 
-    Note over Run,ClientGen: Client Code Generation
-    Run->>ClientGen: New(cfg, operations)
-    Run->>ClientGen: MutateConfig()
-    ClientGen->>ClientGen: RenderTemplate(template.tmpl)
-    Note right of ClientGen: Generate client methods<br/>for each operation
-    ClientGen-->>Run: client.go with methods
+- レスポンス型: セレクションセットの構造に対応したネスト構造体。各フィールドには json タグと、nil レシーバ安全な getter メソッドが付く
+- フラグメント対応:
+  - フラグメントスプレッドは `json:"-"` 付きの埋め込み構造体として表現し、UnmarshalJSON 内で同じ JSON データから直接デコードする
+  - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする
+- `UnmarshalJSON`: 一度 `map[string]jsontext.Value` にデコードし、各フィールドを個別にアンマーシャルする型安全な実装
+- クエリドキュメント定数（`<オペレーション名>Document`）と、ドキュメント文字列からオペレーション名を引く `DocumentOperationNames` マップ
 
-    Run-->>Main: Success
-    Main-->>User: Generated code files
+### client_gen.go（clientgen）
+
+ランタイムの `client.Client` をラップする `Client` 型と、オペレーションごとの実行メソッドを生成します。オペレーションの変数定義がそのままメソッド引数になります。
+
+```go
+func (c *Client) UserOperation(ctx context.Context, articleID string, size *int, options ...client.Option) (*domain.UserOperation, error)
 ```
 
-### Flow Description
+## ランタイム（client パッケージ）
 
-1. **Configuration Loading** (`config.LoadConfig()` - covered by `TestLoadConfig`):
-   - Find and load `.gqlgenc.yml` configuration file
-   - Read and parse YAML configuration with environment variable expansion (`os.ExpandEnv`)
-   - **Validation checks**:
-     - Error if both `schema` and `endpoint` are specified
-     - Error if neither `schema` nor `endpoint` is specified
-     - Error if `clientgen` is set but `querygen` is not set
-     - Validate model configuration
-   - Set schema filenames using glob patterns (e.g., `schema/**/*.graphql`)
-   - Set default gqlgen fields (Directives, Exec, Resolver, Federation)
-   - **Platform-specific handling**:
-     - Windows: Use backslash path separators
-     - Non-Windows: Use forward slash path separators
+### API
 
-2. **Schema Loading & Initialization** (`config.LoadSchema()` - covered by `TestLoadSchema`):
-   - **Local Schema Path**:
-     - Load schema from local GraphQL files using glob patterns
-     - Parse GraphQL SDL files into AST
-   - **Remote Schema Path** (Endpoint):
-     - Use custom HTTP client if provided (`endpoint.Client`), or `http.DefaultClient`
-     - Execute GraphQL introspection query to fetch schema
-     - **Error handling**:
-       - HTTP errors (500, 404, etc.) are propagated with context
-       - Invalid schema responses trigger validation errors
-     - Parse introspection response and build GraphQL AST
-     - Initialize default Query type if `schema.queryType` is null
-   - **Post-Schema Processing**:
-     - Delete existing generated files to ensure clean generation (model, query, client)
-     - Initialize gqlgen config (`Models` map, `StructTag` default to "json")
-     - Execute `GQLGenConfig.Init()` to prepare schema
-     - Sort interface implementations (`Schema.Implements`) for deterministic output
+- `client.NewClient(endpoint string, options ...Option) *Client`
+- `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
+- `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
+- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — 生成されたクライアントメソッドから呼ばれる低レベル API
 
-3. **Query Parsing** (`GQLGencConfig.LoadQuery()` - covered by `TestLoadQuery`):
-   - Load GraphQL query files from specified paths
-   - **Error handling**:
-     - Query file not found errors
-     - GraphQL syntax errors (e.g., missing closing braces)
-     - Schema validation errors (e.g., querying non-existent fields)
-   - Parse and validate GraphQL queries against the loaded schema
-   - Split queries into operation documents by type (query/mutation/subscription)
-   - Store parsed `QueryDocument` and `OperationQueryDocuments` in config
-   - **Empty query list handling**: Returns success with empty operation documents
+### リクエスト仕様
 
-4. **Code Generation**:
-   - **Model Generation**: Generate Go types for GraphQL scalars, enums, and input types
-   - **Operation & Type Generation**: Convert GraphQL operations to Go operation structures and response types
-   - **Query Generation**: Generate Go code for query/mutation response types
-   - **Client Generation**: Generate client methods for executing queries/mutations
+- HTTP POST で送信する
+- `Content-Type: application/json;charset=utf-8`
+- `Accept: application/graphql-response+json;charset=utf-8` と `application/json;charset=utf-8`
+- ボディは `{"query": ..., "variables": ..., "operationName": ...}` を json/v2 でエンコードしたもの
 
-### Test Coverage
+### ファイルアップロード
 
-The following unit tests ensure the reliability of each phase:
+variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含まれる場合、[graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec) に従った multipart/form-data リクエストを自動的に組み立てます。Upload が含まれない場合は通常の JSON リクエストになります。
 
-- **`TestLoadConfig`**: Tests configuration loading, validation, and platform-specific path handling
-  - Config file parsing (YAML with environment variables)
-  - Validation errors (both/neither schema and endpoint)
-  - Unknown keys detection
-  - Platform-specific glob pattern resolution (Windows vs non-Windows)
+### レスポンス解析とエラー
 
-- **`TestLoadSchema`**: Tests schema loading from both local and remote sources
-  - Local schema loading from files
-  - Remote schema via introspection query
-  - HTTP error handling
-  - Invalid schema validation
-  - Query type initialization when null
-  - Interface implementation sorting
+- `Content-Encoding: gzip` のレスポンスは透過的に展開される
+- レスポンスの `data` を out にデコードし、`errors` があれば `gqlerror.List`（vektah/gqlparser）として解釈する
+- エラー時は HTTP ステータス異常（NetworkError）と GraphQL エラー（GqlErrors）を区別して保持するエラー型が返る
+- HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
 
-- **`TestLoadQuery`**: Tests query file parsing and validation
-  - Single and multiple query file loading
-  - Empty query list handling
-  - Syntax error detection
-  - Schema validation (non-existent field references)
+### null と undefined の区別
 
-## VS
+`nullable_input_omittable: true` を設定すると、input 型の nullable フィールドが `graphql.Omittable[T]` になり、null と undefined を区別して送信できます。
 
+```go
+// undefined: キー自体が送信されない
+input := UpdateUserInput{
+	Name: graphql.Omittable[*string]{},
+}
+
+// null: {"name": null} が送信される
+input := UpdateUserInput{
+	Name: graphql.OmittableOf[*string](nil),
+}
+```
+
+## アーキテクチャと処理フロー
+
+`gqlgenc` コマンドは次の順に処理します。
+
+1. **設定読み込み**（`config.LoadConfig`）: 設定ファイルの探索、YAML パース（環境変数展開・未知キー検出）、バリデーション
+2. **スキーマ読み込み**（`config.LoadSchema`）: ローカルファイルまたはイントロスペクションでスキーマを AST 化し、既存の生成ファイルを削除した上で gqlgen の `Init()` を実行する。interface の実装リストをソートして出力を決定的にする
+3. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
+4. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
+
+### パッケージ構成
+
+| パッケージ | 役割 |
+|---|---|
+| `main` / `run.go` | エントリポイント。上記フローの実行 |
+| `config` | 設定ファイルの読み込み・検証、スキーマのロード |
+| `introspection` | イントロスペクション結果から GraphQL スキーマ（AST）を構築 |
+| `queryparser` | クエリのパース・検証、オペレーション分割、使用型の収集 |
+| `codegen` | オペレーションと Go 型（go/types）の構築 |
+| `plugins/modelgen` | gqlgen modelgen のラップ（未使用型のフィルタリング） |
+| `plugins/querygen` | レスポンス型・UnmarshalJSON・ドキュメント定数の生成 |
+| `plugins/clientgen` | クライアントメソッドの生成 |
+| `client` | ランタイムの HTTP クライアント |
+
+## 開発
+
+```shell
+make build # go build ./...
+make test  # go test ./...
+make lint  # golangci-lint run
+make fmt   # golangci-lint fmt
+```
+
+Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
+
+## 類似プロジェクト
+
+- [Khan/genqlient](https://github.com/Khan/genqlient) — 独自実装の GraphQL クライアントジェネレータ。gqlgenc は gqlgen ベースのため、gqlgen の知識・設定をそのまま活かせる点が異なります
