@@ -1,9 +1,10 @@
 package introspection
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
+
+	json "encoding/json/v2"
 )
 
 func TestSchemaFromIntrospection_Parse(t *testing.T) {

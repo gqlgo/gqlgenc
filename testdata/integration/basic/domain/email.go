@@ -1,9 +1,10 @@
 package domain
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	json "encoding/json/v2"
 )
 
 // Email represents an email address as a custom scalar type

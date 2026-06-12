@@ -3,12 +3,13 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	json "encoding/json/v2"
 
 	"github.com/99designs/gqlgen/graphql"
 )

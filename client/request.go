@@ -3,9 +3,10 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+
+	json "encoding/json/v2"
 )
 
 // Request represents an outgoing GraphQL request.

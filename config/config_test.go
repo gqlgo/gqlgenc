@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,9 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -620,7 +622,7 @@ func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, cl
 
 		var responseBody []byte
 		switch v := response.(type) {
-		case json.RawMessage:
+		case jsontext.Value:
 			responseBody = v
 		case responseFromFile:
 			responseBody = v.load(t)

@@ -1,11 +1,12 @@
 package client
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"slices"
 	"testing"
+
+	json "encoding/json/v2"
 
 	"github.com/google/go-cmp/cmp"
 )
