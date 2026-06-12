@@ -11,12 +11,12 @@ import (
 
 // Request represents an outgoing GraphQL request.
 type Request struct {
-	Query         string         `json:"query"`
-	Variables     map[string]any `json:"variables,omitempty"`
-	OperationName string         `json:"operationName,omitempty"`
+	Query         string `json:"query"`
+	Variables     any    `json:"variables,omitempty"`
+	OperationName string `json:"operationName,omitempty"`
 }
 
-func NewRequest(ctx context.Context, endpoint, operationName, query string, variables map[string]any) (*http.Request, error) {
+func NewRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
 	graphqlRequest := &Request{
 		Query:         query,
 		Variables:     variables,

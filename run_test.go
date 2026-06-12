@@ -271,10 +271,11 @@ func Test_IntegrationTest(t *testing.T) {
 			srv.AddTransport(transport.POST{})
 
 			httpClient := &http.Client{Transport: handlerRoundTripper{handler: srv}}
-			c := query.NewClient(client.NewClient(
+			rawClient := client.NewClient(
 				"http://local/graphql",
 				client.WithHTTPClient(httpClient),
-			))
+			)
+			c := query.NewClient(rawClient)
 
 			// Query
 			{
@@ -282,6 +283,26 @@ func Test_IntegrationTest(t *testing.T) {
 				userID := "1"
 				userStatus := domain.StatusActive
 				userOperation, err := c.UserOperation(ctx, "article-1", "metadata-1", &size, &userID, &userStatus)
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, userOperation); diff != "" {
+					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
+				}
+			}
+
+			// Query with typed variables via client.Do
+			{
+				size := 100
+				userID := "1"
+				userStatus := domain.StatusActive
+				userOperation, err := client.Do(ctx, rawClient, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:  "article-1",
+					MetadataID: "metadata-1",
+					Size:       &size,
+					UserID:     &userID,
+					UserStatus: &userStatus,
+				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}

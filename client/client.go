@@ -57,6 +57,10 @@ func (c *Client) Post(ctx context.Context, operationName, query string, variable
 		}
 	}
 
+	return c.do(req, out)
+}
+
+func (c *Client) do(req *http.Request, out any) error {
 	for key, values := range c.header {
 		req.Header[http.CanonicalHeaderKey(key)] = values
 	}

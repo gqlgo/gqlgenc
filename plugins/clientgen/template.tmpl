@@ -11,6 +11,17 @@ func NewClient(c *client.Client) *Client {
 }
 
 {{range $operation := .Operations}}
+type {{ $operation.Name|go }}Vars struct {
+	{{- range $arg := $operation.Args }}
+	{{ $arg.Variable | go }} {{ $arg.Type | ref }} `json:"{{ $arg.Variable }}"`
+	{{- end }}
+}
+
+var {{ $operation.Name|go }}Op = client.Operation[{{ $operation.Name|go }}Vars, {{ $.QueryPackage }}.{{ $operation.Name|go }}]{
+	Name:     "{{ $operation.Name }}",
+	Document: {{ $.QueryPackage }}.{{ $operation.Name|go }}Document,
+}
+
 func (c *Client) {{ $operation.Name|go }}(ctx context.Context{{- range $arg := $operation.Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, options ...client.Option) (*{{ $.QueryPackage }}.{{ $operation.Name | go }}, error) {
 	vars := map[string]any{
 	{{- range $args := $operation.VariableDefinitions}}

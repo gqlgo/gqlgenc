@@ -17,6 +17,15 @@ func NewClient(c *client.Client) *Client {
 	return &Client{client: c}
 }
 
+type UpdateUserVars struct {
+	Input domain.UpdateUserInput `json:"input"`
+}
+
+var UpdateUserOp = client.Operation[UpdateUserVars, domain.UpdateUser]{
+	Name:     "UpdateUser",
+	Document: domain.UpdateUserDocument,
+}
+
 func (c *Client) UpdateUser(ctx context.Context, input domain.UpdateUserInput, options ...client.Option) (*domain.UpdateUser, error) {
 	vars := map[string]any{
 		"input": input,
@@ -28,6 +37,19 @@ func (c *Client) UpdateUser(ctx context.Context, input domain.UpdateUserInput, o
 	}
 
 	return &res, nil
+}
+
+type UserOperationVars struct {
+	ArticleID  string         `json:"articleId"`
+	MetadataID string         `json:"metadataId"`
+	Size       *int           `json:"size"`
+	UserID     *string        `json:"userId"`
+	UserStatus *domain.Status `json:"userStatus"`
+}
+
+var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
+	Name:     "UserOperation",
+	Document: domain.UserOperationDocument,
 }
 
 func (c *Client) UserOperation(ctx context.Context, articleID string, metadataID string, size *int, userID *string, userStatus *domain.Status, options ...client.Option) (*domain.UserOperation, error) {

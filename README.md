@@ -177,6 +177,15 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 func (c *Client) UserOperation(ctx context.Context, articleID string, size *int, options ...client.Option) (*domain.UserOperation, error)
 ```
 
+オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）も生成され、`client.Do` で型付きのまま実行できます。変数名や型のミスはコンパイルエラーになります。
+
+```go
+res, err := client.Do(ctx, rawClient, query.UserOperationOp, query.UserOperationVars{
+	ArticleID: "article-1",
+	Size:      &size,
+})
+```
+
 ## ランタイム（client パッケージ）
 
 ### API
@@ -185,6 +194,7 @@ func (c *Client) UserOperation(ctx context.Context, articleID string, size *int,
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
 - `(*Client).Post(ctx, operationName, query, variables, out, options...)` — 生成されたクライアントメソッドから呼ばれる低レベル API
+- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する。`graphql.Upload` を含むオペレーションには非対応（生成メソッドまたは `Post` を使う）
 
 ### リクエスト仕様
 

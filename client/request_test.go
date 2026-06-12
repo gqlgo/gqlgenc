@@ -123,8 +123,12 @@ func TestNewRequest(t *testing.T) {
 				}
 			} else {
 				// 変数の検証
+				actualVariables, ok := requestBody.Variables.(map[string]any)
+				if !ok {
+					t.Fatalf("Expected variables to be a map, but got %T", requestBody.Variables)
+				}
 				for key, expectedValue := range tt.variables {
-					actualValue, ok := requestBody.Variables[key]
+					actualValue, ok := actualVariables[key]
 					if !ok {
 						t.Errorf("Variable %s not found", key)
 						continue
