@@ -16,6 +16,7 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 - JSON のエンコード・デコードを `encoding/json/v2` / `encoding/json/jsontext` に全面移行しました
 - 独自のランタイムデコーダだった `graphqljson` パッケージを廃止しました。レスポンスのデコードは querygen が生成する型ごとの `UnmarshalJSONFrom` が担います（「新機能」参照）
 - v0 のクライアントが持っていた独自の JSON エンコード処理（`MarshalJSON`）を廃止し、リクエストボディは `json.MarshalWrite` で直接エンコードします。`graphql.Omittable` のエンコードは gqlgen 本体の対応（[99designs/gqlgen#3659](https://github.com/99designs/gqlgen/pull/3659)、[#3660](https://github.com/99designs/gqlgen/pull/3660)、[#3663](https://github.com/99designs/gqlgen/pull/3663)、[#3675](https://github.com/99designs/gqlgen/pull/3675)）と json/v2 の `omitzero` を利用します
+- json/v2 のデフォルト挙動の変更により、リクエストの variables などのエンコードで nil スライスは `null` ではなく `[]`、nil マップは `{}` として送信されます（v1 json を使う v0 は `null` を送信していました）。GraphQL では `null` と空リスト `[]` をサーバーが区別し得るため注意してください。`null` を送りたい場合はポインタ型（nil の `*[]T`）を使うか、独自構造体ではフィールドに `format:emitnull` タグを指定してください
 
 #### 設定ファイルを gqlgenc: / gqlgen: の2セクション構成に変更
 
