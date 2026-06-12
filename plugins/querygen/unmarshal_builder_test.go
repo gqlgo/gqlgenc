@@ -520,6 +520,99 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 				},
 			},
 		},
+		{
+			// インラインフラグメントの構造体内のフラグメントスプレッド (json:"-") は
+			// デフォルトデコードでは充填されないため、明示デコードが生成されることを確認する。
+			// 旧実装では埋め込みフラグメントのメソッド昇格がデコード全体を乗っ取り、
+			// 兄弟フィールドが常にゼロ値になるバグがあった
+			name: "inline fragment内のfragment spreadも明示デコードされる",
+			args: args{
+				typeName: "UserOperation_User",
+				fields: []FieldInfo{
+					{
+						Name:       "Typename",
+						JSONTag:    "__typename",
+						IsExported: true,
+					},
+					{
+						Name:             "User",
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PointerElemType:  "UserInline",
+						SubFields: []FieldInfo{
+							{
+								Name:       "Name",
+								JSONTag:    "name",
+								IsExported: true,
+							},
+							{
+								Name:       "UserFragment2",
+								IsEmbedded: true,
+								JSONTag:    "-",
+								SubFields: []FieldInfo{
+									{
+										Name:       "Name",
+										JSONTag:    "name",
+										IsExported: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				contains: []string{
+					"t.User = &UserInline{}",
+					"json.Unmarshal(data, t.User)",
+					"json.Unmarshal(data, &t.User.UserFragment2)",
+				},
+			},
+		},
+		{
+			// デコード可能な通常フィールドを持たないインラインフラグメント構造体では
+			// 直接デコードがスキップされ、フラグメントの明示デコードのみ生成される
+			name: "fragment spreadのみのinline fragmentでは直接デコードを生成しない",
+			args: args{
+				typeName: "UserOperation_User",
+				fields: []FieldInfo{
+					{
+						Name:       "Typename",
+						JSONTag:    "__typename",
+						IsExported: true,
+					},
+					{
+						Name:             "User",
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PointerElemType:  "UserInline",
+						SubFields: []FieldInfo{
+							{
+								Name:       "UserFragment2",
+								IsEmbedded: true,
+								JSONTag:    "-",
+								SubFields: []FieldInfo{
+									{
+										Name:       "Name",
+										JSONTag:    "name",
+										IsExported: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				contains: []string{
+					"t.User = &UserInline{}",
+					"json.Unmarshal(data, &t.User.UserFragment2)",
+				},
+				notContains: []string{
+					"json.Unmarshal(data, t.User)",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
