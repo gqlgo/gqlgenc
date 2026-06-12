@@ -112,7 +112,8 @@ func fragmentsInOperationWalker(selectionSet ast.SelectionSet) ast.FragmentDefin
 	return fragments
 }
 
-// TypesFromQueryDocuments returns a map of type names used in query document arguments.
+// TypesFromQueryDocuments returns a map of type names used in query documents,
+// both from variable definitions (input types) and enum types from the selection set (return types).
 func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocument) map[string]bool {
 	usedTypes := make(map[string]bool)
 	processedTypes := make(map[string]bool)
@@ -129,10 +130,32 @@ func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocu
 					}
 				}
 			}
+			enumsFromSelectionSet(op.SelectionSet, schema, usedTypes)
 		}
 	}
 
 	return usedTypes
+}
+
+func enumsFromSelectionSet(selectionSet ast.SelectionSet, schema *ast.Schema, usedTypes map[string]bool) {
+	for _, selection := range selectionSet {
+		switch selection := selection.(type) {
+		case *ast.Field:
+			if selection.Definition != nil {
+				typeName := selection.Definition.Type.Name()
+				if def, ok := schema.Types[typeName]; ok && def.Kind == ast.Enum {
+					usedTypes[typeName] = true
+				}
+			}
+			enumsFromSelectionSet(selection.SelectionSet, schema, usedTypes)
+		case *ast.InlineFragment:
+			enumsFromSelectionSet(selection.SelectionSet, schema, usedTypes)
+		case *ast.FragmentSpread:
+			if selection.Definition != nil {
+				enumsFromSelectionSet(selection.Definition.SelectionSet, schema, usedTypes)
+			}
+		}
+	}
 }
 
 func inputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, usedTypes, processedTypes map[string]bool) {

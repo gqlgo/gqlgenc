@@ -37,12 +37,12 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 				continue
 			}
 
-			// Input型とEnum型は常に生成
+			// Input型は常に生成
 			switch typeDef.Kind {
-			case ast.InputObject, ast.Enum:
+			case ast.InputObject:
 				newModels = append(newModels, model)
-			case ast.Object:
-				// Object型は、クエリで使用されている場合のみ生成
+			case ast.Enum, ast.Object:
+				// Enum型とObject型は、クエリで使用されている場合のみ生成
 				if usedTypes[model.Name] {
 					newModels = append(newModels, model)
 				}
