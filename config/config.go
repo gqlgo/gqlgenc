@@ -115,18 +115,13 @@ func LoadConfig(configFilename string) (*Config, error) {
 
 func (c *Config) LoadSchema(ctx context.Context) error {
 	// Load schema
-	// TODO: Add test for when SchemaFilename is not specified in config
 	switch {
 	case c.GQLGenConfig.SchemaFilename != nil:
 		if err := c.GQLGenConfig.LoadSchema(); err != nil {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
 	case c.GQLGencConfig.Endpoint != nil:
-		httpClient := c.GQLGencConfig.Endpoint.Client
-		if httpClient == nil {
-			httpClient = http.DefaultClient
-		}
-		schema, err := introspectionSchema(ctx, httpClient, c.GQLGencConfig.Endpoint.URL, c.GQLGencConfig.Endpoint.Headers)
+		schema, err := introspectionSchema(ctx, http.DefaultClient, c.GQLGencConfig.Endpoint.URL, http.Header(c.GQLGencConfig.Endpoint.Headers))
 		if err != nil {
 			return fmt.Errorf("introspect schema failed: %w", err)
 		}
@@ -205,9 +200,45 @@ func (c *GQLGencConfig) LoadQuery(schema *ast.Schema) error {
 
 // EndPointConfig are the allowed options for the 'endpoint' config.
 type EndPointConfig struct {
-	// TODO: テスト
-	Headers http.Header `yaml:"headers,omitempty"`
-	URL     string      `yaml:"url"`
-	// TODO: 消す
-	Client *http.Client `yaml:"-"`
+	Headers Header `yaml:"headers,omitempty"`
+	URL     string `yaml:"url"`
+}
+
+// Header は HTTP ヘッダーの YAML 表現。値には文字列と文字列リストの両方を指定できる。
+//
+//	headers:
+//	  Authorization: "Bearer token"
+//	  Accept: ["application/json", "text/plain"]
+type Header map[string][]string
+
+// UnmarshalYAML は文字列スカラーと文字列リストの両方をヘッダー値として受け付ける。
+func (h *Header) UnmarshalYAML(unmarshal func(any) error) error {
+	var raw map[string]any
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	result := make(Header, len(raw))
+	for key, value := range raw {
+		switch v := value.(type) {
+		case string:
+			result[key] = []string{v}
+		case []any:
+			values := make([]string, 0, len(v))
+			for _, item := range v {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("header %q: values must be strings, got %T", key, item)
+				}
+				values = append(values, s)
+			}
+			result[key] = values
+		default:
+			return fmt.Errorf("header %q: value must be a string or a list of strings, got %T", key, value)
+		}
+	}
+
+	*h = result
+
+	return nil
 }

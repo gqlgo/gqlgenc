@@ -13,6 +13,7 @@ import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 
+	"github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -281,10 +282,13 @@ func TestLoadSchema(t *testing.T) {
 		configFile      string
 		responseFile    string
 		httpErrorStatus int
+		authorization   string
+		emptyConfig     bool
 	}
 
 	type want struct {
-		err error
+		err           error
+		authorization string
 	}
 
 	tests := []struct {
@@ -351,6 +355,29 @@ func TestLoadSchema(t *testing.T) {
 				err: nil,
 			},
 		},
+		{
+			// schema も endpoint も無い Config は LoadConfig が拒否するため、
+			// LoadSchema の防御分岐は直接構築でのみ到達できる
+			name: "schemaもendpointも未指定ならエラー",
+			args: args{
+				emptyConfig: true,
+			},
+			want: want{
+				err: fmt.Errorf("neither 'schema' nor 'endpoint' specified"),
+			},
+		},
+		{
+			// endpoint.headers に設定したヘッダーが introspection リクエストに付与される
+			name: "endpointのheadersがintrospectionリクエストに付与される",
+			args: args{
+				configFile:    "testdata/cfg/endpoint_only.yml",
+				responseFile:  "testdata/remote/response_ok.json",
+				authorization: "Bearer test-token",
+			},
+			want: want{
+				authorization: "Bearer test-token",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -359,10 +386,13 @@ func TestLoadSchema(t *testing.T) {
 
 			var cfg *Config
 			var err error
+			var mockServer *mockRemoteServer
 
-			if tt.args.responseFile != "" || tt.args.httpErrorStatus != 0 {
+			if tt.args.emptyConfig {
+				cfg = &Config{GQLGenConfig: &config.Config{}, GQLGencConfig: &GQLGencConfig{}}
+				err = cfg.LoadSchema(t.Context())
+			} else if tt.args.responseFile != "" || tt.args.httpErrorStatus != 0 {
 				// リモートスキーマのテストケース（mockServerを使用）
-				var mockServer *mockRemoteServer
 				var closeServer func()
 
 				if tt.args.httpErrorStatus != 0 {
@@ -397,6 +427,9 @@ gqlgenc:
   endpoint:
     url: %s
 `, mockServer.URL)
+				if tt.args.authorization != "" {
+					tmpConfig += fmt.Sprintf("    headers:\n      Authorization: %q\n", tt.args.authorization)
+				}
 				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
 					t.Fatalf("Failed to write temp config: %v", tmpErr)
 				}
@@ -429,6 +462,13 @@ gqlgenc:
 			} else if err != nil {
 				t.Errorf("error = %v, want nil", err)
 				return
+			}
+
+			// introspection リクエストに付与されたヘッダーの検証
+			if tt.want.authorization != "" {
+				if got := mockServer.header.Get("Authorization"); got != tt.want.authorization {
+					t.Errorf("Authorization header = %q, want %q", got, tt.want.authorization)
+				}
 			}
 
 			// 成功時は基本的な検証
@@ -605,7 +645,7 @@ func containsString(s, substring string) bool {
 type mockRemoteServer struct {
 	URL    string
 	body   []byte
-	client *http.Client
+	header http.Header
 }
 
 //nolint:nonamedreturns // named return "mock" with type "*mockRemoteServer" found
@@ -614,6 +654,8 @@ func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, cl
 
 	mock = &mockRemoteServer{}
 	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+		mock.header = req.Header.Clone()
+
 		var err error
 		mock.body, err = io.ReadAll(req.Body)
 		if err != nil {
@@ -640,20 +682,8 @@ func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, cl
 
 	server := httptest.NewServer(handler)
 	mock.URL = server.URL
-	mock.client = server.Client()
 
 	return mock, func() { server.Close() }
-}
-
-type handlerRoundTripper struct {
-	handler http.Handler
-}
-
-func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	recorder := httptest.NewRecorder()
-	rt.handler.ServeHTTP(recorder, req)
-	resp := recorder.Result()
-	return resp, nil
 }
 
 type responseFromFile string
@@ -682,8 +712,7 @@ func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) 
 
 	server := httptest.NewServer(handler)
 	mock = &mockRemoteServer{
-		URL:    server.URL,
-		client: server.Client(),
+		URL: server.URL,
 	}
 
 	return mock, func() { server.Close() }
@@ -691,4 +720,73 @@ func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) 
 
 func ptr[T any](t T) *T {
 	return &t
+}
+
+func TestHeaderUnmarshalYAML(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		yamlSource string
+	}
+
+	type want struct {
+		header Header
+		err    error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// README に記載しているスカラー形式
+			name: "文字列スカラーは単一要素のリストとしてデコードされる",
+			args: args{
+				yamlSource: `Authorization: "Bearer token"`,
+			},
+			want: want{
+				header: Header{
+					"Authorization": []string{"Bearer token"},
+				},
+			},
+		},
+		{
+			name: "文字列リストはそのままデコードされる",
+			args: args{
+				yamlSource: `Accept: ["application/json", "text/plain"]`,
+			},
+			want: want{
+				header: Header{
+					"Accept": []string{"application/json", "text/plain"},
+				},
+			},
+		},
+		{
+			name: "文字列でも文字列リストでもない値はエラー",
+			args: args{
+				yamlSource: `Authorization: 123`,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got Header
+			err := yaml.Unmarshal([]byte(tt.args.yamlSource), &got)
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.header, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
 }
