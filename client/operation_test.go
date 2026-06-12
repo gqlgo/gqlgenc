@@ -56,18 +56,19 @@ func TestDo(t *testing.T) {
 			},
 		},
 		{
-			// GraphQL エラーのレスポンスはエラーとして返る
-			name: "GraphQLエラーのときはエラーを返す",
+			// GraphQL エラーのレスポンスはエラーになるが、同時に返された部分データもデコードされる
+			name: "GraphQLエラーのときはエラーと部分データを返す",
 			args: args{
 				op: Operation[getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},
 				vars:     getUserVars{ID: "1"},
-				respBody: `{"data":null,"errors":[{"message":"not found"}]}`,
+				respBody: `{"data":{"name":"Partial"},"errors":[{"message":"not found"}]}`,
 			},
 			want: want{
 				requestBody: `{"query":"query GetUser($id: ID!) { user(id: $id) { name } }","variables":{"id":"1","size":null},"operationName":"GetUser"}`,
+				user:        &user{Name: "Partial"},
 				err:         cmpopts.AnyError,
 			},
 		},

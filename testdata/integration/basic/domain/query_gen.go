@@ -1853,8 +1853,3 @@ fragment UserFragment2 on User {
 	name
 }
 `
-
-var DocumentOperationNames = map[string]string{
-	UpdateUserDocument:    "UpdateUser",
-	UserOperationDocument: "UserOperation",
-}

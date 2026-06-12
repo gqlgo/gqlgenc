@@ -78,7 +78,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  &gqlErrors{Errors: gqlerror.List{{Message: "Field not found", Path: ast.Path{ast.PathName("user")}}}},
+				err:  gqlerror.List{{Message: "Field not found", Path: ast.Path{ast.PathName("user")}}},
 			},
 		},
 		{
@@ -93,7 +93,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err:  errors.New(`failed to decode response data: jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 		{
@@ -108,7 +108,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "": EOF`),
+				err:  errors.New(`failed to decode response: EOF`),
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data "{\"data\":\"invalid data format\"}": json: cannot unmarshal JSON string into Go map[string]interface {} within "/data"`),
+				err:  errors.New(`failed to decode response data: json: cannot unmarshal JSON string into Go map[string]interface {} within "/data"`),
 			},
 		},
 		{
@@ -138,7 +138,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  &gqlErrors{Errors: gqlerror.List{{Message: "Request error"}}},
+				err:  gqlerror.List{{Message: "Request error"}},
 			},
 		},
 		{
@@ -153,7 +153,7 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response "{}": no data or errors member`),
+				err:  errors.New(`failed to decode response: no data or errors member`),
 			},
 		},
 	}
@@ -166,8 +166,8 @@ func TestClient_unmarshalResponse(t *testing.T) {
 				t.Errorf("unmarshalResponse() error:\nwant: %v\n got: %v", tt.want.err, err)
 			} else if err != nil && tt.want.err != nil {
 				// Special handling for GraphQL errors
-				var gqlErrs *gqlErrors
-				var wantGqlErrs *gqlErrors
+				var gqlErrs gqlerror.List
+				var wantGqlErrs gqlerror.List
 				if errors.As(err, &gqlErrs) && errors.As(tt.want.err, &wantGqlErrs) {
 					// Compare GraphQL errors
 					if !cmp.Equal(gqlErrs, wantGqlErrs) {
@@ -284,8 +284,8 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: &errorResponse{
-					NetworkError: &httpError{
+				err: &ErrorResponse{
+					NetworkError: &HTTPError{
 						Code:    http.StatusInternalServerError,
 						Message: `Response body {"message":"Internal Server Error"}`,
 					},
@@ -308,7 +308,7 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: &errorResponse{
+				err: &ErrorResponse{
 					GqlErrors: &gqlerror.List{{Message: "Field not found", Path: ast.Path{ast.PathName("user")}}},
 				},
 			},
@@ -329,7 +329,7 @@ func TestClient_parseResponse(t *testing.T) {
 			},
 			want: want{
 				out: &map[string]any{},
-				err: errors.New(`http status is OK but failed to decode response data "{\"data\":invalid_json}": jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
+				err: errors.New(`http status is OK but failed to decode response data: jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
 	}
@@ -344,11 +344,11 @@ func TestClient_parseResponse(t *testing.T) {
 				t.Errorf("parseResponse() error:\nwant: %v\n got: %v", tt.want.err, err)
 			} else if err != nil {
 				// For error responses, check error type
-				var gotErrResp *errorResponse
+				var gotErrResp *ErrorResponse
 
-				var wantErrResp *errorResponse
+				var wantErrResp *ErrorResponse
 
-				// Check if errors are errorResponse type
+				// Check if errors are ErrorResponse type
 				if errors.As(err, &gotErrResp) && errors.As(tt.want.err, &wantErrResp) {
 					// Check network error
 					if (gotErrResp.NetworkError == nil) != (wantErrResp.NetworkError == nil) {

@@ -29,20 +29,20 @@ func ParseResponse(resp *http.Response, out any) error {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	errResponse := &errorResponse{}
+	errResponse := &ErrorResponse{}
 	isStatusCodeOK := http.StatusOK <= resp.StatusCode && resp.StatusCode < http.StatusMultipleChoices
 	if !isStatusCodeOK {
-		errResponse.NetworkError = &httpError{
+		errResponse.NetworkError = &HTTPError{
 			Code:    resp.StatusCode,
 			Message: "Response body " + string(body),
 		}
 	}
 
 	if err := unmarshalResponse(body, out); err != nil {
-		var gqlErrs *gqlErrors
+		var gqlErrs gqlerror.List
 		if errors.As(err, &gqlErrs) {
 			// successfully parsed graphql error response
-			errResponse.GqlErrors = &gqlErrs.Errors
+			errResponse.GqlErrors = &gqlErrs
 		} else if isStatusCodeOK {
 			// status code is OK but the GraphQL response can't be parsed, it's an error.
 			return fmt.Errorf("http status is OK but %w", err)
@@ -56,41 +56,50 @@ func ParseResponse(resp *http.Response, out any) error {
 	return nil
 }
 
-// httpError is the error when a gqlErrors cannot be parsed.
-type httpError struct {
+// HTTPError is the error when the response status code is not 2xx.
+type HTTPError struct {
 	Message string `json:"message"`
 	Code    int    `json:"code"`
 }
 
-// gqlErrors is the struct of a standard graphql error response.
-type gqlErrors struct {
-	Errors gqlerror.List `json:"errors"`
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("http status %d: %s", e.Code, e.Message)
 }
 
-func (e *gqlErrors) Error() string {
-	return e.Errors.Error()
-}
-
-// errorResponse represent an handled error.
-type errorResponse struct {
+// ErrorResponse represents a handled error of a GraphQL request.
+type ErrorResponse struct {
 	// http status code is not OK
-	NetworkError *httpError `json:"networkErrors"`
+	NetworkError *HTTPError `json:"networkErrors"`
 	// http status code is OK but the server returned at least one graphql error
 	GqlErrors *gqlerror.List `json:"graphqlErrors"`
 }
 
 // HasErrors returns true when at least one error is declared.
-func (er *errorResponse) HasErrors() bool {
+func (er *ErrorResponse) HasErrors() bool {
 	return er.NetworkError != nil || er.GqlErrors != nil
 }
 
-func (er *errorResponse) Error() string {
+func (er *ErrorResponse) Error() string {
 	content, err := json.Marshal(er)
 	if err != nil {
 		return err.Error()
 	}
 
 	return string(content)
+}
+
+// Unwrap exposes the underlying errors so that callers can inspect them
+// with errors.As, e.g. as *HTTPError or gqlerror.List.
+func (er *ErrorResponse) Unwrap() []error {
+	var errs []error
+	if er.NetworkError != nil {
+		errs = append(errs, er.NetworkError)
+	}
+	if er.GqlErrors != nil {
+		errs = append(errs, *er.GqlErrors)
+	}
+
+	return errs
 }
 
 // unmarshalResponse decodes a GraphQL response body in a single pass.
@@ -101,10 +110,10 @@ func unmarshalResponse(respBody []byte, out any) error {
 
 	tok, err := dec.ReadToken()
 	if err != nil {
-		return fmt.Errorf("failed to decode response %q: %w", respBody, err)
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 	if tok.Kind() != '{' {
-		return fmt.Errorf("failed to decode response %q: unexpected JSON kind %v, expected object", respBody, tok.Kind())
+		return fmt.Errorf("failed to decode response: unexpected JSON kind %v, expected object", tok.Kind())
 	}
 
 	var dataSeen bool
@@ -112,31 +121,31 @@ func unmarshalResponse(respBody []byte, out any) error {
 	for dec.PeekKind() != '}' {
 		name, err := dec.ReadToken()
 		if err != nil {
-			return fmt.Errorf("failed to decode response %q: %w", respBody, err)
+			return fmt.Errorf("failed to decode response: %w", err)
 		}
 		switch name.String() {
 		case "data":
 			dataSeen = true
 			if err := json.UnmarshalDecode(dec, out); err != nil {
-				return fmt.Errorf("failed to decode response data %q: %w", respBody, err)
+				return fmt.Errorf("failed to decode response data: %w", err)
 			}
 		case "errors":
 			if err := json.UnmarshalDecode(dec, &errs); err != nil {
-				return fmt.Errorf("failed to decode response error %q: %w", respBody, err)
+				return fmt.Errorf("failed to decode response error: %w", err)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
-				return fmt.Errorf("failed to decode response %q: %w", respBody, err)
+				return fmt.Errorf("failed to decode response: %w", err)
 			}
 		}
 	}
 
 	if len(errs) > 0 {
-		return &gqlErrors{Errors: errs}
+		return errs
 	}
 
 	if !dataSeen {
-		return fmt.Errorf("failed to decode response %q: no data or errors member", respBody)
+		return errors.New("failed to decode response: no data or errors member")
 	}
 
 	return nil

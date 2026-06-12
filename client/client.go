@@ -40,24 +40,25 @@ func WithHTTPHeader(header http.Header) Option {
 }
 
 func (c *Client) Post(ctx context.Context, operationName, query string, variables map[string]any, out any, options ...Option) error {
+	cc := *c
 	for _, option := range options {
-		option(c)
+		option(&cc)
 	}
 
 	// PostMultipart send multipart form with files https://gqlgen.com/reference/file-upload/ https://github.com/jaydenseric/graphql-multipart-request-spec
-	req, err := NewMultipartRequest(ctx, c.endpoint, operationName, query, variables)
+	req, err := NewMultipartRequest(ctx, cc.endpoint, operationName, query, variables)
 	if err != nil {
 		return fmt.Errorf("failed to create post multipart request: %w", err)
 	}
 
 	if req == nil {
-		req, err = NewRequest(ctx, c.endpoint, operationName, query, variables)
+		req, err = NewRequest(ctx, cc.endpoint, operationName, query, variables)
 		if err != nil {
 			return fmt.Errorf("failed to create post request: %w", err)
 		}
 	}
 
-	return c.do(req, out)
+	return cc.do(req, out)
 }
 
 func (c *Client) do(req *http.Request, out any) error {

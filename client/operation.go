@@ -15,23 +15,26 @@ type Operation[Vars, Res any] struct {
 // Do executes op against c with typed variables and returns the decoded
 // response. Vars is marshaled as the "variables" member of the request,
 // so unlike a map every variable is checked at compile time.
+// Options apply only to this call and do not mutate c.
+//
+// Even when an error is returned, the result may contain partial data:
+// GraphQL servers can return both "data" and "errors" in one response.
 //
 // Do does not build multipart requests: operations whose variables contain
-// graphql.Upload must use Post or the generated client methods instead.
+// graphql.Upload must use Post instead.
 func Do[Vars, Res any](ctx context.Context, c *Client, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
+	cc := *c
 	for _, option := range options {
-		option(c)
+		option(&cc)
 	}
 
-	req, err := NewRequest(ctx, c.endpoint, op.Name, op.Document, vars)
+	req, err := NewRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create post request: %w", err)
 	}
 
 	var res Res
-	if err := c.do(req, &res); err != nil {
-		return nil, err
-	}
+	err = cc.do(req, &res)
 
-	return &res, nil
+	return &res, err
 }

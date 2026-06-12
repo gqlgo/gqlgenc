@@ -14,9 +14,3 @@ import (
 {{- range $operation := .Operations}}
 const {{ $operation.Name|go }}Document = `{{ $operation.Document }}`
 {{- end}}
-
-var DocumentOperationNames = map[string]string{
-{{- range $operation := .Operations}}
-    {{ $operation.Name|go }}Document: "{{ $operation.Name }}",
-{{- end}}
-}

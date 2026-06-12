@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -180,18 +181,18 @@ func TestUnmarshalResponse(t *testing.T) {
 func TestErrorResponse_HasErrors(t *testing.T) {
 	tests := []struct {
 		name     string
-		response errorResponse
+		response ErrorResponse
 		want     bool
 	}{
 		{
 			name:     "No errors",
-			response: errorResponse{},
+			response: ErrorResponse{},
 			want:     false,
 		},
 		{
 			name: "Network error present",
-			response: errorResponse{
-				NetworkError: &httpError{
+			response: ErrorResponse{
+				NetworkError: &HTTPError{
 					Code:    500,
 					Message: "Server Error",
 				},
@@ -200,7 +201,7 @@ func TestErrorResponse_HasErrors(t *testing.T) {
 		},
 		{
 			name: "GraphQL error present",
-			response: errorResponse{
+			response: ErrorResponse{
 				GqlErrors: &gqlerror.List{
 					&gqlerror.Error{
 						Message: "GraphQL Error",
@@ -211,8 +212,8 @@ func TestErrorResponse_HasErrors(t *testing.T) {
 		},
 		{
 			name: "Both errors present",
-			response: errorResponse{
-				NetworkError: &httpError{
+			response: ErrorResponse{
+				NetworkError: &HTTPError{
 					Code:    500,
 					Message: "Server Error",
 				},
@@ -239,13 +240,13 @@ func TestErrorResponse_HasErrors(t *testing.T) {
 func TestErrorResponse_Error(t *testing.T) {
 	tests := []struct {
 		name     string
-		response errorResponse
+		response ErrorResponse
 		contains []string
 	}{
 		{
 			name: "Network error",
-			response: errorResponse{
-				NetworkError: &httpError{
+			response: ErrorResponse{
+				NetworkError: &HTTPError{
 					Code:    500,
 					Message: "Server Error",
 				},
@@ -254,7 +255,7 @@ func TestErrorResponse_Error(t *testing.T) {
 		},
 		{
 			name: "GraphQL error",
-			response: errorResponse{
+			response: ErrorResponse{
 				GqlErrors: &gqlerror.List{
 					&gqlerror.Error{
 						Message: "GraphQL Error",
@@ -277,44 +278,70 @@ func TestErrorResponse_Error(t *testing.T) {
 	}
 }
 
-func TestGqlErrors_Error(t *testing.T) {
+func TestErrorResponse_Unwrap(t *testing.T) {
+	type fields struct {
+		response *ErrorResponse
+	}
+
+	type want struct {
+		httpError bool
+		gqlErrors bool
+	}
+
 	tests := []struct {
-		name    string
-		errors  gqlErrors
-		contain string
+		name   string
+		fields fields
+		want   want
 	}{
 		{
-			name: "Single error",
-			errors: gqlErrors{
-				Errors: gqlerror.List{
-					&gqlerror.Error{
-						Message: "Test Error",
-					},
+			name: "NetworkErrorはerrors.Asで*HTTPErrorとして取り出せる",
+			fields: fields{
+				response: &ErrorResponse{
+					NetworkError: &HTTPError{Code: 500, Message: "Server Error"},
 				},
 			},
-			contain: "Test Error",
+			want: want{
+				httpError: true,
+			},
 		},
 		{
-			name: "Multiple errors",
-			errors: gqlErrors{
-				Errors: gqlerror.List{
-					&gqlerror.Error{
-						Message: "Error 1",
-					},
-					&gqlerror.Error{
-						Message: "Error 2",
-					},
+			name: "GqlErrorsはerrors.Asでgqlerror.Listとして取り出せる",
+			fields: fields{
+				response: &ErrorResponse{
+					GqlErrors: &gqlerror.List{&gqlerror.Error{Message: "GraphQL Error"}},
 				},
 			},
-			contain: "Error 1",
+			want: want{
+				gqlErrors: true,
+			},
+		},
+		{
+			name: "両方あるときは両方取り出せる",
+			fields: fields{
+				response: &ErrorResponse{
+					NetworkError: &HTTPError{Code: 500, Message: "Server Error"},
+					GqlErrors:    &gqlerror.List{&gqlerror.Error{Message: "GraphQL Error"}},
+				},
+			},
+			want: want{
+				httpError: true,
+				gqlErrors: true,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errStr := tt.errors.Error()
-			if !strings.Contains(errStr, tt.contain) {
-				t.Errorf("Error() result should contain %q, but got %q", tt.contain, errStr)
+			err := error(tt.fields.response)
+
+			var httpErr *HTTPError
+			if got := errors.As(err, &httpErr); got != tt.want.httpError {
+				t.Errorf("errors.As(*HTTPError) = %v, want %v", got, tt.want.httpError)
+			}
+
+			var gqlErrs gqlerror.List
+			if got := errors.As(err, &gqlErrs); got != tt.want.gqlErrors {
+				t.Errorf("errors.As(gqlerror.List) = %v, want %v", got, tt.want.gqlErrors)
 			}
 		})
 	}
