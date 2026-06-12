@@ -90,6 +90,14 @@ func (a *FieldAnalyzer) analyzeField(
 			elemType := ptrType.Elem()
 			info.PointerElemType = templates.CurrentImports.LookupType(elemType)
 		}
+
+		// inline fragment の構造体内には fragment spreads (json:"-") が含まれ得るため、
+		// 親の UnmarshalJSONFrom で明示デコードできるようサブフィールドを解析する
+		if elemStruct := unwrapToStruct(field.Type()); elemStruct != nil {
+			info.SubFields = a.AnalyzeFields(elemStruct, shouldGenerateUnmarshal)
+		}
+
+		return info
 	}
 
 	// 埋め込みフィールドでインラインフラグメントでない場合の特別処理

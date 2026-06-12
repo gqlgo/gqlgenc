@@ -12,19 +12,6 @@ type Statement interface {
 	String(indent int) string
 }
 
-// VariableDecl は変数宣言を表す。
-//
-// 例: var raw map[string]jsontext.Value
-type VariableDecl struct {
-	Name string // 変数名
-	Type string // 変数の型
-}
-
-// String は変数宣言の文字列表現を返す。
-func (v *VariableDecl) String(_ int) string {
-	return fmt.Sprintf("var %s %s", v.Name, v.Type)
-}
-
 // IfStatement は if 文を表す。
 //
 // 例:
@@ -64,9 +51,8 @@ func (i *IfStatement) String(indent int) string {
 //	    // Body
 //	}
 type SwitchStatement struct {
-	Expr    string       // switch の式
-	Cases   []SwitchCase // case のリスト
-	Default []Statement  // default 節のステートメント（nil の場合は default 節なし）
+	Expr  string       // switch の式
+	Cases []SwitchCase // case のリスト
 }
 
 // SwitchCase は switch 文の単一の case を表す。
@@ -84,14 +70,6 @@ func (s *SwitchStatement) String(indent int) string {
 	for _, c := range s.Cases {
 		buf.WriteString(tabs + fmt.Sprintf("case %q:\n", c.Value))
 		for _, stmt := range c.Body {
-			buf.WriteString(tabs + "\t")
-			buf.WriteString(stmt.String(indent + 1))
-			buf.WriteString("\n")
-		}
-	}
-	if s.Default != nil {
-		buf.WriteString(tabs + "default:\n")
-		for _, stmt := range s.Default {
 			buf.WriteString(tabs + "\t")
 			buf.WriteString(stmt.String(indent + 1))
 			buf.WriteString("\n")
@@ -161,34 +139,6 @@ func (e *ErrorCheckStatement) String(indent int) string {
 
 	buf.WriteString(fmt.Sprintf("if err := %s; err != nil {\n", e.ErrorExpr))
 	for _, stmt := range e.Body {
-		buf.WriteString(tabs + "\t")
-		buf.WriteString(stmt.String(indent + 1))
-		buf.WriteString("\n")
-	}
-	buf.WriteString(tabs + "}")
-
-	return buf.String()
-}
-
-// ForStatement は for 文を表す。
-//
-// 例:
-//
-//	for dec.PeekKind() != '}' {
-//	    // Body
-//	}
-type ForStatement struct {
-	Condition string      // ループ条件式
-	Body      []Statement // ループ本体のステートメント
-}
-
-// String は for 文の文字列表現を返す。
-func (f *ForStatement) String(indent int) string {
-	var buf strings.Builder
-	tabs := strings.Repeat("\t", indent)
-
-	buf.WriteString(fmt.Sprintf("for %s {\n", f.Condition))
-	for _, stmt := range f.Body {
 		buf.WriteString(tabs + "\t")
 		buf.WriteString(stmt.String(indent + 1))
 		buf.WriteString("\n")

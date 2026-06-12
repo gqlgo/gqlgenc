@@ -64,9 +64,9 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 	// Generate type declaration
 	buf.WriteString(g.formatTypeDecl(typeName, structType))
 
-	// Generate UnmarshalJSON if needed
-	if g.shouldGenerateUnmarshal(named) {
-		statements := g.unmarshalBuilder.BuildUnmarshalMethod(fields)
+	// Generate UnmarshalJSONFrom only when fragments require custom decoding
+	if g.shouldGenerateUnmarshal(named) && g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
+		statements := g.unmarshalBuilder.BuildUnmarshalMethod(typeName, fields)
 		buf.WriteString(g.formatUnmarshalMethod(typeName, statements))
 	}
 
@@ -85,14 +85,21 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 //   - goTypes: チェック対象の Go 型のリスト
 //
 // 戻り値:
-//   - bool: いずれかの型で UnmarshalJSONFrom メソッドを生成する場合は true
+//   - bool: いずれかの型がフラグメントを含み UnmarshalJSONFrom メソッドを生成する場合は true
 func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
 	for _, t := range goTypes {
 		named, err := g.unwrapToNamed(t)
 		if err != nil {
 			continue
 		}
-		if g.shouldGenerateUnmarshal(named) {
+		if !g.shouldGenerateUnmarshal(named) {
+			continue
+		}
+		fields, err := g.fields(t)
+		if err != nil {
+			continue
+		}
+		if g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
 			return true
 		}
 	}

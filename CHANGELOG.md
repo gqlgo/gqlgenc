@@ -44,7 +44,7 @@ gqlgen:
 
 #### コード生成を querygen と clientgen に分割
 
-- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`、nil 安全な Getter、クエリドキュメント定数（`<オペレーション名>Document`）、`DocumentOperationNames` を生成します
+- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、nil 安全な Getter、クエリドキュメント定数（`<オペレーション名>Document`）を生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
 - `clientgen` を使う場合は `querygen` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
@@ -143,7 +143,7 @@ type UserOperation_User_User struct {
 
 #### 型安全な UnmarshalJSONFrom の生成
 
-- querygen がオペレーションごとのレスポンス型に型安全な `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）を生成します。フラグメントを含まない型は `jsontext.Decoder` からトークンを1パスで読んで各フィールドへ直接デコードし、フラグメントスプレッドやインラインフラグメント（`__typename` による型判別）を含む型のみ、値全体を一度だけバッファして同じ JSON データから各ターゲットへデコードします。デコードロジックがコンパイル時に確定するため、リフレクションベースのランタイム汎用デコーダが不要になりました
+- querygen はフラグメントを含む型にのみ `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）を生成します。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドとインラインフラグメント（`__typename` による型判別）だけを追加でデコードします。フラグメントを含まない型はメソッドを生成せず、デフォルトデコードで処理されます。リフレクションベースのランタイム汎用デコーダ（旧 graphqljson）は不要になりました
 
 #### 型付きオペレーションと client.Do
 

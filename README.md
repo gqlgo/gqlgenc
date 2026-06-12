@@ -166,7 +166,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 - フラグメント対応:
   - フラグメントスプレッドは `json:"-"` 付きの埋め込み構造体として表現し、UnmarshalJSONFrom 内で同じ JSON データから直接デコードする
   - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする
-- `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）: フラグメントを含まない型は `jsontext.Decoder` からトークンを1パスで読み、各フィールドへ直接デコードする。フラグメントを含む型のみ、値全体を一度だけバッファして複数のターゲットへデコードする
+- `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
 - クエリドキュメント定数（`<オペレーション名>Document`）
 
 ### client_gen.go（clientgen）
@@ -216,7 +216,7 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 ### レスポンス解析とエラー
 
 - `Content-Encoding: gzip` のレスポンスは透過的に展開される
-- レスポンスボディを1パスで走査し、`data` は生成された `UnmarshalJSONFrom` へストリーミングで直接デコードし、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする
+- レスポンスボディを1パスで走査し、`data` は生成されたレスポンス型へ直接デコードし、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする
 - エラー時は `ErrorResponse` が返り、`errors.As` で `*client.HTTPError`（HTTP ステータス異常）や `gqlerror.List`（GraphQL エラー）を取り出せる
 - GraphQL エラー時もデコード済みの部分データが `client.Do` の戻り値として返る（GraphQL は data と errors の共存を許すため）
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる

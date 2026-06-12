@@ -7,9 +7,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
+func TestUnmarshalBuilder_decodeFragmentSpreadsAt(t *testing.T) {
 	type args struct {
 		fragmentSpreads []FieldInfo
+		parentPath      string
 	}
 
 	type want struct {
@@ -25,6 +26,7 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 			name: "空のfragment spreadsリストの場合は空のstatementsを返す",
 			args: args{
 				fragmentSpreads: []FieldInfo{},
+				parentPath:      "t",
 			},
 			want: want{
 				statementsCount: 0,
@@ -41,6 +43,7 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 						SubFields:  []FieldInfo{},
 					},
 				},
+				parentPath: "t",
 			},
 			want: want{
 				statementsCount: 1,
@@ -64,9 +67,11 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 						},
 					},
 				},
+				parentPath: "t",
 			},
 			want: want{
-				// 親は通常フィールドを持たないため、子のフォールバック statement のみ = 1
+				// 親はデコード可能な通常フィールドを持たないため直接デコードはスキップされ、
+				// 子のデコード statement のみ = 1
 				statementsCount: 1,
 			},
 		},
@@ -87,6 +92,7 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 						SubFields:  []FieldInfo{},
 					},
 				},
+				parentPath: "t",
 			},
 			want: want{
 				statementsCount: 2,
@@ -97,7 +103,7 @@ func TestUnmarshalBuilder_decodeFragmentSpreads(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := NewUnmarshalBuilder()
-			got := b.decodeFragmentSpreads(tt.args.fragmentSpreads)
+			got := b.decodeFragmentSpreadsAt(tt.args.fragmentSpreads, tt.args.parentPath)
 
 			if diff := cmp.Diff(tt.want.statementsCount, len(got)); diff != "" {
 				t.Errorf("statements count diff(-want +got): %s", diff)
@@ -256,6 +262,7 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 	type want struct {
 		statementsCount int
 		contains        []string
+		notContains     []string
 	}
 
 	tests := []struct {
@@ -264,8 +271,8 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 		want want
 	}{
 		{
-			// SubFields が解析できない場合は data 全体からのデコードにフォールバックする
-			name: "SubFieldsがない場合はdata全体のデコードにフォールバックする",
+			// SubFields が解析できない場合は data 全体のデコードに任せる
+			name: "SubFieldsがない場合はdata全体をデコードする",
 			args: args{
 				field: FieldInfo{
 					Name:       "UserFragment",
@@ -283,8 +290,8 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 			},
 		},
 		{
-			// フラグメントの通常フィールドは raw マップからメンバー単位でデコードする
-			name: "通常のSubFieldsはrawマップからメンバー単位でデコードされる",
+			// 通常フィールドを持つフラグメントは data 全体のデフォルトデコード1文になる
+			name: "通常のSubFieldsを持つ場合もdata全体のデコード1文になる",
 			args: args{
 				field: FieldInfo{
 					Name:       "UserFragment",
@@ -306,18 +313,19 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 				parentPath: "t",
 			},
 			want: want{
-				statementsCount: 2,
+				statementsCount: 1,
 				contains: []string{
-					`value, ok := raw["id"]; ok`,
-					"json.Unmarshal(value, &t.UserFragment.ID)",
-					`value, ok := raw["name"]; ok`,
-					"json.Unmarshal(value, &t.UserFragment.Name)",
+					"json.Unmarshal(data, &t.UserFragment)",
+				},
+				notContains: []string{
+					"raw[",
 				},
 			},
 		},
 		{
-			// ネストした fragment spread は親パスを連結して再帰処理される
-			name: "ネストしたfragment spreadは再帰的に処理される",
+			// 通常フィールドがなくネストしたフラグメントのみの場合、
+			// 直接デコードはスキップされ子の処理のみが生成される
+			name: "ネストしたfragmentのみの場合は子の処理のみ生成される",
 			args: args{
 				field: FieldInfo{
 					Name:       "UserFragment",
@@ -339,10 +347,13 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 				contains: []string{
 					"json.Unmarshal(data, &t.UserFragment.NestedFragment)",
 				},
+				notContains: []string{
+					"json.Unmarshal(data, &t.UserFragment)\n",
+				},
 			},
 		},
 		{
-			// inline fragment は __typename による switch でデコードされる
+			// inline fragment は __typename ホルダー構造体経由の switch でデコードされる
 			name: "SubFieldsにinline fragmentが含まれる場合も処理される",
 			args: args{
 				field: FieldInfo{
@@ -361,10 +372,12 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 				parentPath: "t",
 			},
 			want: want{
-				// inline fragment処理(VariableDecl + IfStatement + SwitchStatement) = 3
+				// __typename ホルダー宣言 + そのデコード + switch = 3
 				statementsCount: 3,
 				contains: []string{
-					`typename, ok := raw["__typename"]; ok`,
+					"var typeName_t_UserFragment struct",
+					"json.Unmarshal(data, &typeName_t_UserFragment)",
+					"switch typeName_t_UserFragment.Typename {",
 					"t.UserFragment.InlineFragment = &SomeType{}",
 					"json.Unmarshal(data, t.UserFragment.InlineFragment)",
 				},
@@ -395,6 +408,12 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 					t.Errorf("generated code does not contain %q:\n%s", contains, gotString)
 				}
 			}
+
+			for _, notContains := range tt.want.notContains {
+				if strings.Contains(gotString, notContains) {
+					t.Errorf("generated code unexpectedly contains %q:\n%s", notContains, gotString)
+				}
+			}
 		})
 	}
 }
@@ -403,7 +422,8 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		fields []FieldInfo
+		typeName string
+		fields   []FieldInfo
 	}
 
 	type want struct {
@@ -417,45 +437,10 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 		want want
 	}{
 		{
-			// fragment を含まない型はトークンを1パスで読むストリーミングモードになる
-			name: "通常のフィールドのみの型はストリーミングモードで生成される",
+			// 通常フィールドは type plain 経由のデフォルトデコードに任せる
+			name: "fragment spreadを含む型はplainデコードとfragmentデコードを生成する",
 			args: args{
-				fields: []FieldInfo{
-					{
-						Name:       "ID",
-						JSONTag:    "id",
-						IsExported: true,
-					},
-					{
-						Name:       "Name",
-						JSONTag:    "name",
-						IsExported: true,
-					},
-				},
-			},
-			want: want{
-				contains: []string{
-					"dec.PeekKind() == 'n'",
-					"tok, err := dec.ReadToken()",
-					"for dec.PeekKind() != '}' {",
-					"switch name.String() {",
-					`case "id":`,
-					"json.UnmarshalDecode(dec, &t.ID)",
-					`case "name":`,
-					"json.UnmarshalDecode(dec, &t.Name)",
-					"default:",
-					"dec.SkipValue()",
-				},
-				notContains: []string{
-					"map[string]jsontext.Value",
-					"dec.ReadValue()",
-				},
-			},
-		},
-		{
-			// fragment spread を含む型は値全体を一度バッファするモードになる
-			name: "fragment spreadを含む型はバッファモードで生成される",
-			args: args{
+				typeName: "UserOperation",
 				fields: []FieldInfo{
 					{
 						Name:       "ID",
@@ -472,20 +457,51 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			want: want{
 				contains: []string{
 					"data, err := dec.ReadValue()",
-					"var raw map[string]jsontext.Value",
-					"json.Unmarshal(data, &raw)",
-					`value, ok := raw["id"]; ok`,
+					"type plain UserOperation",
+					"json.Unmarshal(data, (*plain)(t))",
 					"json.Unmarshal(data, &t.UserFragment)",
 				},
 				notContains: []string{
-					"switch name.String() {",
+					"map[string]jsontext.Value",
+					"raw[",
 				},
 			},
 		},
 		{
-			// inline fragment を含む型もバッファモードになる
-			name: "inline fragmentを含む型はバッファモードで生成される",
+			// inline fragment は __typename ホルダー構造体で分岐する
+			name: "inline fragmentを含む型は__typename分岐を生成する",
 			args: args{
+				typeName: "UserOperation_Node",
+				fields: []FieldInfo{
+					{
+						Name:       "Typename",
+						JSONTag:    "__typename",
+						IsExported: true,
+					},
+					{
+						Name:             "User",
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PointerElemType:  "UserFragment",
+					},
+				},
+			},
+			want: want{
+				contains: []string{
+					"type plain UserOperation_Node",
+					"var typeName_t struct",
+					"switch typeName_t.Typename {",
+					"t.User = &UserFragment{}",
+					"json.Unmarshal(data, t.User)",
+				},
+			},
+		},
+		{
+			// デコード可能な通常フィールドが無い型では plain デコードを生成しない
+			// (JSON 表現可能なフィールドのない構造体のデコードはエラーになるため)
+			name: "通常フィールドがない型ではplainデコードを生成しない",
+			args: args{
+				typeName: "UserOperation_Node",
 				fields: []FieldInfo{
 					{
 						Name:             "User",
@@ -497,13 +513,10 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			},
 			want: want{
 				contains: []string{
-					"data, err := dec.ReadValue()",
-					"var raw map[string]jsontext.Value",
-					`typename, ok := raw["__typename"]; ok`,
-					"json.Unmarshal(data, t.User)",
+					"var typeName_t struct",
 				},
 				notContains: []string{
-					"switch name.String() {",
+					"(*plain)(t)",
 				},
 			},
 		},
@@ -514,7 +527,7 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			t.Parallel()
 
 			b := NewUnmarshalBuilder()
-			got := b.BuildUnmarshalMethod(tt.args.fields)
+			got := b.BuildUnmarshalMethod(tt.args.typeName, tt.args.fields)
 
 			var buf strings.Builder
 			for _, stmt := range got {
@@ -538,6 +551,85 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			// 最後は ReturnStatement であることを確認
 			if _, ok := got[len(got)-1].(*ReturnStatement); !ok {
 				t.Errorf("last statement is not ReturnStatement, got: %T", got[len(got)-1])
+			}
+		})
+	}
+}
+
+func TestUnmarshalBuilder_NeedsUnmarshalMethod(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		fields []FieldInfo
+	}
+
+	type want struct {
+		needs bool
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// 通常フィールドのみの型は json/v2 のデフォルトデコードで十分
+			name: "通常フィールドのみの型はメソッド不要",
+			args: args{
+				fields: []FieldInfo{
+					{
+						Name:       "ID",
+						JSONTag:    "id",
+						IsExported: true,
+					},
+				},
+			},
+			want: want{
+				needs: false,
+			},
+		},
+		{
+			name: "fragment spreadを含む型はメソッドが必要",
+			args: args{
+				fields: []FieldInfo{
+					{
+						Name:       "UserFragment",
+						IsEmbedded: true,
+						JSONTag:    "-",
+					},
+				},
+			},
+			want: want{
+				needs: true,
+			},
+		},
+		{
+			name: "inline fragmentを含む型はメソッドが必要",
+			args: args{
+				fields: []FieldInfo{
+					{
+						Name:             "User",
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PointerElemType:  "UserFragment",
+					},
+				},
+			},
+			want: want{
+				needs: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			b := NewUnmarshalBuilder()
+			got := b.NeedsUnmarshalMethod(tt.args.fields)
+
+			if diff := cmp.Diff(tt.want.needs, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
 			}
 		})
 	}

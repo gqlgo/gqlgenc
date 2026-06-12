@@ -152,7 +152,7 @@ func Test_IntegrationTest(t *testing.T) {
 							Name                 string "json:\"name,omitzero\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
-							Name:          "",
+							Name:          "John Doe",
 						},
 						UserFragment1: domain.UserFragment1{
 							User: &struct {
