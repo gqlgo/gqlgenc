@@ -148,14 +148,13 @@ func prepareMultipartFormBody(buffer *bytes.Buffer, formFields []formField, file
 
 	// form fields
 	for _, field := range formFields {
-		fieldBody, err := json.Marshal(field.Value)
+		fieldWriter, err := writer.CreateFormField(field.Name)
 		if err != nil {
-			return "", fmt.Errorf("encode %s: %w", field.Name, err)
+			return "", fmt.Errorf("create form field %s: %w", field.Name, err)
 		}
 
-		err = writer.WriteField(field.Name, string(fieldBody))
-		if err != nil {
-			return "", fmt.Errorf("write %s: %w", field.Name, err)
+		if err := json.MarshalWrite(fieldWriter, field.Value); err != nil {
+			return "", fmt.Errorf("encode %s: %w", field.Name, err)
 		}
 	}
 

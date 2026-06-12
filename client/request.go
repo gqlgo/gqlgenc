@@ -23,12 +23,12 @@ func NewRequest(ctx context.Context, endpoint, operationName, query string, vari
 		OperationName: operationName,
 	}
 
-	requestBody, err := json.Marshal(graphqlRequest)
-	if err != nil {
+	requestBody := &bytes.Buffer{}
+	if err := json.MarshalWrite(requestBody, graphqlRequest); err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("create request struct failed: %w", err)
 	}
