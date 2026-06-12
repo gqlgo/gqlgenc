@@ -57,6 +57,10 @@ func (c *Client) Post(ctx context.Context, operationName, query string, variable
 		}
 	}
 
+	for key, values := range c.header {
+		req.Header[http.CanonicalHeaderKey(key)] = values
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
