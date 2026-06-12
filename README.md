@@ -9,6 +9,13 @@ gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から�
 - gqlgen ベース。モデル生成には gqlgen の modelgen プラグインをそのまま利用し、設定も gqlgen の形式を踏襲します
 - 生成コードとランタイムは `encoding/json/v2` / `encoding/json/jsontext` を使用します
 
+## v1 設計方針
+
+- シンプルな生成コード
+- シンプルな実装コード
+- 最小のConfig、設定より規約
+- モダンな言語機能の採用
+
 ## 動作要件
 
 - Go 1.27 以上
