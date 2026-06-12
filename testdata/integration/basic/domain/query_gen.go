@@ -769,11 +769,35 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decode
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
-		return err
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
+			return err
+		}
 	}
-	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
-		return err
+	if value, ok := raw["private"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["public"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1070,11 +1094,25 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSONFrom(dec *jsontext.Decoder
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
-		return err
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
+			return err
+		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
-		return err
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1291,8 +1329,20 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.UserFragment1); err != nil {
-		return err
+	if value, ok := raw["__typename"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.Typename); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.Name); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["profile"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment1.Profile); err != nil {
+			return err
+		}
 	}
 	var typeName_t_UserFragment1 string
 	if typename, ok := raw["__typename"]; ok {
@@ -1307,8 +1357,10 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.UserFragment2); err != nil {
-		return err
+	if value, ok := raw["name"]; ok {
+		if err := json.Unmarshal(value, &t.UserFragment2.Name); err != nil {
+			return err
+		}
 	}
 	var typeName_t string
 	if typename, ok := raw["__typename"]; ok {
@@ -1440,11 +1492,35 @@ func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) er
 			return err
 		}
 	}
-	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
-		return err
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.ID); err != nil {
+			return err
+		}
 	}
-	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
-		return err
+	if value, ok := raw["private"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Private); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateAddressFields.Street); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["public"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Public); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["street"]; ok {
+		if err := json.Unmarshal(value, &t.PublicAddressFields.Street); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1568,11 +1644,25 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSONFrom(dec *jsontext.Dec
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
-		return err
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
+			return err
+		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
-		return err
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1603,11 +1693,25 @@ func (t *UserOperation_User_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) er
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &t.PrivateProfileFields); err != nil {
-		return err
+	if value, ok := raw["age"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.Age); err != nil {
+			return err
+		}
 	}
-	if err := json.Unmarshal(data, &t.PublicProfileFields); err != nil {
-		return err
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PrivateProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &t.PublicProfileFields.Status); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -161,87 +161,9 @@ func (b *UnmarshalBuilder) buildBufferedMethod(regularFields, fragmentSpreads []
 	return statements
 }
 
-// createFragmentUnmarshalStmt は fragment spread フィールドの Unmarshal ステートメントを生成する。
+// decodeFragmentSpreads は json:"-" を持つ埋め込みフィールドをデコードするステートメントを生成する。
 //
-// このメソッドは純粋関数として、副作用なく Statement を生成する。
-//
-// パラメータ:
-//   - field: fragment spread フィールドの情報
-//
-// 戻り値:
-//   - Statement: json.Unmarshal を呼び出すエラーチェックステートメント
-func (b *UnmarshalBuilder) createFragmentUnmarshalStmt(field FieldInfo) Statement {
-	fieldExpr := fmt.Sprintf("&t.%s", field.Name)
-	return &ErrorCheckStatement{
-		ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", fieldExpr),
-		Body: []Statement{
-			&ReturnStatement{Value: "err"},
-		},
-	}
-}
-
-// decodeNestedFields は fragment spread フィールドの SubFields を処理する。
-//
-// SubFields の分類 + 再帰処理を行い、fragment spreads と inline fragments を処理する。
-//
-// パラメータ:
-//   - parentField: 親の fragment spread フィールド
-//
-// 戻り値:
-//   - []Statement: SubFields をデコードするステートメントのリスト
-func (b *UnmarshalBuilder) decodeNestedFields(parentField FieldInfo) []Statement {
-	embeddedTargetExpr := fmt.Sprintf("t.%s", parentField.Name)
-	_, subFragmentSpreads, subInlineFragments := b.separateFieldTypesAt(
-		parentField.SubFields,
-		embeddedTargetExpr,
-	)
-
-	var statements []Statement
-
-	// Fragment spreads の再帰処理（明示的）
-	subFragmentStatements := b.decodeFragmentSpreads(subFragmentSpreads)
-	statements = append(statements, subFragmentStatements...)
-
-	// Inline fragments の処理
-	subInlineStatements := b.inlineDecoder.DecodeInlineFragments(
-		embeddedTargetExpr,
-		"raw",
-		subInlineFragments,
-	)
-	statements = append(statements, subInlineStatements...)
-
-	return statements
-}
-
-// decodeSingleFragmentSpread は単一の fragment spread フィールドを処理する。
-//
-// Unmarshal ステートメントの生成と、SubFields がある場合の再帰処理を行う。
-//
-// パラメータ:
-//   - field: fragment spread フィールドの情報
-//
-// 戻り値:
-//   - []Statement: このフィールドをデコードするステートメントのリスト
-func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo) []Statement {
-	var statements []Statement
-
-	// Unmarshal statement の生成
-	unmarshalStmt := b.createFragmentUnmarshalStmt(field)
-	statements = append(statements, unmarshalStmt)
-
-	// SubFields がある場合は再帰処理
-	if len(field.SubFields) > 0 {
-		subStatements := b.decodeNestedFields(field)
-		statements = append(statements, subStatements...)
-	}
-
-	return statements
-}
-
-// decodeFragmentSpreads は json:"-" を持つ埋め込みフィールドをアンマーシャルするステートメントを生成する。
-//
-// このメソッドはイミュータブルな設計に従い、新しいステートメントスライスを返す。
-// 副作用を排除することで、コードの予測可能性とテストの容易性を向上させている。
+// トップレベルのターゲット "t" で decodeFragmentSpreadsAt に委譲する。
 //
 // パラメータ:
 //   - fragmentSpreads: fragment spread フィールドのリスト
@@ -249,11 +171,62 @@ func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo) []Stateme
 // 戻り値:
 //   - []Statement: 全ての fragment spreads をデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeFragmentSpreads(fragmentSpreads []FieldInfo) []Statement {
+	return b.decodeFragmentSpreadsAt(fragmentSpreads, "t")
+}
+
+// decodeFragmentSpreadsAt はカスタム親パスで fragment spreads をデコードするステートメントを生成する。
+//
+// パラメータ:
+//   - fragmentSpreads: fragment spread フィールドのリスト
+//   - parentPath: 親パス（例: "t", "t.UserFragment"）
+//
+// 戻り値:
+//   - []Statement: 全ての fragment spreads をデコードするステートメントのリスト
+func (b *UnmarshalBuilder) decodeFragmentSpreadsAt(fragmentSpreads []FieldInfo, parentPath string) []Statement {
 	var statements []Statement
 	for _, field := range fragmentSpreads {
-		fieldStatements := b.decodeSingleFragmentSpread(field)
-		statements = append(statements, fieldStatements...)
+		statements = append(statements, b.decodeSingleFragmentSpread(field, parentPath)...)
 	}
+	return statements
+}
+
+// decodeSingleFragmentSpread は単一の fragment spread フィールドをデコードするステートメントを生成する。
+//
+// フラグメントのフィールド構成は生成時に分かっているため、data 全体を
+// フラグメントごとに再パースする代わりに、raw マップからメンバー単位で
+// 各フィールドへ直接デコードする。ネストした fragment spreads と
+// inline fragments は再帰的に処理する。
+//
+// SubFields が解析できない埋め込み型（独自の UnmarshalJSONFrom を持つ型など）は、
+// data 全体からのデコードにフォールバックする。
+//
+// パラメータ:
+//   - field: fragment spread フィールドの情報
+//   - parentPath: 親パス（例: "t", "t.UserFragment"）
+//
+// 戻り値:
+//   - []Statement: このフィールドをデコードするステートメントのリスト
+func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo, parentPath string) []Statement {
+	target := fmt.Sprintf("%s.%s", parentPath, field.Name)
+
+	if len(field.SubFields) == 0 {
+		return []Statement{
+			&ErrorCheckStatement{
+				ErrorExpr: fmt.Sprintf("json.Unmarshal(data, &%s)", target),
+				Body: []Statement{
+					&ReturnStatement{Value: "err"},
+				},
+			},
+		}
+	}
+
+	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesAt(field.SubFields, target)
+
+	var statements []Statement
+	statements = append(statements, b.fieldDecoder.DecodeFields(target, "raw", regularFields)...)
+	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, target)...)
+	statements = append(statements, b.inlineDecoder.DecodeInlineFragments(target, "raw", inlineFragments)...)
+
 	return statements
 }
 
