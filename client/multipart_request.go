@@ -8,45 +8,98 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 
 	"github.com/99designs/gqlgen/graphql"
 )
 
-type formField struct {
-	Value any
-	Name  string
+// uploadCollector は variables のエンコード中に現れた graphql.Upload を収集する。
+// 値の位置には JSON null を書き込み、ファイル本体とその JSON パスを
+// multipart リクエストの構築のために記録する。
+type uploadCollector struct {
+	files []graphql.Upload
+	paths []string
 }
 
-func NewMultipartRequest(ctx context.Context, endpoint, operationName, query string, variables map[string]any) (*http.Request, error) {
-	multipartFilesGroups, mapping, variables := parseMultipartFiles(variables)
-	if len(multipartFilesGroups) == 0 {
-		//nolint:nilnil // return both a `nil` error and an invalid value: use a sentinel error instead
-		return nil, nil
-	}
+// marshalers は graphql.Upload と *graphql.Upload を捕捉する json/v2 のマーシャラを返す。
+// ネストした input オブジェクトやリスト内の Upload も、エンコード中に現れた位置
+// (jsontext.Encoder の StackPointer) ごと収集される。
+func (c *uploadCollector) marshalers() *json.Marshalers {
+	return json.JoinMarshalers(
+		json.MarshalToFunc(func(enc *jsontext.Encoder, upload graphql.Upload) error {
+			if err := enc.WriteToken(jsontext.Null); err != nil {
+				return err
+			}
+			c.collect(upload, enc.StackPointer())
+			return nil
+		}),
+		json.MarshalToFunc(func(enc *jsontext.Encoder, upload *graphql.Upload) error {
+			if upload == nil {
+				return enc.WriteToken(jsontext.Null)
+			}
+			if err := enc.WriteToken(jsontext.Null); err != nil {
+				return err
+			}
+			c.collect(*upload, enc.StackPointer())
+			return nil
+		}),
+	)
+}
 
-	r := &Request{
-		Query:         query,
-		Variables:     variables,
-		OperationName: operationName,
-	}
+// collect は JSON Pointer (例: /variables/input/file) を
+// graphql-multipart-request-spec のパス表記 (例: variables.input.file) に変換して記録する。
+func (c *uploadCollector) collect(upload graphql.Upload, pointer jsontext.Pointer) {
+	c.files = append(c.files, upload)
+	c.paths = append(c.paths, strings.ReplaceAll(strings.TrimPrefix(string(pointer), "/"), "/", "."))
+}
 
-	body := new(bytes.Buffer)
-	formFields := []formField{
-		{
-			Name:  "operations",
-			Value: r,
-		},
-		{
-			Name:  "map",
-			Value: mapping,
-		},
-	}
+// newMultipartRequest は graphql-multipart-request-spec に従った
+// multipart/form-data リクエストを構築する。
+// https://github.com/jaydenseric/graphql-multipart-request-spec
+// https://gqlgen.com/reference/file-upload/
+func newMultipartRequest(ctx context.Context, endpoint string, operations []byte, uploads *uploadCollector) (*http.Request, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
 
-	contentType, err := prepareMultipartFormBody(body, formFields, multipartFilesGroups)
+	operationsWriter, err := writer.CreateFormField("operations")
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare form body: %w", err)
+		return nil, fmt.Errorf("create form field operations: %w", err)
+	}
+
+	if _, err := operationsWriter.Write(operations); err != nil {
+		return nil, fmt.Errorf("write operations: %w", err)
+	}
+
+	mapping := make(map[string][]string, len(uploads.paths))
+	for i, path := range uploads.paths {
+		mapping[strconv.Itoa(i)] = []string{path}
+	}
+
+	mapWriter, err := writer.CreateFormField("map")
+	if err != nil {
+		return nil, fmt.Errorf("create form field map: %w", err)
+	}
+
+	if err := json.MarshalWrite(mapWriter, mapping); err != nil {
+		return nil, fmt.Errorf("encode map: %w", err)
+	}
+
+	for i, upload := range uploads.files {
+		part, err := writer.CreateFormFile(strconv.Itoa(i), upload.Filename)
+		if err != nil {
+			return nil, fmt.Errorf("form file %w", err)
+		}
+
+		if _, err := io.Copy(part, upload.File); err != nil {
+			return nil, fmt.Errorf("copy file %w", err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("writer close %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, body)
@@ -54,128 +107,10 @@ func NewMultipartRequest(ctx context.Context, endpoint, operationName, query str
 		return nil, fmt.Errorf("create request struct failed: %w", err)
 	}
 
-	req.Header = http.Header{"Content-Type": []string{contentType}}
+	req.Header = http.Header{
+		"Content-Type": []string{writer.FormDataContentType()},
+		"Accept":       []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+	}
 
 	return req, nil
-}
-
-type multipartFile struct {
-	File  graphql.Upload
-	Index int
-}
-
-type multipartFilesGroup struct {
-	Files      []multipartFile
-	IsMultiple bool
-}
-
-func parseMultipartFiles(vars map[string]any) ([]multipartFilesGroup, map[string][]string, map[string]any) {
-	var (
-		multipartFilesGroups []multipartFilesGroup
-		mapping              = map[string][]string{}
-		i                    = 0
-	)
-
-	for k, v := range vars {
-		switch item := v.(type) {
-		case graphql.Upload:
-			iStr := strconv.Itoa(i)
-			vars[k] = nil
-			mapping[iStr] = []string{"variables." + k}
-
-			multipartFilesGroups = append(multipartFilesGroups, multipartFilesGroup{
-				Files: []multipartFile{
-					{
-						Index: i,
-						File:  item,
-					},
-				},
-				IsMultiple: false,
-			})
-
-			i++
-		case *graphql.Upload:
-			// continue if it is empty
-			if item == nil {
-				continue
-			}
-
-			iStr := strconv.Itoa(i)
-			vars[k] = nil
-			mapping[iStr] = []string{"variables." + k}
-
-			multipartFilesGroups = append(multipartFilesGroups, multipartFilesGroup{
-				Files: []multipartFile{
-					{
-						Index: i,
-						File:  *item,
-					},
-				},
-				IsMultiple: false,
-			})
-
-			i++
-		case []*graphql.Upload:
-			vars[k] = make([]struct{}, len(item))
-
-			var groupFiles []multipartFile
-
-			for itemI, itemV := range item {
-				iStr := strconv.Itoa(i)
-				mapping[iStr] = []string{fmt.Sprintf("variables.%s.%s", k, strconv.Itoa(itemI))}
-
-				groupFiles = append(groupFiles, multipartFile{
-					Index: i,
-					File:  *itemV,
-				})
-
-				i++
-			}
-
-			multipartFilesGroups = append(multipartFilesGroups, multipartFilesGroup{
-				Files:      groupFiles,
-				IsMultiple: true,
-			})
-		}
-	}
-
-	return multipartFilesGroups, mapping, vars
-}
-
-func prepareMultipartFormBody(buffer *bytes.Buffer, formFields []formField, files []multipartFilesGroup) (string, error) {
-	writer := multipart.NewWriter(buffer)
-	defer writer.Close()
-
-	// form fields
-	for _, field := range formFields {
-		fieldWriter, err := writer.CreateFormField(field.Name)
-		if err != nil {
-			return "", fmt.Errorf("create form field %s: %w", field.Name, err)
-		}
-
-		if err := json.MarshalWrite(fieldWriter, field.Value); err != nil {
-			return "", fmt.Errorf("encode %s: %w", field.Name, err)
-		}
-	}
-
-	// files
-	for _, filesGroup := range files {
-		for _, file := range filesGroup.Files {
-			part, err := writer.CreateFormFile(strconv.Itoa(file.Index), file.File.Filename)
-			if err != nil {
-				return "", fmt.Errorf("form file %w", err)
-			}
-
-			_, err = io.Copy(part, file.File.File)
-			if err != nil {
-				return "", fmt.Errorf("copy file %w", err)
-			}
-		}
-	}
-
-	if err := writer.Close(); err != nil {
-		return "", fmt.Errorf("writer close %w", err)
-	}
-
-	return writer.FormDataContentType(), nil
 }

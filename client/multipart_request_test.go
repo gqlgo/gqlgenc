@@ -1,249 +1,282 @@
 package client
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net/http"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	json "encoding/json/v2"
+
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/google/go-cmp/cmp"
 )
 
-func Test_multipartRequest(t *testing.T) {
-	// Create a temporary directory using testing.T.TempDir()
-	tempDir := t.TempDir()
-	tempFilePath := filepath.Join(tempDir, "test.txt")
+// newUpload はテスト用の一時ファイルを作成して graphql.Upload を返す。
+func newUpload(t *testing.T, name, content string) graphql.Upload {
+	t.Helper()
 
-	// Create a temporary file
-	tempFile, err := os.Create(tempFilePath)
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tempFile.Close()
+	t.Cleanup(func() { file.Close() })
 
-	// Write content to the file
-	if _, err := tempFile.WriteString("test content"); err != nil {
-		t.Fatal(err)
+	return graphql.Upload{
+		File:     file,
+		Filename: name,
+		Size:     int64(len(content)),
 	}
+}
 
-	if _, err := tempFile.Seek(0, 0); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a second test file
-	tempFilePath2 := filepath.Join(tempDir, "test2.txt")
-
-	tempFile2, err := os.Create(tempFilePath2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer tempFile2.Close()
-
-	if _, err := tempFile2.WriteString("another test content"); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := tempFile2.Seek(0, 0); err != nil {
-		t.Fatal(err)
-	}
-
-	// Common function to validate basic request properties
-	validateRequest := func(r *http.Request) error {
-		if r.Method != http.MethodPost {
-			return fmt.Errorf("method got = %v want %v", r.Method, http.MethodPost)
-		}
-
-		if !strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
-			return fmt.Errorf("content-Type got = %v, want to contain %v", r.Header.Get("Content-Type"), "multipart/form-data")
-		}
-
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
-			return fmt.Errorf("parseMultipartForm got = %w, want nil", err)
-		}
-
-		return nil
-	}
-
-	// Verify operations field exists
-	validateOperationsField := func(r *http.Request) error {
-		if r.MultipartForm.Value["operations"] == nil {
-			return errors.New("multipartForm field 'operations' not found")
-		}
-
-		return nil
-	}
-
-	// Verify map field exists
-	validateMapField := func(r *http.Request) error {
-		if r.MultipartForm.Value["map"] == nil {
-			return errors.New("multipartForm field 'map' not found")
-		}
-
-		return nil
-	}
-
+func TestNewRequestUpload(t *testing.T) {
 	type args struct {
-		ctx           context.Context
-		variables     map[string]any
-		endpoint      string
 		operationName string
 		query         string
+		variables     func(t *testing.T) any
+	}
+
+	type want struct {
+		multipart          bool
+		operationsContains []string
+		mapping            map[string][]string
+		files              map[string]string
+		bodyContains       []string
 	}
 
 	tests := []struct {
-		args       args
-		name       string
-		validators []func(*http.Request) error
-		wantErr    bool
+		name string
+		args args
+		want want
 	}{
 		{
-			name: "File upload request",
+			// 単一ファイルは multipart/form-data として送信される
+			name: "単一ファイルのアップロード",
 			args: args{
-				ctx:           t.Context(),
-				endpoint:      "http://example.com/graphql",
 				operationName: "UploadFile",
 				query:         "mutation UploadFile($file: Upload!) { uploadFile(file: $file) }",
-				variables: map[string]any{
-					"file": graphql.Upload{
-						File:     tempFile,
-						Filename: "test.txt",
-						Size:     12,
-					},
+				variables: func(t *testing.T) any {
+					t.Helper()
+					return map[string]any{
+						"file": newUpload(t, "test.txt", "test content"),
+					}
 				},
 			},
-			wantErr: false,
-			validators: []func(*http.Request) error{
-				validateOperationsField,
-				validateMapField,
-			},
-		},
-		{
-			name: "Empty variables map case",
-			args: args{
-				ctx:           t.Context(),
-				endpoint:      "http://example.com/graphql",
-				operationName: "TestQuery",
-				query:         "query TestQuery { test }",
-				variables:     map[string]any{},
-			},
-			wantErr: false,
-			validators: []func(*http.Request) error{
-				validateOperationsField,
-			},
-		},
-		{
-			name: "Variables with nil pointer case",
-			args: args{
-				ctx:           t.Context(),
-				endpoint:      "http://example.com/graphql",
-				operationName: "UploadFile",
-				query:         "mutation UploadFile($file: Upload) { uploadFile(file: $file) }",
-				variables: map[string]any{
-					"file": (*graphql.Upload)(nil),
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"file":null`},
+				mapping: map[string][]string{
+					"0": {"variables.file"},
+				},
+				files: map[string]string{
+					"0": "test content",
 				},
 			},
-			wantErr: false,
-			validators: []func(*http.Request) error{
-				validateOperationsField,
+		},
+		{
+			// 型付き構造体の variables でも、ネストした input 内の Upload を検出できる
+			name: "型付き構造体のネストしたinput内のアップロード",
+			args: args{
+				operationName: "UploadAvatar",
+				query:         "mutation UploadAvatar($input: AvatarInput!) { uploadAvatar(input: $input) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type avatarInput struct {
+						Name string          `json:"name"`
+						File *graphql.Upload `json:"file"`
+					}
+					type vars struct {
+						Input avatarInput `json:"input"`
+					}
+					upload := newUpload(t, "avatar.png", "image bytes")
+					return vars{
+						Input: avatarInput{
+							Name: "icon",
+							File: &upload,
+						},
+					}
+				},
+			},
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"name":"icon"`, `"file":null`},
+				mapping: map[string][]string{
+					"0": {"variables.input.file"},
+				},
+				files: map[string]string{
+					"0": "image bytes",
+				},
 			},
 		},
 		{
-			name: "Multiple files upload case",
+			// 複数ファイルはリストの要素ごとに収集される
+			name: "複数ファイルのアップロード",
 			args: args{
-				ctx:           t.Context(),
-				endpoint:      "http://example.com/graphql",
 				operationName: "UploadFiles",
 				query:         "mutation UploadFiles($files: [Upload!]!) { uploadFiles(files: $files) }",
-				variables: map[string]any{
-					"files": []*graphql.Upload{
-						{
-							File:     tempFile,
-							Filename: "test.txt",
-							Size:     12,
-						},
-						{
-							File:     tempFile2,
-							Filename: "test2.txt",
-							Size:     19,
-						},
-					},
+				variables: func(t *testing.T) any {
+					t.Helper()
+					first := newUpload(t, "test.txt", "test content")
+					second := newUpload(t, "test2.txt", "another test content")
+					return map[string]any{
+						"files": []*graphql.Upload{&first, &second},
+					}
 				},
 			},
-			wantErr: false,
-			validators: []func(*http.Request) error{
-				validateOperationsField,
-				validateMapField,
-				func(r *http.Request) error {
-					// Should have multiple files
-					fileCount := len(r.MultipartForm.File)
-					if fileCount != 2 {
-						return fmt.Errorf("want 2 files, got %d", fileCount)
-					}
-
-					return nil
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"files":[null,null]`},
+				mapping: map[string][]string{
+					"0": {"variables.files.0"},
+					"1": {"variables.files.1"},
+				},
+				files: map[string]string{
+					"0": "test content",
+					"1": "another test content",
 				},
 			},
 		},
 		{
-			name: "Empty file array case",
+			// Upload を含まない variables は通常の JSON リクエストになる
+			name: "Uploadなしの場合はJSONリクエスト",
 			args: args{
-				ctx:           t.Context(),
-				endpoint:      "http://example.com/graphql",
-				operationName: "UploadFiles",
-				query:         "mutation UploadFiles($files: [Upload!]) { uploadFiles(files: $files) }",
-				variables: map[string]any{
-					"files": []*graphql.Upload{},
+				operationName: "TestQuery",
+				query:         "query TestQuery { test }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					return map[string]any{}
 				},
 			},
-			wantErr: false,
-			validators: []func(*http.Request) error{
-				validateOperationsField,
-				func(r *http.Request) error {
-					// Should have no files
-					fileCount := 0
-					if r.MultipartForm.File != nil {
-						fileCount = len(r.MultipartForm.File)
+			want: want{
+				multipart:    false,
+				bodyContains: []string{`"operationName":"TestQuery"`},
+			},
+		},
+		{
+			// nil の *graphql.Upload は null として送信され multipart にはならない
+			name: "nilのUploadポインタはJSONリクエスト",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					return map[string]any{
+						"file": (*graphql.Upload)(nil),
 					}
-
-					if fileCount != 0 {
-						return fmt.Errorf("want 0 files, got %d", fileCount)
-					}
-
-					return nil
 				},
+			},
+			want: want{
+				multipart:    false,
+				bodyContains: []string{`"file":null`},
+			},
+		},
+		{
+			// 空のファイルリストは multipart にはならない
+			name: "空のファイルリストはJSONリクエスト",
+			args: args{
+				operationName: "UploadFiles",
+				query:         "mutation UploadFiles($files: [Upload!]) { uploadFiles(files: $files) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					return map[string]any{
+						"files": []*graphql.Upload{},
+					}
+				},
+			},
+			want: want{
+				multipart:    false,
+				bodyContains: []string{`"files":[]`},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewMultipartRequest(tt.args.ctx, tt.args.endpoint, tt.args.operationName, tt.args.query, tt.args.variables)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("multipartRequest() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := NewRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
+			if err != nil {
+				t.Fatalf("NewRequest() error = %v", err)
+			}
+
+			if !tt.want.multipart {
+				if ct := got.Header.Get("Content-Type"); ct != "application/json;charset=utf-8" {
+					t.Errorf("Content-Type = %q, want application/json", ct)
+				}
+
+				body, err := io.ReadAll(got.Body)
+				if err != nil {
+					t.Fatalf("failed to read body: %v", err)
+				}
+
+				for _, contains := range tt.want.bodyContains {
+					if !strings.Contains(string(body), contains) {
+						t.Errorf("body does not contain %q: %s", contains, body)
+					}
+				}
 
 				return
 			}
 
-			if got != nil {
-				// Execute basic validation first
-				if err := validateRequest(got); err != nil {
-					t.Errorf("multipartRequest() failed basic validation: %v", err)
+			if ct := got.Header.Get("Content-Type"); !strings.Contains(ct, "multipart/form-data") {
+				t.Errorf("Content-Type = %q, want to contain multipart/form-data", ct)
+			}
 
-					return
+			if err := got.ParseMultipartForm(1 << 20); err != nil {
+				t.Fatalf("ParseMultipartForm() error = %v", err)
+			}
+
+			// operations フィールドの検証
+			operations := got.MultipartForm.Value["operations"]
+			if len(operations) != 1 {
+				t.Fatalf("operations field count = %d, want 1", len(operations))
+			}
+			for _, contains := range tt.want.operationsContains {
+				if !strings.Contains(operations[0], contains) {
+					t.Errorf("operations does not contain %q: %s", contains, operations[0])
+				}
+			}
+
+			// map フィールドの検証
+			mapValues := got.MultipartForm.Value["map"]
+			if len(mapValues) != 1 {
+				t.Fatalf("map field count = %d, want 1", len(mapValues))
+			}
+			var mapping map[string][]string
+			if err := json.Unmarshal([]byte(mapValues[0]), &mapping); err != nil {
+				t.Fatalf("failed to unmarshal map field: %v", err)
+			}
+			if diff := cmp.Diff(tt.want.mapping, mapping); diff != "" {
+				t.Errorf("map field diff(-want +got): %s", diff)
+			}
+
+			// ファイルパートの検証
+			if len(got.MultipartForm.File) != len(tt.want.files) {
+				t.Errorf("file count = %d, want %d", len(got.MultipartForm.File), len(tt.want.files))
+			}
+			for fieldName, wantContent := range tt.want.files {
+				headers := got.MultipartForm.File[fieldName]
+				if len(headers) != 1 {
+					t.Errorf("file field %q count = %d, want 1", fieldName, len(headers))
+					continue
 				}
 
-				// Execute test case specific validations
-				for i, validator := range tt.validators {
-					if err := validator(got); err != nil {
-						t.Errorf("multipartRequest() failed validator #%d: %v", i, err)
+				file, err := headers[0].Open()
+				if err != nil {
+					t.Fatalf("failed to open file part %q: %v", fieldName, err)
+				}
+				content, err := io.ReadAll(file)
+				file.Close()
+				if err != nil {
+					t.Fatalf("failed to read file part %q: %v", fieldName, err)
+				}
 
-						return
-					}
+				if diff := cmp.Diff(wantContent, string(content)); diff != "" {
+					t.Errorf("file %q content diff(-want +got): %s", fieldName, diff)
 				}
 			}
 		})

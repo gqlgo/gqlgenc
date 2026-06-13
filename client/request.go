@@ -23,9 +23,15 @@ func NewRequest(ctx context.Context, endpoint, operationName, query string, vari
 		OperationName: operationName,
 	}
 
+	uploads := &uploadCollector{}
 	requestBody := &bytes.Buffer{}
-	if err := json.MarshalWrite(requestBody, graphqlRequest); err != nil {
+	if err := json.MarshalWrite(requestBody, graphqlRequest, json.WithMarshalers(uploads.marshalers())); err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
+	}
+
+	// variables に graphql.Upload が含まれる場合は multipart/form-data で送信する
+	if len(uploads.files) > 0 {
+		return newMultipartRequest(ctx, endpoint, requestBody.Bytes(), uploads)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, requestBody)

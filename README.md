@@ -206,8 +206,8 @@ res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
 - `client.NewClient(endpoint string, options ...Option) *Client`
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
-- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する。`graphql.Upload` を含むオペレーションには非対応（`Post` を使う）
-- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — map 変数でオペレーションを実行する低レベル API。`graphql.Upload` を含むオペレーション（multipart）はこちらを使う
+- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する
+- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — map 変数でオペレーションを実行する低レベル API
 
 ### リクエスト仕様
 
@@ -218,7 +218,7 @@ res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
 
 ### ファイルアップロード
 
-variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含まれる場合、[graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec) に従った multipart/form-data リクエストを自動的に組み立てます。Upload が含まれない場合は通常の JSON リクエストになります。
+variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含まれる場合、`Do` / `Post` のどちらでも [graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec) に従った multipart/form-data リクエストを自動的に組み立てます。Upload は variables のエンコード中に検出されるため、ネストした input オブジェクトやリストの中にあっても動作します。Upload が含まれない場合は通常の JSON リクエストになります。
 
 ### レスポンス解析とエラー
 

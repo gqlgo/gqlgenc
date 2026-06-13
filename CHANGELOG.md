@@ -57,7 +57,7 @@ gqlgen:
 - `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。ヘッダーの付与は `WithHTTPHeader`、それ以外のカスタマイズは `WithHTTPClient` に `http.RoundTripper`（Transport）を差し替えた `http.Client` を渡して行います
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
-- `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します
+- `graphql.Upload` を variables に含むオペレーションは、`Do` / `Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します
 
 #### 生成される Go 型の構造変更
 
@@ -149,7 +149,6 @@ type UserOperation_User_User struct {
 #### 型付きオペレーションと client.Do
 
 - clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`client.Do` で実行できます。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
-- `client.Do` は multipart リクエストを構築しないため、`graphql.Upload` を含むオペレーションは `Post` を使用してください
 
 #### undefined / null の区別（Omittable / omitzero）
 

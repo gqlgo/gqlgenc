@@ -20,8 +20,8 @@ type Operation[Vars, Res any] struct {
 // Even when an error is returned, the result may contain partial data:
 // GraphQL servers can return both "data" and "errors" in one response.
 //
-// Do does not build multipart requests: operations whose variables contain
-// graphql.Upload must use Post instead.
+// Variables containing graphql.Upload values are sent as a
+// multipart/form-data request following the GraphQL multipart request spec.
 func Do[Vars, Res any](ctx context.Context, c *Client, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
 	cc := *c
 	for _, option := range options {
