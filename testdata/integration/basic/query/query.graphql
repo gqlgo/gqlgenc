@@ -118,6 +118,7 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
   metadata(id: $metadataId) {
     id
     data
+    properties
   }
 }
 

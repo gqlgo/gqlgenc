@@ -124,6 +124,10 @@ func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metada
 	return &domain.Metadata{
 		ID:   id,
 		Data: &data,
+		Properties: map[string]any{
+			"propKey1": "123",
+			"propKey2": "test",
+		},
 	}, nil
 }
 

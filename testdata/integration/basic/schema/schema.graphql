@@ -2,6 +2,7 @@ directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, typ
 
 scalar JSON
 scalar Email
+scalar Map
 
 schema {
   query: Query
@@ -114,4 +115,5 @@ type Comment {
 type Metadata {
   id: ID!
   data: JSON
+  properties: Map
 }

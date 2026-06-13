@@ -144,6 +144,11 @@ func Test_IntegrationTest(t *testing.T) {
 					Metadata: &domain.UserOperation_Metadata{
 						ID:   "metadata-1",
 						Data: new(`{"key":"value","number":123}`),
+						// scalar Map (map[string]any) のデコード回帰テスト (gqlgo/gqlgenc#76)
+						Properties: &map[string]any{
+							"propKey1": "123",
+							"propKey2": "test",
+						},
 					},
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",

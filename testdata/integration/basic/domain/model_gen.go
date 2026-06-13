@@ -47,8 +47,9 @@ type Comment struct {
 }
 
 type Metadata struct {
-	ID   string  `json:"id"`
-	Data *string `json:"data,omitzero"`
+	ID         string         `json:"id"`
+	Data       *string        `json:"data,omitzero"`
+	Properties map[string]any `json:"properties,omitzero"`
 }
 
 type Mutation struct {

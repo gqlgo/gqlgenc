@@ -675,8 +675,9 @@ func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileF
 }
 
 type UserOperation_Metadata struct {
-	Data *string "json:\"data\""
-	ID   string  "json:\"id,omitzero\""
+	Data       *string         "json:\"data\""
+	ID         string          "json:\"id,omitzero\""
+	Properties *map[string]any "json:\"properties\""
 }
 
 func (t *UserOperation_Metadata) GetData() *string {
@@ -690,6 +691,12 @@ func (t *UserOperation_Metadata) GetID() string {
 		t = &UserOperation_Metadata{}
 	}
 	return t.ID
+}
+func (t *UserOperation_Metadata) GetProperties() *map[string]any {
+	if t == nil {
+		t = &UserOperation_Metadata{}
+	}
+	return t.Properties
 }
 
 type UserOperation_OptionalUser struct {
@@ -1244,6 +1251,7 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 	metadata(id: $metadataId) {
 		id
 		data
+		properties
 	}
 }
 fragment PublicProfileFields on PublicProfile {
