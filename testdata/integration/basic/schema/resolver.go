@@ -128,6 +128,7 @@ func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metada
 			"propKey1": "123",
 			"propKey2": "test",
 		},
+		Level: domain.LevelHigh,
 	}, nil
 }
 

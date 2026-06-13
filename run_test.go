@@ -149,6 +149,8 @@ func Test_IntegrationTest(t *testing.T) {
 							"propKey1": "123",
 							"propKey2": "test",
 						},
+						// int ベース enum バインド (@goModel/@goEnum) のデコード回帰テスト (gqlgo/gqlgenc#229)
+						Level: domain.LevelHigh,
 					},
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",

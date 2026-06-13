@@ -50,6 +50,7 @@ type Metadata struct {
 	ID         string         `json:"id"`
 	Data       *string        `json:"data,omitzero"`
 	Properties map[string]any `json:"properties,omitzero"`
+	Level      Level          `json:"level"`
 }
 
 type Mutation struct {

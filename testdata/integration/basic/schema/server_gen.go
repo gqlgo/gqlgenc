@@ -67,6 +67,7 @@ type ComplexityRoot struct {
 	Metadata struct {
 		Data       func(childComplexity int) int
 		ID         func(childComplexity int) int
+		Level      func(childComplexity int) int
 		Properties func(childComplexity int) int
 	}
 
@@ -298,6 +299,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Metadata.ID(childComplexity), true
+	case "Metadata.level":
+		if e.ComplexityRoot.Metadata.Level == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Metadata.Level(childComplexity), true
 	case "Metadata.properties":
 		if e.ComplexityRoot.Metadata.Properties == nil {
 			break
@@ -666,6 +673,8 @@ func (ec *executionContext) childFields_Metadata(ctx context.Context, field grap
 		return ec.fieldContext_Metadata_data(ctx, field)
 	case "properties":
 		return ec.fieldContext_Metadata_properties(ctx, field)
+	case "level":
+		return ec.fieldContext_Metadata_level(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Metadata", field.Name)
 }
@@ -1543,6 +1552,29 @@ func (ec *executionContext) _Metadata_properties(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_Metadata_properties(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Metadata", field, false, false, errors.New("field of type Map does not have child fields"))
+}
+
+func (ec *executionContext) _Metadata_level(ctx context.Context, field graphql.CollectedField, obj *domain.Metadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Metadata_level(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Level, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.Level) graphql.Marshaler {
+			return ec.marshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Metadata_level(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Metadata", field, false, false, errors.New("field of type Level does not have child fields"))
 }
 
 func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -3795,6 +3827,11 @@ func (ec *executionContext) _Metadata(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "level":
+			out.Values[i] = ec._Metadata_level(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5054,6 +5091,34 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	}
 	return res
 }
+
+func (ec *executionContext) unmarshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel(ctx context.Context, v any) (domain.Level, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := unmarshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel[tmp]
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel(ctx context.Context, sel ast.SelectionSet, v domain.Level) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(marshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel[v])
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+var (
+	unmarshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel = map[string]domain.Level{
+		"LOW":  domain.LevelLow,
+		"HIGH": domain.LevelHigh,
+	}
+	marshalNLevel2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐLevel = map[domain.Level]string{
+		domain.LevelLow:  "LOW",
+		domain.LevelHigh: "HIGH",
+	}
+)
 
 func (ec *executionContext) marshalNProfile2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐProfile(ctx context.Context, sel ast.SelectionSet, v domain.Profile) graphql.Marshaler {
 	if v == nil {

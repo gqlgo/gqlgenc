@@ -1,4 +1,6 @@
 directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, type: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+directive @goModel(model: String, models: [String!]) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+directive @goEnum(value: String) on ENUM_VALUE
 
 scalar JSON
 scalar Email
@@ -70,6 +72,11 @@ enum Status {
   INACTIVE
 }
 
+enum Level @goModel(model: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Level") {
+  LOW @goEnum(value: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.LevelLow")
+  HIGH @goEnum(value: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.LevelHigh")
+}
+
 interface Address {
   street: String!
 }
@@ -116,4 +123,5 @@ type Metadata {
   id: ID!
   data: JSON
   properties: Map
+  level: Level!
 }

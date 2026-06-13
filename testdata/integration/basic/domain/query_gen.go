@@ -677,6 +677,7 @@ func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileF
 type UserOperation_Metadata struct {
 	Data       *string         "json:\"data\""
 	ID         string          "json:\"id,omitzero\""
+	Level      Level           "json:\"level,omitzero\""
 	Properties *map[string]any "json:\"properties\""
 }
 
@@ -691,6 +692,12 @@ func (t *UserOperation_Metadata) GetID() string {
 		t = &UserOperation_Metadata{}
 	}
 	return t.ID
+}
+func (t *UserOperation_Metadata) GetLevel() Level {
+	if t == nil {
+		t = &UserOperation_Metadata{}
+	}
+	return t.Level
 }
 func (t *UserOperation_Metadata) GetProperties() *map[string]any {
 	if t == nil {
@@ -1252,6 +1259,7 @@ const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId
 		id
 		data
 		properties
+		level
 	}
 }
 fragment PublicProfileFields on PublicProfile {
