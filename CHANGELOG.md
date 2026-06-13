@@ -57,7 +57,7 @@ gqlgen:
 - `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。ヘッダーの付与は `WithHTTPHeader`、それ以外のカスタマイズは `WithHTTPClient` に `http.RoundTripper`（Transport）を差し替えた `http.Client` を渡して行います
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
-- `graphql.Upload` を variables に含むオペレーションは、`Do` / `Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します
+- `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します
 
 #### 生成される Go 型の構造変更
 
@@ -146,9 +146,9 @@ type UserOperation_User_User struct {
 
 - querygen はフラグメントを含む型にのみ `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）を生成します。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドとインラインフラグメント（`__typename` による型判別）だけを追加でデコードします。フラグメントを含まない型はメソッドを生成せず、デフォルトデコードで処理されます。リフレクションベースのランタイム汎用デコーダ（旧 graphqljson）は不要になりました
 
-#### 型付きオペレーションと client.Do
+#### 型付きオペレーションと client.Post
 
-- clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`client.Do` で実行できます。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
+- clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`client.Post` で実行できます。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
 
 #### undefined / null の区別（Omittable / omitzero）
 
@@ -163,7 +163,7 @@ type UserOperation_User_User struct {
 
 - スキーマの `@goField(type: "...")` で指定したカスタム Go 型を、クエリレスポンス型のフィールドにも反映します
 
-- エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `client.Do` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
+- エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 
 ### 内部改善
 

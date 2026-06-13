@@ -12,7 +12,7 @@ type Operation[Vars, Res any] struct {
 	Document string
 }
 
-// Do executes op against c with typed variables and returns the decoded
+// Post executes op against c with typed variables and returns the decoded
 // response. Vars is marshaled as the "variables" member of the request,
 // so unlike a map every variable is checked at compile time.
 // Options apply only to this call and do not mutate c.
@@ -22,7 +22,7 @@ type Operation[Vars, Res any] struct {
 //
 // Variables containing graphql.Upload values are sent as a
 // multipart/form-data request following the GraphQL multipart request spec.
-func Do[Vars, Res any](ctx context.Context, c *Client, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
+func Post[Vars, Res any](ctx context.Context, c *Client, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
 	cc := *c
 	for _, option := range options {
 		option(&cc)

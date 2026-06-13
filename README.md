@@ -105,7 +105,7 @@ func main() {
 
 	c := client.NewClient("https://api.example.com/graphql")
 
-	res, err := client.Do(ctx, c, query.GetUserOp, query.GetUserVars{ID: "user-1"})
+	res, err := client.Post(ctx, c, query.GetUserOp, query.GetUserVars{ID: "user-1"})
 	if err != nil {
 		// エラー処理
 	}
@@ -178,7 +178,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 ### client_gen.go（clientgen）
 
-オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します。実行は `client.Do` で行い、変数名や型のミスはコンパイルエラーになります。
+オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します。実行は `client.Post` で行い、変数名や型のミスはコンパイルエラーになります。
 
 ```go
 type UserOperationVars struct {
@@ -193,7 +193,7 @@ var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
 ```
 
 ```go
-res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
+res, err := client.Post(ctx, c, query.UserOperationOp, query.UserOperationVars{
 	ArticleID: "article-1",
 	Size:      &size,
 })
@@ -206,8 +206,7 @@ res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
 - `client.NewClient(endpoint string, options ...Option) *Client`
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
-- `client.Operation[Vars, Res]` / `client.Do(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する
-- `(*Client).Post(ctx, operationName, query, variables, out, options...)` — map 変数でオペレーションを実行する低レベル API
+- `client.Operation[Vars, Res]` / `client.Post(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する
 
 ### リクエスト仕様
 
@@ -218,14 +217,14 @@ res, err := client.Do(ctx, c, query.UserOperationOp, query.UserOperationVars{
 
 ### ファイルアップロード
 
-variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含まれる場合、`Do` / `Post` のどちらでも [graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec) に従った multipart/form-data リクエストを自動的に組み立てます。Upload は variables のエンコード中に検出されるため、ネストした input オブジェクトやリストの中にあっても動作します。Upload が含まれない場合は通常の JSON リクエストになります。
+variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含まれる場合、`Post` は [graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec) に従った multipart/form-data リクエストを自動的に組み立てます。Upload は variables のエンコード中に検出されるため、ネストした input オブジェクトやリストの中にあっても動作します。Upload が含まれない場合は通常の JSON リクエストになります。
 
 ### レスポンス解析とエラー
 
 - `Content-Encoding: gzip` のレスポンスは透過的に展開される
 - レスポンスボディを1パスで走査し、`data` は生成されたレスポンス型へ直接デコードし、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする
 - エラー時は `ErrorResponse` が返り、`errors.As` で `*client.HTTPError`（HTTP ステータス異常）や `gqlerror.List`（GraphQL エラー）を取り出せる
-- GraphQL エラー時もデコード済みの部分データが `client.Do` の戻り値として返る（GraphQL は data と errors の共存を許すため）
+- GraphQL エラー時もデコード済みの部分データが `client.Post` の戻り値として返る（GraphQL は data と errors の共存を許すため）
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
 
 ### null と undefined の区別

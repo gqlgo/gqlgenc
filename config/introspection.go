@@ -15,12 +15,15 @@ import (
 func introspectionSchema(ctx context.Context, httpClient *http.Client, endpoint string, header http.Header) (*ast.Schema, error) {
 	gqlgencClient := client.NewClient(endpoint, client.WithHTTPClient(httpClient), client.WithHTTPHeader(header))
 
-	var res introspection.Query
-	if err := gqlgencClient.Post(ctx, "Query", introspection.Introspection, nil, &res); err != nil {
+	res, err := client.Post(ctx, gqlgencClient, client.Operation[any, introspection.Query]{
+		Name:     "Query",
+		Document: introspection.Introspection,
+	}, nil)
+	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 
-	schema, err := validator.ValidateSchemaDocument(introspection.SchemaFromIntrospection(endpoint, res))
+	schema, err := validator.ValidateSchemaDocument(introspection.SchemaFromIntrospection(endpoint, *res))
 	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}

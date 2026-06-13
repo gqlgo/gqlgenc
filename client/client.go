@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 )
@@ -37,20 +36,6 @@ func WithHTTPHeader(header http.Header) Option {
 	return func(c *Client) {
 		c.header = header
 	}
-}
-
-func (c *Client) Post(ctx context.Context, operationName, query string, variables map[string]any, out any, options ...Option) error {
-	cc := *c
-	for _, option := range options {
-		option(&cc)
-	}
-
-	req, err := NewRequest(ctx, cc.endpoint, operationName, query, variables)
-	if err != nil {
-		return fmt.Errorf("failed to create post request: %w", err)
-	}
-
-	return cc.do(req, out)
 }
 
 func (c *Client) do(req *http.Request, out any) error {

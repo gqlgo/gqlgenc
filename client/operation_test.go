@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestDo(t *testing.T) {
+func TestPost(t *testing.T) {
 	t.Parallel()
 
 	type user struct {
@@ -26,10 +26,12 @@ func TestDo(t *testing.T) {
 		op       Operation[getUserVars, user]
 		vars     getUserVars
 		respBody string
+		options  []Option
 	}
 
 	type want struct {
 		requestBody string
+		header      http.Header
 		user        *user
 		err         error
 	}
@@ -72,13 +74,88 @@ func TestDo(t *testing.T) {
 				err:         cmpopts.AnyError,
 			},
 		},
+		{
+			// 呼び出し単位の WithHTTPHeader はそのリクエストに付与される
+			name: "WithHTTPHeaderで設定したヘッダーがリクエストに付与される",
+			args: args{
+				op: Operation[getUserVars, user]{
+					Name:     "GetUser",
+					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
+				},
+				vars:     getUserVars{ID: "1"},
+				respBody: `{"data":{"name":"John Doe"}}`,
+				options: []Option{
+					WithHTTPHeader(http.Header{
+						"Authorization": []string{"Bearer token"},
+						"x-request-id":  []string{"req-1"},
+					}),
+				},
+			},
+			want: want{
+				requestBody: `{"query":"query GetUser($id: ID!) { user(id: $id) { name } }","variables":{"id":"1","size":null},"operationName":"GetUser"}`,
+				header: http.Header{
+					"Content-Type":  []string{"application/json;charset=utf-8"},
+					"Accept":        []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+					"Authorization": []string{"Bearer token"},
+					"X-Request-Id":  []string{"req-1"},
+				},
+				user: &user{Name: "John Doe"},
+			},
+		},
+		{
+			// 同名キーを指定するとデフォルトヘッダーをキー単位で上書きできる
+			name: "WithHTTPHeaderでデフォルトのContent-Typeをキー単位で上書きできる",
+			args: args{
+				op: Operation[getUserVars, user]{
+					Name:     "GetUser",
+					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
+				},
+				vars:     getUserVars{ID: "1"},
+				respBody: `{"data":{"name":"John Doe"}}`,
+				options: []Option{
+					WithHTTPHeader(http.Header{
+						"Content-Type": []string{"application/json"},
+					}),
+				},
+			},
+			want: want{
+				requestBody: `{"query":"query GetUser($id: ID!) { user(id: $id) { name } }","variables":{"id":"1","size":null},"operationName":"GetUser"}`,
+				header: http.Header{
+					"Content-Type": []string{"application/json"},
+					"Accept":       []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+				},
+				user: &user{Name: "John Doe"},
+			},
+		},
+		{
+			// オプション未指定のときはデフォルトヘッダーのみが送信される
+			name: "ヘッダー未設定のときはデフォルトヘッダーのみが送信される",
+			args: args{
+				op: Operation[getUserVars, user]{
+					Name:     "GetUser",
+					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
+				},
+				vars:     getUserVars{ID: "1"},
+				respBody: `{"data":{"name":"John Doe"}}`,
+			},
+			want: want{
+				requestBody: `{"query":"query GetUser($id: ID!) { user(id: $id) { name } }","variables":{"id":"1","size":null},"operationName":"GetUser"}`,
+				header: http.Header{
+					"Content-Type": []string{"application/json;charset=utf-8"},
+					"Accept":       []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+				},
+				user: &user{Name: "John Doe"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var gotRequestBody []byte
+			var gotHeader http.Header
 			httpClient := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				gotHeader = req.Header
 				var err error
 				gotRequestBody, err = io.ReadAll(req.Body)
 				if err != nil {
@@ -93,7 +170,7 @@ func TestDo(t *testing.T) {
 
 			c := NewClient("https://example.com/graphql", WithHTTPClient(httpClient))
 
-			got, err := Do(t.Context(), c, tt.args.op, tt.args.vars)
+			got, err := Post(t.Context(), c, tt.args.op, tt.args.vars, tt.args.options...)
 
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("error diff(-want +got): %s", diff)
@@ -105,6 +182,12 @@ func TestDo(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.user, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
+			}
+
+			if tt.want.header != nil {
+				if diff := cmp.Diff(tt.want.header, gotHeader); diff != "" {
+					t.Errorf("header diff(-want +got): %s", diff)
+				}
 			}
 		})
 	}
