@@ -69,7 +69,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 	switch sel := selection.(type) {
 	case *graphql.Field:
 		typeKind, t := g.newTypeKindAndGoType(parentTypeName, sel)
-		tags := []string{fmt.Sprintf(`json:"%s%s"`, sel.Alias, g.jsonOmitTag(sel))}
+		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		return newField(typeKind, t, sel.Alias, tags)
 	case *graphql.FragmentSpread:
 		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
@@ -165,16 +165,6 @@ func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type
 	}
 
 	return goType
-}
-
-func (g *GoTypeGenerator) jsonOmitTag(field *graphql.Field) string {
-	var jsonOmitTag string
-	if field.Definition.Type.NonNull {
-		if g.cfg.GQLGenConfig.EnableModelJsonOmitzeroTag != nil && *g.cfg.GQLGenConfig.EnableModelJsonOmitzeroTag {
-			jsonOmitTag += `,omitzero`
-		}
-	}
-	return jsonOmitTag
 }
 
 func fieldTypeName(parentTypeName, fieldName string, exportQueryType bool) string {

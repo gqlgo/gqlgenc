@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	gotypes "go/types"
+	"strings"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 
@@ -118,10 +119,14 @@ func operationKind(op graphql.Operation) string {
 	}
 }
 
+// formattedDocument はクエリドキュメントをミニファイした1行の文字列にする。
+// WithCompacted + WithIndent("") でインデントと冗長な空白を除き、残る改行は
+// トークン区切りにしか現れない（文字列リテラル内の改行はエスケープされる）ため、
+// 空白へ置換しても安全にミニファイできる。
 func formattedDocument(queryDocument *graphql.QueryDocument) string {
 	var buf bytes.Buffer
-	astFormatter := formatter.NewFormatter(&buf)
+	astFormatter := formatter.NewFormatter(&buf, formatter.WithCompacted(), formatter.WithIndent(""))
 	astFormatter.FormatQueryDocument(queryDocument)
 
-	return buf.String()
+	return strings.ReplaceAll(strings.TrimSpace(buf.String()), "\n", " ")
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Count struct {
-	Count int "json:\"count,omitzero\""
+	Count int "json:\"count\""
 }
 
 func (t *Count) GetCount() int {
@@ -19,9 +19,9 @@ func (t *Count) GetCount() int {
 }
 
 type PrivateAddressFields struct {
-	ID      string "json:\"id,omitzero\""
-	Private bool   "json:\"private,omitzero\""
-	Street  string "json:\"street,omitzero\""
+	ID      string "json:\"id\""
+	Private bool   "json:\"private\""
+	Street  string "json:\"street\""
 }
 
 func (t *PrivateAddressFields) GetID() string {
@@ -45,7 +45,7 @@ func (t *PrivateAddressFields) GetStreet() string {
 
 type PrivateProfileFields struct {
 	Age *int   "json:\"age\""
-	ID  string "json:\"id,omitzero\""
+	ID  string "json:\"id\""
 }
 
 func (t *PrivateProfileFields) GetAge() *int {
@@ -62,9 +62,9 @@ func (t *PrivateProfileFields) GetID() string {
 }
 
 type PublicAddressFields struct {
-	ID     string "json:\"id,omitzero\""
-	Public bool   "json:\"public,omitzero\""
-	Street string "json:\"street,omitzero\""
+	ID     string "json:\"id\""
+	Public bool   "json:\"public\""
+	Street string "json:\"street\""
 }
 
 func (t *PublicAddressFields) GetID() string {
@@ -87,8 +87,8 @@ func (t *PublicAddressFields) GetStreet() string {
 }
 
 type PublicProfileFields struct {
-	ID     string "json:\"id,omitzero\""
-	Status Status "json:\"status,omitzero\""
+	ID     string "json:\"id\""
+	Status Status "json:\"status\""
 }
 
 func (t *PublicProfileFields) GetID() string {
@@ -105,7 +105,7 @@ func (t *PublicProfileFields) GetStatus() Status {
 }
 
 type UpdateUser struct {
-	UpdateUser UpdateUser_UpdateUser "json:\"updateUser,omitzero\""
+	UpdateUser UpdateUser_UpdateUser "json:\"updateUser\""
 }
 
 func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
@@ -116,7 +116,7 @@ func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
 }
 
 type UpdateUser_UpdateUser struct {
-	User UpdateUser_UpdateUser_User "json:\"user,omitzero\""
+	User UpdateUser_UpdateUser_User "json:\"user\""
 }
 
 func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
@@ -127,7 +127,7 @@ func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
 }
 
 type UpdateUser_UpdateUser_User struct {
-	Name     string                               "json:\"name,omitzero\""
+	Name     string                               "json:\"name\""
 	Settings *UpdateUser_UpdateUser_User_Settings "json:\"settings\""
 }
 
@@ -145,8 +145,8 @@ func (t *UpdateUser_UpdateUser_User) GetSettings() *UpdateUser_UpdateUser_User_S
 }
 
 type UpdateUser_UpdateUser_User_Settings struct {
-	Notifications bool   "json:\"notifications,omitzero\""
-	Theme         string "json:\"theme,omitzero\""
+	Notifications bool   "json:\"notifications\""
+	Theme         string "json:\"theme\""
 }
 
 func (t *UpdateUser_UpdateUser_User_Settings) GetNotifications() bool {
@@ -164,15 +164,15 @@ func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
 
 type UserFragment1 struct {
 	User *struct {
-		Name string "json:\"name,omitzero\""
+		Name string "json:\"name\""
 	} "json:\"-\""
 	Typename *string               "json:\"__typename\""
-	Name     string                "json:\"name,omitzero\""
-	Profile  UserFragment1_Profile "json:\"profile,omitzero\""
+	Name     string                "json:\"name\""
+	Profile  UserFragment1_Profile "json:\"profile\""
 }
 
 func (t *UserFragment1) GetUser() *struct {
-	Name string "json:\"name,omitzero\""
+	Name string "json:\"name\""
 } {
 	if t == nil {
 		t = &UserFragment1{}
@@ -203,7 +203,7 @@ type UserFragment1_Profile struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitzero\""
+		Status Status "json:\"status\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -231,7 +231,7 @@ func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitzero\""
+			Status Status "json:\"status\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -248,7 +248,7 @@ func (t *UserFragment1_Profile) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserFragment1_Profile) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitzero\""
+	Status Status "json:\"status\""
 } {
 	if t == nil {
 		t = &UserFragment1_Profile{}
@@ -263,7 +263,7 @@ func (t *UserFragment1_Profile) GetTypename() *string {
 }
 
 type UserFragment2 struct {
-	Name string "json:\"name,omitzero\""
+	Name string "json:\"name\""
 }
 
 func (t *UserFragment2) GetName() string {
@@ -277,7 +277,7 @@ type UserOperation struct {
 	Article      *UserOperation_Article      "json:\"article\""
 	Metadata     *UserOperation_Metadata     "json:\"metadata\""
 	OptionalUser *UserOperation_OptionalUser "json:\"optionalUser\""
-	User         UserOperation_User          "json:\"user,omitzero\""
+	User         UserOperation_User          "json:\"user\""
 }
 
 func (t *UserOperation) GetArticle() *UserOperation_Article {
@@ -306,12 +306,12 @@ func (t *UserOperation) GetUser() UserOperation_User {
 }
 
 type UserOperation_Article struct {
-	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses,omitzero\""
-	Comments             []*UserOperation_Article_Comments           "json:\"comments,omitzero\""
+	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses\""
+	Comments             []*UserOperation_Article_Comments           "json:\"comments\""
 	FullyNullableList    *[]*string                                  "json:\"fullyNullableList\""
-	ID                   string                                      "json:\"id,omitzero\""
-	Matrix               [][]string                                  "json:\"matrix,omitzero\""
-	NullableElementsList []*string                                   "json:\"nullableElementsList,omitzero\""
+	ID                   string                                      "json:\"id\""
+	Matrix               [][]string                                  "json:\"matrix\""
+	NullableElementsList []*string                                   "json:\"nullableElementsList\""
 	OptionalAddresses    *[]*UserOperation_Article_OptionalAddresses "json:\"optionalAddresses\""
 	OptionalComments     *[]*UserOperation_Article_OptionalComments  "json:\"optionalComments\""
 	OptionalMatrix       *[][]string                                 "json:\"optionalMatrix\""
@@ -319,11 +319,11 @@ type UserOperation_Article struct {
 	OptionalRating       *float64                                    "json:\"optionalRating\""
 	OptionalStatuses     *[]Status                                   "json:\"optionalStatuses\""
 	OptionalTags         *[]string                                   "json:\"optionalTags\""
-	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles,omitzero\""
-	Rating               float64                                     "json:\"rating,omitzero\""
-	Statuses             []Status                                    "json:\"statuses,omitzero\""
-	Tags                 []string                                    "json:\"tags,omitzero\""
-	Title                string                                      "json:\"title,omitzero\""
+	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles\""
+	Rating               float64                                     "json:\"rating\""
+	Statuses             []Status                                    "json:\"statuses\""
+	Tags                 []string                                    "json:\"tags\""
+	Title                string                                      "json:\"title\""
 }
 
 func (t *UserOperation_Article) GetAddresses() []*UserOperation_Article_Addresses {
@@ -438,7 +438,7 @@ func (t *UserOperation_Article) GetTitle() string {
 type UserOperation_Article_Addresses struct {
 	PrivateAddressFields "json:\"-\""
 	PublicAddressFields  "json:\"-\""
-	Street               string "json:\"street,omitzero\""
+	Street               string "json:\"street\""
 }
 
 func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -478,8 +478,8 @@ func (t *UserOperation_Article_Addresses) GetStreet() string {
 }
 
 type UserOperation_Article_Comments struct {
-	ID   string "json:\"id,omitzero\""
-	Text string "json:\"text,omitzero\""
+	ID   string "json:\"id\""
+	Text string "json:\"text\""
 }
 
 func (t *UserOperation_Article_Comments) GetID() string {
@@ -497,13 +497,13 @@ func (t *UserOperation_Article_Comments) GetText() string {
 
 type UserOperation_Article_OptionalAddresses struct {
 	PrivateAddress *struct {
-		Private bool "json:\"private,omitzero\""
+		Private bool "json:\"private\""
 	} "json:\"-\""
 	PublicAddress *struct {
-		Public bool "json:\"public,omitzero\""
+		Public bool "json:\"public\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
-	Street   string  "json:\"street,omitzero\""
+	Street   string  "json:\"street\""
 }
 
 func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -522,14 +522,14 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontex
 	switch typeName_t {
 	case "PrivateAddress":
 		t.PrivateAddress = &struct {
-			Private bool "json:\"private,omitzero\""
+			Private bool "json:\"private\""
 		}{}
 		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
 		t.PublicAddress = &struct {
-			Public bool "json:\"public,omitzero\""
+			Public bool "json:\"public\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
@@ -538,7 +538,7 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontex
 	return nil
 }
 func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *struct {
-	Private bool "json:\"private,omitzero\""
+	Private bool "json:\"private\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
@@ -546,7 +546,7 @@ func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *struct {
 	return t.PrivateAddress
 }
 func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() *struct {
-	Public bool "json:\"public,omitzero\""
+	Public bool "json:\"public\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
@@ -567,8 +567,8 @@ func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
 }
 
 type UserOperation_Article_OptionalComments struct {
-	ID   string "json:\"id,omitzero\""
-	Text string "json:\"text,omitzero\""
+	ID   string "json:\"id\""
+	Text string "json:\"text\""
 }
 
 func (t *UserOperation_Article_OptionalComments) GetID() string {
@@ -589,7 +589,7 @@ type UserOperation_Article_OptionalProfiles struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitzero\""
+		Status Status "json:\"status\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -617,7 +617,7 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitzero\""
+			Status Status "json:\"status\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -634,7 +634,7 @@ func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitzero\""
+	Status Status "json:\"status\""
 } {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
@@ -681,8 +681,8 @@ func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileF
 
 type UserOperation_Metadata struct {
 	Data       *string         "json:\"data\""
-	ID         string          "json:\"id,omitzero\""
-	Level      Level           "json:\"level,omitzero\""
+	ID         string          "json:\"id\""
+	Level      Level           "json:\"level\""
 	Properties *map[string]any "json:\"properties\""
 }
 
@@ -712,8 +712,8 @@ func (t *UserOperation_Metadata) GetProperties() *map[string]any {
 }
 
 type UserOperation_OptionalUser struct {
-	Email Email  "json:\"email,omitzero\""
-	Name  string "json:\"name,omitzero\""
+	Email Email  "json:\"email\""
+	Name  string "json:\"name\""
 }
 
 func (t *UserOperation_OptionalUser) GetEmail() Email {
@@ -732,22 +732,22 @@ func (t *UserOperation_OptionalUser) GetName() string {
 type UserOperation_User struct {
 	User *struct {
 		UserFragment2 "json:\"-\""
-		Name          string "json:\"name,omitzero\""
+		Name          string "json:\"name\""
 	} "json:\"-\""
 	UserFragment1   "json:\"-\""
 	UserFragment2   "json:\"-\""
 	Typename        *string                             "json:\"__typename\""
-	Address         UserOperation_User_Address          "json:\"address,omitzero\""
-	DefaultPic      string                              "json:\"defaultPic,omitzero\""
-	Email           Email                               "json:\"email,omitzero\""
-	LargePic        string                              "json:\"largePic,omitzero\""
-	Name            string                              "json:\"name,omitzero\""
-	Name2           string                              "json:\"name2,omitzero\""
+	Address         UserOperation_User_Address          "json:\"address\""
+	DefaultPic      string                              "json:\"defaultPic\""
+	Email           Email                               "json:\"email\""
+	LargePic        string                              "json:\"largePic\""
+	Name            string                              "json:\"name\""
+	Name2           string                              "json:\"name2\""
 	OptionalAddress *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
 	OptionalProfile *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
-	Profile         UserOperation_User_Profile          "json:\"profile,omitzero\""
-	Profile2        UserOperation_User_Profile2         "json:\"profile2,omitzero\""
-	SmallPic        string                              "json:\"smallPic,omitzero\""
+	Profile         UserOperation_User_Profile          "json:\"profile\""
+	Profile2        UserOperation_User_Profile2         "json:\"profile2\""
+	SmallPic        string                              "json:\"smallPic\""
 }
 
 func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -769,7 +769,7 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	switch typeName_t_UserFragment1 {
 	case "User":
 		t.UserFragment1.User = &struct {
-			Name string "json:\"name,omitzero\""
+			Name string "json:\"name\""
 		}{}
 		if err := json.Unmarshal(data, t.UserFragment1.User); err != nil {
 			return err
@@ -786,7 +786,7 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	case "User":
 		t.User = &struct {
 			UserFragment2 "json:\"-\""
-			Name          string "json:\"name,omitzero\""
+			Name          string "json:\"name\""
 		}{}
 		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
@@ -799,7 +799,7 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 }
 func (t *UserOperation_User) GetUser() *struct {
 	UserFragment2 "json:\"-\""
-	Name          string "json:\"name,omitzero\""
+	Name          string "json:\"name\""
 } {
 	if t == nil {
 		t = &UserOperation_User{}
@@ -894,7 +894,7 @@ func (t *UserOperation_User) GetSmallPic() string {
 type UserOperation_User_Address struct {
 	PrivateAddressFields "json:\"-\""
 	PublicAddressFields  "json:\"-\""
-	Street               string "json:\"street,omitzero\""
+	Street               string "json:\"street\""
 }
 
 func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -935,15 +935,15 @@ func (t *UserOperation_User_Address) GetStreet() string {
 
 type UserOperation_User_OptionalAddress struct {
 	PrivateAddress *struct {
-		Private bool   "json:\"private,omitzero\""
-		Street  string "json:\"street,omitzero\""
+		Private bool   "json:\"private\""
+		Street  string "json:\"street\""
 	} "json:\"-\""
 	PublicAddress *struct {
-		Public bool   "json:\"public,omitzero\""
-		Street string "json:\"street,omitzero\""
+		Public bool   "json:\"public\""
+		Street string "json:\"street\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
-	Street   string  "json:\"street,omitzero\""
+	Street   string  "json:\"street\""
 }
 
 func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -962,16 +962,16 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Dec
 	switch typeName_t {
 	case "PrivateAddress":
 		t.PrivateAddress = &struct {
-			Private bool   "json:\"private,omitzero\""
-			Street  string "json:\"street,omitzero\""
+			Private bool   "json:\"private\""
+			Street  string "json:\"street\""
 		}{}
 		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
 		t.PublicAddress = &struct {
-			Public bool   "json:\"public,omitzero\""
-			Street string "json:\"street,omitzero\""
+			Public bool   "json:\"public\""
+			Street string "json:\"street\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
@@ -980,8 +980,8 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Dec
 	return nil
 }
 func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *struct {
-	Private bool   "json:\"private,omitzero\""
-	Street  string "json:\"street,omitzero\""
+	Private bool   "json:\"private\""
+	Street  string "json:\"street\""
 } {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
@@ -989,8 +989,8 @@ func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *struct {
 	return t.PrivateAddress
 }
 func (t *UserOperation_User_OptionalAddress) GetPublicAddress() *struct {
-	Public bool   "json:\"public,omitzero\""
-	Street string "json:\"street,omitzero\""
+	Public bool   "json:\"public\""
+	Street string "json:\"street\""
 } {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
@@ -1077,7 +1077,7 @@ type UserOperation_User_Profile2 struct {
 		Age *int "json:\"age\""
 	} "json:\"-\""
 	PublicProfile *struct {
-		Status Status "json:\"status,omitzero\""
+		Status Status "json:\"status\""
 	} "json:\"-\""
 	Typename *string "json:\"__typename\""
 }
@@ -1105,7 +1105,7 @@ func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) e
 		}
 	case "PublicProfile":
 		t.PublicProfile = &struct {
-			Status Status "json:\"status,omitzero\""
+			Status Status "json:\"status\""
 		}{}
 		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
@@ -1122,7 +1122,7 @@ func (t *UserOperation_User_Profile2) GetPrivateProfile() *struct {
 	return t.PrivateProfile
 }
 func (t *UserOperation_User_Profile2) GetPublicProfile() *struct {
-	Status Status "json:\"status,omitzero\""
+	Status Status "json:\"status\""
 } {
 	if t == nil {
 		t = &UserOperation_User_Profile2{}
@@ -1136,169 +1136,6 @@ func (t *UserOperation_User_Profile2) GetTypename() *string {
 	return t.Typename
 }
 
-const UpdateUserDocument = `mutation UpdateUser ($input: UpdateUserInput!) {
-	updateUser(input: $input) {
-		user {
-			name
-			settings {
-				theme
-				notifications
-			}
-		}
-	}
-}
-`
-const UserOperationDocument = `query UserOperation ($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
-	user(id: $userId, status: $userStatus) {
-		__typename
-		name
-		email
-		name2: name
-		smallPic: profilePic(size: 50)
-		largePic: profilePic(size: 500)
-		defaultPic: profilePic(size: $size)
-		profile {
-			... PublicProfileFields
-			... PrivateProfileFields
-		}
-		profile2: profile {
-			__typename
-			... on PublicProfile {
-				status
-			}
-			... on PrivateProfile {
-				age
-			}
-		}
-		optionalProfile {
-			... PublicProfileFields
-			... PrivateProfileFields
-		}
-		address {
-			street
-			... PublicAddressFields
-			... PrivateAddressFields
-		}
-		optionalAddress {
-			__typename
-			street
-			... on PublicAddress {
-				street
-				public
-			}
-			... on PrivateAddress {
-				street
-				private
-			}
-		}
-		... UserFragment1
-		... UserFragment2
-		... on User {
-			name
-			... UserFragment2
-		}
-	}
-	optionalUser {
-		name
-		email
-	}
-	article(id: $articleId) {
-		id
-		title
-		tags
-		optionalTags
-		comments {
-			id
-			text
-		}
-		optionalComments {
-			id
-			text
-		}
-		rating
-		optionalRating
-		nullableElementsList
-		fullyNullableList
-		statuses
-		optionalStatuses
-		addresses {
-			street
-			... PublicAddressFields
-			... PrivateAddressFields
-		}
-		optionalAddresses {
-			__typename
-			street
-			... on PublicAddress {
-				public
-			}
-			... on PrivateAddress {
-				private
-			}
-		}
-		profiles {
-			... PublicProfileFields
-			... PrivateProfileFields
-		}
-		optionalProfiles {
-			__typename
-			... on PublicProfile {
-				status
-			}
-			... on PrivateProfile {
-				age
-			}
-		}
-		matrix
-		optionalMatrix
-	}
-	metadata(id: $metadataId) {
-		id
-		data
-		properties
-		level
-	}
-}
-fragment PublicProfileFields on PublicProfile {
-	id
-	status
-}
-fragment PrivateProfileFields on PrivateProfile {
-	id
-	age
-}
-fragment PublicAddressFields on PublicAddress {
-	id
-	street
-	public
-}
-fragment PrivateAddressFields on PrivateAddress {
-	id
-	street
-	private
-}
-fragment UserFragment1 on User {
-	__typename
-	name
-	name
-	... on User {
-		name
-	}
-	profile {
-		__typename
-		... on PublicProfile {
-			status
-		}
-		... on PrivateProfile {
-			age
-		}
-	}
-}
-fragment UserFragment2 on User {
-	name
-}
-`
-const CountDocument = `subscription Count ($target: Int!) {
-	count(target: $target)
-}
-`
+const UpdateUserDocument = `mutation UpdateUser($input: UpdateUserInput!) { updateUser(input: $input) { user { name settings { theme notifications } } } }`
+const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) { user(id: $userId, status: $userStatus) { __typename name email name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
+const CountDocument = `subscription Count($target: Int!) { count(target: $target) }`

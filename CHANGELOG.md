@@ -76,7 +76,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 これに伴い、生成コードも次のように変わりました。
 
 - 構造体タグから `graphql` タグを削除し、`json` タグのみを生成します
-- `json` タグに `omitempty` を付与しません。gqlgen の `enable_model_json_omitzero_tag: true` を設定した場合のみ NonNull フィールドに `omitzero` を付与します（デフォルトは false）
+- `json` タグに `omitempty` を付与しません。クエリレスポンス型はデコード専用で `omitzero` がマーシャル時にしか効かないため、レスポンス型のフィールドには `omitzero` を付与しません（入力型は gqlgen 本体が `enable_model_json_omitzero_tag` に従って付与します）
 - フラグメントの埋め込みとインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
 - フラグメントを non-optional の埋め込みにしたことで、Getter 関数の生成量を削減しました
 - レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `gqlgenc.generate_getters: true` を指定してください
@@ -213,6 +213,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - エラーを `%w` でラップし、原因を辿れるようにしました
 - golangci-lint v2（`.golangci.yml`）と GitHub Actions の CI を整備しました
 - インラインフラグメントのデコードで `__typename` を再パースせず、デコード済みの `Typename` フィールドから型名を読むように簡素化しました（`__typename` の自動注入で必ずフィールドが存在することを利用）。型名抽出のための JSON 再パースが1回減ります
+- クエリドキュメント定数（`<オペレーション名>Document`）をミニファイ（1行・最小空白）して生成するようにしました。リクエストごとに送信されるクエリ文字列のサイズを削減します。GraphQL は空白に意味がなく、文字列リテラルはエスケープされて正規化されるため、ミニファイしても意味は変わりません
 
 ### 未対応の機能
 
