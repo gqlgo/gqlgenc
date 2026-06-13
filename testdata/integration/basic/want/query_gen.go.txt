@@ -61,31 +61,6 @@ func (t *PrivateProfileFields) GetID() string {
 	return t.ID
 }
 
-type PublicAddressFields struct {
-	ID     string "json:\"id\""
-	Public bool   "json:\"public\""
-	Street string "json:\"street\""
-}
-
-func (t *PublicAddressFields) GetID() string {
-	if t == nil {
-		t = &PublicAddressFields{}
-	}
-	return t.ID
-}
-func (t *PublicAddressFields) GetPublic() bool {
-	if t == nil {
-		t = &PublicAddressFields{}
-	}
-	return t.Public
-}
-func (t *PublicAddressFields) GetStreet() string {
-	if t == nil {
-		t = &PublicAddressFields{}
-	}
-	return t.Street
-}
-
 type PublicProfileFields struct {
 	ID     string "json:\"id\""
 	Status Status "json:\"status\""
@@ -436,8 +411,8 @@ func (t *UserOperation_Article) GetTitle() string {
 }
 
 type UserOperation_Article_Addresses struct {
+	AddressView          "json:\"-\""
 	PrivateAddressFields "json:\"-\""
-	PublicAddressFields  "json:\"-\""
 	Street               string "json:\"street\""
 }
 
@@ -450,25 +425,25 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decode
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
+	if err := json.Unmarshal(data, &t.AddressView); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
-		return err
-	}
 	return nil
+}
+func (t *UserOperation_Article_Addresses) GetAddressView() AddressView {
+	if t == nil {
+		t = &UserOperation_Article_Addresses{}
+	}
+	return t.AddressView
 }
 func (t *UserOperation_Article_Addresses) GetPrivateAddressFields() PrivateAddressFields {
 	if t == nil {
 		t = &UserOperation_Article_Addresses{}
 	}
 	return t.PrivateAddressFields
-}
-func (t *UserOperation_Article_Addresses) GetPublicAddressFields() PublicAddressFields {
-	if t == nil {
-		t = &UserOperation_Article_Addresses{}
-	}
-	return t.PublicAddressFields
 }
 func (t *UserOperation_Article_Addresses) GetStreet() string {
 	if t == nil {
@@ -892,8 +867,8 @@ func (t *UserOperation_User) GetSmallPic() string {
 }
 
 type UserOperation_User_Address struct {
+	AddressView          "json:\"-\""
 	PrivateAddressFields "json:\"-\""
-	PublicAddressFields  "json:\"-\""
 	Street               string "json:\"street\""
 }
 
@@ -906,25 +881,25 @@ func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) er
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
+	if err := json.Unmarshal(data, &t.AddressView); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(data, &t.PrivateAddressFields); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &t.PublicAddressFields); err != nil {
-		return err
-	}
 	return nil
+}
+func (t *UserOperation_User_Address) GetAddressView() AddressView {
+	if t == nil {
+		t = &UserOperation_User_Address{}
+	}
+	return t.AddressView
 }
 func (t *UserOperation_User_Address) GetPrivateAddressFields() PrivateAddressFields {
 	if t == nil {
 		t = &UserOperation_User_Address{}
 	}
 	return t.PrivateAddressFields
-}
-func (t *UserOperation_User_Address) GetPublicAddressFields() PublicAddressFields {
-	if t == nil {
-		t = &UserOperation_User_Address{}
-	}
-	return t.PublicAddressFields
 }
 func (t *UserOperation_User_Address) GetStreet() string {
 	if t == nil {

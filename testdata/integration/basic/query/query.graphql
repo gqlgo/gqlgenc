@@ -155,7 +155,7 @@ fragment PrivateProfileFields on PrivateProfile {
   age
 }
 
-fragment PublicAddressFields on PublicAddress {
+fragment PublicAddressFields on PublicAddress @goModel(model: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.AddressView") {
   id
   street
   public

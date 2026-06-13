@@ -2,6 +2,7 @@ package queryparser
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/99designs/gqlgen/codegen/templates"
 
@@ -25,6 +26,7 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 	}
 
 	injectTypenames(&queryDocument)
+	extendGoModelLocations(schema)
 
 	if errs := validator.ValidateWithRules(schema, &queryDocument, nil); errs != nil {
 		return nil, fmt.Errorf(": %w", errs)
@@ -93,6 +95,39 @@ func hasTypenameField(selectionSet ast.SelectionSet) bool {
 		}
 	}
 	return false
+}
+
+// goModelDirectiveName is the gqlgen directive reused to bind a query fragment
+// or field selection to an existing Go type.
+const goModelDirectiveName = "goModel"
+
+// extendGoModelLocations makes the @goModel directive usable on query
+// selections (fragment definitions and fields) in addition to gqlgen's
+// type-system locations, so a query can bind a fragment or field to a Go type.
+// gqlgen only processes @goModel on schema types, so this does not conflict.
+func extendGoModelLocations(schema *ast.Schema) {
+	queryLocations := []ast.DirectiveLocation{
+		ast.LocationFragmentDefinition,
+		ast.LocationField,
+	}
+
+	directive := schema.Directives[goModelDirectiveName]
+	if directive == nil {
+		schema.Directives[goModelDirectiveName] = &ast.DirectiveDefinition{
+			Name: goModelDirectiveName,
+			Arguments: ast.ArgumentDefinitionList{
+				{Name: "model", Type: ast.NamedType("String", nil)},
+			},
+			Locations: queryLocations,
+		}
+		return
+	}
+
+	for _, location := range queryLocations {
+		if !slices.Contains(directive.Locations, location) {
+			directive.Locations = append(directive.Locations, location)
+		}
+	}
 }
 
 func isUniqueOperationName(operations ast.OperationList) error {

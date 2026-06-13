@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	gotypes "go/types"
+	"slices"
 	"strings"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
@@ -129,4 +130,36 @@ func formattedDocument(queryDocument *graphql.QueryDocument) string {
 	astFormatter.FormatQueryDocument(queryDocument)
 
 	return strings.ReplaceAll(strings.TrimSpace(buf.String()), "\n", " ")
+}
+
+// StripGoModelDirectives は @goModel ディレクティブを AST から除去する。
+// @goModel はクライアント側のコード生成専用ディレクティブであり、サーバーへ送る
+// クエリドキュメントに残してはならないため、型生成後・Document 生成前に呼ぶ。
+func StripGoModelDirectives(queryDocument *graphql.QueryDocument) {
+	for _, operation := range queryDocument.Operations {
+		stripGoModelInSelectionSet(operation.SelectionSet)
+	}
+	for _, fragment := range queryDocument.Fragments {
+		fragment.Directives = removeGoModelDirective(fragment.Directives)
+		stripGoModelInSelectionSet(fragment.SelectionSet)
+	}
+}
+
+func stripGoModelInSelectionSet(selectionSet graphql.SelectionSet) {
+	for _, selection := range selectionSet {
+		switch selection := selection.(type) {
+		case *graphql.Field:
+			selection.Directives = removeGoModelDirective(selection.Directives)
+			stripGoModelInSelectionSet(selection.SelectionSet)
+		case *graphql.InlineFragment:
+			selection.Directives = removeGoModelDirective(selection.Directives)
+			stripGoModelInSelectionSet(selection.SelectionSet)
+		}
+	}
+}
+
+func removeGoModelDirective(directives graphql.DirectiveList) graphql.DirectiveList {
+	return slices.DeleteFunc(directives, func(d *graphql.Directive) bool {
+		return d.Name == "goModel"
+	})
 }

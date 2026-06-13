@@ -72,7 +72,7 @@ func Test_IntegrationTest(t *testing.T) {
 						Addresses: []*domain.UserOperation_Article_Addresses{
 							{
 								Street: "Public St",
-								PublicAddressFields: domain.PublicAddressFields{
+								AddressView: domain.AddressView{
 									ID:     "addr1",
 									Street: "Public St",
 									Public: true,
@@ -90,7 +90,7 @@ func Test_IntegrationTest(t *testing.T) {
 									Street:  "Private St",
 									Private: true,
 								},
-								PublicAddressFields: domain.PublicAddressFields{
+								AddressView: domain.AddressView{
 									ID:     "addr2",
 									Street: "Private St",
 									Public: false,
@@ -193,7 +193,7 @@ func Test_IntegrationTest(t *testing.T) {
 								ID:     "addr1",
 								Street: "123 Main St",
 							},
-							PublicAddressFields: domain.PublicAddressFields{
+							AddressView: domain.AddressView{
 								ID:     "addr1",
 								Street: "123 Main St",
 							},

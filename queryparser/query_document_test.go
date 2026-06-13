@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -303,6 +304,73 @@ func TestInjectTypenames(t *testing.T) {
 			got := collectFieldNames(nodeSelectionSet)
 			if diff := cmp.Diff(tt.want.nodeFieldNames, got); diff != "" {
 				t.Errorf("node field names diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestExtendGoModelLocations(t *testing.T) {
+	t.Parallel()
+
+	type want struct {
+		hasFragmentDefinition bool
+		hasField              bool
+	}
+
+	tests := []struct {
+		name   string
+		schema string
+		want   want
+	}{
+		{
+			// @goModel が型システム用ロケーションで宣言済み → クエリ用を追加する
+			name: "既存の@goModel定義にクエリ用ロケーションを追加する",
+			schema: `
+				directive @goModel(model: String) on OBJECT | INPUT_OBJECT
+				type Query { node: Node }
+				interface Node { id: ID! }
+				type User implements Node { id: ID! name: String! }
+			`,
+			want: want{
+				hasFragmentDefinition: true,
+				hasField:              true,
+			},
+		},
+		{
+			// @goModel が未宣言 → 定義ごと注入する
+			name: "@goModelが未宣言なら定義を注入する",
+			schema: `
+				type Query { node: Node }
+				interface Node { id: ID! }
+				type User implements Node { id: ID! name: String! }
+			`,
+			want: want{
+				hasFragmentDefinition: true,
+				hasField:              true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			schema := gqlparser.MustLoadSchema(&ast.Source{Input: tt.schema})
+			extendGoModelLocations(schema)
+
+			directive := schema.Directives[goModelDirectiveName]
+			if directive == nil {
+				t.Fatal("goModel directive is nil")
+			}
+
+			gotFragmentDefinition := slices.Contains(directive.Locations, ast.LocationFragmentDefinition)
+			if gotFragmentDefinition != tt.want.hasFragmentDefinition {
+				t.Errorf("FRAGMENT_DEFINITION location = %v, want %v", gotFragmentDefinition, tt.want.hasFragmentDefinition)
+			}
+
+			gotField := slices.Contains(directive.Locations, ast.LocationField)
+			if gotField != tt.want.hasField {
+				t.Errorf("FIELD location = %v, want %v", gotField, tt.want.hasField)
 			}
 		})
 	}

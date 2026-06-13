@@ -26,11 +26,16 @@ func GenerateCode(cfg *config.Config) error {
 	// gqlgenc Plugin
 
 	// generate template sources
-	operations := codegen.NewOperationGenerator(cfg).CreateOperations(cfg.GQLGencConfig.QueryDocument, cfg.GQLGencConfig.OperationQueryDocuments)
+	// 型生成で @goModel(model:) を読み取った後、サーバーへ送る Document に残さないよう
+	// AST から @goModel を除去してから Document を生成する。
 	goTypes, err := codegen.NewGoTypeGenerator(cfg).CreateGoTypes(cfg.GQLGencConfig.QueryDocument.Operations)
 	if err != nil {
 		return fmt.Errorf("failed to create go types: %w", err)
 	}
+
+	codegen.StripGoModelDirectives(cfg.GQLGencConfig.QueryDocument)
+
+	operations := codegen.NewOperationGenerator(cfg).CreateOperations(cfg.GQLGencConfig.QueryDocument, cfg.GQLGencConfig.OperationQueryDocuments)
 
 	// querygen
 	if cfg.GQLGencConfig.QueryGen.IsDefined() {
