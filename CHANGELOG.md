@@ -57,7 +57,7 @@ gqlgen:
 - `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。ヘッダーの付与は `WithHTTPHeader`、それ以外のカスタマイズは `WithHTTPClient` に `http.RoundTripper`（Transport）を差し替えた `http.Client` を渡して行います
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
-- `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します
+- `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します。リクエストボディのエンコード中に Upload を検出するため、配列要素や入れ子 input の中の Upload も認識します（[gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292)）
 
 #### 生成される Go 型の構造変更
 
@@ -182,6 +182,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - [gqlgo/gqlgenc#76](https://github.com/gqlgo/gqlgenc/issues/76) `scalar Map`（`map[string]any`）をデコードできない — json/v2 のデフォルトデコードへの移行により解決しました（testdata の `Metadata.properties` に回帰テストあり）
 - [gqlgo/gqlgenc#108](https://github.com/gqlgo/gqlgenc/issues/108) `foo_bar` と `fooBar` が同じ Go フィールド名になり重複エラー — 壊れたコードを生成する代わりに、クエリでの alias 付与を促す明確なエラーを返します
 - [gqlgo/gqlgenc#229](https://github.com/gqlgo/gqlgenc/issues/229) gqlgen の enum バインド（`@goModel` / `@goEnum`）が動作しない — バインド先の型が `json.Marshaler` / `json.Unmarshaler` を実装していれば動作します（実装例: testdata の `domain.Level`）
+- [gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292) struct や配列の中にネストした `Upload` が認識されない — multipart リクエストの構築を json/v2 のエンコード中に `graphql.Upload` を収集する方式にしたため、配列要素や入れ子 input の中にある Upload も検出されます
 - [gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269) undefined と null の区別 — `graphql.Omittable` + `omitzero` への対応で解決しました
 - [gqlgo/gqlgenc#282](https://github.com/gqlgo/gqlgenc/issues/282) 特定のクエリで発生する panic — 修正済みです
 - [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) `onlyUsedModels` で enum がフィルタリングされない — 未使用モデルのフィルタリングを既定動作として取り込みました

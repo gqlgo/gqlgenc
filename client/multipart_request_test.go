@@ -115,6 +115,57 @@ func TestNewRequestUpload(t *testing.T) {
 			},
 		},
 		{
+			// 構造体の配列の中にネストした Upload も収集できる (gqlgo/gqlgenc#292)。
+			// トップレベルの Upload (preview) と、配列要素ごとの Upload (images.N.image) が混在する。
+			name: "構造体の配列内にネストしたアップロード",
+			args: args{
+				operationName: "CreateProduct",
+				query:         "mutation CreateProduct($input: NewProductInput!) { createProduct(input: $input) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type productImageInput struct {
+						Order int             `json:"order"`
+						Image *graphql.Upload `json:"image"`
+					}
+					type newProductInput struct {
+						Title   string               `json:"title"`
+						Preview *graphql.Upload      `json:"preview"`
+						Images  []*productImageInput `json:"images"`
+					}
+					type vars struct {
+						Input newProductInput `json:"input"`
+					}
+					preview := newUpload(t, "preview.png", "preview bytes")
+					first := newUpload(t, "first.png", "first image")
+					second := newUpload(t, "second.png", "second image")
+					return vars{
+						Input: newProductInput{
+							Title:   "Product",
+							Preview: &preview,
+							Images: []*productImageInput{
+								{Order: 1, Image: &first},
+								{Order: 2, Image: &second},
+							},
+						},
+					}
+				},
+			},
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"title":"Product"`, `"preview":null`, `"image":null`, `"order":1`, `"order":2`},
+				mapping: map[string][]string{
+					"0": {"variables.input.preview"},
+					"1": {"variables.input.images.0.image"},
+					"2": {"variables.input.images.1.image"},
+				},
+				files: map[string]string{
+					"0": "preview bytes",
+					"1": "first image",
+					"2": "second image",
+				},
+			},
+		},
+		{
 			// 複数ファイルはリストの要素ごとに収集される
 			name: "複数ファイルのアップロード",
 			args: args{
