@@ -46,13 +46,7 @@ func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes
 			"Operations": operations,
 		},
 		Funcs: map[string]any{
-			"genCode": func(t types.Type) string {
-				code, err := codeGen.Generate(t)
-				if err != nil {
-					panic(fmt.Errorf("failed to generate code for type %v: %w", t, err))
-				}
-				return code
-			},
+			"genCode": codeGen.Generate,
 			"needsJSONImport": func() bool {
 				return codeGen.NeedsJSONImport(goTypes)
 			},
