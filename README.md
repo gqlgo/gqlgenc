@@ -396,3 +396,101 @@ genqlient の設定オプションや `@genqlient` ディレクティブを、gq
 | `for: "Type.field"` | 型・フィールドを名指しで指定 | 非対応。スキーマの `@goField` で対象を指定する |
 
 設計思想の違いがそのまま出ており、genqlient はクエリコメントの `@genqlient` ディレクティブでフィールド単位に生成コードの形を制御できるのに対し、gqlgenc はスキーマの `@goField` ディレクティブと `models` / `autobind` 設定でスキーマ駆動に制御します。スカラー/型バインドと null/undefined の区別はほぼ1:1で対応しますが、`struct` / `typename` / `for` のようなクエリ単位の細かい制御には対応しません。
+
+### 生成コードの比較
+
+同じクエリ `query GetUser($id: ID!) { user(id: $id) { name email } }` に対する、両者の生成コードの違いです。
+
+genqlient はオペレーションごとにトップレベル関数を生成し、variables を関数引数で受け取ります。
+
+```go
+// 内部用の variables 構造体（非公開）
+type __GetUserInput struct {
+	Id string `json:"id"`
+}
+
+// レスポンス型: パスを連結した命名（GetUser + User）
+type GetUserUser struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+func (v *GetUserUser) GetName() string  { return v.Name }
+func (v *GetUserUser) GetEmail() string { return v.Email }
+
+type GetUserResponse struct {
+	User GetUserUser `json:"user"`
+}
+
+func (v *GetUserResponse) GetUser() GetUserUser { return v.User }
+
+// オペレーションごとのトップレベル関数。クエリ文字列は関数内に埋め込み
+func GetUser(ctx context.Context, client graphql.Client, id string) (*GetUserResponse, error) {
+	req := &graphql.Request{
+		OpName:    "GetUser",
+		Query:     `query GetUser ($id: ID!) { user(id: $id) { name email } }`,
+		Variables: &__GetUserInput{Id: id},
+	}
+	var data GetUserResponse
+	resp := &graphql.Response{Data: &data}
+	err := client.MakeRequest(ctx, req, resp)
+
+	return &data, err
+}
+```
+
+gqlgenc は公開の `Vars` 構造体と `Operation` 値を生成し、共通のジェネリックメソッドで実行します。
+
+```go
+// client_gen.go: 公開の Vars 構造体 + Operation 値（種別マーカー付き）
+type GetUserVars struct {
+	ID string `json:"id"`
+}
+
+var GetUserOp = client.Operation[client.Query, GetUserVars, domain.GetUser]{
+	Name:     "GetUser",
+	Document: domain.GetUserDocument,
+}
+```
+
+```go
+// query_gen.go: クエリ文字列は定数、レスポンス型はアンダースコア区切りの命名
+const GetUserDocument = `query GetUser ($id: ID!) { user(id: $id) { name email } }`
+
+type GetUser_User struct {
+	Name  string `json:"name,omitzero"`
+	Email string `json:"email,omitzero"`
+}
+
+// getter は nil セーフ
+func (t *GetUser_User) GetName() string {
+	if t == nil {
+		t = &GetUser_User{}
+	}
+	return t.Name
+}
+
+type GetUser struct {
+	User *GetUser_User `json:"user"`
+}
+```
+
+```go
+// 実行: Operation 値とジェネリックメソッド。variables は型付き構造体を直接渡す
+res, err := c.Post(ctx, query.GetUserOp, query.GetUserVars{ID: "1"})
+```
+
+主な構造的な違いは次のとおりです。
+
+| 観点 | genqlient | gqlgenc |
+|---|---|---|
+| エントリポイント | オペレーションごとのトップレベル関数 `GetUser(ctx, client, id)` | `<オペレーション名>Op` 値 + 共通のジェネリックメソッド `Post` / `Get` / `Subscribe` |
+| variables | 非公開 `__GetUserInput` + 関数引数で渡す | 公開 `<オペレーション名>Vars` 構造体を直接渡す |
+| クエリ文字列 | 関数内に埋め込み | `<オペレーション名>Document` 定数 |
+| レスポンス型の命名 | パス連結（`GetUserUser`）。常に公開 | アンダースコア区切り（`GetUser_User`）。既定は非公開（`export_query_type` で切替） |
+| getter | プレーン（`return v.X`） | nil セーフ（`if t == nil { … }`） |
+| デコード | `encoding/json`（v1）+ リフレクション | json/v2。フラグメント型は生成された `UnmarshalJSONFrom`、それ以外は既定デコード |
+| クライアント | `graphql.Client` インターフェース（`MakeRequest`）。モックしやすい | 具象 `*client.Client` をジェネリックメソッドに渡す（Transport 差し替えでテスト） |
+| 操作種別 | 関数名と返り値で表現（型制約なし） | `Operation` の `Kind` 型パラメータでコンパイル時に制約 |
+
+genqlient は「呼べばよい関数」が並ぶため発見しやすく、`graphql.Client` インターフェースで素直にモックできます。gqlgenc は `Operation` 値とジェネリックメソッドにより、操作種別の型安全・全オペレーション横断のミドルウェア・nil セーフな getter・json/v2 による高速なデコードに寄せた設計です。
