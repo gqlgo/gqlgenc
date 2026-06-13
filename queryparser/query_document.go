@@ -24,6 +24,8 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 		queryDocument.Fragments = append(queryDocument.Fragments, query.Fragments...)
 	}
 
+	injectTypenames(&queryDocument)
+
 	if errs := validator.ValidateWithRules(schema, &queryDocument, nil); errs != nil {
 		return nil, fmt.Errorf(": %w", errs)
 	}
@@ -33,6 +35,62 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 	}
 
 	return &queryDocument, nil
+}
+
+// typenameFieldName is the GraphQL meta-field used to discriminate interface and union types.
+const typenameFieldName = "__typename"
+
+// injectTypenames は、インラインフラグメント（`... on Type`）を含む選択セットに
+// __typename フィールドを自動で追加する。interface / union のレスポンスを型判別して
+// デコードするには __typename が必須だが、クエリで明示されていないことがあるため、
+// パース後・検証前に補う。検証時に gqlparser が __typename の Definition を束縛するため、
+// 利用者が手書きした場合と同一の結果になる。
+func injectTypenames(queryDocument *ast.QueryDocument) {
+	for _, operation := range queryDocument.Operations {
+		operation.SelectionSet = injectTypenamesInSelectionSet(operation.SelectionSet)
+	}
+	for _, fragment := range queryDocument.Fragments {
+		fragment.SelectionSet = injectTypenamesInSelectionSet(fragment.SelectionSet)
+	}
+}
+
+// injectTypenamesInSelectionSet は選択セットを再帰的に走査し、インラインフラグメントを
+// 含む各選択セットの先頭に __typename を追加する（既に存在する場合は追加しない）。
+func injectTypenamesInSelectionSet(selectionSet ast.SelectionSet) ast.SelectionSet {
+	hasInlineFragment := false
+	for _, selection := range selectionSet {
+		switch selection := selection.(type) {
+		case *ast.Field:
+			selection.SelectionSet = injectTypenamesInSelectionSet(selection.SelectionSet)
+		case *ast.InlineFragment:
+			hasInlineFragment = true
+			selection.SelectionSet = injectTypenamesInSelectionSet(selection.SelectionSet)
+		}
+	}
+
+	if !hasInlineFragment || hasTypenameField(selectionSet) {
+		return selectionSet
+	}
+
+	typenameField := &ast.Field{
+		Alias: typenameFieldName,
+		Name:  typenameFieldName,
+	}
+	injected := make(ast.SelectionSet, 0, len(selectionSet)+1)
+	injected = append(injected, typenameField)
+	injected = append(injected, selectionSet...)
+
+	return injected
+}
+
+// hasTypenameField は選択セットの直下に __typename フィールドが既にあるかを返す。
+func hasTypenameField(selectionSet ast.SelectionSet) bool {
+	for _, selection := range selectionSet {
+		if field, ok := selection.(*ast.Field); ok && field.Name == typenameFieldName {
+			return true
+		}
+	}
+	return false
 }
 
 func isUniqueOperationName(operations ast.OperationList) error {

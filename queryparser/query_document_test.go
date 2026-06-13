@@ -174,3 +174,136 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 		})
 	}
 }
+
+const interfaceSchema = `
+type Query {
+	node: Node
+	todos: [Todo!]!
+}
+
+interface Node {
+	id: ID!
+}
+
+type User implements Node {
+	id: ID!
+	name: String!
+}
+
+type Post implements Node {
+	id: ID!
+	title: String!
+}
+
+type Todo {
+	id: ID!
+	text: String!
+}
+`
+
+// collectFieldNames は選択セット直下の Field 名を順に返す。
+func collectFieldNames(selectionSet ast.SelectionSet) []string {
+	var names []string
+	for _, selection := range selectionSet {
+		if field, ok := selection.(*ast.Field); ok {
+			names = append(names, field.Name)
+		}
+	}
+	return names
+}
+
+func TestInjectTypenames(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		query string
+	}
+
+	type want struct {
+		nodeFieldNames []string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// インラインフラグメントがあり __typename が無い → 先頭に __typename を注入する
+			name: "インラインフラグメントに__typenameが自動注入される",
+			args: args{
+				query: `
+					query GetNode {
+						node {
+							id
+							... on User { name }
+							... on Post { title }
+						}
+					}
+				`,
+			},
+			want: want{
+				nodeFieldNames: []string{"__typename", "id"},
+			},
+		},
+		{
+			// 既に __typename がある → 重複させない
+			name: "既に__typenameがある場合は重複しない",
+			args: args{
+				query: `
+					query GetNode {
+						node {
+							__typename
+							id
+							... on User { name }
+						}
+					}
+				`,
+			},
+			want: want{
+				nodeFieldNames: []string{"__typename", "id"},
+			},
+		},
+		{
+			// インラインフラグメントが無い → __typename を注入しない
+			name: "インラインフラグメントが無い場合は注入しない",
+			args: args{
+				query: `
+					query GetNode {
+						node {
+							id
+						}
+					}
+				`,
+			},
+			want: want{
+				nodeFieldNames: []string{"id"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			schema := gqlparser.MustLoadSchema(&ast.Source{Input: interfaceSchema})
+			queryDocument, err := QueryDocument(schema, []*ast.Source{{Input: tt.args.query}})
+			if err != nil {
+				t.Fatalf("QueryDocument() error = %v", err)
+			}
+
+			// node フィールドの選択セットを取り出す
+			var nodeSelectionSet ast.SelectionSet
+			for _, selection := range queryDocument.Operations[0].SelectionSet {
+				if field, ok := selection.(*ast.Field); ok && field.Name == "node" {
+					nodeSelectionSet = field.SelectionSet
+				}
+			}
+
+			got := collectFieldNames(nodeSelectionSet)
+			if diff := cmp.Diff(tt.want.nodeFieldNames, got); diff != "" {
+				t.Errorf("node field names diff(-want +got): %s", diff)
+			}
+		})
+	}
+}

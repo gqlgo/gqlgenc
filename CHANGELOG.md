@@ -150,6 +150,7 @@ type UserOperation_User_User struct {
 #### 型安全な UnmarshalJSONFrom の生成
 
 - querygen はフラグメントを含む型にのみ `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）を生成します。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドとインラインフラグメント（`__typename` による型判別）だけを追加でデコードします。フラグメントを含まない型はメソッドを生成せず、デフォルトデコードで処理されます。リフレクションベースのランタイム汎用デコーダ（旧 graphqljson）は不要になりました
+- インラインフラグメント（`... on Type`）を含む選択セットに `__typename` を自動注入します。interface / union のレスポンスは `__typename` で型判別してデコードするため、クエリで `__typename` を明示しなくても正しくデコードされます（注入はパース後・検証前に行い、利用者が手書きした場合と同一の結果になります）
 - json/v2 のデフォルトデコードへの移行により、旧 graphqljson が `scalar Map`（`map[string]any`）などの自由形式スカラーをデコードできなかった問題（[gqlgo/gqlgenc#76](https://github.com/gqlgo/gqlgenc/issues/76)）は解決済みです
 - `foo_bar` と `fooBar` のように異なるフィールドが同じ Go フィールド名に変換される場合、壊れたコードを生成する代わりに、クエリでの alias 付与を促す明確なエラーを返します（[gqlgo/gqlgenc#108](https://github.com/gqlgo/gqlgenc/issues/108)）
 - gqlgen の `@goModel` / `@goEnum` ディレクティブで int ベースの Go enum にバインドする場合（[gqlgo/gqlgenc#229](https://github.com/gqlgo/gqlgenc/issues/229)）、バインド先の型が `json.Marshaler` / `json.Unmarshaler` を実装していれば動作します。GraphQL enum のワイヤー表現は名前の文字列のため、名前と値のマッピングは型側の実装が必要です（実装例: testdata の `domain.Level`）
