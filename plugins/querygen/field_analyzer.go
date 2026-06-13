@@ -121,7 +121,6 @@ func (a *FieldAnalyzer) analyzeField(
 ) FieldInfo {
 	info := FieldInfo{
 		Name:       field.Name(),
-		Type:       field.Type(),
 		TypeName:   templates.CurrentImports.LookupType(field.Type()),
 		JSONTag:    a.parseJSONTag(tag),
 		IsExported: field.Exported(),

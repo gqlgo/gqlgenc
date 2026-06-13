@@ -1,14 +1,11 @@
 package querygen
 
-import "go/types"
-
 // FieldInfo は構造体フィールドの情報を表す。
 //
 // この構造体は各フィールドのメタデータを保持し、適切なアンマーシャル
 // ロジックとコード生成を可能にする。
 type FieldInfo struct {
 	Name             string      // フィールド名
-	Type             types.Type  // フィールドの Go 型
 	TypeName         string      // インポート修飾された型名
 	JSONTag          string      // JSON タグの値（例: "id", "-"）
 	IsExported       bool        // エクスポートされているか（先頭が大文字）

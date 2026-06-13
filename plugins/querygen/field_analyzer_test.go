@@ -103,8 +103,8 @@ func TestFieldAnalyzer_AnalyzeFields(t *testing.T) {
 
 			got := analyzer.AnalyzeFields(tt.args.structType, tt.args.shouldGenerateUnmarshal)
 
-			// Type フィールドは比較から除外（go/types の内部表現の比較が複雑なため）
-			opts := cmpopts.IgnoreFields(FieldInfo{}, "Type", "TypeName", "PointerElemType", "SubFields")
+			// import 修飾名や再帰的なフィールドは比較から除外する
+			opts := cmpopts.IgnoreFields(FieldInfo{}, "TypeName", "PointerElemType", "SubFields")
 			if diff := cmp.Diff(tt.want.fields, got, opts); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
 			}
