@@ -14,44 +14,52 @@ import (
 )
 
 func ParseResponse(resp *http.Response, out any) error {
+	reader := resp.Body
 	if resp.Header.Get("Content-Encoding") == "gzip" {
-		respBody, err := gzip.NewReader(resp.Body)
+		gz, err := gzip.NewReader(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to decode gzip: %w", err)
 		}
-
-		resp.Body = respBody
+		defer gz.Close()
+		reader = gz
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	errResponse := &ErrorResponse{}
 	isStatusCodeOK := http.StatusOK <= resp.StatusCode && resp.StatusCode < http.StatusMultipleChoices
+
+	var gqlErrors gqlerror.List
+	if err := unmarshalResponse(body, out); err != nil {
+		errs, ok := errors.AsType[gqlerror.List](err)
+		if !ok && isStatusCodeOK {
+			// status code is OK but the GraphQL response can't be parsed, it's an error.
+			return fmt.Errorf("http status is OK but %w", err)
+		}
+		// status code is not OK and the body is not a GraphQL error response:
+		// keep the network error only (errs is nil here).
+		gqlErrors = errs
+	}
+
+	// status OK and no GraphQL errors: success, no allocation.
+	if isStatusCodeOK && gqlErrors == nil {
+		return nil
+	}
+
+	errResponse := &ErrorResponse{}
 	if !isStatusCodeOK {
 		errResponse.NetworkError = &HTTPError{
 			Code:    resp.StatusCode,
 			Message: "Response body " + string(body),
 		}
 	}
-
-	if err := unmarshalResponse(body, out); err != nil {
-		if gqlErrs, ok := errors.AsType[gqlerror.List](err); ok {
-			// successfully parsed graphql error response
-			errResponse.GqlErrors = &gqlErrs
-		} else if isStatusCodeOK {
-			// status code is OK but the GraphQL response can't be parsed, it's an error.
-			return fmt.Errorf("http status is OK but %w", err)
-		}
+	if gqlErrors != nil {
+		errResponse.GqlErrors = &gqlErrors
 	}
 
-	if errResponse.HasErrors() {
-		return errResponse
-	}
-
-	return nil
+	return errResponse
 }
 
 // HTTPError is the error when the response status code is not 2xx.
