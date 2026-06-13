@@ -39,10 +39,7 @@ type Operation[Kind, Vars, Res any] struct {
 // Variables containing graphql.Upload values are sent as a
 // multipart/form-data request following the GraphQL multipart request spec.
 func (c *Client) Post[Kind httpKind, Vars, Res any](ctx context.Context, op Operation[Kind, Vars, Res], vars Vars, options ...Option) (*Res, error) {
-	cc := *c
-	for _, option := range options {
-		option(&cc)
-	}
+	cc := c.withOptions(options...)
 
 	req, err := NewRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
 	if err != nil {
@@ -65,10 +62,7 @@ func (c *Client) Post[Kind httpKind, Vars, Res any](ctx context.Context, op Oper
 // are not supported and result in an error; use Post for uploads. Large
 // queries or variables may exceed server URL length limits.
 func (c *Client) Get[Vars, Res any](ctx context.Context, op Operation[Query, Vars, Res], vars Vars, options ...Option) (*Res, error) {
-	cc := *c
-	for _, option := range options {
-		option(&cc)
-	}
+	cc := c.withOptions(options...)
 
 	req, err := NewGetRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
 	if err != nil {

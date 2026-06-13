@@ -63,6 +63,18 @@ func deriveWebSocketEndpoint(endpoint string) string {
 	return endpoint
 }
 
+// withOptions returns a shallow copy of c with the per-call options applied.
+// It never mutates c, so options passed to Post, Get or Subscribe affect only
+// that single call.
+func (c *Client) withOptions(options ...Option) *Client {
+	cc := *c
+	for _, option := range options {
+		option(&cc)
+	}
+
+	return &cc
+}
+
 func (c *Client) do(req *http.Request, out any) error {
 	for key, values := range c.header {
 		req.Header[http.CanonicalHeaderKey(key)] = values
