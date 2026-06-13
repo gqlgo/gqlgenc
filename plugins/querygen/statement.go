@@ -26,18 +26,7 @@ type IfStatement struct {
 
 // String は if 文の文字列表現を返す。
 func (i *IfStatement) String(indent int) string {
-	var buf strings.Builder
-	tabs := strings.Repeat("\t", indent)
-
-	fmt.Fprintf(&buf, "if %s {\n", i.Condition)
-	for _, stmt := range i.Body {
-		buf.WriteString(tabs + "\t")
-		buf.WriteString(stmt.String(indent + 1))
-		buf.WriteString("\n")
-	}
-	buf.WriteString(tabs + "}")
-
-	return buf.String()
+	return renderBlock(indent, "if "+i.Condition, i.Body)
 }
 
 // SwitchStatement は switch 文を表す。
@@ -68,12 +57,8 @@ func (s *SwitchStatement) String(indent int) string {
 
 	fmt.Fprintf(&buf, "switch %s {\n", s.Expr)
 	for _, c := range s.Cases {
-		buf.WriteString(tabs + fmt.Sprintf("case %q:\n", c.Value))
-		for _, stmt := range c.Body {
-			buf.WriteString(tabs + "\t")
-			buf.WriteString(stmt.String(indent + 1))
-			buf.WriteString("\n")
-		}
+		fmt.Fprintf(&buf, "%scase %q:\n", tabs, c.Value)
+		writeBody(&buf, indent, c.Body)
 	}
 	buf.WriteString(tabs + "}")
 
@@ -134,16 +119,28 @@ type ErrorCheckStatement struct {
 
 // String はエラーチェック文の文字列表現を返す。
 func (e *ErrorCheckStatement) String(indent int) string {
+	return renderBlock(indent, "if err := "+e.ErrorExpr+"; err != nil", e.Body)
+}
+
+// renderBlock は "<header> {" 行・1段深い body・閉じ括弧 "}" からなるブロックを描画する。
+func renderBlock(indent int, header string, body []Statement) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
 
-	fmt.Fprintf(&buf, "if err := %s; err != nil {\n", e.ErrorExpr)
-	for _, stmt := range e.Body {
+	buf.WriteString(header)
+	buf.WriteString(" {\n")
+	writeBody(&buf, indent, body)
+	buf.WriteString(tabs + "}")
+
+	return buf.String()
+}
+
+// writeBody は body の各ステートメントを、ブロックより1段深いインデントで書き込む。
+func writeBody(buf *strings.Builder, indent int, body []Statement) {
+	tabs := strings.Repeat("\t", indent)
+	for _, stmt := range body {
 		buf.WriteString(tabs + "\t")
 		buf.WriteString(stmt.String(indent + 1))
 		buf.WriteString("\n")
 	}
-	buf.WriteString(tabs + "}")
-
-	return buf.String()
 }
