@@ -127,7 +127,7 @@ func main() {
 | `querygen` | `filename` / `package` | レスポンス型・UnmarshalJSON・クエリドキュメント定数の生成先。`package` 省略時はディレクトリ名から導出 |
 | `clientgen` | `filename` / `package` | 型付き variables 構造体と `client.Operation` 値の生成先。指定する場合は `querygen` の指定も必須 |
 | `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
-| `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる |
+| `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる。通常は false を推奨し、テストなどで生成パッケージの外からレスポンス型の構造体フィールドに値をセットしたい場合だけ true にする（非公開型は外部パッケージから構築できないため） |
 | `generate_getters` | `bool` | レスポンス型に nil セーフな getter メソッドを生成する。デフォルト false（生成しない）。true で各フィールドに `Get<フィールド>()` を生成する |
 | `autobind` | `[]string` | フラグメント名と同名の Go 型が指定パッケージにあれば、レスポンス型を生成せずその既存 Go 型にバインドする（`@goFragment` のパッケージ指定版）。gqlgen の `autobind`（サーバーモデル用）とは独立した設定 |
 
