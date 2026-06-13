@@ -193,7 +193,7 @@ func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath s
 				FieldExpr:   fmt.Sprintf("%s.%s", parentPath, field.Name),
 				ElemTypeStr: field.PointerElemType,
 			})
-		case field.IsEmbedded && (field.JSONTag == "" || field.JSONTag == "-"):
+		case field.IsFragmentSpread():
 			fragmentSpreads = append(fragmentSpreads, field)
 		default:
 			regularFields = append(regularFields, field)

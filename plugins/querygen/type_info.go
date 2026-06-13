@@ -19,6 +19,12 @@ type FieldInfo struct {
 	SubFields        []FieldInfo // 埋め込みフィールドの場合、埋め込み構造体のフィールドを含む
 }
 
+// IsFragmentSpread は、フィールドが GraphQL の fragment spread（親型に展開され、
+// 親の UnmarshalJSONFrom でデコードされる埋め込み構造体）かどうかを返す。
+func (f FieldInfo) IsFragmentSpread() bool {
+	return f.IsEmbedded && (f.JSONTag == "" || f.JSONTag == "-")
+}
+
 // InlineFragmentInfo は inline fragment フィールドの情報を表す。
 //
 // Inline fragments は GraphQL の型条件付きフィールド（... on Type）を表し、

@@ -97,58 +97,6 @@ func (a *FieldAnalyzer) IsInlineFragment(field *types.Var, tag string) bool {
 	return isPointer
 }
 
-// IsFragmentSpread はフィールドが fragment spread フィールドかどうかをチェックする。
-//
-// Fragment spreads は "...FragmentName" を使って親型に展開される GraphQL fragments を表す。
-// これらは Go 構造体では埋め込みフィールドになる。
-//
-// Fragment spread フィールドは以下の特徴を持つ:
-//   - IsEmbedded が true（構造体内の匿名フィールド）
-//   - json:"-" または JSON タグなし（直接アンマーシャルされない）
-//
-// GraphQL の例:
-//
-//	fragment UserFields on User {
-//	  id
-//	  name
-//	}
-//
-//	query {
-//	  user {
-//	    ...UserFields
-//	  }
-//	}
-//
-// 生成される Go 構造体:
-//
-//	type User struct {
-//	    UserFields  // 埋め込みフィールド（fragment spread）
-//	    // その他のフィールド..
-//	}
-//
-// パラメータ:
-//   - field: チェック対象のフィールド情報
-//
-// 戻り値:
-//   - bool: fragment spread フィールドの場合は true
-func (a *FieldAnalyzer) IsFragmentSpread(field FieldInfo) bool {
-	return field.IsEmbedded && (field.JSONTag == "" || field.JSONTag == "-")
-}
-
-// IsRegularField はフィールドが通常の（特殊でない）フィールドかどうかをチェックする。
-//
-// 通常フィールドは json:"..." タグを使って JSON から通常通りアンマーシャルされる。
-// これらは inline fragments でも fragment spreads でもない。
-//
-// パラメータ:
-//   - field: チェック対象のフィールド情報
-//
-// 戻り値:
-//   - bool: 通常フィールドの場合は true
-func (a *FieldAnalyzer) IsRegularField(field FieldInfo) bool {
-	return !field.IsInlineFragment && !a.IsFragmentSpread(field)
-}
-
 // analyzeField は単一フィールドを解析し、その FieldInfo を返す。
 //
 // 解析には以下が含まれる:
@@ -201,7 +149,7 @@ func (a *FieldAnalyzer) analyzeField(
 	// 埋め込みフィールドでインラインフラグメントでない場合の特別処理
 	// GraphQLのフラグメントスプレッドに対応するため、埋め込みフィールドは
 	// 独自のUnmarshalJSONメソッドを持つ場合と、親の型に展開される場合がある
-	if info.IsEmbedded && !info.IsInlineFragment {
+	if info.IsEmbedded {
 		if embeddedNamed := unwrapToNamedStruct(field.Type()); embeddedNamed != nil {
 			// 埋め込み型が独自のUnmarshalJSONを持つ場合は、サブフィールドを解析せず早期リターン
 			if shouldGenerateUnmarshal(embeddedNamed) {

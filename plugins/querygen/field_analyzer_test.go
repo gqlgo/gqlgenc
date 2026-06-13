@@ -196,10 +196,8 @@ func TestFieldAnalyzer_IsInlineFragment(t *testing.T) {
 	}
 }
 
-func TestFieldAnalyzer_IsFragmentSpread(t *testing.T) {
+func TestFieldInfo_IsFragmentSpread(t *testing.T) {
 	t.Parallel()
-
-	analyzer := NewFieldAnalyzer()
 
 	type args struct {
 		field FieldInfo
@@ -268,7 +266,7 @@ func TestFieldAnalyzer_IsFragmentSpread(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := analyzer.IsFragmentSpread(tt.args.field)
+			got := tt.args.field.IsFragmentSpread()
 
 			if diff := cmp.Diff(tt.want.isFragmentSpread, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
