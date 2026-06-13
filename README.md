@@ -278,6 +278,25 @@ make fmt   # golangci-lint fmt
 
 Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 
-## 類似プロジェクト
+## genqlient との比較
 
-- [Khan/genqlient](https://github.com/Khan/genqlient) — 独自実装の GraphQL クライアントジェネレータ。gqlgenc は gqlgen ベースのため、gqlgen の知識・設定をそのまま活かせる点が異なります
+[Khan/genqlient](https://github.com/Khan/genqlient) は gqlgenc と同じく Query First を採用した型安全な Go GraphQL クライアントジェネレータです。クエリをスキーマに対して検証して型付きのレスポンス型を生成する点、GraphQL エラーと HTTP エラーを `errors.As` で判別できる点、GraphQL エラー時にも部分データを返す点など、基本的な設計は共通しています。
+
+主な違いは次のとおりです。
+
+| 観点 | gqlgenc（このブランチ） | genqlient |
+|---|---|---|
+| 基盤 | [gqlgen](https://github.com/99designs/gqlgen) ベース。modelgen・設定形式・`graphql.Omittable`・Federation 対応をそのまま利用できる | 独自実装（gqlgen 非依存） |
+| スキーマの取得 | ローカル SDL またはイントロスペクション（`gqlgenc.endpoint`） | ローカル SDL のみ（イントロスペクションによる取得は[未対応](https://github.com/Khan/genqlient/issues/4)） |
+| JSON 処理 | `encoding/json/v2`（Go 1.27 以上 + `GOEXPERIMENT=jsonv2`） | `encoding/json`（v1） |
+| 実行 API | 型付き variables 構造体と `client.Operation[Vars, Res]` 値を生成し、ジェネリックな `Post` メソッドで実行する。全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書ける | オペレーションごとに Go 関数（例: `GetUser(ctx, client, ...) (*getUserResponse, error)`）を生成し、variables は関数引数として渡す |
+| interface / union | Go interface を生成しない。インラインフラグメントを型条件名のポインタフィールド（無名構造体）として生成し、レスポンスの `__typename` でデコードする | GraphQL interface に対応する Go interface と具象型ごとの実装を生成し、共有フィールドには getter でアクセスする |
+| フラグメント | 常に公開の独立型として生成し、構造体に埋め込む | フラグメントごとに型を生成して埋め込む。`flatten` ディレクティブで中間型を省略できる |
+| null / undefined の区別 | gqlgen の `graphql.Omittable[T]` と json/v2 の `omitzero` | `optional: value / pointer / generic` 設定と `@genqlient(pointer: true, omitempty: true)` ディレクティブ |
+| 生成のカスタマイズ | 設定より規約。オプションは最小限で、型のバインドは gqlgen の `models` / `autobind` / `@goField` を利用する | `@genqlient` コメントディレクティブ（`pointer` / `alias` / `typename` / `flatten` / `struct` / `bind` / `for` など）と YAML オプション（`casing` / `context_type` / `client_getter` など）で細かく制御できる |
+| カスタムスカラー | gqlgen の `models` バインド | `bindings` / `package_bindings` |
+| ファイルアップロード | `graphql.Upload` を含む variables を自動で multipart リクエストにする（[graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec)） | 非対応 |
+| subscription | 非対応 | WebSocket（`graphql-transport-ws` ほか）で対応 |
+| HTTP | POST のみ。`Accept` ヘッダーで `application/graphql-response+json` をネゴシエーションし、gzip レスポンスを透過的に展開する | POST と GET（`NewClientUsingGet`）。`application/json` のみ |
+
+設計思想としては、gqlgenc はサーバーを gqlgen で実装しているプロジェクトとの親和性を重視しています。gqlgen の設定・モデル生成・`Omittable` をそのまま使えるため、サーバー側と同じ Go 型（`autobind`）やスキーマ定義を共有できます。genqlient は単体で完結したツールで、ディレクティブによる生成コードの細かい制御や subscription 対応に強みがあります。
