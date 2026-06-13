@@ -151,7 +151,8 @@ gqlgenc:
   export_query_type: false
 
   # bool（デフォルト: false）
-  # レスポンス型に nil セーフな getter メソッド（Get<フィールド>()）を生成する
+  # レスポンス型に nil セーフな getter メソッド（Get<フィールド>()）を生成する。
+  # テストなどでレスポンス全体の検証のみ必要な場合は false（構造体全体を直接比較すればよい）、個別のフィールドへ nil セーフにアクセスする必要がある場合は true を推奨
   generate_getters: false
 
   # []string（デフォルト: なし）
