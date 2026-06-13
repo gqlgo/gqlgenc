@@ -17,7 +17,7 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 	for _, querySource := range querySources {
 		query, gqlerr := parser.ParseQuery(querySource)
 		if gqlerr != nil {
-			return nil, fmt.Errorf(": %w", gqlerr)
+			return nil, fmt.Errorf("parse query: %w", gqlerr)
 		}
 
 		queryDocument.Operations = append(queryDocument.Operations, query.Operations...)
@@ -28,7 +28,7 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 	injectGoFragmentDirective(schema)
 
 	if errs := validator.ValidateWithRules(schema, &queryDocument, nil); errs != nil {
-		return nil, fmt.Errorf(": %w", errs)
+		return nil, fmt.Errorf("validate query: %w", errs)
 	}
 
 	if err := isUniqueOperationName(queryDocument.Operations); err != nil {
@@ -122,9 +122,11 @@ func injectGoFragmentDirective(schema *ast.Schema) {
 func isUniqueOperationName(operations ast.OperationList) error {
 	operationNames := make(map[string]struct{}, len(operations))
 	for _, operation := range operations {
-		if _, ok := operationNames[templates.ToGo(operation.Name)]; ok {
+		goName := templates.ToGo(operation.Name)
+		if _, ok := operationNames[goName]; ok {
 			return fmt.Errorf("duplicate operation: %s", operation.Name)
 		}
+		operationNames[goName] = struct{}{}
 	}
 
 	return nil
@@ -143,7 +145,7 @@ func OperationQueryDocuments(schema *ast.Schema, operations ast.OperationList) (
 		}
 
 		if errs := validator.ValidateWithRules(schema, queryDocument, nil); errs != nil {
-			return nil, fmt.Errorf(": %w", errs)
+			return nil, fmt.Errorf("validate operation %q: %w", operation.Name, errs)
 		}
 
 		queryDocuments = append(queryDocuments, queryDocument)

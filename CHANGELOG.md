@@ -224,6 +224,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - HTTP レスポンス解析（`ParseResponse`）を整理しました。gzip リーダーを `defer` で確実に閉じ、引数の `*http.Response` を破壊的に書き換えないようにし、正常レスポンス時の不要なエラー構造体のアロケーションを削減しました
 - ファイルアップロード（multipart）のリクエストボディを `io.Pipe` でストリーミング送信するようにし、ファイル本体をメモリに溜め込まないようにしました。あわせて各ファイルパートの `Content-Type` に `Upload.ContentType` を反映します（未指定時は `application/octet-stream`）
 - Subscription の graphql-transport-ws の取り扱いを堅牢にしました。サーバーが `complete` を送らずに WebSocket を正常クローズ（1000 / 1001）した場合をエラーではなく完了として扱い、ハンドシェイク中（`connection_ack` 待ち）に `ping` を受け取っても `pong` で応答して待ち続けます
+- オペレーション名の重複チェックが実際には検出していなかった不具合を修正しました。Go 名へ正規化すると衝突するオペレーション（例: `getUser` と `GetUser` がどちらも `GetUser`）を生成時にエラーにします（従来は生成は通り、生成コードのコンパイルエラーになっていました）
 
 ### 未対応の機能
 

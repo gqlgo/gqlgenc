@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -371,6 +372,64 @@ func TestInjectGoFragmentDirective(t *testing.T) {
 			gotField := slices.Contains(directive.Locations, ast.LocationField)
 			if gotField != tt.want.hasField {
 				t.Errorf("FIELD location = %v, want %v", gotField, tt.want.hasField)
+			}
+		})
+	}
+}
+
+func TestQueryDocument_DuplicateGoOperationName(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		query string
+	}
+
+	type want struct {
+		err error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// getTodos と GetTodos はどちらも Go 名が GetTodos になり衝突する → エラー
+			name: "Go名が衝突するオペレーションはエラー",
+			args: args{
+				query: `
+					query getTodos { todos { id } }
+					query GetTodos { todos { id } }
+				`,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		{
+			// Go 名が衝突しなければエラーにならない
+			name: "Go名が衝突しなければエラーにならない",
+			args: args{
+				query: `
+					query GetTodos { todos { id } }
+					query GetTodosBySortOrder { todosBySortOrder(order: ASC) { id } }
+				`,
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			schema := gqlparser.MustLoadSchema(&ast.Source{Input: testSchema})
+			_, err := QueryDocument(schema, []*ast.Source{{Input: tt.args.query}})
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
 			}
 		})
 	}
