@@ -92,7 +92,7 @@ func newMultipartRequest(ctx context.Context, endpoint string, operations []byte
 
 	req.Header = http.Header{
 		headerContentType: []string{contentType},
-		headerAccept:      []string{acceptGraphQLResponse, contentTypeJSON},
+		headerAccept:      acceptHeaderValues(),
 	}
 
 	return req, nil

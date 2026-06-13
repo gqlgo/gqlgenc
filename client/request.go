@@ -18,6 +18,14 @@ const (
 	headerAccept      = "Accept"
 )
 
+// acceptHeaderValues はクライアントが受理するメディアタイプを返す。GraphQL-over-HTTP
+// のメディアタイプ（application/graphql-response+json）を優先し、プレーン JSON に
+// フォールバックする。呼び出しごとに新しいスライスを返すので、http.Header に格納しても
+// 可変状態を共有しない。
+func acceptHeaderValues() []string {
+	return []string{acceptGraphQLResponse, contentTypeJSON}
+}
+
 // Request represents an outgoing GraphQL request.
 type Request struct {
 	Query         string `json:"query"`
@@ -50,7 +58,7 @@ func NewRequest(ctx context.Context, endpoint, operationName, query string, vari
 
 	req.Header = http.Header{
 		headerContentType: []string{contentTypeJSON},
-		headerAccept:      []string{acceptGraphQLResponse, contentTypeJSON},
+		headerAccept:      acceptHeaderValues(),
 	}
 
 	return req, nil
@@ -90,7 +98,7 @@ func NewGetRequest(ctx context.Context, endpoint, operationName, query string, v
 	}
 
 	req.Header = http.Header{
-		headerAccept: []string{acceptGraphQLResponse, contentTypeJSON},
+		headerAccept: acceptHeaderValues(),
 	}
 
 	return req, nil
