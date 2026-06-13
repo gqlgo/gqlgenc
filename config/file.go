@@ -36,7 +36,7 @@ func FindConfigFile(path string, cfgFilenames []string) (string, error) {
 	}
 
 	if cfg == "" {
-		return "", fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s: %w", dir, err)
+		return "", fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s", dir)
 	}
 
 	return cfg, nil
@@ -111,11 +111,7 @@ func schemaFileSources(schemaFilenames []string) ([]*ast.Source, error) {
 	for _, schemaFilename := range schemaFilenames {
 		schemaFilename = filepath.ToSlash(schemaFilename)
 
-		var err error
-
-		var schemaRaw []byte
-
-		schemaRaw, err = os.ReadFile(schemaFilename)
+		schemaRaw, err := os.ReadFile(schemaFilename)
 		if err != nil {
 			return nil, fmt.Errorf("unable to open schema: %w", err)
 		}
