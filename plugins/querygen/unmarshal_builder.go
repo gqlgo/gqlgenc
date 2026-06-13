@@ -117,21 +117,27 @@ func (b *UnmarshalBuilder) decodeFragmentSpreadsAt(fragmentSpreads []FieldInfo, 
 //   - []Statement: このフィールドをデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo, parentPath string) []Statement {
 	target := fmt.Sprintf("%s.%s", parentPath, field.Name)
-	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesAt(field.SubFields, target)
+	return b.decodeNested(target, field.SubFields, "&"+target)
+}
+
+// decodeNested は path の構造体を data からデコードし、その入れ子の fragment spreads と
+// inline fragments を再帰的にデコードするステートメントを返す。unmarshalArg は
+// json.Unmarshal に渡すデコード先で、値フィールドは "&path"、ポインタフィールドは
+// path 自身を渡す。
+func (b *UnmarshalBuilder) decodeNested(path string, subFields []FieldInfo, unmarshalArg string) []Statement {
+	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesAt(subFields, path)
 
 	var statements []Statement
 
-	// SubFields が解析できない型（独自の UnmarshalJSONFrom を持つ埋め込み型など）も
-	// 値全体からのデコードに任せる。
-	if len(field.SubFields) == 0 || hasDecodableField(regularFields) {
+	if len(subFields) == 0 || hasDecodableField(regularFields) {
 		statements = append(statements, &ErrorCheckStatement{
-			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, &%s)", target),
+			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", unmarshalArg),
 			Body:      returnErrStatements(),
 		})
 	}
 
-	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, target)...)
-	statements = append(statements, b.decodeInlineFragments(target, inlineFragments)...)
+	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, path)...)
+	statements = append(statements, b.decodeInlineFragments(path, inlineFragments)...)
 
 	return statements
 }
@@ -277,26 +283,12 @@ func (b *UnmarshalBuilder) decodeInlineFragments(targetExpr string, fragments []
 // 戻り値:
 //   - []Statement: case 本体のステートメントリスト
 func (b *UnmarshalBuilder) buildInlineFragmentCaseBody(frag InlineFragmentInfo) []Statement {
-	statements := []Statement{
-		&Assignment{
-			Target: frag.FieldExpr,
-			Value:  fmt.Sprintf("&%s{}", frag.ElemTypeStr),
-		},
+	assignment := &Assignment{
+		Target: frag.FieldExpr,
+		Value:  fmt.Sprintf("&%s{}", frag.ElemTypeStr),
 	}
 
-	regularFields, fragmentSpreads, inlineFragments := b.separateFieldTypesAt(frag.Field.SubFields, frag.FieldExpr)
-
-	if len(frag.Field.SubFields) == 0 || hasDecodableField(regularFields) {
-		statements = append(statements, &ErrorCheckStatement{
-			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", frag.FieldExpr),
-			Body:      returnErrStatements(),
-		})
-	}
-
-	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, frag.FieldExpr)...)
-	statements = append(statements, b.decodeInlineFragments(frag.FieldExpr, inlineFragments)...)
-
-	return statements
+	return append([]Statement{assignment}, b.decodeNested(frag.FieldExpr, frag.Field.SubFields, frag.FieldExpr)...)
 }
 
 // returnErrStatements はエラーチェック本体で共通の return err 文を返す。
