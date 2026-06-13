@@ -141,6 +141,10 @@ type UserOperation_User_User struct {
 #### application/graphql-response+json への対応
 
 - リクエストの `Accept` ヘッダーで `application/graphql-response+json;charset=utf-8` と `application/json;charset=utf-8` を送信し、GraphQL over HTTP 仕様のレスポンス形式に対応しました
+- 従来の `application/json` 形式では、非 2xx のボディが GraphQL レスポンスである保証がないため、サーバーはバリデーションエラーなどでも常に 200 OK で返す必要がありました。`application/graphql-response+json` では、仕様準拠のサーバーがパース・バリデーションエラーに 400、認証エラーに 401 など適切な HTTP ステータスコードを返せます
+- エラーが HTTP ステータスコードで表現されることで、ロードバランサーや APM など GraphQL を知らない中間レイヤからエラー率を観測でき、リトライやキャッシュ制御もステータスコードベースで正しく動作します（エラーレスポンスが CDN に成功としてキャッシュされる事故も防げます）
+- 非 2xx かつ `Content-Type: application/graphql-response+json` のレスポンスは GraphQL サーバー自身が生成した正規のレスポンスであることが保証されるため、プロキシや LB が生成したエラーページと区別してボディを安全にパースできます。`ParseResponse` はステータスコードに関係なくボディのパースを試みるため、仕様準拠サーバーが 400 + `errors` を返した場合は `ErrorResponse` に `NetworkError` と `GqlErrors` の両方が入り、`errors.As` でそれぞれ取り出せます
+- `Accept` に両形式を並べることはコンテントネゴシエーションとして機能し、新仕様対応サーバーは `application/graphql-response+json` で、旧来のサーバーは従来どおり `application/json` + 常時 200 で応答します。クライアントの解析処理はどちらの形式でも同じため、サーバー側の対応状況に関係なく動作します
 
 #### 型安全な UnmarshalJSONFrom の生成
 
