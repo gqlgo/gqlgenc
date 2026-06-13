@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/coder/websocket"
@@ -128,30 +129,31 @@ func TestClient_Subscribe(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			httpServer := httptest.NewServer(tt.fields.server.handler(t))
-			t.Cleanup(httpServer.Close)
+			synctest.Test(t, func(t *testing.T) {
+				httpServer := httptest.NewTestServer(t, tt.fields.server.handler(t))
 
-			c := NewClient(httpServer.URL)
+				c := NewClient(httpServer.URL, WithHTTPClient(httpServer.Client()))
 
-			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-			defer cancel()
+				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancel()
 
-			var values []int
-			var gotErr bool
-			for res, err := range c.Subscribe(ctx, Operation[Subscription, vars, result]{Name: "Sub", Document: "subscription Sub { value }"}, vars{N: 1}) {
-				if err != nil {
-					gotErr = true
-					break
+				var values []int
+				var gotErr bool
+				for res, err := range c.Subscribe(ctx, Operation[Subscription, vars, result]{Name: "Sub", Document: "subscription Sub { value }"}, vars{N: 1}) {
+					if err != nil {
+						gotErr = true
+						break
+					}
+					values = append(values, res.Value)
 				}
-				values = append(values, res.Value)
-			}
 
-			if diff := cmp.Diff(tt.want.values, values); diff != "" {
-				t.Errorf("values diff(-want +got): %s", diff)
-			}
-			if gotErr != tt.want.wantErr {
-				t.Errorf("gotErr = %v, want %v", gotErr, tt.want.wantErr)
-			}
+				if diff := cmp.Diff(tt.want.values, values); diff != "" {
+					t.Errorf("values diff(-want +got): %s", diff)
+				}
+				if gotErr != tt.want.wantErr {
+					t.Errorf("gotErr = %v, want %v", gotErr, tt.want.wantErr)
+				}
+			})
 		})
 	}
 }
