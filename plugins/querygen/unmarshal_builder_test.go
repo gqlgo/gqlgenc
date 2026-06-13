@@ -375,9 +375,9 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 				// __typename ホルダー宣言 + そのデコード + switch = 3
 				statementsCount: 3,
 				contains: []string{
-					"var typeName_t_UserFragment struct",
-					"json.Unmarshal(data, &typeName_t_UserFragment)",
-					"switch typeName_t_UserFragment.Typename {",
+					"var typeName_t_UserFragment string",
+					"if t.UserFragment.Typename != nil {",
+					"switch typeName_t_UserFragment {",
 					"t.UserFragment.InlineFragment = &SomeType{}",
 					"json.Unmarshal(data, t.UserFragment.InlineFragment)",
 				},
@@ -489,8 +489,9 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			want: want{
 				contains: []string{
 					"type plain UserOperation_Node",
-					"var typeName_t struct",
-					"switch typeName_t.Typename {",
+					"var typeName_t string",
+					"if t.Typename != nil {",
+					"switch typeName_t {",
 					"t.User = &UserFragment{}",
 					"json.Unmarshal(data, t.User)",
 				},
@@ -513,7 +514,7 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			},
 			want: want{
 				contains: []string{
-					"var typeName_t struct",
+					"var typeName_t string",
 				},
 				notContains: []string{
 					"(*plain)(t)",

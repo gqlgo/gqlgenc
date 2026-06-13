@@ -212,6 +212,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - テストを testify からテーブル駆動テスト + go-cmp に移行しました
 - エラーを `%w` でラップし、原因を辿れるようにしました
 - golangci-lint v2（`.golangci.yml`）と GitHub Actions の CI を整備しました
+- インラインフラグメントのデコードで `__typename` を再パースせず、デコード済みの `Typename` フィールドから型名を読むように簡素化しました（`__typename` の自動注入で必ずフィールドが存在することを利用）。型名抽出のための JSON 再パースが1回減ります
 
 ### 未対応の機能
 

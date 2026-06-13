@@ -83,10 +83,12 @@ func injectTypenamesInSelectionSet(selectionSet ast.SelectionSet) ast.SelectionS
 	return injected
 }
 
-// hasTypenameField は選択セットの直下に __typename フィールドが既にあるかを返す。
+// hasTypenameField は選択セットの直下にエイリアスなしの __typename フィールドが
+// 既にあるかを返す。エイリアスされた __typename（例: kind: __typename）は、
+// 生成型のフィールド名が Typename にならないため「無い」とみなし、注入対象とする。
 func hasTypenameField(selectionSet ast.SelectionSet) bool {
 	for _, selection := range selectionSet {
-		if field, ok := selection.(*ast.Field); ok && field.Name == typenameFieldName {
+		if field, ok := selection.(*ast.Field); ok && field.Name == typenameFieldName && field.Alias == typenameFieldName {
 			return true
 		}
 	}

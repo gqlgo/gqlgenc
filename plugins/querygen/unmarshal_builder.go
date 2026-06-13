@@ -204,16 +204,15 @@ func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath s
 }
 
 // decodeInlineFragments は __typename を使って inline fragments をデコードするステートメントを生成する。
+// 型名は __typename を再パースせず、デコード済みの Typename フィールドから読む。
 //
 // 以下のようなコードを生成する:
 //
-//	var typeName_t struct {
-//	    Typename string `json:"__typename"`
+//	var typeName_t string
+//	if t.Typename != nil {
+//	    typeName_t = *t.Typename
 //	}
-//	if err := json.Unmarshal(data, &typeName_t); err != nil {
-//	    return err
-//	}
-//	switch typeName_t.Typename {
+//	switch typeName_t {
 //	case "User":
 //	    t.User = &UserFragment{}
 //	    if err := json.Unmarshal(data, t.User); err != nil {
@@ -237,11 +236,13 @@ func (b *UnmarshalBuilder) decodeInlineFragments(targetExpr string, fragments []
 	statements := make([]Statement, 0, 3)
 
 	statements = append(statements, &RawStatement{
-		Code: fmt.Sprintf("var %s struct {\n\t\tTypename string `json:\"__typename\"`\n\t}", typeNameVar),
+		Code: fmt.Sprintf("var %s string", typeNameVar),
 	})
-	statements = append(statements, &ErrorCheckStatement{
-		ErrorExpr: fmt.Sprintf("json.Unmarshal(data, &%s)", typeNameVar),
-		Body:      returnErrStatements(),
+	statements = append(statements, &IfStatement{
+		Condition: fmt.Sprintf("%s.Typename != nil", targetExpr),
+		Body: []Statement{
+			&RawStatement{Code: fmt.Sprintf("%s = *%s.Typename", typeNameVar, targetExpr)},
+		},
 	})
 
 	cases := make([]SwitchCase, 0, len(fragments))
@@ -253,7 +254,7 @@ func (b *UnmarshalBuilder) decodeInlineFragments(targetExpr string, fragments []
 	}
 
 	statements = append(statements, &SwitchStatement{
-		Expr:  typeNameVar + ".Typename",
+		Expr:  typeNameVar,
 		Cases: cases,
 	})
 
