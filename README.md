@@ -136,7 +136,7 @@ gqlgen の `codegen/config.Config` をそのまま埋め込んでいるため、
 | キー | 説明 |
 |---|---|
 | `schema` | スキーマファイルのパス（glob 可、`**` 対応）。`gqlgenc.endpoint` と排他 |
-| `model` | gqlgen modelgen による model_gen.go の生成先 |
+| `model` | gqlgen modelgen による model_gen.go の生成先。省略するとモデル生成をスキップする（サーバー側で gqlgen が生成したモデルを `autobind` で使う場合） |
 | `models` | GraphQL 型と Go 型のバインド設定 |
 | `autobind` | 指定パッケージから同名の Go 型を自動バインド |
 | `federation.version` | Apollo Federation ディレクティブを含むスキーマへの対応 |
@@ -150,6 +150,7 @@ gqlgen の `codegen/config.Config` をそのまま埋め込んでいるため、
 
 - `gqlgen.schema` と `gqlgenc.endpoint` はどちらか一方を必ず指定する（両方指定・両方未指定はエラー）
 - `clientgen` を指定する場合は `querygen` の指定が必須
+- `model` と `querygen` の少なくとも一方の指定が必須（どちらも無いと生成するものがないためエラー）
 - クエリ全体でオペレーション名が重複しているとエラー
 
 ## 生成されるコード

@@ -169,6 +169,8 @@ type UserOperation_User_User struct {
 
 - エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 
+- `gqlgen.model` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `autobind` で参照する構成に対応します。`model` と `querygen` は少なくとも一方の指定が必須です
+
 ### 内部改善
 
 - コード生成の内部を「GraphQL オペレーション解析」と「Go 型の構築」（codegen パッケージ）に分離し、テンプレートの行数を大幅に削減しました

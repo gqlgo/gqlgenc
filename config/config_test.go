@@ -211,6 +211,23 @@ func TestLoadConfig(t *testing.T) {
 			},
 			skipOnGOOS: "windows",
 		},
+		{
+			// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
+			name: "modelを省略してもquerygenが定義されていれば読み込める",
+			args: args{
+				file: "testdata/cfg/skip_model.yml",
+			},
+			want: want{},
+		},
+		{
+			name: "modelもquerygenも未定義の場合はエラー",
+			args: args{
+				file: "testdata/cfg/no_generator.yml",
+			},
+			want: want{
+				err: errors.New("neither 'model' nor 'querygen' specified, at least one generation target is required"),
+			},
+		},
 	}
 
 	for _, tt := range tests {

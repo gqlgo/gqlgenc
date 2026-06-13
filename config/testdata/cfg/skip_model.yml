@@ -1,0 +1,10 @@
+gqlgenc:
+  clientgen:
+    filename: ./gen/client.go
+  querygen:
+    filename: ./gen/query.go
+  query:
+    - "./queries/*.graphql"
+gqlgen:
+  schema:
+    - testdata/cfg/glob/**/*.graphql

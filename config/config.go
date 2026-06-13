@@ -54,12 +54,18 @@ func LoadConfig(configFilename string) (*Config, error) {
 		return nil, errors.New("'clientgen' is set, 'querygen' must be set")
 	}
 
+	if !c.GQLGenConfig.Model.IsDefined() && !c.GQLGencConfig.QueryGen.IsDefined() {
+		return nil, errors.New("neither 'model' nor 'querygen' specified, at least one generation target is required")
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// gqlgen
 
-	// check
-	if err := c.GQLGenConfig.Model.Check(); err != nil {
-		return nil, fmt.Errorf("model: %w", err)
+	// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
+	if c.GQLGenConfig.Model.IsDefined() {
+		if err := c.GQLGenConfig.Model.Check(); err != nil {
+			return nil, fmt.Errorf("model: %w", err)
+		}
 	}
 
 	// Fill gqlgen config fields
@@ -104,12 +110,16 @@ func LoadConfig(configFilename string) (*Config, error) {
 	// gqlgenc
 
 	// validation
-	if err := c.GQLGencConfig.QueryGen.Check(); err != nil {
-		return nil, fmt.Errorf("querygen: %w", err)
+	if c.GQLGencConfig.QueryGen.IsDefined() {
+		if err := c.GQLGencConfig.QueryGen.Check(); err != nil {
+			return nil, fmt.Errorf("querygen: %w", err)
+		}
 	}
 
-	if err := c.GQLGencConfig.ClientGen.Check(); err != nil {
-		return nil, fmt.Errorf("clientgen: %w", err)
+	if c.GQLGencConfig.ClientGen.IsDefined() {
+		if err := c.GQLGencConfig.ClientGen.Check(); err != nil {
+			return nil, fmt.Errorf("clientgen: %w", err)
+		}
 	}
 
 	return &c, nil
