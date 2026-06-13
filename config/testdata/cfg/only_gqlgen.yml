@@ -1,0 +1,5 @@
+gqlgen:
+  schema:
+    - ./schema.graphql
+  model:
+    filename: ./gen/models_gen.go

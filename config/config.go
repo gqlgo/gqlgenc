@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -36,12 +35,19 @@ func LoadConfig(configFilename string) (*Config, error) {
 
 	var c Config
 
-	yamlDecoder := yaml.NewDecoder(bytes.NewReader([]byte(os.ExpandEnv(string(configContent)))), yaml.DisallowUnknownField())
+	yamlDecoder := yaml.NewDecoder(strings.NewReader(os.ExpandEnv(string(configContent))), yaml.DisallowUnknownField())
 	if err := yamlDecoder.Decode(&c); err != nil {
 		return nil, fmt.Errorf("unable to parse config: %w", err)
 	}
 
 	// validation
+	if c.GQLGencConfig == nil {
+		return nil, errors.New("'gqlgenc' section is not specified")
+	}
+	if c.GQLGenConfig == nil {
+		return nil, errors.New("'gqlgen' section is not specified")
+	}
+
 	if c.GQLGenConfig.SchemaFilename != nil && c.GQLGencConfig.Endpoint != nil {
 		return nil, errors.New("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	}

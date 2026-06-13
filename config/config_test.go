@@ -75,6 +75,24 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "gqlgencセクションが無い場合はエラー",
+			args: args{
+				file: "testdata/cfg/only_gqlgen.yml",
+			},
+			want: want{
+				err: errors.New("'gqlgenc' section is not specified"),
+			},
+		},
+		{
+			name: "gqlgenセクションが無い場合はエラー",
+			args: args{
+				file: "testdata/cfg/only_gqlgenc.yml",
+			},
+			want: want{
+				err: errors.New("'gqlgen' section is not specified"),
+			},
+		},
+		{
 			name: "不明なキーが含まれている場合はエラー",
 			args: args{
 				file: "testdata/cfg/unknownkeys.yml",
