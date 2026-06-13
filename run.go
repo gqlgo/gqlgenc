@@ -16,15 +16,15 @@ func run(ctx context.Context) error {
 
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
-		return fmt.Errorf(": %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	if err := cfg.LoadSchema(ctx); err != nil {
-		return fmt.Errorf("failed to load config file: %w", err)
+		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	if err := cfg.GQLGencConfig.LoadQuery(cfg.GQLGenConfig.Schema); err != nil {
-		return fmt.Errorf("failed to load config file: %w", err)
+		return fmt.Errorf("failed to load query: %w", err)
 	}
 
 	if err := plugins.GenerateCode(cfg); err != nil {
