@@ -208,6 +208,8 @@ res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
 - `client.Operation[Vars, Res]` / `(*Client).Post[Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）
+- `(*Client).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
+- `client.WithWebSocketEndpoint(endpoint string)` — subscription 用の WebSocket エンドポイントを上書きする（未指定時は HTTP エンドポイントの `http(s)` を `ws(s)` に変換して使用）
 
 ### リクエスト仕様
 
@@ -227,6 +229,26 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 - エラー時は `ErrorResponse` が返り、`errors.As` で `*client.HTTPError`（HTTP ステータス異常）や `gqlerror.List`（GraphQL エラー）を取り出せる
 - GraphQL エラー時もデコード済みの部分データが `Post` の戻り値として返る（GraphQL は data と errors の共存を許すため）
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
+
+### Subscription
+
+subscription オペレーションは `Subscribe` メソッドで実行します。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を `iter.Seq2[*Res, error]` として逐次返します。
+
+```go
+c := client.NewClient("https://api.example.com/graphql")
+
+for res, err := range c.Subscribe(ctx, query.OnMessageOp, query.OnMessageVars{RoomID: "1"}) {
+	if err != nil {
+		// エラー処理
+		break
+	}
+	fmt.Println(res.OnMessage.Body)
+}
+```
+
+- 接続は呼び出しごとに開かれ、サーバーの `complete`、`error`、または `ctx` の完了で終了します（`range` を抜けた時点でも接続を閉じます）
+- `ctx` がキャンセルされた場合、イテレータはキャンセルエラーを yield せずに終了します
+- `query`/`mutation` と同じ `client.Operation` 値（`<オペレーション名>Op`）をそのまま使えます。clientgen は subscription も他のオペレーションと同じく `<オペレーション名>Vars` / `<オペレーション名>Op` を生成します
 
 ### null と undefined の区別
 

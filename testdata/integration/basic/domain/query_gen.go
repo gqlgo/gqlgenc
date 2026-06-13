@@ -7,6 +7,17 @@ import (
 	json "encoding/json/v2"
 )
 
+type Count struct {
+	Count int "json:\"count,omitzero\""
+}
+
+func (t *Count) GetCount() int {
+	if t == nil {
+		t = &Count{}
+	}
+	return t.Count
+}
+
 type PrivateAddressFields struct {
 	ID      string "json:\"id,omitzero\""
 	Private bool   "json:\"private,omitzero\""
@@ -1299,5 +1310,9 @@ fragment UserFragment1 on User {
 }
 fragment UserFragment2 on User {
 	name
+}
+`
+const CountDocument = `subscription Count ($target: Int!) {
+	count(target: $target)
 }
 `

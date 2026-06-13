@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -462,4 +463,75 @@ func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	rt.handler.ServeHTTP(recorder, reqClone)
 	resp := recorder.Result()
 	return resp, nil
+}
+
+func Test_Subscription(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		target int
+	}
+
+	type want struct {
+		counts []int
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// サーバーが 1..target を順に push し、complete でストリームが終わる
+			name: "countサブスクリプションが順に値を受け取れる",
+			args: args{
+				target: 3,
+			},
+			want: want{
+				counts: []int{1, 2, 3},
+			},
+		},
+		{
+			// target が 1 の場合は 1 件だけ受け取って終わる
+			name: "1件だけのサブスクリプション",
+			args: args{
+				target: 1,
+			},
+			want: want{
+				counts: []int{1},
+			},
+		},
+	}
+
+	es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
+	srv := handler.New(es)
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		InitTimeout:           5 * time.Second,
+	})
+
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	rawClient := client.NewClient(httpServer.URL)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+
+			var got []int
+			for res, err := range rawClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
+				if err != nil {
+					t.Fatalf("subscription error: %v", err)
+				}
+				got = append(got, res.Count)
+			}
+
+			if diff := cmp.Diff(tt.want.counts, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
 }

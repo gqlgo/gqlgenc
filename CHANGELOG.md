@@ -157,6 +157,11 @@ type UserOperation_User_User struct {
 
 - clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`Client.Post` メソッドで実行できます。メソッドの型パラメータには Go 1.27 の generic methods（[golang/go#77273](https://github.com/golang/go/issues/77273)）を使用しています。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
 
+#### Subscription サポート
+
+- `(*Client).Subscribe[Vars, Res]` で subscription を実行できます。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を Go 1.27 の `iter.Seq2[*Res, error]` として逐次返します。`query`/`mutation` と同じ `client.Operation` 値を使えるため、clientgen 側に subscription 固有の生成は不要です（[gqlgo/gqlgenc#32](https://github.com/gqlgo/gqlgenc/issues/32)）
+- WebSocket エンドポイントは HTTP エンドポイントの `http(s)` を `ws(s)` に変換して導出します。`client.WithWebSocketEndpoint` で上書きできます
+
 #### undefined / null の区別（Omittable / omitzero）
 
 - gqlgen の model_gen が生成した `graphql.Omittable[T]` を含む Input 型をそのまま variables として送信でき、未設定（undefined: JSON に含めない）と明示的な null を区別できます（[gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269)）
@@ -178,6 +183,7 @@ type UserOperation_User_User struct {
 
 v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決しています。詳細は各セクションを参照してください。
 
+- [gqlgo/gqlgenc#32](https://github.com/gqlgo/gqlgenc/issues/32) Subscription Support — `graphql-transport-ws` プロトコルによる WebSocket subscription を `(*Client).Subscribe` として実装しました
 - [gqlgo/gqlgenc#46](https://github.com/gqlgo/gqlgenc/issues/46) Generate Getters on Interfaces — モデル側は gqlgen 本体が interface にフィールド getter を生成します。クエリレスポンス側は、インターフェースレベルで選択した共通フィールドをラッパー構造体のフィールドとして直接生成するため、型スイッチなしでアクセスできます
 - [gqlgo/gqlgenc#76](https://github.com/gqlgo/gqlgenc/issues/76) `scalar Map`（`map[string]any`）をデコードできない — json/v2 のデフォルトデコードへの移行により解決しました（testdata の `Metadata.properties` に回帰テストあり）
 - [gqlgo/gqlgenc#108](https://github.com/gqlgo/gqlgenc/issues/108) `foo_bar` と `fooBar` が同じ Go フィールド名になり重複エラー — 壊れたコードを生成する代わりに、クエリでの alias 付与を促す明確なエラーを返します

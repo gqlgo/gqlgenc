@@ -166,3 +166,7 @@ fragment PrivateAddressFields on PrivateAddress {
   street
   private
 }
+
+subscription Count($target: Int!) {
+  count(target: $target)
+}

@@ -91,6 +91,9 @@ func (PublicProfile) IsProfile() {}
 type Query struct {
 }
 
+type Subscription struct {
+}
+
 type UpdateUserInput struct {
 	ID       UserID                                `json:"id"`
 	Name     graphql.Omittable[*string]            `json:"name,omitzero"`

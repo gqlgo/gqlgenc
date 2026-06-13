@@ -132,6 +132,23 @@ func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metada
 	}, nil
 }
 
+// Count is the resolver for the count field.
+func (r *subscriptionResolver) Count(ctx context.Context, target int) (<-chan int, error) {
+	ch := make(chan int, target)
+	go func() {
+		defer close(ch)
+		for i := 1; i <= target; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- i:
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
 // Profile is the resolver for the profile field.
 func (r *userResolver) Profile(ctx context.Context, obj *domain.User) (domain.Profile, error) {
 	age := 30
@@ -176,11 +193,15 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 // User returns UserResolver implementation.
 func (r *Resolver) User() UserResolver { return &userResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 
 // !!! WARNING !!!

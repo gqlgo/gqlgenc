@@ -9,6 +9,7 @@ scalar Map
 schema {
   query: Query
   mutation: Mutation
+  subscription: Subscription
 }
 
 type Query {
@@ -20,6 +21,10 @@ type Query {
 
 type Mutation {
   updateUser(input: UpdateUserInput) :UpdateUserPayload!
+}
+
+type Subscription {
+  count(target: Int!): Int!
 }
 
 input UpdateUserInput {

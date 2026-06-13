@@ -28,3 +28,12 @@ var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
 	Name:     "UserOperation",
 	Document: domain.UserOperationDocument,
 }
+
+type CountVars struct {
+	Target int `json:"target"`
+}
+
+var CountOp = client.Operation[CountVars, domain.Count]{
+	Name:     "Count",
+	Document: domain.CountDocument,
+}
