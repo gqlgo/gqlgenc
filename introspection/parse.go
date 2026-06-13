@@ -153,72 +153,48 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 }
 
 func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
-
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
-
-	enums := make(ast.EnumValueList, 0, len(typeVale.EnumValues))
-
-	for _, enum := range typeVale.EnumValues {
-		enumValue := &ast.EnumValueDefinition{
-			Description: pointerString(enum.Description),
-			Name:        enum.Name,
-			Position:    p.sharedPosition,
-		}
-		enums = append(enums, enumValue)
-	}
-
 	return &ast.Definition{
 		Kind:        ast.Object,
 		Description: pointerString(typeVale.Description),
 		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
-		EnumValues:  enums,
+		Interfaces:  interfaceNames(typeVale),
+		Fields:      p.parseObjectFields(typeVale),
 		Position:    p.sharedPosition,
 		BuiltIn:     builtInObject(typeVale),
 	}
 }
 
 func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
-
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
-
 	return &ast.Definition{
 		Kind:        ast.Interface,
 		Description: pointerString(typeVale.Description),
 		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
+		Interfaces:  interfaceNames(typeVale),
+		Fields:      p.parseObjectFields(typeVale),
 		Position:    p.sharedPosition,
 		BuiltIn:     false,
 	}
 }
 
 func (p parser) parseInputObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseInputObjectFields(typeVale)
+	return &ast.Definition{
+		Kind:        ast.InputObject,
+		Description: pointerString(typeVale.Description),
+		Name:        pointerString(typeVale.Name),
+		Fields:      p.parseInputObjectFields(typeVale),
+		Position:    p.sharedPosition,
+		BuiltIn:     false,
+	}
+}
 
+// interfaceNames は type が実装するインターフェース名の一覧を返す。
+func interfaceNames(typeVale *FullType) []string {
 	interfaces := make([]string, 0, len(typeVale.Interfaces))
 	for _, intf := range typeVale.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
 	}
 
-	return &ast.Definition{
-		Kind:        ast.InputObject,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
-		Position:    p.sharedPosition,
-		BuiltIn:     false,
-	}
+	return interfaces
 }
 
 func (p parser) parseUnionTypeDefinition(typeVale *FullType) *ast.Definition {
