@@ -42,30 +42,23 @@ func NewCodeGenerator(goTypes []types.Type, generateGetters bool) *CodeGenerator
 //   - string: 生成されたコード
 //   - error: 型の解析に失敗した場合のエラー
 func (g *CodeGenerator) Generate(t types.Type) (string, error) {
-	typeName, err := g.typeName(t)
-	if err != nil {
-		return "", err
-	}
-
-	structType, err := g.structType(t)
-	if err != nil {
-		return "", err
-	}
-
-	fields, err := g.fields(t)
-	if err != nil {
-		return "", err
-	}
-
 	named, err := g.unwrapToNamed(t)
 	if err != nil {
 		return "", err
 	}
 
+	st, ok := named.Underlying().(*types.Struct)
+	if !ok {
+		return "", fmt.Errorf("type must have struct underlying: %v", t)
+	}
+
+	typeName := templates.CurrentImports.LookupType(named)
+	fields := g.analyzer.AnalyzeFields(st, g.shouldGenerateUnmarshal)
+
 	var buf strings.Builder
 
 	// Generate type declaration
-	buf.WriteString(g.formatTypeDecl(typeName, structType))
+	buf.WriteString(g.formatTypeDecl(typeName, st))
 
 	// Generate UnmarshalJSONFrom only when fragments require custom decoding
 	if g.shouldGenerateUnmarshal(named) && g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
@@ -131,24 +124,6 @@ func (g *CodeGenerator) unwrapToNamed(t types.Type) (*types.Named, error) {
 		return nil, fmt.Errorf("type must be named type: %v", t)
 	}
 	return named, nil
-}
-
-// typeName はtypes.Typeからインポート修飾された型名を取得する。
-//
-// このメソッドは名前付き型から、インポートパスを含む型名を生成する。
-//
-// パラメータ:
-//   - t: 型名を取得する Go 型
-//
-// 戻り値:
-//   - string: インポート修飾された型名（例: "domain.User"）
-//   - error: 型が名前付き型でない場合のエラー
-func (g *CodeGenerator) typeName(t types.Type) (string, error) {
-	named, err := g.unwrapToNamed(t)
-	if err != nil {
-		return "", err
-	}
-	return templates.CurrentImports.LookupType(named), nil
 }
 
 // structType はtypes.Typeから構造体型を取得する。
