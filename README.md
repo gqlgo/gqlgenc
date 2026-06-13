@@ -207,7 +207,8 @@ res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 - `client.NewClient(endpoint string, options ...Option) *Client`
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
-- `client.Operation[Vars, Res]` / `(*Client).Post[Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）
+- `client.Operation[Kind, Vars, Res]` / `(*Client).Post[Kind, Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）。`Kind` は `client.Query` / `client.Mutation` / `client.Subscription` のいずれかで、`Post` は query / mutation のみ受け付ける
+- `(*Client).Get[Vars, Res](ctx, op, vars, options...)` — query オペレーションを HTTP GET で実行する。variables は URL に JSON エンコードされる。GraphQL 仕様により GET は mutation に使えず、`Kind` の型制約でコンパイル時に防がれる
 - `(*Client).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
 - `client.WithWebSocketEndpoint(endpoint string)` — subscription 用の WebSocket エンドポイントを上書きする（未指定時は HTTP エンドポイントの `http(s)` を `ws(s)` に変換して使用）
 
@@ -217,6 +218,8 @@ res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 - `Content-Type: application/json;charset=utf-8`
 - `Accept: application/graphql-response+json;charset=utf-8` と `application/json;charset=utf-8`
 - ボディは `{"query": ..., "variables": ..., "operationName": ...}` を json/v2 でエンコードしたもの
+
+GET で実行する場合（`Get` メソッド）は [GraphQL-over-HTTP 仕様](https://graphql.github.io/graphql-over-http/draft/)に従い、`query` / `operationName` / `variables`（JSON 文字列）を URL のクエリ文字列にエンコードします。ボディは持たないため `Content-Type` は付けず、`graphql.Upload` を含む variables は使えません。CDN やプロキシでのキャッシュに有効ですが、大きなクエリ・変数は URL 長制限に注意してください。
 
 ### ファイルアップロード
 
@@ -249,6 +252,20 @@ for res, err := range c.Subscribe(ctx, query.OnMessageOp, query.OnMessageVars{Ro
 - 接続は呼び出しごとに開かれ、サーバーの `complete`、`error`、または `ctx` の完了で終了します（`range` を抜けた時点でも接続を閉じます）
 - `ctx` がキャンセルされた場合、イテレータはキャンセルエラーを yield せずに終了します
 - `query`/`mutation` と同じ `client.Operation` 値（`<オペレーション名>Op`）をそのまま使えます。clientgen は subscription も他のオペレーションと同じく `<オペレーション名>Vars` / `<オペレーション名>Op` を生成します
+
+### 操作種別と型安全
+
+clientgen は各オペレーションの種別（query / mutation / subscription）を `client.Operation` の `Kind` 型パラメータに埋め込みます。これにより、実行メソッドと操作種別の不一致がコンパイルエラーになります。
+
+```go
+var UserOperationOp = client.Operation[client.Query, ...]{...}
+var UpdateUserOp    = client.Operation[client.Mutation, ...]{...}
+var CountOp         = client.Operation[client.Subscription, ...]{...}
+```
+
+- `Get` は `client.Query` のみ受け付けます（GET で mutation は GraphQL 仕様違反）
+- `Post` は `client.Query` / `client.Mutation` を受け付けます（subscription は不可）
+- `Subscribe` は `client.Subscription` のみ受け付けます
 
 ### null と undefined の区別
 
@@ -319,6 +336,6 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 | カスタムスカラー | gqlgen の `models` バインド | `bindings` / `package_bindings` |
 | ファイルアップロード | `graphql.Upload` を含む variables を自動で multipart リクエストにする（[graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec)） | 非対応 |
 | subscription | WebSocket（`graphql-transport-ws`）で対応。`Subscribe` メソッドが `iter.Seq2[*Res, error]` を返す | WebSocket（`graphql-transport-ws` ほか）で対応 |
-| HTTP | POST のみ。`Accept` ヘッダーで `application/graphql-response+json` をネゴシエーションし、gzip レスポンスを透過的に展開する | POST と GET（`NewClientUsingGet`）。`application/json` のみ |
+| HTTP | POST（`Post`）と GET（`Get`、query のみ）。`Accept` ヘッダーで `application/graphql-response+json` をネゴシエーションし、gzip レスポンスを透過的に展開する | POST と GET（`NewClientUsingGet`）。`application/json` のみ |
 
 設計思想としては、gqlgenc はサーバーを gqlgen で実装しているプロジェクトとの親和性を重視しています。gqlgen の設定・モデル生成・`Omittable` をそのまま使えるため、サーバー側と同じ Go 型（`autobind`）やスキーマ定義を共有できます。また json/v2 と Go 1.27 の generic methods・イテレータを前提に、実行 API を `client.Operation` 値 + ジェネリックな `Post` / `Subscribe` に統一しています。genqlient は gqlgen に依存しない単体で完結したツールで、`@genqlient` ディレクティブによる生成コードの細かい制御に強みがあります。

@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 func TestNewRequest(t *testing.T) {
@@ -146,6 +149,112 @@ func TestNewRequest(t *testing.T) {
 					} else if !cmp.Equal(expectedValue, actualValue) {
 						t.Errorf("Variable %s: expected %v, but got %v", key, expectedValue, actualValue)
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestNewGetRequest(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		operationName string
+		query         string
+		variables     any
+	}
+
+	type want struct {
+		query         string
+		operationName string
+		variables     string
+		hasVariables  bool
+		err           error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// query と variables(JSON文字列)が URL クエリに載る
+			name: "queryとvariablesがURLに載る",
+			args: args{
+				operationName: "GetUser",
+				query:         "query GetUser($id: ID!) { user(id: $id) { name } }",
+				variables:     map[string]any{"id": "1"},
+			},
+			want: want{
+				query:         "query GetUser($id: ID!) { user(id: $id) { name } }",
+				operationName: "GetUser",
+				variables:     `{"id":"1"}`,
+				hasVariables:  true,
+			},
+		},
+		{
+			// variables が nil の場合は variables パラメータを付けない
+			name: "variablesがnilのときはvariablesパラメータを付けない",
+			args: args{
+				operationName: "Ping",
+				query:         "query Ping { ping }",
+				variables:     nil,
+			},
+			want: want{
+				query:         "query Ping { ping }",
+				operationName: "Ping",
+				hasVariables:  false,
+			},
+		},
+		{
+			// Upload を含む variables はエラー(GETはボディを持てない)
+			name: "Uploadを含むとエラー",
+			args: args{
+				operationName: "UploadFile",
+				query:         "query UploadFile($f: Upload!) { f }",
+				variables: map[string]any{
+					"f": graphql.Upload{Filename: "x.txt"},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := NewGetRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables)
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+			if tt.want.err != nil {
+				return
+			}
+
+			if req.Method != http.MethodGet {
+				t.Errorf("method = %q, want GET", req.Method)
+			}
+			if req.Body != nil {
+				t.Errorf("GET request should have no body")
+			}
+
+			q := req.URL.Query()
+			if got := q.Get("query"); got != tt.want.query {
+				t.Errorf("query param = %q, want %q", got, tt.want.query)
+			}
+			if got := q.Get("operationName"); got != tt.want.operationName {
+				t.Errorf("operationName param = %q, want %q", got, tt.want.operationName)
+			}
+			if _, ok := q["variables"]; ok != tt.want.hasVariables {
+				t.Errorf("variables presence = %v, want %v", ok, tt.want.hasVariables)
+			}
+			if tt.want.hasVariables {
+				if got := q.Get("variables"); got != tt.want.variables {
+					t.Errorf("variables param = %q, want %q", got, tt.want.variables)
 				}
 			}
 		})

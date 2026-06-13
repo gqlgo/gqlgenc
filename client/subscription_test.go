@@ -138,7 +138,7 @@ func TestClient_Subscribe(t *testing.T) {
 
 			var values []int
 			var gotErr bool
-			for res, err := range c.Subscribe(ctx, Operation[vars, result]{Name: "Sub", Document: "subscription Sub { value }"}, vars{N: 1}) {
+			for res, err := range c.Subscribe(ctx, Operation[Subscription, vars, result]{Name: "Sub", Document: "subscription Sub { value }"}, vars{N: 1}) {
 				if err != nil {
 					gotErr = true
 					break

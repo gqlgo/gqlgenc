@@ -162,6 +162,11 @@ type UserOperation_User_User struct {
 - `(*Client).Subscribe[Vars, Res]` で subscription を実行できます。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を Go 1.27 の `iter.Seq2[*Res, error]` として逐次返します。`query`/`mutation` と同じ `client.Operation` 値を使えるため、clientgen 側に subscription 固有の生成は不要です（[gqlgo/gqlgenc#32](https://github.com/gqlgo/gqlgenc/issues/32)）
 - WebSocket エンドポイントは HTTP エンドポイントの `http(s)` を `ws(s)` に変換して導出します。`client.WithWebSocketEndpoint` で上書きできます
 
+#### HTTP GET と操作種別の型制約
+
+- `(*Client).Get[Vars, Res]` で query オペレーションを HTTP GET として実行できます。[GraphQL-over-HTTP 仕様](https://graphql.github.io/graphql-over-http/draft/)に従い variables を URL に JSON エンコードします。CDN やプロキシでのキャッシュに利用できます
+- `client.Operation` に操作種別を表す `Kind` 型パラメータ（`client.Query` / `client.Mutation` / `client.Subscription`）を追加しました。clientgen が各オペレーションの種別を埋め込み、`Get` に mutation を渡す・`Post` に subscription を渡すといった誤用がコンパイルエラーになります（GET で mutation を実行できないという GraphQL 仕様の制約を型で表現します）
+
 #### undefined / null の区別（Omittable / omitzero）
 
 - gqlgen の model_gen が生成した `graphql.Omittable[T]` を含む Input 型をそのまま variables として送信でき、未設定（undefined: JSON に含めない）と明示的な null を区別できます（[gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269)）

@@ -11,7 +11,7 @@ type UpdateUserVars struct {
 	Input domain.UpdateUserInput `json:"input"`
 }
 
-var UpdateUserOp = client.Operation[UpdateUserVars, domain.UpdateUser]{
+var UpdateUserOp = client.Operation[client.Mutation, UpdateUserVars, domain.UpdateUser]{
 	Name:     "UpdateUser",
 	Document: domain.UpdateUserDocument,
 }
@@ -24,7 +24,7 @@ type UserOperationVars struct {
 	UserStatus *domain.Status `json:"userStatus"`
 }
 
-var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
+var UserOperationOp = client.Operation[client.Query, UserOperationVars, domain.UserOperation]{
 	Name:     "UserOperation",
 	Document: domain.UserOperationDocument,
 }
@@ -33,7 +33,7 @@ type CountVars struct {
 	Target int `json:"target"`
 }
 
-var CountOp = client.Operation[CountVars, domain.Count]{
+var CountOp = client.Operation[client.Subscription, CountVars, domain.Count]{
 	Name:     "Count",
 	Document: domain.CountDocument,
 }

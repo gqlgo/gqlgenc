@@ -284,6 +284,7 @@ func Test_IntegrationTest(t *testing.T) {
 			es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
 			srv := handler.New(es)
 			srv.AddTransport(transport.POST{})
+			srv.AddTransport(transport.GET{})
 
 			httpClient := &http.Client{Transport: handlerRoundTripper{handler: srv}}
 			rawClient := client.NewClient(
@@ -297,6 +298,25 @@ func Test_IntegrationTest(t *testing.T) {
 				userID := "1"
 				userStatus := domain.StatusActive
 				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:  "article-1",
+					MetadataID: "metadata-1",
+					Size:       &size,
+					UserID:     &userID,
+					UserStatus: &userStatus,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, userOperation); diff != "" {
+					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Query via GET
+			{
+				size := 100
+				userID := "1"
+				userStatus := domain.StatusActive
+				userOperation, err := rawClient.Get(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
 					Size:       &size,
@@ -451,14 +471,16 @@ type handlerRoundTripper struct {
 }
 
 func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	bodyBytes, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read request body: %w", err)
-	}
-	_ = req.Body.Close()
-	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	reqClone := req.Clone(req.Context())
-	reqClone.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	if req.Body != nil {
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body: %w", err)
+		}
+		_ = req.Body.Close()
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		reqClone.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
 	recorder := httptest.NewRecorder()
 	rt.handler.ServeHTTP(recorder, reqClone)
 	resp := recorder.Result()

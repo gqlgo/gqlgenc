@@ -7,7 +7,7 @@ type {{ $operation.Name|go }}Vars struct {
 	{{- end }}
 }
 
-var {{ $operation.Name|go }}Op = client.Operation[{{ $operation.Name|go }}Vars, {{ $.QueryPackage }}.{{ $operation.Name|go }}]{
+var {{ $operation.Name|go }}Op = client.Operation[client.{{ $operation.Kind }}, {{ $operation.Name|go }}Vars, {{ $.QueryPackage }}.{{ $operation.Name|go }}]{
 	Name:     "{{ $operation.Name }}",
 	Document: {{ $.QueryPackage }}.{{ $operation.Name|go }}Document,
 }

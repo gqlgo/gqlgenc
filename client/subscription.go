@@ -53,7 +53,7 @@ type wsMessage struct {
 //
 // Even when an error is yielded for a result, that result may contain partial
 // data, since a GraphQL "next" message can carry both data and errors.
-func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Vars, Res], vars Vars, options ...Option) iter.Seq2[*Res, error] {
+func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subscription, Vars, Res], vars Vars, options ...Option) iter.Seq2[*Res, error] {
 	cc := *c
 	for _, option := range options {
 		option(&cc)

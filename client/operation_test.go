@@ -24,7 +24,7 @@ func TestPost(t *testing.T) {
 	}
 
 	type args struct {
-		op       Operation[getUserVars, user]
+		op       Operation[Query, getUserVars, user]
 		vars     getUserVars
 		respBody string
 		options  []Option
@@ -46,7 +46,7 @@ func TestPost(t *testing.T) {
 			// 型付き変数が variables メンバーとしてエンコードされ、レスポンスの data がデコードされる
 			name: "型付き変数でオペレーションを実行できる",
 			args: args{
-				op: Operation[getUserVars, user]{
+				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},
@@ -62,7 +62,7 @@ func TestPost(t *testing.T) {
 			// GraphQL エラーのレスポンスはエラーになるが、同時に返された部分データもデコードされる
 			name: "GraphQLエラーのときはエラーと部分データを返す",
 			args: args{
-				op: Operation[getUserVars, user]{
+				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},
@@ -79,7 +79,7 @@ func TestPost(t *testing.T) {
 			// 呼び出し単位の WithHTTPHeader はそのリクエストに付与される
 			name: "WithHTTPHeaderで設定したヘッダーがリクエストに付与される",
 			args: args{
-				op: Operation[getUserVars, user]{
+				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},
@@ -107,7 +107,7 @@ func TestPost(t *testing.T) {
 			// 同名キーを指定するとデフォルトヘッダーをキー単位で上書きできる
 			name: "WithHTTPHeaderでデフォルトのContent-Typeをキー単位で上書きできる",
 			args: args{
-				op: Operation[getUserVars, user]{
+				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},
@@ -132,7 +132,7 @@ func TestPost(t *testing.T) {
 			// オプション未指定のときはデフォルトヘッダーのみが送信される
 			name: "ヘッダー未設定のときはデフォルトヘッダーのみが送信される",
 			args: args{
-				op: Operation[getUserVars, user]{
+				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
 					Document: "query GetUser($id: ID!) { user(id: $id) { name } }",
 				},

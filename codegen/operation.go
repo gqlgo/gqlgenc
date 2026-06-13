@@ -86,6 +86,7 @@ func queryDocumentMapByOperationName(queryDocuments []*graphql.QueryDocument) ma
 type Operation struct {
 	Name                string
 	Document            string
+	Kind                string
 	Args                []*OperationArgument
 	VariableDefinitions graphql.VariableDefinitionList
 }
@@ -99,8 +100,21 @@ func newOperation(operation *graphql.OperationDefinition, queryDocument *graphql
 	return &Operation{
 		Name:                operation.Name,
 		Document:            formattedDocument(queryDocument),
+		Kind:                operationKind(operation.Operation),
 		Args:                args,
 		VariableDefinitions: operation.VariableDefinitions,
+	}
+}
+
+// operationKind maps a GraphQL operation type to the client marker type name.
+func operationKind(op graphql.Operation) string {
+	switch op {
+	case graphql.Mutation:
+		return "Mutation"
+	case graphql.Subscription:
+		return "Subscription"
+	default:
+		return "Query"
 	}
 }
 
