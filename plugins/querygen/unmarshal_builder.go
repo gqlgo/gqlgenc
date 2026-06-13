@@ -74,7 +74,7 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeName string, fields []FieldI
 	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, "t")...)
 
 	// 4. Decode inline fragments (__typename based).
-	statements = append(statements, b.decodeInlineFragments("t", inlineFragments)...)
+	statements = append(statements, b.decodeInlineFragments(inlineFragments, "t")...)
 
 	// 5. Return nil on success.
 	statements = append(statements, &ReturnStatement{Value: "nil"})
@@ -137,7 +137,7 @@ func (b *UnmarshalBuilder) decodeNested(path string, subFields []FieldInfo, unma
 	}
 
 	statements = append(statements, b.decodeFragmentSpreadsAt(fragmentSpreads, path)...)
-	statements = append(statements, b.decodeInlineFragments(path, inlineFragments)...)
+	statements = append(statements, b.decodeInlineFragments(inlineFragments, path)...)
 
 	return statements
 }
@@ -227,12 +227,12 @@ func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath s
 //	}
 //
 // パラメータ:
-//   - targetExpr: ターゲット構造体の式（例: "t"）
 //   - fragments: デコードする inline fragment フィールド
+//   - targetExpr: ターゲット構造体の式（例: "t"）
 //
 // 戻り値:
 //   - []Statement: inline fragments をデコードするステートメントのリスト（空の場合は nil）
-func (b *UnmarshalBuilder) decodeInlineFragments(targetExpr string, fragments []InlineFragmentInfo) []Statement {
+func (b *UnmarshalBuilder) decodeInlineFragments(fragments []InlineFragmentInfo, targetExpr string) []Statement {
 	if len(fragments) == 0 {
 		return nil
 	}
