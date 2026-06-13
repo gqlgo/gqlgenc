@@ -359,3 +359,40 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 
 - **gqlgenc が向くケース**: サーバーを gqlgen で実装していて型定義を共有したい / 最新の Go を使える / イントロスペクションやファイルアップロードが必要
 - **genqlient が向くケース**: 安定版の Go で動かす必要がある / サーバーが gqlgen ではない / 生成コードをディレクティブで細かく制御したい / 実績のある安定したツールを使いたい
+
+### genqlient の設定・ディレクティブとの対応
+
+genqlient の設定オプションや `@genqlient` ディレクティブを、gqlgenc でどう実現するかの対応表です。gqlgenc は「設定より規約」のため、genqlient のクエリ単位の細かい制御には同等の手段がないものもあります。
+
+#### 全体設定（genqlient.yaml ↔ .gqlgenc.yml / .gqlgen.yml）
+
+| genqlient | 役割 | gqlgenc での実現 |
+|---|---|---|
+| `schema` | スキーマファイル | `gqlgen.schema`（ローカル SDL）/ `gqlgenc.endpoint`（イントロスペクション） |
+| `operations` | クエリファイル | `gqlgenc.query` |
+| `generated` / `package` | 生成先・パッケージ名 | `gqlgenc.querygen` + `gqlgenc.clientgen`（レスポンス型とクライアントで分割）、各 `filename` / `package` |
+| `bindings`（型→Go 型） | スカラー/型を Go 型にバインド | `gqlgen.models`（`型名: { model: ... }`） |
+| `package_bindings` | パッケージ内の同名型を一括バインド | `gqlgen.autobind`（パッケージのリスト） |
+| `bindings.marshaler` / `unmarshaler` | スカラーの変換関数を指定 | バインド先の Go 型に `MarshalJSON` / `UnmarshalJSON` を実装する |
+| `optional: pointer` | nullable を `*T` にする | レスポンスの nullable フィールドは既定で `*T`（設定不要） |
+| `optional: generic` | undefined / null / 値 の区別 | input は `gqlgen.nullable_input_omittable: true` で `graphql.Omittable[T]` |
+| `optional: value`（既定） | nullable をゼロ値で扱う | 非対応（gqlgenc は nullable を `*T` にする） |
+| `use_struct_references` | ネスト構造体をポインタに | `gqlgen.struct_fields_always_pointers`。ただし gqlgenc は `false` 前提のため実質非対応 |
+| `casing`（enum 値の命名） | enum 値の Go 名の大小変換 | gqlgen modelgen が処理（個別設定なし） |
+| `context_type` | `ctx` 引数の型を差し替え | 非対応（`context.Context` 固定） |
+| `client_getter` | クライアント取得関数を差し込む | 非対応（`Post` / `Get` / `Subscribe` にクライアントを明示的に渡す設計） |
+
+#### フィールド単位の制御（@genqlient ディレクティブ ↔ gqlgenc）
+
+| genqlient ディレクティブ | 役割 | gqlgenc での実現 |
+|---|---|---|
+| `pointer: true` | フィールドを `*T`（nullable）に | スキーマ側 `@goField(omittable: true)` / `models` の型指定。クエリ単位の指定は不可（スキーマ駆動） |
+| `omitempty: true` | json タグに omitempty | `gqlgen.enable_model_json_omitzero_tag: true`（json/v2 の `omitzero`） |
+| `bind: "..."` | フィールドを特定 Go 型にバインド | スキーマ側 `@goField(type: "...")` |
+| `alias: ...` | レスポンス型のフィールド名変更 | クエリで GraphQL の alias を使う（`foo: bar`） |
+| `flatten` | フラグメントの中間型を省略して埋め込み | フラグメントスプレッドは常に埋め込みで生成（既定で flatten 相当） |
+| `struct: true` | 名前付き型でなく無名構造体を生成 | 非対応（生成方式は規約で固定） |
+| `typename: "..."` | 生成型の Go 名を指定 | 非対応。`gqlgenc.export_query_type` で公開/非公開の切り替えのみ |
+| `for: "Type.field"` | 型・フィールドを名指しで指定 | 非対応。スキーマの `@goField` で対象を指定する |
+
+設計思想の違いがそのまま出ており、genqlient はクエリコメントの `@genqlient` ディレクティブでフィールド単位に生成コードの形を制御できるのに対し、gqlgenc はスキーマの `@goField` ディレクティブと `models` / `autobind` 設定でスキーマ駆動に制御します。スカラー/型バインドと null/undefined の区別はほぼ1:1で対応しますが、`struct` / `typename` / `for` のようなクエリ単位の細かい制御には対応しません。
