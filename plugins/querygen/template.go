@@ -30,7 +30,7 @@ var template string
 // テンプレートのレンダリングが失敗した場合はエラーを返す。
 func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
 	// 解析済みの型で CodeGenerator を作成
-	codeGen := NewCodeGenerator(goTypes)
+	codeGen := NewCodeGenerator(goTypes, cfg.GQLGencConfig.GenerateGetters)
 
 	if err := templates.Render(templates.Options{
 		PackageName:     cfg.GQLGencConfig.QueryGen.Package,

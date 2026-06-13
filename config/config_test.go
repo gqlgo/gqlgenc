@@ -166,6 +166,47 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_gettersが指定された設定を正しく読み込めることを確認する",
+			args: args{
+				file: "testdata/cfg/generate_getters.yml",
+			},
+			want: want{
+				config: &Config{
+					GQLGencConfig: &GQLGencConfig{
+						Query: []string{"./queries/*.graphql"},
+						QueryGen: config.PackageConfig{
+							Package: "gen",
+						},
+						ClientGen: config.PackageConfig{
+							Package: "gen",
+						},
+						GenerateGetters: true,
+					},
+					GQLGenConfig: &config.Config{
+						SchemaFilename: config.StringList{
+							"testdata/cfg/glob/bar/bar with spaces.graphql",
+							"testdata/cfg/glob/foo/foo.graphql",
+						},
+						Exec: config.ExecConfig{
+							Filename: "generated.go",
+						},
+						Model: config.PackageConfig{
+							Filename: "./gen/models_gen.go",
+							Package:  "gen",
+						},
+						Federation: config.PackageConfig{
+							Filename: "generated.go",
+						},
+						Resolver: config.ResolverConfig{
+							Filename: "generated.go",
+						},
+						Directives:    map[string]config.DirectiveConfig{},
+						GoInitialisms: config.GoInitialismsConfig{},
+					},
+				},
+			},
+		},
+		{
 			name: "globパターンでスキーマファイルを読み込めることを確認する（Windows）",
 			args: args{
 				file: "testdata/cfg/glob.yml",

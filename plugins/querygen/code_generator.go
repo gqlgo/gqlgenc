@@ -13,20 +13,23 @@ type CodeGenerator struct {
 	unmarshalBuilder *UnmarshalBuilder
 	analyzer         *FieldAnalyzer
 	skipUnmarshal    map[*types.TypeName]struct{}
+	generateGetters  bool
 }
 
 // NewCodeGenerator は新しい CodeGenerator を作成する。
 //
 // パラメータ:
 //   - goTypes: 生成対象の全ての Go 型のリスト
+//   - generateGetters: nil セーフな getter メソッドを生成するか
 //
 // このコンストラクタは埋め込み型を識別し、それらの型に対する UnmarshalJSONFrom の
 // 生成をスキップするように設定する。
-func NewCodeGenerator(goTypes []types.Type) *CodeGenerator {
+func NewCodeGenerator(goTypes []types.Type, generateGetters bool) *CodeGenerator {
 	return &CodeGenerator{
 		unmarshalBuilder: NewUnmarshalBuilder(),
 		analyzer:         NewFieldAnalyzer(),
 		skipUnmarshal:    findEmbeddedTypes(goTypes),
+		generateGetters:  generateGetters,
 	}
 }
 
@@ -70,10 +73,12 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 		buf.WriteString(g.formatUnmarshalMethod(typeName, statements))
 	}
 
-	// Generate getters
-	for _, field := range fields {
-		getter := g.formatGetter(typeName, field.Name, field.TypeName)
-		buf.WriteString(getter)
+	// Generate getters only when enabled
+	if g.generateGetters {
+		for _, field := range fields {
+			getter := g.formatGetter(typeName, field.Name, field.TypeName)
+			buf.WriteString(getter)
+		}
 	}
 
 	return buf.String(), nil

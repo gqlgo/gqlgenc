@@ -128,6 +128,7 @@ func main() {
 | `clientgen` | `filename` / `package` | 型付き variables 構造体と `client.Operation` 値の生成先。指定する場合は `querygen` の指定も必須 |
 | `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
 | `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる |
+| `generate_getters` | `bool` | レスポンス型に nil セーフな getter メソッドを生成する。デフォルト false（生成しない）。true で各フィールドに `Get<フィールド>()` を生成する |
 
 ### gqlgen セクション
 
@@ -170,7 +171,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 オペレーションごとに以下を生成します。
 
-- レスポンス型: セレクションセットの構造に対応したネスト構造体。各フィールドには json タグと、nil レシーバ安全な getter メソッドが付く
+- レスポンス型: セレクションセットの構造に対応したネスト構造体。各フィールドに json タグが付く。`generate_getters: true` を指定した場合のみ、各フィールドに nil レシーバ安全な getter メソッドも生成する（デフォルトは生成せず、フィールドへ直接アクセスする）
 - フラグメント対応:
   - フラグメントスプレッドは `json:"-"` 付きの埋め込み構造体として表現し、UnmarshalJSONFrom 内で同じ JSON データから直接デコードする
   - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする
@@ -488,9 +489,9 @@ res, err := c.Post(ctx, query.GetUserOp, query.GetUserVars{ID: "1"})
 | variables | 非公開 `__GetUserInput` + 関数引数で渡す | 公開 `<オペレーション名>Vars` 構造体を直接渡す |
 | クエリ文字列 | 関数内に埋め込み | `<オペレーション名>Document` 定数 |
 | レスポンス型の命名 | パス連結（`GetUserUser`）。常に公開 | アンダースコア区切り（`GetUser_User`）。既定は非公開（`export_query_type` で切替） |
-| getter | プレーン（`return v.X`） | nil セーフ（`if t == nil { … }`） |
+| getter | プレーン（`return v.X`）。常に生成 | nil セーフ（`if t == nil { … }`）。`generate_getters: true` のときのみ生成（デフォルトは生成せず直接フィールドアクセス） |
 | デコード | `encoding/json`（v1）+ リフレクション | json/v2。フラグメント型は生成された `UnmarshalJSONFrom`、それ以外は既定デコード |
 | クライアント | `graphql.Client` インターフェース（`MakeRequest`）。モックしやすい | 具象 `*client.Client` をジェネリックメソッドに渡す（Transport 差し替えでテスト） |
 | 操作種別 | 関数名と返り値で表現（型制約なし） | `Operation` の `Kind` 型パラメータでコンパイル時に制約 |
 
-genqlient は「呼べばよい関数」が並ぶため発見しやすく、`graphql.Client` インターフェースで素直にモックできます。gqlgenc は `Operation` 値とジェネリックメソッドにより、操作種別の型安全・全オペレーション横断のミドルウェア・nil セーフな getter・json/v2 による高速なデコードに寄せた設計です。
+genqlient は「呼べばよい関数」が並ぶため発見しやすく、`graphql.Client` インターフェースで素直にモックできます。gqlgenc は `Operation` 値とジェネリックメソッドにより、操作種別の型安全・全オペレーション横断のミドルウェア・json/v2 による高速なデコードに寄せた設計です。getter は既定で生成せず、必要な場合だけ `generate_getters: true` で nil セーフな getter を生成します（gqlgenc は getter を interface 満足には使わないため、既定ではフィールド直接アクセスで十分）。

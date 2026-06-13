@@ -6,6 +6,7 @@ gqlgenc:
   clientgen:
     filename: ./query/client_gen.go
   export_query_type: true
+  generate_getters: true
 gqlgen:
   schema:
     - ./schema/*.graphql

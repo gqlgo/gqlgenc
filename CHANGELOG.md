@@ -45,7 +45,7 @@ gqlgen:
 
 #### コード生成を querygen と clientgen に分割
 
-- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、nil 安全な Getter、クエリドキュメント定数（`<オペレーション名>Document`）を生成します
+- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `generate_getters: true` のときのみ生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
 - `clientgen` を使う場合は `querygen` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
@@ -79,6 +79,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 - `json` タグに `omitempty` を付与しません。gqlgen の `enable_model_json_omitzero_tag: true` を設定した場合のみ NonNull フィールドに `omitzero` を付与します（デフォルトは false）
 - フラグメントの埋め込みとインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
 - フラグメントを non-optional の埋め込みにしたことで、Getter 関数の生成量を削減しました
+- レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `gqlgenc.generate_getters: true` を指定してください
 
 ```graphql
 query UserOperation {
@@ -175,6 +176,10 @@ type UserOperation_User_User struct {
 #### export_query_type オプション
 
 - ネストしたレスポンス型の型名を公開するか選択できます（デフォルトは先頭小文字の非公開型）
+
+#### generate_getters オプション
+
+- `generate_getters` オプションを追加しました。レスポンス型に nil セーフな getter を生成するかを選べます（デフォルト false）
 
 #### @goField ディレクティブへの対応
 

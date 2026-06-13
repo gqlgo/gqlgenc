@@ -184,6 +184,7 @@ type GQLGencConfig struct {
 	Endpoint                *EndPointConfig            `yaml:"endpoint,omitempty"`
 	Query                   []string                   `yaml:"query"`
 	ExportQueryType         bool                       `yaml:"export_query_type,omitempty"`
+	GenerateGetters         bool                       `yaml:"generate_getters,omitempty"`
 	QueryDocument           *ast.QueryDocument         `yaml:"-"`
 	OperationQueryDocuments []*ast.QueryDocument       `yaml:"-"`
 }
