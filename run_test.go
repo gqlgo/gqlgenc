@@ -56,14 +56,14 @@ func Test_IntegrationTest(t *testing.T) {
 							{ID: "3", Text: "Optional comment"},
 						},
 						Rating:         4.5,
-						OptionalRating: ptr(3.8),
+						OptionalRating: new(3.8),
 						NullableElementsList: []*string{
-							ptr("element1"),
+							new("element1"),
 							nil,
-							ptr("element2"),
+							new("element2"),
 						},
 						FullyNullableList: &[]*string{
-							ptr("nullable1"),
+							new("nullable1"),
 							nil,
 						},
 						Statuses:         []domain.Status{domain.StatusActive, domain.StatusInactive},
@@ -102,7 +102,7 @@ func Test_IntegrationTest(t *testing.T) {
 								PublicAddress: &struct {
 									Public bool "json:\"public,omitzero\""
 								}{Public: false},
-								Typename: ptr("PublicAddress"),
+								Typename: new("PublicAddress"),
 							},
 						},
 						Profiles: []*domain.UserOperation_Article_Profiles{
@@ -118,7 +118,7 @@ func Test_IntegrationTest(t *testing.T) {
 							{
 								PrivateProfileFields: domain.PrivateProfileFields{
 									ID:  "prof2",
-									Age: ptr(25),
+									Age: new(25),
 								},
 								PublicProfileFields: domain.PublicProfileFields{
 									ID: "prof2",
@@ -130,7 +130,7 @@ func Test_IntegrationTest(t *testing.T) {
 								PublicProfile: &struct {
 									Status domain.Status "json:\"status,omitzero\""
 								}{Status: domain.StatusInactive},
-								Typename: ptr("PublicProfile"),
+								Typename: new("PublicProfile"),
 							},
 						},
 						Matrix: [][]string{
@@ -143,13 +143,14 @@ func Test_IntegrationTest(t *testing.T) {
 					},
 					Metadata: &domain.UserOperation_Metadata{
 						ID:   "metadata-1",
-						Data: ptr(`{"key":"value","number":123}`),
+						Data: new(`{"key":"value","number":123}`),
 					},
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",
 						User: &struct {
 							domain.UserFragment2 `json:"-"`
-							Name                 string "json:\"name,omitzero\""
+
+							Name string "json:\"name,omitzero\""
 						}{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
 							Name:          "John Doe",
@@ -160,7 +161,7 @@ func Test_IntegrationTest(t *testing.T) {
 							}{
 								Name: "John Doe",
 							},
-							Typename: ptr("User"),
+							Typename: new("User"),
 							Name:     "John Doe",
 							Profile: domain.UserFragment1_Profile{
 								PrivateProfile: &struct {
@@ -168,11 +169,11 @@ func Test_IntegrationTest(t *testing.T) {
 								}{
 									Age: func() *int { i := 30; return &i }(),
 								},
-								Typename: ptr("PrivateProfile"),
+								Typename: new("PrivateProfile"),
 							},
 						},
 						UserFragment2: domain.UserFragment2{Name: "John Doe"},
-						Typename:      ptr("User"),
+						Typename:      new("User"),
 						Name:          "John Doe",
 						Name2:         "John Doe",
 						SmallPic:      "https://example.com/pic_1_50.jpg",
@@ -204,7 +205,7 @@ func Test_IntegrationTest(t *testing.T) {
 							}{
 								Age: func() *int { i := 30; return &i }(),
 							},
-							Typename: ptr("PrivateProfile"),
+							Typename: new("PrivateProfile"),
 						},
 						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
 							PublicProfileFields: domain.PublicProfileFields{
@@ -223,7 +224,7 @@ func Test_IntegrationTest(t *testing.T) {
 							}{
 								Street: "456 Elm St",
 							},
-							Typename: ptr("PublicAddress"),
+							Typename: new("PublicAddress"),
 						},
 					},
 				},
@@ -344,7 +345,7 @@ func Test_IntegrationTest(t *testing.T) {
 			{
 				input := domain.UpdateUserInput{
 					ID:   "1",
-					Name: graphql.OmittableOf[*string](ptr("Sam Smith")),
+					Name: graphql.OmittableOf[*string](new("Sam Smith")),
 				}
 				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
@@ -358,7 +359,7 @@ func Test_IntegrationTest(t *testing.T) {
 			{
 				input := domain.UpdateUserInput{
 					ID:   "1",
-					Name: graphql.OmittableOf[*string](ptr("Test User")),
+					Name: graphql.OmittableOf[*string](new("Test User")),
 					Settings: graphql.OmittableOf[*domain.UserSettingsInput](&domain.UserSettingsInput{
 						Theme:         "dark",
 						Notifications: true,
@@ -381,7 +382,7 @@ func Test_IntegrationTest(t *testing.T) {
 			{
 				input := domain.UpdateUserInput{
 					ID:       "1",
-					Name:     graphql.OmittableOf[*string](ptr("Test User")),
+					Name:     graphql.OmittableOf[*string](new("Test User")),
 					Settings: graphql.OmittableOf[*domain.UserSettingsInput](nil),
 				}
 				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
@@ -395,7 +396,7 @@ func Test_IntegrationTest(t *testing.T) {
 			{
 				input := domain.UpdateUserInput{
 					ID:       "1",
-					Name:     graphql.OmittableOf[*string](ptr("Test User")),
+					Name:     graphql.OmittableOf[*string](new("Test User")),
 					Settings: graphql.Omittable[*domain.UserSettingsInput]{},
 				}
 				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
@@ -408,10 +409,6 @@ func Test_IntegrationTest(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
 
 func compareFiles(t *testing.T, wantFile, generatedFile string) {

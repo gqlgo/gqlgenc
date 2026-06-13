@@ -55,7 +55,7 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeName string, fields []FieldI
 		&RawStatement{Code: "data, err := dec.ReadValue()"},
 		&IfStatement{
 			Condition: "err != nil",
-			Body:      []Statement{&ReturnStatement{Value: "err"}},
+			Body:      returnErrStatements(),
 		},
 	)
 
@@ -65,7 +65,7 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeName string, fields []FieldI
 			&RawStatement{Code: fmt.Sprintf("type plain %s", typeName)},
 			&ErrorCheckStatement{
 				ErrorExpr: "json.Unmarshal(data, (*plain)(t))",
-				Body:      []Statement{&ReturnStatement{Value: "err"}},
+				Body:      returnErrStatements(),
 			},
 		)
 	}
@@ -91,7 +91,7 @@ func (b *UnmarshalBuilder) BuildUnmarshalMethod(typeName string, fields []FieldI
 // 戻り値:
 //   - []Statement: 全ての fragment spreads をデコードするステートメントのリスト
 func (b *UnmarshalBuilder) decodeFragmentSpreadsAt(fragmentSpreads []FieldInfo, parentPath string) []Statement {
-	var statements []Statement
+	statements := make([]Statement, 0, len(fragmentSpreads))
 	for _, field := range fragmentSpreads {
 		statements = append(statements, b.decodeSingleFragmentSpread(field, parentPath)...)
 	}
@@ -126,9 +126,7 @@ func (b *UnmarshalBuilder) decodeSingleFragmentSpread(field FieldInfo, parentPat
 	if len(field.SubFields) == 0 || hasDecodableField(regularFields) {
 		statements = append(statements, &ErrorCheckStatement{
 			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, &%s)", target),
-			Body: []Statement{
-				&ReturnStatement{Value: "err"},
-			},
+			Body:      returnErrStatements(),
 		})
 	}
 
@@ -236,16 +234,14 @@ func (b *UnmarshalBuilder) decodeInlineFragments(targetExpr string, fragments []
 
 	typeNameVar := fmt.Sprintf("typeName_%s", strings.ReplaceAll(targetExpr, ".", "_"))
 
-	var statements []Statement
+	statements := make([]Statement, 0, 3)
 
 	statements = append(statements, &RawStatement{
 		Code: fmt.Sprintf("var %s struct {\n\t\tTypename string `json:\"__typename\"`\n\t}", typeNameVar),
 	})
 	statements = append(statements, &ErrorCheckStatement{
 		ErrorExpr: fmt.Sprintf("json.Unmarshal(data, &%s)", typeNameVar),
-		Body: []Statement{
-			&ReturnStatement{Value: "err"},
-		},
+		Body:      returnErrStatements(),
 	})
 
 	cases := make([]SwitchCase, 0, len(fragments))
@@ -292,9 +288,7 @@ func (b *UnmarshalBuilder) buildInlineFragmentCaseBody(frag InlineFragmentInfo) 
 	if len(frag.Field.SubFields) == 0 || hasDecodableField(regularFields) {
 		statements = append(statements, &ErrorCheckStatement{
 			ErrorExpr: fmt.Sprintf("json.Unmarshal(data, %s)", frag.FieldExpr),
-			Body: []Statement{
-				&ReturnStatement{Value: "err"},
-			},
+			Body:      returnErrStatements(),
 		})
 	}
 
@@ -302,4 +296,9 @@ func (b *UnmarshalBuilder) buildInlineFragmentCaseBody(frag InlineFragmentInfo) 
 	statements = append(statements, b.decodeInlineFragments(frag.FieldExpr, inlineFragments)...)
 
 	return statements
+}
+
+// returnErrStatements はエラーチェック本体で共通の return err 文を返す。
+func returnErrStatements() []Statement {
+	return []Statement{&ReturnStatement{Value: "err"}}
 }

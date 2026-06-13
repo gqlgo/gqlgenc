@@ -1,16 +1,16 @@
 package client
 
 import (
+	json "encoding/json/v2"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	json "encoding/json/v2"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/google/go-cmp/cmp"
 )
 
 // newUpload はテスト用の一時ファイルを作成して graphql.Upload を返す。

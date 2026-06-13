@@ -3,15 +3,14 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"encoding/json/jsontext"
-	json "encoding/json/v2"
 
 	"github.com/99designs/gqlgen/graphql"
 )
@@ -31,17 +30,20 @@ func (c *uploadCollector) marshalers() *json.Marshalers {
 	return json.JoinMarshalers(
 		json.MarshalToFunc(func(enc *jsontext.Encoder, upload graphql.Upload) error {
 			if err := enc.WriteToken(jsontext.Null); err != nil {
-				return err
+				return fmt.Errorf("write null: %w", err)
 			}
 			c.collect(upload, enc.StackPointer())
 			return nil
 		}),
 		json.MarshalToFunc(func(enc *jsontext.Encoder, upload *graphql.Upload) error {
 			if upload == nil {
-				return enc.WriteToken(jsontext.Null)
+				if err := enc.WriteToken(jsontext.Null); err != nil {
+					return fmt.Errorf("write null: %w", err)
+				}
+				return nil
 			}
 			if err := enc.WriteToken(jsontext.Null); err != nil {
-				return err
+				return fmt.Errorf("write null: %w", err)
 			}
 			c.collect(*upload, enc.StackPointer())
 			return nil
@@ -109,7 +111,7 @@ func newMultipartRequest(ctx context.Context, endpoint string, operations []byte
 
 	req.Header = http.Header{
 		"Content-Type": []string{writer.FormDataContentType()},
-		"Accept":       []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+		"Accept":       []string{acceptGraphQLResponse, contentTypeJSON},
 	}
 
 	return req, nil

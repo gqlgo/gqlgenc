@@ -51,76 +51,6 @@ func (a *FieldAnalyzer) AnalyzeFields(structType *types.Struct, shouldGenerateUn
 	return fields
 }
 
-// analyzeField は単一フィールドを解析し、その FieldInfo を返す。
-//
-// 解析には以下が含まれる:
-//   - フィールド名、型、JSON タグの抽出
-//   - FieldClassifier による inline fragments の検出
-//   - SubFields 再帰を使った埋め込みフィールド（fragment spreads）の処理
-//
-// 特殊ケース: 独自の UnmarshalJSON メソッドを持つ埋め込みフィールドは
-// 再帰的に解析されない - それら自身がアンマーシャリングを処理する。
-//
-// パラメータ:
-//   - field: 解析対象のフィールド変数
-//   - tag: 構造体タグの文字列
-//   - shouldGenerateUnmarshal: UnmarshalJSON 生成判定コールバック
-//
-// 戻り値:
-//   - FieldInfo: 解析されたフィールド情報
-func (a *FieldAnalyzer) analyzeField(
-	field *types.Var,
-	tag string,
-	shouldGenerateUnmarshal func(*types.Named) bool,
-) FieldInfo {
-	info := FieldInfo{
-		Name:       field.Name(),
-		Type:       field.Type(),
-		TypeName:   templates.CurrentImports.LookupType(field.Type()),
-		JSONTag:    a.parseJSONTag(tag),
-		IsExported: field.Exported(),
-		IsEmbedded: field.Anonymous(),
-	}
-
-	if a.IsInlineFragment(field, tag) {
-		info.IsInlineFragment = true
-
-		if ptrType, ok := field.Type().(*types.Pointer); ok {
-			info.IsPointer = true
-			elemType := ptrType.Elem()
-			info.PointerElemType = templates.CurrentImports.LookupType(elemType)
-		}
-
-		// inline fragment の構造体内には fragment spreads (json:"-") が含まれ得るため、
-		// 親の UnmarshalJSONFrom で明示デコードできるようサブフィールドを解析する
-		if elemStruct := unwrapToStruct(field.Type()); elemStruct != nil {
-			info.SubFields = a.AnalyzeFields(elemStruct, shouldGenerateUnmarshal)
-		}
-
-		return info
-	}
-
-	// 埋め込みフィールドでインラインフラグメントでない場合の特別処理
-	// GraphQLのフラグメントスプレッドに対応するため、埋め込みフィールドは
-	// 独自のUnmarshalJSONメソッドを持つ場合と、親の型に展開される場合がある
-	if info.IsEmbedded && !info.IsInlineFragment {
-		if embeddedNamed := unwrapToNamedStruct(field.Type()); embeddedNamed != nil {
-			// 埋め込み型が独自のUnmarshalJSONを持つ場合は、サブフィールドを解析せず早期リターン
-			if shouldGenerateUnmarshal(embeddedNamed) {
-				return info
-			}
-		}
-
-		// 埋め込みフィールドのサブフィールドを再帰的に解析
-		// これにより、ネストした埋め込み構造もフラット化される
-		if embeddedStruct := unwrapToStruct(field.Type()); embeddedStruct != nil {
-			info.SubFields = a.AnalyzeFields(embeddedStruct, shouldGenerateUnmarshal)
-		}
-	}
-
-	return info
-}
-
 // IsInlineFragment はフィールドが inline fragment フィールドかどうかをチェックする。
 //
 // Inline fragments は "... on Type" を使って選択される GraphQL の型条件付きフィールドを表す。
@@ -217,6 +147,76 @@ func (a *FieldAnalyzer) IsFragmentSpread(field FieldInfo) bool {
 //   - bool: 通常フィールドの場合は true
 func (a *FieldAnalyzer) IsRegularField(field FieldInfo) bool {
 	return !field.IsInlineFragment && !a.IsFragmentSpread(field)
+}
+
+// analyzeField は単一フィールドを解析し、その FieldInfo を返す。
+//
+// 解析には以下が含まれる:
+//   - フィールド名、型、JSON タグの抽出
+//   - FieldClassifier による inline fragments の検出
+//   - SubFields 再帰を使った埋め込みフィールド（fragment spreads）の処理
+//
+// 特殊ケース: 独自の UnmarshalJSON メソッドを持つ埋め込みフィールドは
+// 再帰的に解析されない - それら自身がアンマーシャリングを処理する。
+//
+// パラメータ:
+//   - field: 解析対象のフィールド変数
+//   - tag: 構造体タグの文字列
+//   - shouldGenerateUnmarshal: UnmarshalJSON 生成判定コールバック
+//
+// 戻り値:
+//   - FieldInfo: 解析されたフィールド情報
+func (a *FieldAnalyzer) analyzeField(
+	field *types.Var,
+	tag string,
+	shouldGenerateUnmarshal func(*types.Named) bool,
+) FieldInfo {
+	info := FieldInfo{
+		Name:       field.Name(),
+		Type:       field.Type(),
+		TypeName:   templates.CurrentImports.LookupType(field.Type()),
+		JSONTag:    a.parseJSONTag(tag),
+		IsExported: field.Exported(),
+		IsEmbedded: field.Anonymous(),
+	}
+
+	if a.IsInlineFragment(field, tag) {
+		info.IsInlineFragment = true
+
+		if ptrType, ok := field.Type().(*types.Pointer); ok {
+			info.IsPointer = true
+			elemType := ptrType.Elem()
+			info.PointerElemType = templates.CurrentImports.LookupType(elemType)
+		}
+
+		// inline fragment の構造体内には fragment spreads (json:"-") が含まれ得るため、
+		// 親の UnmarshalJSONFrom で明示デコードできるようサブフィールドを解析する
+		if elemStruct := unwrapToStruct(field.Type()); elemStruct != nil {
+			info.SubFields = a.AnalyzeFields(elemStruct, shouldGenerateUnmarshal)
+		}
+
+		return info
+	}
+
+	// 埋め込みフィールドでインラインフラグメントでない場合の特別処理
+	// GraphQLのフラグメントスプレッドに対応するため、埋め込みフィールドは
+	// 独自のUnmarshalJSONメソッドを持つ場合と、親の型に展開される場合がある
+	if info.IsEmbedded && !info.IsInlineFragment {
+		if embeddedNamed := unwrapToNamedStruct(field.Type()); embeddedNamed != nil {
+			// 埋め込み型が独自のUnmarshalJSONを持つ場合は、サブフィールドを解析せず早期リターン
+			if shouldGenerateUnmarshal(embeddedNamed) {
+				return info
+			}
+		}
+
+		// 埋め込みフィールドのサブフィールドを再帰的に解析
+		// これにより、ネストした埋め込み構造もフラット化される
+		if embeddedStruct := unwrapToStruct(field.Type()); embeddedStruct != nil {
+			info.SubFields = a.AnalyzeFields(embeddedStruct, shouldGenerateUnmarshal)
+		}
+	}
+
+	return info
 }
 
 // parseJSONTag は構造体タグから JSON フィールド名を抽出する。

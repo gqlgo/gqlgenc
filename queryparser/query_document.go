@@ -24,7 +24,7 @@ func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDo
 		queryDocument.Fragments = append(queryDocument.Fragments, query.Fragments...)
 	}
 
-	if errs := validator.Validate(schema, &queryDocument); errs != nil {
+	if errs := validator.ValidateWithRules(schema, &queryDocument, nil); errs != nil {
 		return nil, fmt.Errorf(": %w", errs)
 	}
 
@@ -58,7 +58,7 @@ func OperationQueryDocuments(schema *ast.Schema, operations ast.OperationList) (
 			Position:   nil,
 		}
 
-		if errs := validator.Validate(schema, queryDocument); errs != nil {
+		if errs := validator.ValidateWithRules(schema, queryDocument, nil); errs != nil {
 			return nil, fmt.Errorf(": %w", errs)
 		}
 

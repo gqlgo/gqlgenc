@@ -12,7 +12,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-// looking for the closest match.
+// FindConfigFile walks up from path looking for the closest match.
 func FindConfigFile(path string, cfgFilenames []string) (string, error) {
 	var err error
 

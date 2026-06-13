@@ -3,10 +3,14 @@ package client
 import (
 	"bytes"
 	"context"
+	json "encoding/json/v2"
 	"fmt"
 	"net/http"
+)
 
-	json "encoding/json/v2"
+const (
+	contentTypeJSON       = "application/json;charset=utf-8"
+	acceptGraphQLResponse = "application/graphql-response+json;charset=utf-8"
 )
 
 // Request represents an outgoing GraphQL request.
@@ -40,8 +44,8 @@ func NewRequest(ctx context.Context, endpoint, operationName, query string, vari
 	}
 
 	req.Header = http.Header{
-		"Content-Type": []string{"application/json;charset=utf-8"},
-		"Accept":       []string{"application/graphql-response+json;charset=utf-8", "application/json;charset=utf-8"},
+		"Content-Type": []string{contentTypeJSON},
+		"Accept":       []string{acceptGraphQLResponse, contentTypeJSON},
 	}
 
 	return req, nil

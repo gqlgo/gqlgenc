@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -9,9 +11,6 @@ import (
 	"os"
 	"runtime"
 	"testing"
-
-	"encoding/json/jsontext"
-	json "encoding/json/v2"
 
 	"github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
@@ -45,7 +44,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "doesnotexist.yml",
 			},
 			want: want{
-				err: fmt.Errorf("unable to read config: open doesnotexist.yml: no such file or directory"),
+				err: errors.New("unable to read config: open doesnotexist.yml: no such file or directory"),
 			},
 		},
 		{
@@ -54,7 +53,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/malformedconfig.yml",
 			},
 			want: want{
-				err: fmt.Errorf("unable to parse config: [1:1] string was used where mapping is expected\n>  1 | asdf\n       ^\n"),
+				err: errors.New("unable to parse config: [1:1] string was used where mapping is expected\n>  1 | asdf\n       ^\n"), //nolint:revive // 実際のエラーメッセージと一致させるため
 			},
 		},
 		{
@@ -81,7 +80,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/unknownkeys.yml",
 			},
 			want: want{
-				err: fmt.Errorf("unable to parse config: [1:1] unknown field \"unknown\"\n>  1 | unknown: foo\n       ^\n   2 | gqlgen:\n   3 |   schema:\n   4 |     - outer"),
+				err: errors.New("unable to parse config: [1:1] unknown field \"unknown\"\n>  1 | unknown: foo\n       ^\n   2 | gqlgen:\n   3 |   schema:\n   4 |     - outer"),
 			},
 		},
 		{
@@ -159,7 +158,7 @@ func TestLoadConfig(t *testing.T) {
 						Resolver: config.ResolverConfig{
 							Filename: "generated.go",
 						},
-						EnableModelJsonOmitzeroTag: ptr(true),
+						EnableModelJsonOmitzeroTag: new(true),
 						Directives:                 map[string]config.DirectiveConfig{},
 						GoInitialisms:              config.GoInitialismsConfig{},
 					},
@@ -198,7 +197,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/unwalkable.yml",
 			},
 			want: want{
-				err: fmt.Errorf("failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."),
+				err: errors.New("failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."), //nolint:revive // 実際のエラーメッセージと一致させるため
 			},
 			skipOnGOOS: "!windows",
 		},
@@ -208,7 +207,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/unwalkable.yml",
 			},
 			want: want{
-				err: fmt.Errorf("failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"),
+				err: errors.New("failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"),
 			},
 			skipOnGOOS: "windows",
 		},
@@ -322,7 +321,7 @@ func TestLoadSchema(t *testing.T) {
 				responseFile: "testdata/remote/response_invalid_schema.json",
 			},
 			want: want{
-				err: fmt.Errorf("OBJECT Query: must define one or more fields"),
+				err: errors.New("OBJECT Query: must define one or more fields"),
 			},
 		},
 		{
@@ -332,7 +331,7 @@ func TestLoadSchema(t *testing.T) {
 				httpErrorStatus: http.StatusInternalServerError,
 			},
 			want: want{
-				err: fmt.Errorf("introspect schema failed: introspection query failed"),
+				err: errors.New("introspect schema failed: introspection query failed"),
 			},
 		},
 		{
@@ -363,7 +362,7 @@ func TestLoadSchema(t *testing.T) {
 				emptyConfig: true,
 			},
 			want: want{
-				err: fmt.Errorf("neither 'schema' nor 'endpoint' specified"),
+				err: errors.New("neither 'schema' nor 'endpoint' specified"),
 			},
 		},
 		{
@@ -388,10 +387,11 @@ func TestLoadSchema(t *testing.T) {
 			var err error
 			var mockServer *mockRemoteServer
 
-			if tt.args.emptyConfig {
+			switch {
+			case tt.args.emptyConfig:
 				cfg = &Config{GQLGenConfig: &config.Config{}, GQLGencConfig: &GQLGencConfig{}}
 				err = cfg.LoadSchema(t.Context())
-			} else if tt.args.responseFile != "" || tt.args.httpErrorStatus != 0 {
+			case tt.args.responseFile != "" || tt.args.httpErrorStatus != 0:
 				// リモートスキーマのテストケース（mockServerを使用）
 				var closeServer func()
 
@@ -405,7 +405,7 @@ func TestLoadSchema(t *testing.T) {
 				defer closeServer()
 
 				// mockServerのURLを使った設定を書き込む
-				tmpFile, tmpErr := os.CreateTemp("", "test-config-*.yml")
+				tmpFile, tmpErr := os.CreateTemp(t.TempDir(), "test-config-*.yml")
 				if tmpErr != nil {
 					t.Fatalf("Failed to create temp config file: %v", tmpErr)
 				}
@@ -440,7 +440,7 @@ gqlgenc:
 					t.Fatalf("LoadConfig() failed: %v", err)
 				}
 				err = cfg.LoadSchema(t.Context())
-			} else {
+			default:
 				// ローカルスキーマのテストケース
 				cfg, err = LoadConfig(tt.args.configFile)
 				if err != nil {
@@ -474,7 +474,7 @@ gqlgenc:
 			// 成功時は基本的な検証
 			if tt.want.err == nil {
 				if cfg == nil {
-					t.Error("config = nil, want non-nil")
+					t.Fatal("config = nil, want non-nil")
 				}
 				if cfg.GQLGenConfig == nil {
 					t.Error("GQLGenConfig = nil, want non-nil")
@@ -562,7 +562,7 @@ func TestLoadQuery(t *testing.T) {
 				configFile: "testdata/cfg/glob.yml",
 			},
 			want: want{
-				err: fmt.Errorf("Expected Name, found <EOF>"),
+				err: errors.New("Expected Name, found <EOF>"),
 			},
 		},
 		{
@@ -574,7 +574,7 @@ func TestLoadQuery(t *testing.T) {
 				configFile: "testdata/cfg/glob.yml",
 			},
 			want: want{
-				err: fmt.Errorf("Cannot query field"),
+				err: errors.New("Cannot query field"),
 			},
 		},
 	}
@@ -703,7 +703,7 @@ func (f responseFromFile) load(t *testing.T) []byte {
 func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) (mock *mockRemoteServer, closeServer func()) {
 	t.Helper()
 
-	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(statusCode)
 		if _, err := writer.Write([]byte(message)); err != nil {
 			t.Errorf("failed to write error response: %v", err)
@@ -716,10 +716,6 @@ func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) 
 	}
 
 	return mock, func() { server.Close() }
-}
-
-func ptr[T any](t T) *T {
-	return &t
 }
 
 func TestHeaderUnmarshalYAML(t *testing.T) {

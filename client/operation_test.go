@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -159,7 +160,7 @@ func TestPost(t *testing.T) {
 				var err error
 				gotRequestBody, err = io.ReadAll(req.Body)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("read request body: %w", err)
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,

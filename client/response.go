@@ -3,13 +3,12 @@ package client
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-
-	"encoding/json/jsontext"
-	json "encoding/json/v2"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -39,8 +38,7 @@ func ParseResponse(resp *http.Response, out any) error {
 	}
 
 	if err := unmarshalResponse(body, out); err != nil {
-		var gqlErrs gqlerror.List
-		if errors.As(err, &gqlErrs) {
+		if gqlErrs, ok := errors.AsType[gqlerror.List](err); ok {
 			// successfully parsed graphql error response
 			errResponse.GqlErrors = &gqlErrs
 		} else if isStatusCodeOK {

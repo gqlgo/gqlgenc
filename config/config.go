@@ -21,7 +21,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-// and represents the config file.
+// Config represents the config file.
 type Config struct {
 	GQLGencConfig *GQLGencConfig       `yaml:"gqlgenc"`
 	GQLGenConfig  *gqlgenconfig.Config `yaml:"gqlgen"`
@@ -93,10 +93,12 @@ func LoadConfig(configFilename string) (*Config, error) {
 	c.GQLGenConfig.Sources = sources
 
 	// gqlgen must be followings parameters
+	// クライアント生成では使用しないため固定のダミーファイル名を設定する
+	const unusedGenFilename = "generated.go"
 	c.GQLGenConfig.Directives = make(map[string]gqlgenconfig.DirectiveConfig)
-	c.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: "generated.go"}
-	c.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: "generated.go"}
-	c.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: "generated.go"}
+	c.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: unusedGenFilename}
+	c.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: unusedGenFilename}
+	c.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: unusedGenFilename}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// gqlgenc

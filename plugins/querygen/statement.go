@@ -29,7 +29,7 @@ func (i *IfStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
 
-	buf.WriteString(fmt.Sprintf("if %s {\n", i.Condition))
+	fmt.Fprintf(&buf, "if %s {\n", i.Condition)
 	for _, stmt := range i.Body {
 		buf.WriteString(tabs + "\t")
 		buf.WriteString(stmt.String(indent + 1))
@@ -66,7 +66,7 @@ func (s *SwitchStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
 
-	buf.WriteString(fmt.Sprintf("switch %s {\n", s.Expr))
+	fmt.Fprintf(&buf, "switch %s {\n", s.Expr)
 	for _, c := range s.Cases {
 		buf.WriteString(tabs + fmt.Sprintf("case %q:\n", c.Value))
 		for _, stmt := range c.Body {
@@ -137,7 +137,7 @@ func (e *ErrorCheckStatement) String(indent int) string {
 	var buf strings.Builder
 	tabs := strings.Repeat("\t", indent)
 
-	buf.WriteString(fmt.Sprintf("if err := %s; err != nil {\n", e.ErrorExpr))
+	fmt.Fprintf(&buf, "if err := %s; err != nil {\n", e.ErrorExpr)
 	for _, stmt := range e.Body {
 		buf.WriteString(tabs + "\t")
 		buf.WriteString(stmt.String(indent + 1))

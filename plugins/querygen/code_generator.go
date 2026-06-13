@@ -282,8 +282,7 @@ func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 			continue
 		}
 		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by unwrapToNamedStruct
-		for i := range structType.NumFields() {
-			field := structType.Field(i)
+		for field := range structType.Fields() {
 			if !field.Anonymous() {
 				continue
 			}
@@ -321,7 +320,7 @@ func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement)
 	var buf strings.Builder
 
 	// Method signature
-	buf.WriteString(fmt.Sprintf("func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", typeName))
+	fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", typeName)
 
 	// Method body
 	for _, stmt := range body {
