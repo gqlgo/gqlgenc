@@ -189,6 +189,7 @@ type UserOperation_User_User struct {
 #### クエリでの @goFragment バインド
 
 - クエリのフラグメント定義やフィールド選択に `@goFragment(model: "import/path.Type")` を付けると、レスポンス型を生成せず指定した既存 Go 型にバインドします。型を共有したり、生成型にできないメソッドを持たせたい場合に使えます。`@goFragment` は gqlgenc が注入するクライアント側のコード生成専用ディレクティブで、サーバーへ送るクエリからは自動的に除去されます
+- `gqlgenc.autobind` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（gqlgen の `autobind` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(model: ...)` が優先されます。サーバーモデル用の `gqlgen.autobind` とは独立した設定です
 
 - エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 

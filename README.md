@@ -129,6 +129,7 @@ func main() {
 | `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
 | `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる |
 | `generate_getters` | `bool` | レスポンス型に nil セーフな getter メソッドを生成する。デフォルト false（生成しない）。true で各フィールドに `Get<フィールド>()` を生成する |
+| `autobind` | `[]string` | フラグメント名と同名の Go 型が指定パッケージにあれば、レスポンス型を生成せずその既存 Go 型にバインドする（`@goFragment` のパッケージ指定版）。gqlgen の `autobind`（サーバーモデル用）とは独立した設定 |
 
 ### gqlgen セクション
 
@@ -176,6 +177,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
   - フラグメントスプレッドは `json:"-"` 付きの埋め込み構造体として表現し、UnmarshalJSONFrom 内で同じ JSON データから直接デコードする
   - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする。`__typename` がクエリに無くても、インラインフラグメントを含む選択セットには生成時に `__typename` を自動で追加するため、interface / union のデコードが常に動作する
   - フラグメント定義やフィールド選択に `@goFragment(model: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goFragment(model: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goFragment` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
+  - `gqlgenc.autobind` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにある場合、`@goFragment` を書かなくても自動でその既存型にバインドする（gqlgen の `autobind` のクエリ版。マッチ対象はフラグメント名）。明示的な `@goFragment(model: ...)` が付いている場合はそちらが優先される
 - `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
 - クエリドキュメント定数（`<オペレーション名>Document`）
 
@@ -374,7 +376,7 @@ genqlient の設定オプションや `@genqlient` ディレクティブを、gq
 | `operations` | クエリファイル | `gqlgenc.query` |
 | `generated` / `package` | 生成先・パッケージ名 | `gqlgenc.querygen` + `gqlgenc.clientgen`（レスポンス型とクライアントで分割）、各 `filename` / `package` |
 | `bindings`（型→Go 型） | スカラー/型を Go 型にバインド | `gqlgen.models`（`型名: { model: ... }`） |
-| `package_bindings` | パッケージ内の同名型を一括バインド | `gqlgen.autobind`（パッケージのリスト） |
+| `package_bindings` | パッケージ内の同名型を一括バインド | クエリのフラグメントは `gqlgenc.autobind`（フラグメント名と同名の Go 型にバインド）、サーバーモデルは `gqlgen.autobind`（いずれもパッケージのリスト） |
 | `bindings.marshaler` / `unmarshaler` | スカラーの変換関数を指定 | バインド先の Go 型に `MarshalJSON` / `UnmarshalJSON` を実装する |
 | `optional: pointer` | nullable を `*T` にする | レスポンスの nullable フィールドは既定で `*T`（設定不要） |
 | `optional: generic` | undefined / null / 値 の区別 | input は `gqlgen.nullable_input_omittable: true` で `graphql.Omittable[T]` |

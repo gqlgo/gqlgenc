@@ -237,17 +237,6 @@ func (t *UserFragment1_Profile) GetTypename() *string {
 	return t.Typename
 }
 
-type UserFragment2 struct {
-	Name string "json:\"name\""
-}
-
-func (t *UserFragment2) GetName() string {
-	if t == nil {
-		t = &UserFragment2{}
-	}
-	return t.Name
-}
-
 type UserOperation struct {
 	Article      *UserOperation_Article      "json:\"article\""
 	Metadata     *UserOperation_Metadata     "json:\"metadata\""

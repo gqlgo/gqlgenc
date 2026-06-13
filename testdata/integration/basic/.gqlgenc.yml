@@ -1,6 +1,8 @@
 gqlgenc:
   query:
     - ./query/*.graphql
+  autobind:
+    - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
   querygen:
     filename: ./domain/query_gen.go
   clientgen:

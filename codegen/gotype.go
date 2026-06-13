@@ -85,6 +85,10 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		if baseType, name, ok := g.boundGoType(sel.Definition.Directives); ok {
 			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
 		}
+		// autobind: fragment 名と同名の型が autobind パッケージにあれば、その型に束ねる。
+		if baseType, name, ok := g.autobindFragment(sel.Definition.Name); ok {
+			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
+		}
 		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
 		namedType := g.newGoNamedType(sel.Name, true, structType)
 		return newField(FragmentSpread, namedType, sel.Name, []string{jsonIgnoreTag})
@@ -217,6 +221,28 @@ func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes
 	}
 
 	return goType, goTypeName(goType), true
+}
+
+// autobindFragment は gqlgen の autobind のクエリ版。gqlgenc.autobind に指定した
+// パッケージに fragment 名と同名の型があれば、その Go 型とその非修飾名を返す。
+// @goFragment(model:) と違い、クエリに書かず YAML 設定だけでフラグメントを既存 Go 型に
+// バインドできる。戻り値は boundGoType と同じ（バインド先 Go 型、埋め込みフィールド名、
+// 見つかったか）。
+func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, string, bool) {
+	for _, pkgPath := range g.cfg.GQLGencConfig.Autobind {
+		goType, err := g.binder.FindType(pkgPath, fragmentName)
+		if err != nil {
+			if errors.Is(err, gqlgenconfig.ErrTypeNotFound) {
+				continue
+			}
+			g.err = fmt.Errorf("autobind: failed to load package %q: %w", pkgPath, err)
+			return nil, "", false
+		}
+
+		return goType, goTypeName(goType), true
+	}
+
+	return nil, "", false
 }
 
 func fieldTypeName(parentTypeName, fieldName string, exportQueryType bool) string {

@@ -183,6 +183,7 @@ type GQLGencConfig struct {
 	ClientGen               gqlgenconfig.PackageConfig `yaml:"clientgen,omitempty"`
 	Endpoint                *EndPointConfig            `yaml:"endpoint,omitempty"`
 	Query                   []string                   `yaml:"query"`
+	Autobind                []string                   `yaml:"autobind,omitempty"`
 	ExportQueryType         bool                       `yaml:"export_query_type,omitempty"`
 	GenerateGetters         bool                       `yaml:"generate_getters,omitempty"`
 	QueryDocument           *ast.QueryDocument         `yaml:"-"`
