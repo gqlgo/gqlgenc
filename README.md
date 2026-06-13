@@ -204,6 +204,36 @@ res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 })
 ```
 
+### variables の undefined / null / 値の指定（Omittable）
+
+nullable な input フィールドは、gqlgen が `graphql.Omittable[T]` 型で生成します（`nullable_input_omittable: true` を設定した場合。`enable_model_json_omitzero_tag: true` により json タグに `omitzero` が付きます）。これにより、生成時に挙動を固定することなく、**フィールドごと・呼び出しごとに undefined（省略）/ null / 値を実行時に使い分け**られます。
+
+```go
+type UpdateUserInput struct {
+	ID       UserID                                `json:"id"`            // 必須 → 常に送信
+	Name     graphql.Omittable[*string]            `json:"name,omitzero"` // nullable → 可変
+	Settings graphql.Omittable[*UserSettingsInput] `json:"settings,omitzero"`
+}
+```
+
+```go
+name := "Alice"
+
+// 省略（undefined）: JSON に含めない → サーバーはスキーマのデフォルト/未指定として扱う
+Name: graphql.Omittable[*string]{},
+// 明示的な null: "name":null
+Name: graphql.OmittableOf[*string](nil),
+// 値: "name":"Alice"
+Name: graphql.OmittableOf(&name),
+```
+
+各フィールドは独立しているため、「Name は省略・Settings は null・Tags は値」のような組み合わせも自由です。生成時に `omitzero` を固定するトグルは不要で、`graphql.Omittable[T]` により実行時に制御します。
+
+注意:
+
+- 効くのは **input オブジェクトの nullable フィールド**です。非 nullable（必須）フィールド（例 `id: ID!`）は省略できず常に送信されます。
+- **トップレベル変数**（`$size: Int` → `Vars.Size *int`）は `Omittable` ではなく素のポインタのため、`nil` は `null` として送信され省略はできません。
+
 ## ランタイム（client パッケージ）
 
 ### API

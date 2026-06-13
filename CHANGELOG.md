@@ -172,6 +172,7 @@ type UserOperation_User_User struct {
 #### undefined / null の区別（Omittable / omitzero）
 
 - gqlgen の model_gen が生成した `graphql.Omittable[T]` を含む Input 型をそのまま variables として送信でき、未設定（undefined: JSON に含めない）と明示的な null を区別できます（[gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269)）
+- フィールドごと・呼び出しごとに undefined / null / 値を使い分けられます。`graphql.Omittable[*string]{}`（省略 = JSON に含めない）、`graphql.OmittableOf[*string](nil)`（明示 null）、`graphql.OmittableOf(&v)`（値）。生成時に `omitzero` を固定する設定は不要で、`graphql.Omittable[T]` により実行時に制御します
 - gqlgen サーバー側も受け取った入力の undefined / null を区別でき（[99designs/gqlgen#3660](https://github.com/99designs/gqlgen/pull/3660)）、Go 1.24 以降の `omitempty` + `IsZero` メソッドによりレスポンスで undefined を返せます（[99designs/gqlgen#3659](https://github.com/99designs/gqlgen/pull/3659)）
 
 #### export_query_type オプション
