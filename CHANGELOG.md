@@ -174,6 +174,18 @@ type UserOperation_User_User struct {
 
 - `gqlgen.model` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `autobind` で参照する構成に対応します。`model` と `querygen` は少なくとも一方の指定が必須です
 
+### 解決済みの issue
+
+v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決しています。詳細は各セクションを参照してください。
+
+- [gqlgo/gqlgenc#46](https://github.com/gqlgo/gqlgenc/issues/46) Generate Getters on Interfaces — モデル側は gqlgen 本体が interface にフィールド getter を生成します。クエリレスポンス側は、インターフェースレベルで選択した共通フィールドをラッパー構造体のフィールドとして直接生成するため、型スイッチなしでアクセスできます
+- [gqlgo/gqlgenc#76](https://github.com/gqlgo/gqlgenc/issues/76) `scalar Map`（`map[string]any`）をデコードできない — json/v2 のデフォルトデコードへの移行により解決しました（testdata の `Metadata.properties` に回帰テストあり）
+- [gqlgo/gqlgenc#108](https://github.com/gqlgo/gqlgenc/issues/108) `foo_bar` と `fooBar` が同じ Go フィールド名になり重複エラー — 壊れたコードを生成する代わりに、クエリでの alias 付与を促す明確なエラーを返します
+- [gqlgo/gqlgenc#229](https://github.com/gqlgo/gqlgenc/issues/229) gqlgen の enum バインド（`@goModel` / `@goEnum`）が動作しない — バインド先の型が `json.Marshaler` / `json.Unmarshaler` を実装していれば動作します（実装例: testdata の `domain.Level`）
+- [gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269) undefined と null の区別 — `graphql.Omittable` + `omitzero` への対応で解決しました
+- [gqlgo/gqlgenc#282](https://github.com/gqlgo/gqlgenc/issues/282) 特定のクエリで発生する panic — 修正済みです
+- [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) `onlyUsedModels` で enum がフィルタリングされない — 未使用モデルのフィルタリングを既定動作として取り込みました
+
 ### 内部改善
 
 - コード生成の内部を「GraphQL オペレーション解析」と「Go 型の構築」（codegen パッケージ）に分離し、テンプレートの行数を大幅に削減しました
