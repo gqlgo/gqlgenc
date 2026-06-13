@@ -69,24 +69,19 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {
 	switch sel := selection.(type) {
 	case *graphql.Field:
+		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		// @goFragment(model:) でフィールド選択を既存 Go 型にバインドする場合は、
 		// 選択セットを再帰せずバインド型をそのまま使う。
 		if baseType, _, ok := g.boundGoType(sel.Directives); ok {
 			t := g.newObjectGoType(baseType, sel.Definition.Type)
-			tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 			return newField(Scalar, t, sel.Alias, tags)
 		}
 		typeKind, t := g.newTypeKindAndGoType(parentTypeName, sel)
-		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		return newField(typeKind, t, sel.Alias, tags)
 	case *graphql.FragmentSpread:
-		// @goFragment(model:) でフラグメントを既存 Go 型にバインドする場合は、
-		// 型生成せずバインド型を埋め込む。埋め込みフィールド名はバインド型名。
-		if baseType, name, ok := g.boundGoType(sel.Definition.Directives); ok {
-			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
-		}
-		// autobind: fragment 名と同名の型が autobind パッケージにあれば、その型に束ねる。
-		if baseType, name, ok := g.autobindFragment(sel.Definition.Name); ok {
+		// @goFragment(model:) または autobind でフラグメントを既存 Go 型にバインドする
+		// 場合は、型生成せずバインド型を埋め込む。埋め込みフィールド名はバインド型名。
+		if baseType, name, ok := g.fragmentBinding(sel.Definition); ok {
 			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
 		}
 		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
@@ -172,7 +167,14 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 
 // The typeName passed to the Type argument must be the type name derived from the analysis result, such as from selections
 func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type {
-	goType, err := g.binder.FindTypeFromName(g.cfg.GQLGenConfig.Models[typeName].Model[0])
+	models := g.cfg.GQLGenConfig.Models[typeName].Model
+	if len(models) == 0 {
+		// gqlgen がすべてのスキーマ型にモデルを束縛するため通常は起きないが、
+		// 起きた場合に index out of range ではなく原因の分かるメッセージで失敗させる。
+		panic(fmt.Sprintf("no Go model is bound for GraphQL type %q", typeName))
+	}
+
+	goType, err := g.binder.FindTypeFromName(models[0])
 	if err != nil {
 		// If we pass the correct typeName as per implementation, it should always be found, so we panic if not
 		panic(fmt.Sprintf("%+v", err))
@@ -243,6 +245,17 @@ func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, s
 	}
 
 	return nil, "", false
+}
+
+// fragmentBinding はフラグメントスプレッドをバインドする既存 Go 型を返す。
+// 明示的な @goFragment(model:) ディレクティブを優先し、無ければ autobind による
+// 名前一致を試す。どちらにも該当しなければ ok=false を返し、呼び出し側で型を生成する。
+func (g *GoTypeGenerator) fragmentBinding(def *graphql.FragmentDefinition) (gotypes.Type, string, bool) {
+	if baseType, name, ok := g.boundGoType(def.Directives); ok {
+		return baseType, name, true
+	}
+
+	return g.autobindFragment(def.Name)
 }
 
 func fieldTypeName(parentTypeName, fieldName string, exportQueryType bool) string {
