@@ -146,7 +146,8 @@ gqlgenc:
 
   # bool（デフォルト: false）
   # ネストしたレスポンス型の型名を公開する（UserOperation_User 形式）。false では先頭小文字の非公開型（userOperation_User）。
-  # 通常は false を推奨し、テストなどで生成パッケージの外からレスポンス型のフィールドに値をセットしたい場合だけ true（非公開型は外部パッケージから構築できないため）
+  # 通常は false を推奨し、テストなどで生成パッケージの外からレスポンス型のフィールドに値をセットしたい場合だけ true（非公開型は外部パッケージから構築できないため）。
+  # 単に名前付きの型が欲しいだけなら true にせず、その部分を Fragment として定義することを推奨（Fragment は型名を自分で決められる公開型を生成し、再利用や @goFragment / autobind でのバインドもできる。export_query_type: true はすべてのネスト型を自動命名で公開してしまう）
   export_query_type: false
 
   # bool（デフォルト: false）
