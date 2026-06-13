@@ -183,13 +183,15 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 ### omitzero タグの付与（input / model / query）
 
-`omitzero` json タグの付与は対象の種類によって異なります。`omitzero` はマーシャル（送信）時にしか効かないため、送信される input と、デコード専用のレスポンス型とで扱いが分かれます。
+`omitzero` json タグは、`model_gen.go`（gqlgen modelgen）の **nullable フィールド**に `enable_model_json_omitzero_tag: true` で付与されます（input 型・object 型の両方）。`omitzero` はマーシャル（送信）時にしか効かないため、デコード専用の `query_gen.go` のレスポンス型には付与しません。
 
-| 対象 | `omitzero` | 付与の仕組み | 効果・理由 |
-|---|---|---|---|
-| **input model**（`model_gen.go` の input 型の nullable フィールド） | 付く | `nullable_input_omittable: true` で `graphql.Omittable[T]` 化し、`enable_model_json_omitzero_tag: true` で `omitzero` を付与 | variables として送信されるため意味がある。未設定なら JSON から省略（undefined）し、明示的な null と区別できる（後述の「variables の undefined / null / 値の指定」参照） |
-| **model**（`model_gen.go` の object/出力型の nullable フィールド） | 付く | `enable_model_json_omitzero_tag: true`（gqlgen modelgen の挙動） | gqlgen 標準の挙動。クライアントはレスポンスを query のレスポンス型へデコードするため、出力モデル自体はマーシャルされず実質的な影響は小さい |
-| **query**（`query_gen.go` のレスポンス型） | 付かない | gqlgenc が付与しない | レスポンス型はデコード専用。`omitzero` はマーシャル時にしか効かないため不要 |
+| 対象 | `omitzero` | 理由 |
+|---|---|---|
+| **input model**（`model_gen.go` の input 型の nullable フィールド） | 付く（`enable_model_json_omitzero_tag: true`） | variables として送信されるため意味がある（未設定なら省略 = undefined） |
+| **model**（`model_gen.go` の object/出力型の nullable フィールド） | 付く（`enable_model_json_omitzero_tag: true`） | gqlgen 標準の挙動。クライアントはレスポンスを query のレスポンス型へデコードするため、出力モデル自体はマーシャルされず実質的な影響は小さい |
+| **query**（`query_gen.go` のレスポンス型） | 付かない | レスポンス型はデコード専用で、`omitzero` はマーシャル時にしか効かないため不要 |
+
+`omitzero` の付与は `enable_model_json_omitzero_tag` のみで決まり、`nullable_input_omittable` には依存しません。`nullable_input_omittable` は別の設定で、`true` にすると input の nullable フィールドが `graphql.Omittable[T]` になり、未設定（undefined）/ 明示的な null / 値 を区別できる3状態になります（後述の「variables の undefined / null / 値の指定」参照）。`false` の場合は素のポインタ `*T` + `omitzero` となり、`nil` は省略（undefined）されるため明示的な null は送れず、undefined / 値 の2状態になります。
 
 ### client_gen.go（clientgen）
 
