@@ -27,7 +27,10 @@ func GenerateCode(cfg *config.Config) error {
 
 	// generate template sources
 	operations := codegen.NewOperationGenerator(cfg).CreateOperations(cfg.GQLGencConfig.QueryDocument, cfg.GQLGencConfig.OperationQueryDocuments)
-	goTypes := codegen.NewGoTypeGenerator(cfg).CreateGoTypes(cfg.GQLGencConfig.QueryDocument.Operations)
+	goTypes, err := codegen.NewGoTypeGenerator(cfg).CreateGoTypes(cfg.GQLGencConfig.QueryDocument.Operations)
+	if err != nil {
+		return fmt.Errorf("failed to create go types: %w", err)
+	}
 
 	// querygen
 	if cfg.GQLGencConfig.QueryGen.IsDefined() {

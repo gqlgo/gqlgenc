@@ -20,6 +20,7 @@ type GoTypeGenerator struct {
 	cfg    *config.Config
 	binder *gqlgenconfig.Binder
 	types  map[string]gotypes.Type
+	err    error
 }
 
 func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
@@ -30,13 +31,17 @@ func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
 	}
 }
 
-func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) []gotypes.Type {
+func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) ([]gotypes.Type, error) {
 	for _, operation := range operations {
 		t := g.newFields(operation.Name, operation.SelectionSet).goStructType()
 		g.newGoNamedType(operation.Name, false, t)
 	}
 
-	return g.goTypes()
+	if g.err != nil {
+		return nil, g.err
+	}
+
+	return g.goTypes(), nil
 }
 
 func (g *GoTypeGenerator) goTypes() []gotypes.Type {
@@ -50,6 +55,10 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 	fields := make(Fields, 0, len(selectionSet))
 	for _, selection := range selectionSet {
 		fields = append(fields, g.newField(parentTypeName, selection))
+	}
+
+	if err := fields.checkGoNameCollision(parentTypeName); err != nil && g.err == nil {
+		g.err = err
 	}
 
 	return fields
@@ -248,11 +257,41 @@ func (fs Fields) goStructType() *gotypes.Struct {
 }
 
 func (fs Fields) uniqueByName() Fields {
+	// 異なるセレクション名でも Go フィールド名が衝突し得るため、Go 名でまとめて
+	// go/types.NewStruct の panic を防ぐ (衝突は checkGoNameCollision がエラーにする)
 	fieldMapByName := make(map[string]*Field, len(fs))
 	for _, field := range fs {
-		fieldMapByName[field.Name] = field
+		fieldMapByName[templates.ToGo(field.Name)] = field
 	}
 	return slices.SortedFunc(maps.Values(fieldMapByName), func(a *Field, b *Field) int {
 		return strings.Compare(a.Name, b.Name)
 	})
+}
+
+// checkGoNameCollision は、異なるセレクション名が同じ Go フィールド名に変換される
+// 衝突を検出する (例: foo_bar と fooBar はどちらも FooBar になる)。
+// 衝突はクエリ側で alias を付けることでしか解消できないため、エラーとして報告する。
+func (fs Fields) checkGoNameCollision(parentTypeName string) error {
+	if parentTypeName == "" {
+		parentTypeName = "inline fragment"
+	}
+
+	rawNamesByGoName := make(map[string][]string, len(fs))
+	for _, field := range fs {
+		goName := templates.ToGo(field.Name)
+		if !slices.Contains(rawNamesByGoName[goName], field.Name) {
+			rawNamesByGoName[goName] = append(rawNamesByGoName[goName], field.Name)
+		}
+	}
+
+	for _, goName := range slices.Sorted(maps.Keys(rawNamesByGoName)) {
+		rawNames := rawNamesByGoName[goName]
+		if len(rawNames) < 2 {
+			continue
+		}
+		slices.Sort(rawNames)
+		return fmt.Errorf("fields %s in %s map to the same Go field name %q: add an alias to one of them in the query", strings.Join(rawNames, " and "), parentTypeName, goName)
+	}
+
+	return nil
 }

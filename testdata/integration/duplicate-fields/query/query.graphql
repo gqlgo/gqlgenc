@@ -1,0 +1,6 @@
+query GetObject {
+  object {
+    foo_bar
+    fooBar
+  }
+}

@@ -240,6 +240,12 @@ func Test_IntegrationTest(t *testing.T) {
 			testDir: "testdata/integration/circular-fragments/",
 			wantErr: true,
 		},
+		{
+			// foo_bar と fooBar が同じ Go フィールド名 FooBar になる衝突 (gqlgo/gqlgenc#108)
+			name:    "duplicate fields test - should fail due to Go field name collision",
+			testDir: "testdata/integration/duplicate-fields/",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

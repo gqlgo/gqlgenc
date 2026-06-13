@@ -1,0 +1,8 @@
+type Query {
+  object: Object
+}
+
+type Object {
+  foo_bar: String
+  fooBar: String
+}

@@ -1,0 +1,16 @@
+gqlgenc:
+  query:
+    - ./query/*.graphql
+  querygen:
+    filename: ./domain/query_gen.go
+  clientgen:
+    filename: ./query/client_gen.go
+  export_query_type: true
+gqlgen:
+  schema:
+    - ./schema/*.graphql
+  model:
+    filename: ./domain/model_gen.go
+  enable_model_json_omitempty_tag: true
+  enable_model_json_omitzero_tag: true
+  nullable_input_omittable: true
