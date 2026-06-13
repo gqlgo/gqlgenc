@@ -318,7 +318,7 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 | 生成のカスタマイズ | 設定より規約。オプションは最小限で、型のバインドは gqlgen の `models` / `autobind` / `@goField` を利用する | `@genqlient` コメントディレクティブ（`pointer` / `alias` / `typename` / `flatten` / `struct` / `bind` / `for` など）と YAML オプション（`casing` / `context_type` / `client_getter` など）で細かく制御できる |
 | カスタムスカラー | gqlgen の `models` バインド | `bindings` / `package_bindings` |
 | ファイルアップロード | `graphql.Upload` を含む variables を自動で multipart リクエストにする（[graphql-multipart-request-spec](https://github.com/jaydenseric/graphql-multipart-request-spec)） | 非対応 |
-| subscription | 非対応 | WebSocket（`graphql-transport-ws` ほか）で対応 |
+| subscription | WebSocket（`graphql-transport-ws`）で対応。`Subscribe` メソッドが `iter.Seq2[*Res, error]` を返す | WebSocket（`graphql-transport-ws` ほか）で対応 |
 | HTTP | POST のみ。`Accept` ヘッダーで `application/graphql-response+json` をネゴシエーションし、gzip レスポンスを透過的に展開する | POST と GET（`NewClientUsingGet`）。`application/json` のみ |
 
-設計思想としては、gqlgenc はサーバーを gqlgen で実装しているプロジェクトとの親和性を重視しています。gqlgen の設定・モデル生成・`Omittable` をそのまま使えるため、サーバー側と同じ Go 型（`autobind`）やスキーマ定義を共有できます。genqlient は単体で完結したツールで、ディレクティブによる生成コードの細かい制御や subscription 対応に強みがあります。
+設計思想としては、gqlgenc はサーバーを gqlgen で実装しているプロジェクトとの親和性を重視しています。gqlgen の設定・モデル生成・`Omittable` をそのまま使えるため、サーバー側と同じ Go 型（`autobind`）やスキーマ定義を共有できます。また json/v2 と Go 1.27 の generic methods・イテレータを前提に、実行 API を `client.Operation` 値 + ジェネリックな `Post` / `Subscribe` に統一しています。genqlient は gqlgen に依存しない単体で完結したツールで、`@genqlient` ディレクティブによる生成コードの細かい制御に強みがあります。
