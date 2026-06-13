@@ -105,7 +105,7 @@ func main() {
 
 	c := client.NewClient("https://api.example.com/graphql")
 
-	res, err := client.Post(ctx, c, query.GetUserOp, query.GetUserVars{ID: "user-1"})
+	res, err := c.Post(ctx, query.GetUserOp, query.GetUserVars{ID: "user-1"})
 	if err != nil {
 		// エラー処理
 	}
@@ -178,7 +178,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 ### client_gen.go（clientgen）
 
-オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します。実行は `client.Post` で行い、変数名や型のミスはコンパイルエラーになります。
+オペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します。実行は `Post` メソッドで行い、変数名や型のミスはコンパイルエラーになります。
 
 ```go
 type UserOperationVars struct {
@@ -193,7 +193,7 @@ var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
 ```
 
 ```go
-res, err := client.Post(ctx, c, query.UserOperationOp, query.UserOperationVars{
+res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 	ArticleID: "article-1",
 	Size:      &size,
 })
@@ -206,7 +206,7 @@ res, err := client.Post(ctx, c, query.UserOperationOp, query.UserOperationVars{
 - `client.NewClient(endpoint string, options ...Option) *Client`
 - `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
 - `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
-- `client.Operation[Vars, Res]` / `client.Post(ctx, c, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行する
+- `client.Operation[Vars, Res]` / `(*Client).Post[Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）
 
 ### リクエスト仕様
 
@@ -224,7 +224,7 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 - `Content-Encoding: gzip` のレスポンスは透過的に展開される
 - レスポンスボディを1パスで走査し、`data` は生成されたレスポンス型へ直接デコードし、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする
 - エラー時は `ErrorResponse` が返り、`errors.As` で `*client.HTTPError`（HTTP ステータス異常）や `gqlerror.List`（GraphQL エラー）を取り出せる
-- GraphQL エラー時もデコード済みの部分データが `client.Post` の戻り値として返る（GraphQL は data と errors の共存を許すため）
+- GraphQL エラー時もデコード済みの部分データが `Post` の戻り値として返る（GraphQL は data と errors の共存を許すため）
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
 
 ### null と undefined の区別

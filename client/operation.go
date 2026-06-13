@@ -22,7 +22,7 @@ type Operation[Vars, Res any] struct {
 //
 // Variables containing graphql.Upload values are sent as a
 // multipart/form-data request following the GraphQL multipart request spec.
-func Post[Vars, Res any](ctx context.Context, c *Client, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
+func (c *Client) Post[Vars, Res any](ctx context.Context, op Operation[Vars, Res], vars Vars, options ...Option) (*Res, error) {
 	cc := *c
 	for _, option := range options {
 		option(&cc)

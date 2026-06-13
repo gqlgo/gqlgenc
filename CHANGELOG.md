@@ -146,9 +146,9 @@ type UserOperation_User_User struct {
 
 - querygen はフラグメントを含む型にのみ `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）を生成します。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドとインラインフラグメント（`__typename` による型判別）だけを追加でデコードします。フラグメントを含まない型はメソッドを生成せず、デフォルトデコードで処理されます。リフレクションベースのランタイム汎用デコーダ（旧 graphqljson）は不要になりました
 
-#### 型付きオペレーションと client.Post
+#### 型付きオペレーションと Client.Post
 
-- clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`client.Post` で実行できます。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
+- clientgen がオペレーションごとに型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation[Vars, Res]` 値（`<オペレーション名>Op`）を生成し、`Client.Post` メソッドで実行できます。メソッドの型パラメータには Go 1.27 の generic methods（[golang/go#77273](https://github.com/golang/go/issues/77273)）を使用しています。variables の変数名・型のミスをコンパイル時に検出でき、全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書けます
 
 #### undefined / null の区別（Omittable / omitzero）
 
@@ -163,7 +163,7 @@ type UserOperation_User_User struct {
 
 - スキーマの `@goField(type: "...")` で指定したカスタム Go 型を、クエリレスポンス型のフィールドにも反映します
 
-- エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
+- エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 
 ### 内部改善
 

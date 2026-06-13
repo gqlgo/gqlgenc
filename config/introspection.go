@@ -15,7 +15,7 @@ import (
 func introspectionSchema(ctx context.Context, httpClient *http.Client, endpoint string, header http.Header) (*ast.Schema, error) {
 	gqlgencClient := client.NewClient(endpoint, client.WithHTTPClient(httpClient), client.WithHTTPHeader(header))
 
-	res, err := client.Post(ctx, gqlgencClient, client.Operation[any, introspection.Query]{
+	res, err := gqlgencClient.Post(ctx, client.Operation[any, introspection.Query]{
 		Name:     "Query",
 		Document: introspection.Introspection,
 	}, nil)

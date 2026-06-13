@@ -170,7 +170,7 @@ func TestPost(t *testing.T) {
 
 			c := NewClient("https://example.com/graphql", WithHTTPClient(httpClient))
 
-			got, err := Post(t.Context(), c, tt.args.op, tt.args.vars, tt.args.options...)
+			got, err := c.Post(t.Context(), tt.args.op, tt.args.vars, tt.args.options...)
 
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("error diff(-want +got): %s", diff)

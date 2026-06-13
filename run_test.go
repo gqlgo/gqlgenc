@@ -281,7 +281,7 @@ func Test_IntegrationTest(t *testing.T) {
 				size := 100
 				userID := "1"
 				userStatus := domain.StatusActive
-				userOperation, err := client.Post(ctx, rawClient, query.UserOperationOp, query.UserOperationVars{
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
 					Size:       &size,
@@ -298,7 +298,7 @@ func Test_IntegrationTest(t *testing.T) {
 			// Test field argument default values (schema-level defaults)
 			{
 				size := 100
-				userOperation, err := client.Post(ctx, rawClient, query.UserOperationOp, query.UserOperationVars{
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
 					Size:       &size,
@@ -320,7 +320,7 @@ func Test_IntegrationTest(t *testing.T) {
 					ID:   "1",
 					Name: graphql.OmittableOf[*string](nil),
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -333,7 +333,7 @@ func Test_IntegrationTest(t *testing.T) {
 					ID:   "1",
 					Name: graphql.Omittable[*string]{},
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -346,7 +346,7 @@ func Test_IntegrationTest(t *testing.T) {
 					ID:   "1",
 					Name: graphql.OmittableOf[*string](ptr("Sam Smith")),
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -364,7 +364,7 @@ func Test_IntegrationTest(t *testing.T) {
 						Notifications: true,
 					}),
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -384,7 +384,7 @@ func Test_IntegrationTest(t *testing.T) {
 					Name:     graphql.OmittableOf[*string](ptr("Test User")),
 					Settings: graphql.OmittableOf[*domain.UserSettingsInput](nil),
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
@@ -398,7 +398,7 @@ func Test_IntegrationTest(t *testing.T) {
 					Name:     graphql.OmittableOf[*string](ptr("Test User")),
 					Settings: graphql.Omittable[*domain.UserSettingsInput]{},
 				}
-				updateUser, err := client.Post(ctx, rawClient, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
