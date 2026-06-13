@@ -255,8 +255,9 @@ for res, err := range c.Subscribe(ctx, query.OnMessageOp, query.OnMessageVars{Ro
 }
 ```
 
-- 接続は呼び出しごとに開かれ、サーバーの `complete`、`error`、または `ctx` の完了で終了します（`range` を抜けた時点でも接続を閉じます）
+- 接続は呼び出しごとに開かれ、サーバーの `complete`、`error`、WebSocket の正常クローズ（1000 / 1001）、または `ctx` の完了で終了します（`range` を抜けた時点でも接続を閉じます）。`complete` を送らずに正常クローズするサーバーでもエラーにはなりません
 - `ctx` がキャンセルされた場合、イテレータはキャンセルエラーを yield せずに終了します
+- ハンドシェイク中（`connection_ack` 待ち）にサーバーが `ping` を送ってきても、`pong` で応答して `connection_ack` を待ち続けます
 - `query`/`mutation` と同じ `client.Operation` 値（`<オペレーション名>Op`）をそのまま使えます。clientgen は subscription も他のオペレーションと同じく `<オペレーション名>Vars` / `<オペレーション名>Op` を生成します
 
 ### 操作種別と型安全

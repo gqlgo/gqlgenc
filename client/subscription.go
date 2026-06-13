@@ -87,6 +87,11 @@ func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subs
 				if ctx.Err() != nil {
 					return
 				}
+				// サーバーが complete を送らずに WebSocket を正常クローズした場合は、
+				// エラーではなく完了として扱う。
+				if status := websocket.CloseStatus(err); status == websocket.StatusNormalClosure || status == websocket.StatusGoingAway {
+					return
+				}
 				yield(nil, fmt.Errorf("failed to read message: %w", err))
 				return
 			}
@@ -120,15 +125,24 @@ func (c *Client) handshake(ctx context.Context, conn *websocket.Conn) error {
 		return fmt.Errorf("failed to send connection_init: %w", err)
 	}
 
-	msg, err := readWSMessage(ctx, conn)
-	if err != nil {
-		return fmt.Errorf("failed to read connection_ack: %w", err)
+	// connection_ack を待つ。graphql-transport-ws では ping はいつでも送られうるため、
+	// ack より前に来た場合は pong で応答して待ち続ける。
+	for {
+		msg, err := readWSMessage(ctx, conn)
+		if err != nil {
+			return fmt.Errorf("failed to read connection_ack: %w", err)
+		}
+		switch msg.Type {
+		case wsConnectionAck:
+			return nil
+		case wsPing:
+			if err := writeWSMessage(ctx, conn, wsMessage{Type: wsPong}); err != nil {
+				return fmt.Errorf("failed to send pong: %w", err)
+			}
+		default:
+			return fmt.Errorf("expected connection_ack, got %q", msg.Type)
+		}
 	}
-	if msg.Type != wsConnectionAck {
-		return fmt.Errorf("expected connection_ack, got %q", msg.Type)
-	}
-
-	return nil
 }
 
 // writeSubscribe sends a subscribe message carrying the GraphQL request.

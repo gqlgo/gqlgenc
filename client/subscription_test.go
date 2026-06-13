@@ -17,8 +17,10 @@ import (
 // It accepts a connection, expects connection_init, replies connection_ack,
 // then on subscribe streams the given next payloads followed by complete.
 type fakeGraphQLWSServer struct {
-	nextPayloads []string
-	errorPayload string
+	nextPayloads         []string
+	errorPayload         string
+	pingBeforeAck        bool
+	closeWithoutComplete bool
 }
 
 func (s fakeGraphQLWSServer) handler(t *testing.T) http.HandlerFunc {
@@ -41,6 +43,20 @@ func (s fakeGraphQLWSServer) handler(t *testing.T) http.HandlerFunc {
 			t.Errorf("expected connection_init, got %q (err: %v)", init.Type, err)
 			return
 		}
+
+		// connection_ack の前に ping を送り、クライアントが pong で応答することを確認する。
+		if s.pingBeforeAck {
+			if err := writeWSMessage(ctx, conn, wsMessage{Type: wsPing}); err != nil {
+				t.Errorf("write ping: %v", err)
+				return
+			}
+			pong, err := readWSMessage(ctx, conn)
+			if err != nil || pong.Type != wsPong {
+				t.Errorf("expected pong, got %q (err: %v)", pong.Type, err)
+				return
+			}
+		}
+
 		if err := writeWSMessage(ctx, conn, wsMessage{Type: wsConnectionAck}); err != nil {
 			t.Errorf("write ack: %v", err)
 			return
@@ -62,6 +78,12 @@ func (s fakeGraphQLWSServer) handler(t *testing.T) http.HandlerFunc {
 		if s.errorPayload != "" {
 			msg := wsMessage{Type: wsError, ID: sub.ID, Payload: jsontext.Value(s.errorPayload)}
 			_ = writeWSMessage(ctx, conn, msg)
+			return
+		}
+
+		// complete を送らずに WebSocket を正常クローズ(1000)するサーバーを模倣する。
+		if s.closeWithoutComplete {
+			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		}
 
@@ -121,6 +143,35 @@ func TestClient_Subscribe(t *testing.T) {
 			want: want{
 				values:  []int{1},
 				wantErr: true,
+			},
+		},
+		{
+			// complete を送らずに正常クローズ(1000)された場合は完了として扱う
+			name: "completeなしの正常クローズで完了として扱う",
+			fields: fields{
+				server: fakeGraphQLWSServer{
+					nextPayloads: []string{
+						`{"data":{"value":1}}`,
+						`{"data":{"value":2}}`,
+					},
+					closeWithoutComplete: true,
+				},
+			},
+			want: want{
+				values: []int{1, 2},
+			},
+		},
+		{
+			// handshake 中に ack より前に ping が来ても pong で応答して継続する
+			name: "handshake中のpingに応答して継続する",
+			fields: fields{
+				server: fakeGraphQLWSServer{
+					nextPayloads:  []string{`{"data":{"value":1}}`},
+					pingBeforeAck: true,
+				},
+			},
+			want: want{
+				values: []int{1},
 			},
 		},
 	}
