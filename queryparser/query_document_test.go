@@ -309,7 +309,7 @@ func TestInjectTypenames(t *testing.T) {
 	}
 }
 
-func TestExtendGoModelLocations(t *testing.T) {
+func TestInjectGoFragmentDirective(t *testing.T) {
 	t.Parallel()
 
 	type want struct {
@@ -323,8 +323,8 @@ func TestExtendGoModelLocations(t *testing.T) {
 		want   want
 	}{
 		{
-			// @goModel が型システム用ロケーションで宣言済み → クエリ用を追加する
-			name: "既存の@goModel定義にクエリ用ロケーションを追加する",
+			// スキーマに gqlgen の @goModel があっても @goFragment を別途注入する
+			name: "既存の@goModel定義があっても@goFragmentを注入する",
 			schema: `
 				directive @goModel(model: String) on OBJECT | INPUT_OBJECT
 				type Query { node: Node }
@@ -337,8 +337,8 @@ func TestExtendGoModelLocations(t *testing.T) {
 			},
 		},
 		{
-			// @goModel が未宣言 → 定義ごと注入する
-			name: "@goModelが未宣言なら定義を注入する",
+			// @goFragment が未宣言 → 定義ごと注入する
+			name: "@goFragmentが未宣言なら定義を注入する",
 			schema: `
 				type Query { node: Node }
 				interface Node { id: ID! }
@@ -356,11 +356,11 @@ func TestExtendGoModelLocations(t *testing.T) {
 			t.Parallel()
 
 			schema := gqlparser.MustLoadSchema(&ast.Source{Input: tt.schema})
-			extendGoModelLocations(schema)
+			injectGoFragmentDirective(schema)
 
-			directive := schema.Directives[goModelDirectiveName]
+			directive := schema.Directives[goFragmentDirectiveName]
 			if directive == nil {
-				t.Fatal("goModel directive is nil")
+				t.Fatal("goFragment directive is nil")
 			}
 
 			gotFragmentDefinition := slices.Contains(directive.Locations, ast.LocationFragmentDefinition)

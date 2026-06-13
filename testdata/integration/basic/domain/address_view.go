@@ -1,7 +1,7 @@
 package domain
 
 // AddressView is a hand-written type bound to the PublicAddressFields fragment
-// via the @goModel directive in the query, instead of a generated type.
+// via the @goFragment directive in the query, instead of a generated type.
 type AddressView struct {
 	ID     string `json:"id"`
 	Street string `json:"street"`

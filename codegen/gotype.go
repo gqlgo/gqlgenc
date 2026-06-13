@@ -69,7 +69,7 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {
 	switch sel := selection.(type) {
 	case *graphql.Field:
-		// @goModel(model:) でフィールド選択を既存 Go 型にバインドする場合は、
+		// @goFragment(model:) でフィールド選択を既存 Go 型にバインドする場合は、
 		// 選択セットを再帰せずバインド型をそのまま使う。
 		if baseType, _, ok := g.boundGoType(sel.Directives); ok {
 			t := g.newObjectGoType(baseType, sel.Definition.Type)
@@ -80,7 +80,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		return newField(typeKind, t, sel.Alias, tags)
 	case *graphql.FragmentSpread:
-		// @goModel(model:) でフラグメントを既存 Go 型にバインドする場合は、
+		// @goFragment(model:) でフラグメントを既存 Go 型にバインドする場合は、
 		// 型生成せずバインド型を埋め込む。埋め込みフィールド名はバインド型名。
 		if baseType, name, ok := g.boundGoType(sel.Definition.Directives); ok {
 			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
@@ -180,39 +180,39 @@ func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type
 	return goType
 }
 
-// boundGoType は @goModel(model:) ディレクティブがあればバインド先の Go 型と
+// boundGoType は @goFragment(model:) ディレクティブがあればバインド先の Go 型と
 // その非修飾名を返す。フラグメントやフィールド選択を既存 Go 型にバインドするために使う。
 //
 // 戻り値:
 //   - gotypes.Type: バインド先の Go 型（要素型。リスト/NonNull の包みは呼び出し側で行う）
 //   - string: バインド先型の非修飾名（埋め込みフィールド名に使う）
-//   - bool: @goModel が付いている場合は true
+//   - bool: @goFragment が付いている場合は true
 func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes.Type, string, bool) {
-	directive := directives.ForName(goModelDirectiveName)
+	directive := directives.ForName(goFragmentDirectiveName)
 	if directive == nil {
 		return nil, "", false
 	}
 
-	arg := directive.Arguments.ForName(goModelArgModel)
+	arg := directive.Arguments.ForName(goFragmentArgModel)
 	if arg == nil {
 		return nil, "", false
 	}
 
 	value, err := arg.Value.Value(nil)
 	if err != nil {
-		g.err = fmt.Errorf("@goModel: %w", err)
+		g.err = fmt.Errorf("@goFragment: %w", err)
 		return nil, "", false
 	}
 
 	modelName, ok := value.(string)
 	if !ok {
-		g.err = errors.New("@goModel: model argument must be a string")
+		g.err = errors.New("@goFragment: model argument must be a string")
 		return nil, "", false
 	}
 
 	goType, err := g.binder.FindTypeFromName(modelName)
 	if err != nil {
-		g.err = fmt.Errorf("@goModel: failed to resolve %q: %w", modelName, err)
+		g.err = fmt.Errorf("@goFragment: failed to resolve %q: %w", modelName, err)
 		return nil, "", false
 	}
 
@@ -340,10 +340,10 @@ func (fs Fields) checkGoNameCollision(parentTypeName string) error {
 	return nil
 }
 
-// goModelDirectiveName / goModelArgModel は @goModel(model:) の名前。
+// goFragmentDirectiveName / goFragmentArgModel は @goFragment(model:) の名前。
 const (
-	goModelDirectiveName = "goModel"
-	goModelArgModel      = "model"
+	goFragmentDirectiveName = "goFragment"
+	goFragmentArgModel      = "model"
 )
 
 // goTypeName はバインド先 Go 型の非修飾名を返す（埋め込みフィールド名に使う）。

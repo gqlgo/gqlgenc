@@ -175,7 +175,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 - フラグメント対応:
   - フラグメントスプレッドは `json:"-"` 付きの埋め込み構造体として表現し、UnmarshalJSONFrom 内で同じ JSON データから直接デコードする
   - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする。`__typename` がクエリに無くても、インラインフラグメントを含む選択セットには生成時に `__typename` を自動で追加するため、interface / union のデコードが常に動作する
-  - フラグメント定義やフィールド選択に `@goModel(model: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goModel(model: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goModel` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
+  - フラグメント定義やフィールド選択に `@goFragment(model: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goFragment(model: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goFragment` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
 - `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
 - クエリドキュメント定数（`<オペレーション名>Document`）
 
@@ -390,7 +390,7 @@ genqlient の設定オプションや `@genqlient` ディレクティブを、gq
 |---|---|---|
 | `pointer: true` | フィールドを `*T`（nullable）に | スキーマ側 `@goField(omittable: true)` / `models` の型指定。クエリ単位の指定は不可（スキーマ駆動） |
 | `omitempty: true` | json タグに omitempty | `gqlgen.enable_model_json_omitzero_tag: true`（json/v2 の `omitzero`） |
-| `bind: "..."` | フィールド/フラグメントを特定 Go 型にバインド | スキーマ側は `@goField(type: "...")`、クエリ側はフラグメント定義/フィールドに `@goModel(model: "...")` |
+| `bind: "..."` | フィールド/フラグメントを特定 Go 型にバインド | スキーマ側は `@goField(type: "...")`、クエリ側はフラグメント定義/フィールドに `@goFragment(model: "...")` |
 | `alias: ...` | レスポンス型のフィールド名変更 | クエリで GraphQL の alias を使う（`foo: bar`） |
 | `flatten` | フラグメントの中間型を省略して埋め込み | フラグメントスプレッドは常に埋め込みで生成（既定で flatten 相当） |
 | `struct: true` | 名前付き型でなく無名構造体を生成 | 非対応（生成方式は規約で固定） |
