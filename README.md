@@ -121,30 +121,30 @@ func main() {
 
 ### gqlgenc セクション
 
-| キー | 型 | 説明 |
-|---|---|---|
-| `query` | `[]string` | クエリファイルのパス（glob 可） |
-| `querygen` | `filename` / `package` | レスポンス型・UnmarshalJSON・クエリドキュメント定数の生成先。`package` 省略時はディレクトリ名から導出 |
-| `clientgen` | `filename` / `package` | 型付き variables 構造体と `client.Operation` 値の生成先。指定する場合は `querygen` の指定も必須 |
-| `endpoint` | `url` / `headers` | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
-| `export_query_type` | `bool` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。デフォルトの false では先頭が小文字の非公開型（`userOperation_User`）になる。通常は false を推奨し、テストなどで生成パッケージの外からレスポンス型の構造体フィールドに値をセットしたい場合だけ true にする（非公開型は外部パッケージから構築できないため） |
-| `generate_getters` | `bool` | レスポンス型に nil セーフな getter メソッドを生成する。デフォルト false（生成しない）。true で各フィールドに `Get<フィールド>()` を生成する |
-| `autobind` | `[]string` | フラグメント名と同名の Go 型が指定パッケージにあれば、レスポンス型を生成せずその既存 Go 型にバインドする（`@goFragment` のパッケージ指定版）。gqlgen の `autobind`（サーバーモデル用）とは独立した設定 |
+| キー | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `query` | `[]string` | なし | クエリファイルのパス（glob 可） |
+| `querygen` | `filename` / `package` | なし | レスポンス型・UnmarshalJSON・クエリドキュメント定数の生成先。`package` 省略時はディレクトリ名から導出 |
+| `clientgen` | `filename` / `package` | なし | 型付き variables 構造体と `client.Operation` 値の生成先。指定する場合は `querygen` の指定も必須 |
+| `endpoint` | `url` / `headers` | なし | イントロスペクションでスキーマを取得するエンドポイント。`gqlgen.schema` と排他 |
+| `export_query_type` | `bool` | `false` | ネストしたレスポンス型の型名を公開する（`UserOperation_User` 形式）。false では先頭が小文字の非公開型（`userOperation_User`）になる。通常は false を推奨し、テストなどで生成パッケージの外からレスポンス型の構造体フィールドに値をセットしたい場合だけ true にする（非公開型は外部パッケージから構築できないため） |
+| `generate_getters` | `bool` | `false` | レスポンス型に nil セーフな getter メソッドを生成する。true で各フィールドに `Get<フィールド>()` を生成する |
+| `autobind` | `[]string` | なし | フラグメント名と同名の Go 型が指定パッケージにあれば、レスポンス型を生成せずその既存 Go 型にバインドする（`@goFragment` のパッケージ指定版）。gqlgen の `autobind`（サーバーモデル用）とは独立した設定 |
 
 ### gqlgen セクション
 
-gqlgen の `codegen/config.Config` をそのまま埋め込んでいるため、gqlgen と同じ設定が使えます。主なもの:
+gqlgen の `codegen/config.Config` をそのまま埋め込んでいるため、gqlgen と同じ設定が使えます。gqlgenc は gqlgen の `DefaultConfig()` を適用せず YAML を直接読み込むため、省略したフィールドは Go のゼロ値になります（gqlgen 単体のデフォルトと異なる場合があります）。主なもの:
 
-| キー | 説明 |
-|---|---|
-| `schema` | スキーマファイルのパス（glob 可、`**` 対応）。`gqlgenc.endpoint` と排他 |
-| `model` | gqlgen modelgen による model_gen.go の生成先。省略するとモデル生成をスキップする（サーバー側で gqlgen が生成したモデルを `autobind` で使う場合） |
-| `models` | GraphQL 型と Go 型のバインド設定 |
-| `autobind` | 指定パッケージから同名の Go 型を自動バインド |
-| `federation.version` | Apollo Federation ディレクティブを含むスキーマへの対応 |
-| `enable_model_json_omitzero_tag` | モデルの json タグに omitzero を付与 |
-| `nullable_input_omittable` | nullable な input フィールドを `graphql.Omittable` にして null / undefined を区別 |
-| `struct_fields_always_pointers` | モデルのフィールドを常にポインタにするか |
+| キー | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `schema` | `[]string` | なし | スキーマファイルのパス（glob 可、`**` 対応）。`gqlgenc.endpoint` と排他 |
+| `model` | `filename` / `package` | なし | gqlgen modelgen による model_gen.go の生成先。省略するとモデル生成をスキップする（サーバー側で gqlgen が生成したモデルを `autobind` で使う場合） |
+| `models` | マップ | なし | GraphQL 型と Go 型のバインド設定 |
+| `autobind` | `[]string` | なし | 指定パッケージから同名の Go 型を自動バインド |
+| `federation.version` | `int` | `0`（無効） | Apollo Federation ディレクティブを含むスキーマへの対応 |
+| `enable_model_json_omitzero_tag` | `bool` | 付与 | モデルの nullable フィールドの json タグに omitzero を付与。gqlgenc では未指定でも付与される（未設定の `*bool` を付与扱いするため）。`false` で無効化できる |
+| `nullable_input_omittable` | `bool` | `false` | nullable な input フィールドを `graphql.Omittable` にして null / undefined を区別 |
+| `struct_fields_always_pointers` | `bool` | `false` | モデルのフィールドを常にポインタにするか（gqlgenc は `false` 前提） |
 
 なお `directives` / `exec` / `resolver` / `federation` の生成先設定はクライアント生成では使用しないため、内部で固定値に上書きされます。
 
