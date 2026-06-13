@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"bytes"
-	"fmt"
 	gotypes "go/types"
 	"slices"
 	"strings"
@@ -28,26 +27,15 @@ func NewOperationGenerator(cfg *config.Config) *OperationGenerator {
 }
 
 func (g *OperationGenerator) CreateOperations(queryDocument *graphql.QueryDocument, operationQueryDocuments []*graphql.QueryDocument) []*Operation {
-	operationArgsMap := g.operationArgsMapByOperationName(queryDocument)
 	queryDocumentsMap := queryDocumentMapByOperationName(operationQueryDocuments)
 
 	operations := make([]*Operation, 0, len(queryDocument.Operations))
 	for _, operation := range queryDocument.Operations {
-		operationQueryDocument := queryDocumentsMap[operation.Name]
-		args := operationArgsMap[operation.Name]
-		operations = append(operations, newOperation(operation, operationQueryDocument, args))
+		args := g.operationArguments(operation.VariableDefinitions)
+		operations = append(operations, newOperation(operation, queryDocumentsMap[operation.Name], args))
 	}
 
 	return operations
-}
-
-func (g *OperationGenerator) operationArgsMapByOperationName(queryDocument *graphql.QueryDocument) map[string][]*OperationArgument {
-	operationArgsMap := make(map[string][]*OperationArgument)
-	for _, operation := range queryDocument.Operations {
-		operationArgsMap[operation.Name] = g.operationArguments(operation.VariableDefinitions)
-	}
-
-	return operationArgsMap
 }
 
 func (g *OperationGenerator) operationArguments(variableDefinitions graphql.VariableDefinitionList) []*OperationArgument {
@@ -63,16 +51,7 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 }
 
 func (g *OperationGenerator) findGoTypeName(typeName string, nonNull bool) gotypes.Type {
-	goType, err := g.binder.FindTypeFromName(g.cfg.GQLGenConfig.Models[typeName].Model[0])
-	if err != nil {
-		// If we pass the correct typeName as per implementation, it should always be found, so we panic if not
-		panic(fmt.Sprintf("%+v", err))
-	}
-	if !nonNull {
-		goType = gotypes.NewPointer(goType)
-	}
-
-	return goType
+	return resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
 }
 
 func queryDocumentMapByOperationName(queryDocuments []*graphql.QueryDocument) map[string]*graphql.QueryDocument {
@@ -160,6 +139,6 @@ func stripGoFragmentInSelectionSet(selectionSet graphql.SelectionSet) {
 
 func removeGoFragmentDirective(directives graphql.DirectiveList) graphql.DirectiveList {
 	return slices.DeleteFunc(directives, func(d *graphql.Directive) bool {
-		return d.Name == "goFragment"
+		return d.Name == goFragmentDirectiveName
 	})
 }
