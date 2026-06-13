@@ -221,6 +221,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - クエリドキュメント定数（`<オペレーション名>Document`）をミニファイ（1行・最小空白）して生成するようにしました。リクエストごとに送信されるクエリ文字列のサイズを削減します。GraphQL は空白に意味がなく、文字列リテラルはエスケープされて正規化されるため、ミニファイしても意味は変わりません
 - Subscription（WebSocket）のテストを Go 1.27 の `testing/synctest` + `httptest.NewTestServer`（インメモリネットワーク）で書き換え、実ネットワーク接続と実時間待ちを排除して決定的にしました（間欠的な失敗を解消）
 - HTTP レスポンス解析（`ParseResponse`）を整理しました。gzip リーダーを `defer` で確実に閉じ、引数の `*http.Response` を破壊的に書き換えないようにし、正常レスポンス時の不要なエラー構造体のアロケーションを削減しました
+- ファイルアップロード（multipart）のリクエストボディを `io.Pipe` でストリーミング送信するようにし、ファイル本体をメモリに溜め込まないようにしました。あわせて各ファイルパートの `Content-Type` に `Upload.ContentType` を反映します（未指定時は `application/octet-stream`）
 
 ### 未対応の機能
 

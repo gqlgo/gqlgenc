@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
@@ -9,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strconv"
 	"strings"
 
@@ -58,21 +58,54 @@ func (c *uploadCollector) collect(upload graphql.Upload, pointer jsontext.Pointe
 	c.paths = append(c.paths, strings.ReplaceAll(strings.TrimPrefix(string(pointer), "/"), "/", "."))
 }
 
+// quoteEscaper は MIME ヘッダーのクォート内で特別扱いされる文字をエスケープする。
+// mime/multipart 本体が form フィールドに対して行うエスケープと同じ規則。
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
 // newMultipartRequest は graphql-multipart-request-spec に従った
-// multipart/form-data リクエストを構築する。
+// multipart/form-data リクエストを構築する。ボディは io.Pipe 経由でストリーミングし、
+// ファイル本体をメモリに溜め込まずに送信する。書き込み中のエラーは io.Pipe を通じて
+// 送信側に伝播し、リクエストはそのエラーで失敗する。
 // https://github.com/jaydenseric/graphql-multipart-request-spec
 // https://gqlgen.com/reference/file-upload/
 func newMultipartRequest(ctx context.Context, endpoint string, operations []byte, uploads *uploadCollector) (*http.Request, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+	contentType := writer.FormDataContentType()
 
-	operationsWriter, err := writer.CreateFormField("operations")
+	go func() {
+		if err := writeMultipartBody(writer, operations, uploads); err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
+		if err := writer.Close(); err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("close multipart writer: %w", err))
+			return
+		}
+		pw.Close()
+	}()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
 	if err != nil {
-		return nil, fmt.Errorf("create form field operations: %w", err)
+		return nil, fmt.Errorf("create request struct failed: %w", err)
 	}
 
+	req.Header = http.Header{
+		headerContentType: []string{contentType},
+		headerAccept:      []string{acceptGraphQLResponse, contentTypeJSON},
+	}
+
+	return req, nil
+}
+
+// writeMultipartBody は operations / map / 各ファイルパートを multipart writer に書き込む。
+func writeMultipartBody(writer *multipart.Writer, operations []byte, uploads *uploadCollector) error {
+	operationsWriter, err := writer.CreateFormField("operations")
+	if err != nil {
+		return fmt.Errorf("create form field operations: %w", err)
+	}
 	if _, err := operationsWriter.Write(operations); err != nil {
-		return nil, fmt.Errorf("write operations: %w", err)
+		return fmt.Errorf("write operations: %w", err)
 	}
 
 	mapping := make(map[string][]string, len(uploads.paths))
@@ -82,37 +115,40 @@ func newMultipartRequest(ctx context.Context, endpoint string, operations []byte
 
 	mapWriter, err := writer.CreateFormField("map")
 	if err != nil {
-		return nil, fmt.Errorf("create form field map: %w", err)
+		return fmt.Errorf("create form field map: %w", err)
 	}
-
 	if err := json.MarshalWrite(mapWriter, mapping); err != nil {
-		return nil, fmt.Errorf("encode map: %w", err)
+		return fmt.Errorf("encode map: %w", err)
 	}
 
 	for i, upload := range uploads.files {
-		part, err := writer.CreateFormFile(strconv.Itoa(i), upload.Filename)
+		part, err := writer.CreatePart(filePartHeader(strconv.Itoa(i), upload))
 		if err != nil {
-			return nil, fmt.Errorf("form file %w", err)
+			return fmt.Errorf("create form file %d: %w", i, err)
 		}
-
 		if _, err := io.Copy(part, upload.File); err != nil {
-			return nil, fmt.Errorf("copy file %w", err)
+			return fmt.Errorf("copy file %d: %w", i, err)
 		}
 	}
 
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("writer close %w", err)
+	return nil
+}
+
+// filePartHeader はファイルパートの MIME ヘッダーを組み立てる。Upload.ContentType が
+// 指定されていればそれを使い、無ければ application/octet-stream にフォールバックする。
+// Content-Disposition のエスケープは mime/multipart の CreateFormFile と同じにする。
+func filePartHeader(fieldName string, upload graphql.Upload) textproto.MIMEHeader {
+	contentType := upload.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, body)
-	if err != nil {
-		return nil, fmt.Errorf("create request struct failed: %w", err)
-	}
+	header := textproto.MIMEHeader{}
+	header.Set("Content-Disposition", fmt.Sprintf(
+		`form-data; name="%s"; filename="%s"`,
+		quoteEscaper.Replace(fieldName), quoteEscaper.Replace(upload.Filename),
+	))
+	header.Set("Content-Type", contentType)
 
-	req.Header = http.Header{
-		"Content-Type": []string{writer.FormDataContentType()},
-		"Accept":       []string{acceptGraphQLResponse, contentTypeJSON},
-	}
-
-	return req, nil
+	return header
 }
