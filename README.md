@@ -305,13 +305,13 @@ Name: graphql.OmittableOf(&name),
 
 ### API
 
-- `client.NewClient(endpoint string, options ...Option) *Client`
+- `client.NewClient(endpoint string, options ...Option) *Client` — query / mutation 用のクライアント（`Post` / `Get`）
+- `client.NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient` — subscription 用のクライアント（`Subscribe`）。endpoint は `http(s)` を `ws(s)` に変換、または `ws(s)` をそのまま使う
 - `client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` — HTTP transport を任意の RoundTripper で包む。ヘッダー付与・認証・ロギング・テスト用 transport をここで行う。WebSocket ハンドシェイクを含む全リクエストに適用され、既存 transport を委譲ラップするためコネクションプールは維持される。`Post`/`Get`/`Subscribe` に渡すと**その呼び出しだけ**に適用され、基底クライアントや共有 `http.Client` を汚さない
 - `client.NewHeaderTransport(func(ctx context.Context) http.Header)` — `WithRoundTripper` に渡してヘッダーを付与する transport ラッパー。`header(ctx)` は**リクエストごとに評価**されるため、ローテーションするトークンや ctx 由来の動的ヘッダーに対応する。同名キーは上書きされる
 - `client.Operation[Kind, Vars, Res]` / `(*Client).Post[Kind, Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）。`Kind` は `client.Query` / `client.Mutation` / `client.Subscription` のいずれかで、`Post` は query / mutation のみ受け付ける
 - `(*Client).Get[Vars, Res](ctx, op, vars, options...)` — query オペレーションを HTTP GET で実行する。variables は URL に JSON エンコードされる。GraphQL 仕様により GET は mutation に使えず、`Kind` の型制約でコンパイル時に防がれる
-- `(*Client).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
-- `client.WithWebSocketEndpoint(endpoint string)` — subscription 用の WebSocket エンドポイントを上書きする（未指定時は HTTP エンドポイントの `http(s)` を `ws(s)` に変換して使用）
+- `(*SubscriptionClient).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
 
 ### HTTP のカスタマイズ（ヘッダー・認証）
 
@@ -357,10 +357,10 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 
 ### Subscription
 
-subscription オペレーションは `Subscribe` メソッドで実行します。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を `iter.Seq2[*Res, error]` として逐次返します。
+subscription オペレーションは subscription 専用の `SubscriptionClient`（`NewSubscriptionClient` で生成）の `Subscribe` メソッドで実行します。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を `iter.Seq2[*Res, error]` として逐次返します。query / mutation の `Client` とは別の型です。
 
 ```go
-c := client.NewClient("https://api.example.com/graphql")
+c := client.NewSubscriptionClient("https://api.example.com/graphql")
 
 for res, err := range c.Subscribe(ctx, query.OnMessageOp, query.OnMessageVars{RoomID: "1"}) {
 	if err != nil {
@@ -478,9 +478,10 @@ sequenceDiagram
     autonumber
     actor App as アプリ
     participant C as client.Client
+    participant SC as SubscriptionClient
     participant S as GraphQLサーバー
 
-    Note over App,S: Query / Mutation … Post（POST）/ Get（GET）
+    Note over App,S: Query / Mutation … client.Client.Post（POST）/ Get（GET）
     App->>C: Post / Get(ctx, op, vars)
     C->>C: vars を json/v2 でエンコード<br/>Upload があれば multipart に切替
     C->>S: HTTP リクエスト（query / variables / operationName）
@@ -488,18 +489,18 @@ sequenceDiagram
     C->>C: ParseResponse → *Res に UnmarshalJSONFrom
     C-->>App: *Res, error（NetworkError / GqlErrors）
 
-    Note over App,S: Subscription … Subscribe（graphql-transport-ws）
-    App->>C: Subscribe(ctx, op, vars) で iterator 取得
-    C->>S: WebSocket Dial
-    C->>S: connection_init
-    S-->>C: connection_ack
-    C->>S: subscribe（query / variables）
+    Note over App,S: Subscription … SubscriptionClient.Subscribe（graphql-transport-ws）
+    App->>SC: Subscribe(ctx, op, vars) で iterator 取得
+    SC->>S: WebSocket Dial
+    SC->>S: connection_init
+    S-->>SC: connection_ack
+    SC->>S: subscribe（query / variables）
     loop イベントごと
-        S-->>C: next（data）
-        C-->>App: yield(*Res, error)
+        S-->>SC: next（data）
+        SC-->>App: yield(*Res, error)
     end
-    S-->>C: complete
-    C-->>App: イテレーション終了
+    S-->>SC: complete
+    SC-->>App: イテレーション終了
 ```
 
 ### パッケージ構成

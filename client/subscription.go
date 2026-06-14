@@ -7,11 +7,44 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"net/http"
+	"strings"
 
 	"github.com/coder/websocket"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
+
+// SubscriptionClient executes subscription operations over a WebSocket
+// connection using the graphql-transport-ws protocol.
+type SubscriptionClient struct {
+	client     *http.Client
+	wsEndpoint string
+}
+
+// NewSubscriptionClient creates a client for subscription operations.
+//
+// endpoint may be an http(s) URL, whose scheme is mapped to ws(s), or a ws(s)
+// URL used as-is. Customize the HTTP/handshake behaviour (headers, auth) by
+// wrapping the transport with WithRoundTripper.
+func NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient {
+	return &SubscriptionClient{
+		client:     applyOptions(http.DefaultClient, options),
+		wsEndpoint: deriveWebSocketEndpoint(endpoint),
+	}
+}
+
+// deriveWebSocketEndpoint maps an http(s) endpoint to its ws(s) equivalent.
+func deriveWebSocketEndpoint(endpoint string) string {
+	if rest, ok := strings.CutPrefix(endpoint, "https://"); ok {
+		return "wss://" + rest
+	}
+	if rest, ok := strings.CutPrefix(endpoint, "http://"); ok {
+		return "ws://" + rest
+	}
+
+	return endpoint
+}
 
 // graphqlTransportWSSubprotocol is the WebSocket subprotocol name for the
 // graphql-transport-ws protocol (https://github.com/enisdenjo/graphql-ws).
@@ -53,7 +86,7 @@ type wsMessage struct {
 //
 // Even when an error is yielded for a result, that result may contain partial
 // data, since a GraphQL "next" message can carry both data and errors.
-func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subscription, Vars, Res], vars Vars, options ...Option) iter.Seq2[*Res, error] {
+func (c *SubscriptionClient) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subscription, Vars, Res], vars Vars, options ...Option) iter.Seq2[*Res, error] {
 	cc := c.withOptions(options...)
 
 	return func(yield func(*Res, error) bool) {
@@ -118,8 +151,17 @@ func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subs
 	}
 }
 
+// withOptions returns a shallow copy of c with the per-call options applied.
+// It never mutates c, so options passed to Subscribe affect only that call.
+func (c *SubscriptionClient) withOptions(options ...Option) *SubscriptionClient {
+	cc := *c
+	cc.client = applyOptions(cc.client, options)
+
+	return &cc
+}
+
 // handshake sends connection_init and waits for connection_ack.
-func (c *Client) handshake(ctx context.Context, conn *websocket.Conn) error {
+func (c *SubscriptionClient) handshake(ctx context.Context, conn *websocket.Conn) error {
 	if err := writeWSMessage(ctx, conn, wsMessage{Type: wsConnectionInit}); err != nil {
 		return fmt.Errorf("failed to send connection_init: %w", err)
 	}

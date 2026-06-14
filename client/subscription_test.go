@@ -91,7 +91,7 @@ func (s fakeGraphQLWSServer) handler(t *testing.T) http.HandlerFunc {
 	}
 }
 
-func TestClient_Subscribe(t *testing.T) {
+func TestSubscriptionClient_Subscribe(t *testing.T) {
 	t.Parallel()
 
 	type result struct {
@@ -185,7 +185,7 @@ func TestClient_Subscribe(t *testing.T) {
 				// Client() は in-memory サーバを起動して httpServer.URL を設定するため、URL を読む前に呼ぶ
 				httpClient := httpServer.Client()
 
-				c := NewClient(httpServer.URL, WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return httpClient.Transport }))
+				c := NewSubscriptionClient(httpServer.URL, WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return httpClient.Transport }))
 
 				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 				defer cancel()
@@ -254,19 +254,5 @@ func TestDeriveWebSocketEndpoint(t *testing.T) {
 				t.Errorf("diff(-want +got): %s", diff)
 			}
 		})
-	}
-}
-
-func TestWithWebSocketEndpoint(t *testing.T) {
-	t.Parallel()
-
-	const custom = "wss://ws.example.com/graphql"
-
-	// http エンドポイントからは ws://example.com/graphql が導出されるが、
-	// WithWebSocketEndpoint で上書きされることを確認する。
-	c := NewClient("http://example.com/graphql", WithWebSocketEndpoint(custom))
-
-	if c.wsEndpoint != custom {
-		t.Errorf("wsEndpoint = %q, want %q", c.wsEndpoint, custom)
 	}
 }

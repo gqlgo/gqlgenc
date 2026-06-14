@@ -546,14 +546,14 @@ func Test_Subscription(t *testing.T) {
 				// URL を読む前に呼ぶ
 				httpClient := httpServer.Client()
 
-				rawClient := client.NewClient(httpServer.URL, client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+				subClient := client.NewSubscriptionClient(httpServer.URL, client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 					return httpClient.Transport
 				}))
 
 				ctx := t.Context()
 
 				var got []int
-				for res, err := range rawClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
+				for res, err := range subClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
 					if err != nil {
 						t.Fatalf("subscription error: %v", err)
 					}

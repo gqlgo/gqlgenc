@@ -4,63 +4,57 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 type Client struct {
-	client     *http.Client
-	endpoint   string
-	wsEndpoint string
+	client   *http.Client
+	endpoint string
 }
 
-// NewClient creates a new http client wrapper.
+// NewClient creates a client for query and mutation operations (Post, Get).
+// Subscriptions use a separate client created with NewSubscriptionClient.
 //
-// The WebSocket endpoint for subscriptions defaults to endpoint with the
-// http(s) scheme replaced by ws(s). Use WithWebSocketEndpoint to override it.
 // Customize the HTTP behaviour (headers, auth, logging, test transports) by
 // wrapping the transport with WithRoundTripper.
 func NewClient(endpoint string, options ...Option) *Client {
-	client := &Client{
-		endpoint:   endpoint,
-		wsEndpoint: deriveWebSocketEndpoint(endpoint),
-		client:     http.DefaultClient,
+	return &Client{
+		client:   applyOptions(http.DefaultClient, options),
+		endpoint: endpoint,
 	}
-	for _, option := range options {
-		option(client)
-	}
-
-	return client
 }
 
-type Option func(*Client)
+// Option configures the http.Client a client uses. It returns the client to
+// use, which may be a copy, so an Option never mutates a shared http.Client.
+type Option func(*http.Client) *http.Client
 
-// WithRoundTripper wraps the HTTP transport used by the client with wrap. The
-// wrapper applies to every request, including the WebSocket handshake (which
-// goes through the same transport), and composes on top of the existing
-// transport so connection pooling is preserved. Use NewHeaderTransport to add
-// headers.
+func applyOptions(httpClient *http.Client, options []Option) *http.Client {
+	for _, option := range options {
+		httpClient = option(httpClient)
+	}
+
+	return httpClient
+}
+
+// WithRoundTripper wraps the HTTP transport with wrap. The wrapper applies to
+// every request, including the WebSocket handshake of the subscription client,
+// and composes on top of the existing transport so connection pooling is
+// preserved. Use NewHeaderTransport to add headers.
 //
-// Options apply per call, so passing WithRoundTripper to Post, Get or
-// Subscribe affects only that call and never mutates the base client or its
-// shared http.Client.
+// Options apply per call, so passing WithRoundTripper to Post, Get or Subscribe
+// affects only that call and never mutates the base client or a shared
+// http.Client.
 func WithRoundTripper(wrap func(http.RoundTripper) http.RoundTripper) Option {
-	return func(c *Client) {
-		base := c.client.Transport
+	return func(httpClient *http.Client) *http.Client {
+		base := httpClient.Transport
 		if base == nil {
 			base = http.DefaultTransport
 		}
 		// copy the http.Client so wrapping never mutates a shared client
 		// (e.g. http.DefaultClient) or other in-flight calls
-		cl := *c.client
+		cl := *httpClient
 		cl.Transport = wrap(base)
-		c.client = &cl
-	}
-}
 
-// WithWebSocketEndpoint overrides the endpoint used for subscriptions.
-func WithWebSocketEndpoint(endpoint string) Option {
-	return func(c *Client) {
-		c.wsEndpoint = endpoint
+		return &cl
 	}
 }
 
@@ -97,26 +91,11 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// deriveWebSocketEndpoint maps an http(s) endpoint to its ws(s) equivalent.
-func deriveWebSocketEndpoint(endpoint string) string {
-	if rest, ok := strings.CutPrefix(endpoint, "https://"); ok {
-		return "wss://" + rest
-	}
-	if rest, ok := strings.CutPrefix(endpoint, "http://"); ok {
-		return "ws://" + rest
-	}
-
-	return endpoint
-}
-
 // withOptions returns a shallow copy of c with the per-call options applied.
-// It never mutates c, so options passed to Post, Get or Subscribe affect only
-// that single call.
+// It never mutates c, so options passed to Post or Get affect only that call.
 func (c *Client) withOptions(options ...Option) *Client {
 	cc := *c
-	for _, option := range options {
-		option(&cc)
-	}
+	cc.client = applyOptions(cc.client, options)
 
 	return &cc
 }
