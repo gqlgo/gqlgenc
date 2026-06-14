@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -347,6 +348,28 @@ func TestLoadConfig(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLoadConfig_Federation(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadConfig("testdata/cfg/federation.yml")
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	// gqlgen.federation.version を指定すると、@key などの federation ディレクティブ定義が
+	// スキーマソースに注入される（gqlgen の federation プラグインの InjectSourcesEarly）。
+	var injected bool
+	for _, src := range cfg.GQLGenConfig.Sources {
+		if strings.Contains(src.Input, "directive @key") {
+			injected = true
+			break
+		}
+	}
+	if !injected {
+		t.Error("federation の @key ディレクティブ定義が sources に注入されていない")
 	}
 }
 
