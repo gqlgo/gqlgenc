@@ -254,3 +254,17 @@ func TestDeriveWebSocketEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestWithWebSocketEndpoint(t *testing.T) {
+	t.Parallel()
+
+	const custom = "wss://ws.example.com/graphql"
+
+	// http エンドポイントからは ws://example.com/graphql が導出されるが、
+	// WithWebSocketEndpoint で上書きされることを確認する。
+	c := NewClient("http://example.com/graphql", WithWebSocketEndpoint(custom))
+
+	if c.wsEndpoint != custom {
+		t.Errorf("wsEndpoint = %q, want %q", c.wsEndpoint, custom)
+	}
+}
