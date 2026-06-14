@@ -15,6 +15,7 @@ gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から�
 - シンプルな実装コード
 - 最小のConfig、設定より規約
 - モダンな言語機能の採用
+- HTTP リクエストの操作は標準 `net/http`（`http.RoundTripper`）に寄せ、GraphQL クライアントの責務は最小限にする
 
 ## 動作要件
 
@@ -314,7 +315,7 @@ Name: graphql.OmittableOf(&name),
 
 ### HTTP のカスタマイズ（ヘッダー・認証）
 
-ヘッダー付与・認証・ロギング・リトライなどはすべて `WithRoundTripper` で transport を包んで行います（v0 の Interceptor は廃止）。ヘッダーには `NewHeaderTransport` が便利です。
+**設計方針**: リクエストの操作（ヘッダー付与・認証・ロギング・リトライなど）は標準の `net/http`（`http.RoundTripper`）に寄せ、GraphQL クライアント自身は独自の HTTP オプションを持たず責務を最小限にしています。そのため、これらはすべて `WithRoundTripper` で transport を包んで行います（v0 の Interceptor や独自の `WithHTTPClient` / `WithHTTPHeader` は提供しません）。ヘッダーには `NewHeaderTransport` が便利です。
 
 ```go
 // header(ctx) はリクエストごとに評価されるため、ローテーションする
