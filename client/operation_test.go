@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -192,4 +193,40 @@ func TestPost(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPost_Errors(t *testing.T) {
+	t.Parallel()
+
+	type vars struct{}
+	type res struct{}
+
+	op := Operation[Query, vars, res]{
+		Name:     "Q",
+		Document: "query Q { x }",
+	}
+
+	t.Run("リクエスト生成に失敗するとエラー", func(t *testing.T) {
+		t.Parallel()
+
+		// 不正なエンドポイントは http.NewRequestWithContext が拒否するため NewRequest が失敗する
+		c := NewClient("://invalid-url")
+
+		if _, err := c.Post(t.Context(), op, vars{}); err == nil {
+			t.Error("不正なエンドポイントでエラーが返らなかった")
+		}
+	})
+
+	t.Run("HTTPリクエストが失敗するとエラー", func(t *testing.T) {
+		t.Parallel()
+
+		httpClient := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("boom")
+		})}
+		c := NewClient("https://example.com/graphql", WithHTTPClient(httpClient))
+
+		if _, err := c.Post(t.Context(), op, vars{}); err == nil {
+			t.Error("transport エラーでエラーが返らなかった")
+		}
+	})
 }
