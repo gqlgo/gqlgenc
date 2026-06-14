@@ -391,7 +391,7 @@ input := UpdateUserInput{
 `gqlgenc` コマンドは次の順に処理します。
 
 1. **設定読み込み**（`config.LoadConfig`）: 設定ファイルの探索、YAML パース（環境変数展開・未知キー検出）、バリデーション
-2. **スキーマ読み込み**（`config.LoadSchema`）: ローカルファイルまたはイントロスペクションでスキーマを AST 化し、既存の生成ファイルを削除した上で gqlgen の `Init()` を実行する。interface の実装リストをソートして出力を決定的にする
+2. **スキーマ読み込み**: リモート（`endpoint`）指定時は `run.go` が `introspection.LoadRemoteSchema`（client を再利用）でスキーマを取得して config に設定する。`config.LoadSchema` はローカルファイルまたは設定済みスキーマを finalize（既存の生成ファイルを削除して gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする）。スキーマ取得を呼び出し側へ寄せることで `config` パッケージは `client` に依存しない
 3. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
 4. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
 
@@ -403,6 +403,7 @@ sequenceDiagram
     actor U as ユーザー
     participant run as run.go
     participant cfg as config
+    participant intro as introspection
     participant srv as GraphQLサーバー
     participant qp as queryparser
     participant gen as plugins / codegen
@@ -413,16 +414,18 @@ sequenceDiagram
     Note over cfg: 設定ファイル探索 / YAMLパース<br/>検証 / schema・federation の Source 構築
     cfg-->>run: *Config
 
-    run->>cfg: LoadSchema(ctx)
-    alt gqlgen.schema（ローカル）
-        cfg->>cfg: スキーマファイルを AST 化
-    else gqlgenc.endpoint（リモート）
-        cfg->>srv: introspection クエリ (HTTP POST)
-        srv-->>cfg: __schema 結果
-        cfg->>cfg: SchemaFromIntrospection → AST
+    opt gqlgenc.endpoint（リモート）
+        run->>intro: LoadRemoteSchema(endpoint)
+        intro->>srv: introspection クエリ (client 再利用, HTTP POST)
+        srv-->>intro: __schema 結果
+        intro->>intro: SchemaFromIntrospection → AST
+        intro-->>run: schema (AST)
+        run->>cfg: cfg.GQLGenConfig.Schema = schema
     end
-    cfg->>cfg: 既存生成ファイル削除 / gqlgen Init()
-    cfg-->>run: schema (AST)
+
+    run->>cfg: LoadSchema()
+    Note over cfg: ローカル(schema)読込 or 設定済み Schema を使用<br/>既存生成ファイル削除 / gqlgen Init() / Implements ソート
+    cfg-->>run: finalized
 
     run->>qp: LoadQuery(schema)
     qp->>qp: クエリファイルを glob で読込
@@ -479,9 +482,9 @@ sequenceDiagram
 
 | パッケージ | 役割 |
 |---|---|
-| `main` / `run.go` | エントリポイント。上記フローの実行 |
-| `config` | 設定ファイルの読み込み・検証、スキーマのロード |
-| `introspection` | イントロスペクション結果から GraphQL スキーマ（AST）を構築 |
+| `main` / `run.go` | エントリポイント。上記フローの実行。リモート時のスキーマ取得もここで配線する |
+| `config` | 設定ファイルの読み込み・検証、スキーマの finalize（local 読込 / Init / Implements ソート）。`client` に依存しない |
+| `introspection` | イントロスペクション結果から GraphQL スキーマ（AST）を構築。リモート取得（`LoadRemoteSchema`、`client` 再利用）も担う |
 | `queryparser` | クエリのパース・検証、オペレーション分割、使用型の収集 |
 | `codegen` | オペレーションと Go 型（go/types）の構築 |
 | `plugins/modelgen` | gqlgen modelgen のラップ（未使用型のフィルタリング） |

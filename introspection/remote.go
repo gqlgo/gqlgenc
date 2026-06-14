@@ -1,0 +1,43 @@
+package introspection
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/Yamashou/gqlgenc/v3/client"
+
+	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/validator"
+)
+
+// LoadRemoteSchema fetches the schema from a GraphQL endpoint via an
+// introspection query and returns it as a validated AST. It reuses the runtime
+// client so that the config package can stay free of the client dependency:
+// the layer that handles config (run.go) calls this and assigns the result.
+func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error) {
+	gqlClient := client.NewClient(endpoint, client.WithHTTPClient(http.DefaultClient), client.WithHTTPHeader(header))
+
+	res, err := gqlClient.Post(ctx, client.Operation[client.Query, any, Query]{
+		Name:     "Query",
+		Document: Introspection,
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("introspection query failed: %w", err)
+	}
+
+	schema, err := validator.ValidateSchemaDocument(SchemaFromIntrospection(endpoint, *res))
+	if err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+
+	if schema.Query == nil {
+		schema.Query = &ast.Definition{
+			Kind: ast.Object,
+			Name: "Query",
+		}
+		schema.Types["Query"] = schema.Query
+	}
+
+	return schema, nil
+}

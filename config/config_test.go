@@ -1,14 +1,7 @@
 package config
 
 import (
-	"encoding/json/jsontext"
-	json "encoding/json/v2"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -18,6 +11,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/99designs/gqlgen/codegen/config"
+
+	"github.com/vektah/gqlparser/v2"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -377,16 +373,13 @@ func TestLoadSchema(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		configFile      string
-		responseFile    string
-		httpErrorStatus int
-		authorization   string
-		emptyConfig     bool
+		configFile   string
+		presetSchema bool
+		emptyConfig  bool
 	}
 
 	type want struct {
-		err           error
-		authorization string
+		err error
 	}
 
 	tests := []struct {
@@ -404,50 +397,13 @@ func TestLoadSchema(t *testing.T) {
 			},
 		},
 		{
-			name: "リモートスキーマ（introspection）で成功する",
+			// リモート(endpoint)スキーマは呼び出し側が introspection で取得して Schema に
+			// 設定する。LoadSchema は設定済み Schema をそのまま使い、Init と Implements
+			// ソートを行う。
+			name: "事前設定済みスキーマ(リモート相当)で成功する",
 			args: args{
 				configFile:   "testdata/cfg/endpoint_only.yml",
-				responseFile: "testdata/remote/response_ok.json",
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		{
-			name: "不正なリモートスキーマでエラー",
-			args: args{
-				configFile:   "testdata/cfg/endpoint_only.yml",
-				responseFile: "testdata/remote/response_invalid_schema.json",
-			},
-			want: want{
-				err: errors.New("OBJECT Query: must define one or more fields"),
-			},
-		},
-		{
-			name: "introspectionクエリがHTTPエラーを返す",
-			args: args{
-				configFile:      "testdata/cfg/endpoint_only.yml",
-				httpErrorStatus: http.StatusInternalServerError,
-			},
-			want: want{
-				err: errors.New("introspect schema failed: introspection query failed"),
-			},
-		},
-		{
-			name: "schema.QueryがnullでQuery型を初期化できる",
-			args: args{
-				configFile:   "testdata/cfg/endpoint_only.yml",
-				responseFile: "testdata/remote/response_query_null.json",
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		{
-			name: "インターフェース実装を含むスキーマでImplementsソート処理を実行する",
-			args: args{
-				configFile:   "testdata/cfg/endpoint_only.yml",
-				responseFile: "testdata/remote/response_with_implements.json",
+				presetSchema: true,
 			},
 			want: want{
 				err: nil,
@@ -464,18 +420,6 @@ func TestLoadSchema(t *testing.T) {
 				err: errors.New("neither 'schema' nor 'endpoint' specified"),
 			},
 		},
-		{
-			// endpoint.headers に設定したヘッダーが introspection リクエストに付与される
-			name: "endpointのheadersがintrospectionリクエストに付与される",
-			args: args{
-				configFile:    "testdata/cfg/endpoint_only.yml",
-				responseFile:  "testdata/remote/response_ok.json",
-				authorization: "Bearer test-token",
-			},
-			want: want{
-				authorization: "Bearer test-token",
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -484,106 +428,46 @@ func TestLoadSchema(t *testing.T) {
 
 			var cfg *Config
 			var err error
-			var mockServer *mockRemoteServer
 
 			switch {
 			case tt.args.emptyConfig:
 				cfg = &Config{GQLGenConfig: &config.Config{}, GQLGencConfig: &GQLGencConfig{}}
-				err = cfg.LoadSchema(t.Context())
-			case tt.args.responseFile != "" || tt.args.httpErrorStatus != 0:
-				// リモートスキーマのテストケース（mockServerを使用）
-				var closeServer func()
-
-				if tt.args.httpErrorStatus != 0 {
-					// HTTPエラーをシミュレート
-					mockServer, closeServer = newMockRemoteServerWithError(t, tt.args.httpErrorStatus, "Internal Server Error")
-				} else {
-					// 正常なレスポンスまたはスキーマエラー
-					mockServer, closeServer = newMockRemoteServer(t, responseFromFile(tt.args.responseFile))
-				}
-				defer closeServer()
-
-				// mockServerのURLを使った設定を書き込む
-				tmpFile, tmpErr := os.CreateTemp(t.TempDir(), "test-config-*.yml")
-				if tmpErr != nil {
-					t.Fatalf("Failed to create temp config file: %v", tmpErr)
-				}
-				defer os.Remove(tmpFile.Name())
-
-				tmpConfig := fmt.Sprintf(`gqlgen:
-  model:
-    filename: ./gen/models_gen.go
-    package: gen
-gqlgenc:
-  query:
-    - "./queries/*.graphql"
-  querygen:
-    filename: ./gen/query.go
-    package: gen
-  clientgen:
-    filename: ./gen/client.go
-    package: gen
-  endpoint:
-    url: %s
-`, mockServer.URL)
-				if tt.args.authorization != "" {
-					tmpConfig += fmt.Sprintf("    headers:\n      Authorization: %q\n", tt.args.authorization)
-				}
-				if _, tmpErr := tmpFile.WriteString(tmpConfig); tmpErr != nil {
-					t.Fatalf("Failed to write temp config: %v", tmpErr)
-				}
-				tmpFile.Close()
-
-				cfg, err = LoadConfig(tmpFile.Name())
-				if err != nil {
-					t.Fatalf("LoadConfig() failed: %v", err)
-				}
-				err = cfg.LoadSchema(t.Context())
 			default:
-				// ローカルスキーマのテストケース
 				cfg, err = LoadConfig(tt.args.configFile)
 				if err != nil {
 					t.Fatalf("LoadConfig() failed: %v", err)
 				}
-				err = cfg.LoadSchema(t.Context())
+				if tt.args.presetSchema {
+					// interface 実装を含むスキーマを設定して Implements ソート処理も通す
+					cfg.GQLGenConfig.Schema = gqlparser.MustLoadSchema(&ast.Source{
+						Name: "schema.graphql",
+						Input: `interface Node { id: ID! }
+type User implements Node { id: ID! }
+type Query { user: User }`,
+					})
+				}
 			}
+
+			err = cfg.LoadSchema()
 
 			// エラーチェック
 			if tt.want.err != nil {
 				if err == nil {
-					t.Errorf("error = nil, want error")
-					return
+					t.Fatalf("error = nil, want error containing %q", tt.want.err.Error())
 				}
 				if !containsString(err.Error(), tt.want.err.Error()) {
 					t.Errorf("error message = %q, want to contain %q", err.Error(), tt.want.err.Error())
-					return
 				}
-			} else if err != nil {
-				t.Errorf("error = %v, want nil", err)
+
 				return
 			}
-
-			// introspection リクエストに付与されたヘッダーの検証
-			if tt.want.authorization != "" {
-				if got := mockServer.header.Get("Authorization"); got != tt.want.authorization {
-					t.Errorf("Authorization header = %q, want %q", got, tt.want.authorization)
-				}
+			if err != nil {
+				t.Fatalf("error = %v, want nil", err)
 			}
 
-			// 成功時は基本的な検証
-			if tt.want.err == nil {
-				if cfg == nil {
-					t.Fatal("config = nil, want non-nil")
-				}
-				if cfg.GQLGenConfig == nil {
-					t.Error("GQLGenConfig = nil, want non-nil")
-				}
-				if cfg.GQLGencConfig == nil {
-					t.Error("GQLGencConfig = nil, want non-nil")
-				}
-				if cfg.GQLGenConfig.Schema == nil {
-					t.Error("Schema = nil, want non-nil")
-				}
+			// 成功時はスキーマが構築されていることを確認
+			if cfg.GQLGenConfig.Schema == nil {
+				t.Error("Schema = nil, want non-nil")
 			}
 		})
 	}
@@ -687,7 +571,7 @@ func TestLoadQuery(t *testing.T) {
 			}
 
 			// スキーマをロード
-			err = cfg.LoadSchema(t.Context())
+			err = cfg.LoadSchema()
 			if err != nil {
 				t.Fatalf("LoadSchema() failed: %v", err)
 			}
@@ -739,82 +623,6 @@ func containsString(s, substring string) bool {
 	}
 
 	return false
-}
-
-type mockRemoteServer struct {
-	URL    string
-	body   []byte
-	header http.Header
-}
-
-//nolint:nonamedreturns // named return "mock" with type "*mockRemoteServer" found
-func newMockRemoteServer(t *testing.T, response any) (mock *mockRemoteServer, closeServer func()) {
-	t.Helper()
-
-	mock = &mockRemoteServer{}
-	handler := http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
-		mock.header = req.Header.Clone()
-
-		var err error
-		mock.body, err = io.ReadAll(req.Body)
-		if err != nil {
-			t.Errorf("failed to read request body: %v", err)
-		}
-
-		var responseBody []byte
-		switch v := response.(type) {
-		case jsontext.Value:
-			responseBody = v
-		case responseFromFile:
-			responseBody = v.load(t)
-		default:
-			responseBody, err = json.Marshal(response)
-			if err != nil {
-				t.Errorf("failed to marshal response: %v", err)
-			}
-		}
-
-		if _, err = writer.Write(responseBody); err != nil {
-			t.Errorf("failed to write response: %v", err)
-		}
-	})
-
-	server := httptest.NewServer(handler)
-	mock.URL = server.URL
-
-	return mock, func() { server.Close() }
-}
-
-type responseFromFile string
-
-func (f responseFromFile) load(t *testing.T) []byte {
-	t.Helper()
-
-	content, err := os.ReadFile(string(f))
-	if err != nil {
-		t.Errorf("failed to read file %s: %v", string(f), err)
-	}
-
-	return content
-}
-
-//nolint:nonamedreturns // named return "mock" with type "*mockRemoteServer" found
-func newMockRemoteServerWithError(t *testing.T, statusCode int, message string) (mock *mockRemoteServer, closeServer func()) {
-	t.Helper()
-
-	handler := http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		writer.WriteHeader(statusCode)
-		if _, err := writer.Write([]byte(message)); err != nil {
-			t.Errorf("failed to write error response: %v", err)
-		}
-	})
-
-	server := httptest.NewServer(handler)
-	mock = &mockRemoteServer{
-		URL: server.URL,
-	}
-
-	return mock, func() { server.Close() }
 }
 
 func TestHeaderUnmarshalYAML(t *testing.T) {
