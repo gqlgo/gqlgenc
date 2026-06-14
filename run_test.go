@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -525,35 +526,38 @@ func Test_Subscription(t *testing.T) {
 		},
 	}
 
-	es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
-	srv := handler.New(es)
-	srv.AddTransport(transport.Websocket{
-		KeepAlivePingInterval: 10 * time.Second,
-		InitTimeout:           5 * time.Second,
-	})
-
-	httpServer := httptest.NewServer(srv)
-	t.Cleanup(httpServer.Close)
-
-	rawClient := client.NewClient(httpServer.URL)
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := t.Context()
+			// httptest.NewTestServer のインメモリ network と synctest の擬似クロックで
+			// 実ポート・実時間に依存しない決定論的な subscription テストにする
+			synctest.Test(t, func(t *testing.T) {
+				es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
+				srv := handler.New(es)
+				srv.AddTransport(transport.Websocket{
+					KeepAlivePingInterval: 10 * time.Second,
+					InitTimeout:           5 * time.Second,
+				})
 
-			var got []int
-			for res, err := range rawClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
-				if err != nil {
-					t.Fatalf("subscription error: %v", err)
+				httpServer := httptest.NewTestServer(t, srv)
+
+				rawClient := client.NewClient(httpServer.URL, client.WithHTTPClient(httpServer.Client()))
+
+				ctx := t.Context()
+
+				var got []int
+				for res, err := range rawClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
+					if err != nil {
+						t.Fatalf("subscription error: %v", err)
+					}
+					got = append(got, res.Count)
 				}
-				got = append(got, res.Count)
-			}
 
-			if diff := cmp.Diff(tt.want.counts, got); diff != "" {
-				t.Errorf("diff(-want +got): %s", diff)
-			}
+				if diff := cmp.Diff(tt.want.counts, got); diff != "" {
+					t.Errorf("diff(-want +got): %s", diff)
+				}
+			})
 		})
 	}
 }
