@@ -4,6 +4,8 @@ import (
 	json "encoding/json/v2"
 	"os"
 	"testing"
+
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func TestSchemaFromIntrospection_Parse(t *testing.T) {
@@ -55,4 +57,45 @@ func readQueryResult(t *testing.T, filename string) Query {
 	}
 
 	return query
+}
+
+func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("SchemaFromIntrospection() panicked: %v", r)
+		}
+	}()
+
+	query := readQueryResult(t, "testdata/introspection_result_all_kinds.json")
+
+	doc := SchemaFromIntrospection("test", query)
+	if doc == nil {
+		t.Fatal("SchemaFromIntrospection() returned nil")
+	}
+
+	// 各 introspection の型種別が、対応する ast.Definition の Kind に変換されることを確認する
+	kindByName := make(map[string]ast.DefinitionKind, len(doc.Definitions))
+	for _, def := range doc.Definitions {
+		kindByName[def.Name] = def.Kind
+	}
+
+	wantKinds := map[string]ast.DefinitionKind{
+		"Query":        ast.Object,
+		"SearchResult": ast.Union,
+		"Status":       ast.Enum,
+		"CreateInput":  ast.InputObject,
+		"DateTime":     ast.Scalar,
+	}
+	for name, want := range wantKinds {
+		if got := kindByName[name]; got != want {
+			t.Errorf("%s: kind = %q, want %q", name, got, want)
+		}
+	}
+
+	// federation/カスタムの directive 定義が取り込まれること
+	if doc.Directives.ForName("myDirective") == nil {
+		t.Error("myDirective directive definition was not parsed")
+	}
 }
