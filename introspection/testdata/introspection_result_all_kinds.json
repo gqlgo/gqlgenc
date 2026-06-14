@@ -18,6 +18,19 @@
               { "name": "limit", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "10" }
             ],
             "isDeprecated": false
+          },
+          {
+            "name": "variants",
+            "type": { "kind": "SCALAR", "name": "String", "ofType": null },
+            "args": [
+              { "name": "s",   "type": { "kind": "SCALAR", "name": "String",   "ofType": null }, "defaultValue": "\"hello\"" },
+              { "name": "b",   "type": { "kind": "SCALAR", "name": "Boolean",  "ofType": null }, "defaultValue": "true" },
+              { "name": "fl",  "type": { "kind": "SCALAR", "name": "Float",    "ofType": null }, "defaultValue": "1.5" },
+              { "name": "st",  "type": { "kind": "ENUM",   "name": "Status",   "ofType": null }, "defaultValue": "ACTIVE" },
+              { "name": "dt",  "type": { "kind": "SCALAR", "name": "DateTime", "ofType": null }, "defaultValue": "\"2020-01-01\"" },
+              { "name": "inp", "type": { "kind": "INPUT_OBJECT", "name": "CreateInput", "ofType": null }, "defaultValue": "{}" }
+            ],
+            "isDeprecated": false
           }
         ],
         "interfaces": []
@@ -60,6 +73,7 @@
       { "kind": "SCALAR", "name": "DateTime" },
       { "kind": "SCALAR", "name": "String" },
       { "kind": "SCALAR", "name": "Int" },
+      { "kind": "SCALAR", "name": "Float" },
       { "kind": "SCALAR", "name": "Boolean" },
       { "kind": "SCALAR", "name": "ID" }
     ],

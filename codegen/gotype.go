@@ -93,6 +93,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		tags := []string{jsonIgnoreTag}
 		return newField(InlineFragment, pointerType, sel.TypeCondition, tags)
 	}
+	// 事前条件: selection は *Field/*FragmentSpread/*InlineFragment のいずれか。
 	panic("unexpected selection type")
 }
 
@@ -127,6 +128,7 @@ func (g *GoTypeGenerator) newScalarGoType(gqlType *graphql.Type) gotypes.Type {
 		return sliceType
 	}
 
+	// 事前条件: gqlType は NamedType かリスト(Elem)を持つ。
 	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
 }
 
@@ -151,6 +153,7 @@ func (g *GoTypeGenerator) newObjectGoType(baseType gotypes.Type, gqlType *graphq
 		return sliceType
 	}
 
+	// 事前条件: gqlType は NamedType かリスト(Elem)を持つ。
 	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
 }
 

@@ -98,4 +98,32 @@ func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 	if doc.Directives.ForName("myDirective") == nil {
 		t.Error("myDirective directive definition was not parsed")
 	}
+
+	// 各引数のデフォルト値が、型に応じた ast.ValueKind に変換されることを確認する
+	queryDef := doc.Definitions.ForName("Query")
+	if queryDef == nil {
+		t.Fatal("Query definition was not parsed")
+	}
+	variants := queryDef.Fields.ForName("variants")
+	if variants == nil {
+		t.Fatal("Query.variants field was not parsed")
+	}
+	wantArgKinds := map[string]ast.ValueKind{
+		"s":   ast.StringValue,
+		"b":   ast.BooleanValue,
+		"fl":  ast.FloatValue,
+		"st":  ast.EnumValue,
+		"dt":  ast.StringValue,
+		"inp": ast.ObjectValue,
+	}
+	for argName, want := range wantArgKinds {
+		arg := variants.Arguments.ForName(argName)
+		if arg == nil || arg.DefaultValue == nil {
+			t.Errorf("%s: default value was not parsed", argName)
+			continue
+		}
+		if got := arg.DefaultValue.Kind; got != want {
+			t.Errorf("%s: default value kind = %v, want %v", argName, got, want)
+		}
+	}
 }
