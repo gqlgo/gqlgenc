@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -174,8 +175,12 @@ func TestClient_unmarshalResponse(t *testing.T) {
 						t.Errorf("unmarshalResponse() GraphQL error:\nwant: %v\n got: %v", tt.want.err, err)
 					}
 				} else {
-					// Compare error messages for other errors
-					if tt.want.err.Error() != err.Error() {
+					// json/v2 は同義の "cannot unmarshal" と "unable to unmarshal" を
+					// 非決定的に出し分けるため、表記を正規化してから比較する
+					normalize := func(s string) string {
+						return strings.ReplaceAll(s, "unable to unmarshal", "cannot unmarshal")
+					}
+					if normalize(tt.want.err.Error()) != normalize(err.Error()) {
 						t.Errorf("unmarshalResponse() error message:\nwant: %v\n got: %v", tt.want.err.Error(), err.Error())
 					}
 				}
