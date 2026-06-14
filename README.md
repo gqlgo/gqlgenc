@@ -395,6 +395,86 @@ input := UpdateUserInput{
 3. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
 4. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
 
+### シーケンス図（コード生成）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as ユーザー
+    participant run as run.go
+    participant cfg as config
+    participant srv as GraphQLサーバー
+    participant qp as queryparser
+    participant gen as plugins / codegen
+    participant out as 生成ファイル
+
+    U->>run: gqlgenc 実行
+    run->>cfg: FindConfigFile + LoadConfig
+    Note over cfg: 設定ファイル探索 / YAMLパース<br/>検証 / schema・federation の Source 構築
+    cfg-->>run: *Config
+
+    run->>cfg: LoadSchema(ctx)
+    alt gqlgen.schema（ローカル）
+        cfg->>cfg: スキーマファイルを AST 化
+    else gqlgenc.endpoint（リモート）
+        cfg->>srv: introspection クエリ (HTTP POST)
+        srv-->>cfg: __schema 結果
+        cfg->>cfg: SchemaFromIntrospection → AST
+    end
+    cfg->>cfg: 既存生成ファイル削除 / gqlgen Init()
+    cfg-->>run: schema (AST)
+
+    run->>qp: LoadQuery(schema)
+    qp->>qp: クエリファイルを glob で読込
+    qp->>qp: パース + __typename 注入 + @goFragment 宣言
+    qp->>qp: 検証 + オペレーション単位へ分割
+    qp-->>run: QueryDocument / OperationQueryDocuments
+
+    run->>gen: GenerateCode(cfg)
+    opt gqlgen.model 指定あり
+        gen->>out: model_gen.go（modelgen）
+    end
+    gen->>gen: CreateGoTypes → goTypes（go/types）
+    gen->>gen: @goFragment 除去 + Document ミニファイ
+    opt gqlgenc.querygen 指定あり
+        gen->>out: query_gen.go（レスポンス型 + UnmarshalJSONFrom）
+    end
+    opt gqlgenc.clientgen 指定あり
+        gen->>out: client_gen.go（Vars 構造体 + Op 値）
+    end
+```
+
+### シーケンス図（ランタイム）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor App as アプリ
+    participant C as client.Client
+    participant S as GraphQLサーバー
+
+    Note over App,S: Query / Mutation … Post（POST）/ Get（GET）
+    App->>C: Post / Get(ctx, op, vars)
+    C->>C: vars を json/v2 でエンコード<br/>Upload があれば multipart に切替
+    C->>S: HTTP リクエスト（query / variables / operationName）
+    S-->>C: data + errors（gzip 対応）
+    C->>C: ParseResponse → *Res に UnmarshalJSONFrom
+    C-->>App: *Res, error（NetworkError / GqlErrors）
+
+    Note over App,S: Subscription … Subscribe（graphql-transport-ws）
+    App->>C: Subscribe(ctx, op, vars) で iterator 取得
+    C->>S: WebSocket Dial
+    C->>S: connection_init
+    S-->>C: connection_ack
+    C->>S: subscribe（query / variables）
+    loop イベントごと
+        S-->>C: next（data）
+        C-->>App: yield(*Res, error)
+    end
+    S-->>C: complete
+    C-->>App: イテレーション終了
+```
+
 ### パッケージ構成
 
 | パッケージ | 役割 |
