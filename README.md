@@ -306,7 +306,7 @@ Name: graphql.OmittableOf(&name),
 ### API
 
 - `client.NewClient(endpoint string, options ...Option) *Client` — query / mutation 用のクライアント（`Post` / `Get`）
-- `client.NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient` — subscription 用のクライアント（`Subscribe`）。endpoint は `http(s)` を `ws(s)` に変換、または `ws(s)` をそのまま使う
+- `client.NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient` — subscription 用のクライアント（`Subscribe`）。endpoint は WebSocket URL（`ws://` / `wss://`）を直接渡す
 - `client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` — HTTP transport を任意の RoundTripper で包む。ヘッダー付与・認証・ロギング・テスト用 transport をここで行う。WebSocket ハンドシェイクを含む全リクエストに適用され、既存 transport を委譲ラップするためコネクションプールは維持される。`Post`/`Get`/`Subscribe` に渡すと**その呼び出しだけ**に適用され、基底クライアントや共有 `http.Client` を汚さない
 - `client.NewHeaderTransport(func(ctx context.Context) http.Header)` — `WithRoundTripper` に渡してヘッダーを付与する transport ラッパー。`header(ctx)` は**リクエストごとに評価**されるため、ローテーションするトークンや ctx 由来の動的ヘッダーに対応する。同名キーは上書きされる
 - `client.Operation[Kind, Vars, Res]` / `(*Client).Post[Kind, Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）。`Kind` は `client.Query` / `client.Mutation` / `client.Subscription` のいずれかで、`Post` は query / mutation のみ受け付ける
@@ -360,7 +360,7 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 subscription オペレーションは subscription 専用の `SubscriptionClient`（`NewSubscriptionClient` で生成）の `Subscribe` メソッドで実行します。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を `iter.Seq2[*Res, error]` として逐次返します。query / mutation の `Client` とは別の型です。
 
 ```go
-c := client.NewSubscriptionClient("https://api.example.com/graphql")
+c := client.NewSubscriptionClient("wss://api.example.com/graphql")
 
 for res, err := range c.Subscribe(ctx, query.OnMessageOp, query.OnMessageVars{RoomID: "1"}) {
 	if err != nil {

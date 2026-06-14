@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"iter"
 	"net/http"
-	"strings"
 
 	"github.com/coder/websocket"
 
@@ -24,26 +23,14 @@ type SubscriptionClient struct {
 
 // NewSubscriptionClient creates a client for subscription operations.
 //
-// endpoint may be an http(s) URL, whose scheme is mapped to ws(s), or a ws(s)
-// URL used as-is. Customize the HTTP/handshake behaviour (headers, auth) by
-// wrapping the transport with WithRoundTripper.
+// endpoint is the WebSocket endpoint (ws:// or wss://). Customize the
+// HTTP/handshake behaviour (headers, auth) by wrapping the transport with
+// WithRoundTripper.
 func NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient {
 	return &SubscriptionClient{
 		client:     applyOptions(http.DefaultClient, options),
-		wsEndpoint: deriveWebSocketEndpoint(endpoint),
+		wsEndpoint: endpoint,
 	}
-}
-
-// deriveWebSocketEndpoint maps an http(s) endpoint to its ws(s) equivalent.
-func deriveWebSocketEndpoint(endpoint string) string {
-	if rest, ok := strings.CutPrefix(endpoint, "https://"); ok {
-		return "wss://" + rest
-	}
-	if rest, ok := strings.CutPrefix(endpoint, "http://"); ok {
-		return "ws://" + rest
-	}
-
-	return endpoint
 }
 
 // graphqlTransportWSSubprotocol is the WebSocket subprotocol name for the
