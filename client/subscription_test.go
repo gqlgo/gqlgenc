@@ -182,8 +182,10 @@ func TestClient_Subscribe(t *testing.T) {
 
 			synctest.Test(t, func(t *testing.T) {
 				httpServer := httptest.NewTestServer(t, tt.fields.server.handler(t))
+				// Client() は in-memory サーバを起動して httpServer.URL を設定するため、URL を読む前に呼ぶ
+				httpClient := httpServer.Client()
 
-				c := NewClient(httpServer.URL, WithHTTPClient(httpServer.Client()))
+				c := NewClient(httpServer.URL, WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return httpClient.Transport }))
 
 				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 				defer cancel()

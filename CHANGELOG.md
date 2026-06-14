@@ -54,7 +54,7 @@ gqlgen:
 #### ランタイムを client パッケージに刷新（clientv2 廃止）
 
 - `NewClient(client HttpClient, baseURL string, options *Options, interceptors ...RequestInterceptor)` は `NewClient(endpoint string, options ...Option)` になりました
-- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。ヘッダーの付与は `WithHTTPHeader`、それ以外のカスタマイズは `WithHTTPClient` に `http.RoundTripper`（Transport）を差し替えた `http.Client` を渡して行います
+- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。HTTP のカスタマイズ（ヘッダー付与・認証・ロギング・テスト用 transport など）は `WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` で transport を包んで行います。ヘッダーには `NewHeaderTransport(func(ctx context.Context) http.Header)` が便利で、`header(ctx)` はリクエストごとに評価されるため動的トークンにも対応します。`WithRoundTripper` は `Post` / `Get` / `Subscribe` に渡すとその呼び出しだけに適用され、基底クライアントや共有 `http.Client` を汚しません。`WithHTTPClient` / `WithHTTPHeader` は提供しません
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
 - `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します。リクエストボディのエンコード中に Upload を検出するため、配列要素や入れ子 input の中の Upload も認識します（[gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292)）

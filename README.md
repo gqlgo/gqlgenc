@@ -305,12 +305,31 @@ Name: graphql.OmittableOf(&name),
 ### API
 
 - `client.NewClient(endpoint string, options ...Option) *Client`
-- `client.WithHTTPClient(*http.Client)` — 任意の HTTP クライアントを使用する
-- `client.WithHTTPHeader(http.Header)` — すべてのリクエストに付与するヘッダーを設定する（デフォルトヘッダーとはキー単位でマージされ、同名キーは上書きされる）
+- `client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` — HTTP transport を任意の RoundTripper で包む。ヘッダー付与・認証・ロギング・テスト用 transport をここで行う。WebSocket ハンドシェイクを含む全リクエストに適用され、既存 transport を委譲ラップするためコネクションプールは維持される。`Post`/`Get`/`Subscribe` に渡すと**その呼び出しだけ**に適用され、基底クライアントや共有 `http.Client` を汚さない
+- `client.NewHeaderTransport(func(ctx context.Context) http.Header)` — `WithRoundTripper` に渡してヘッダーを付与する transport ラッパー。`header(ctx)` は**リクエストごとに評価**されるため、ローテーションするトークンや ctx 由来の動的ヘッダーに対応する。同名キーは上書きされる
 - `client.Operation[Kind, Vars, Res]` / `(*Client).Post[Kind, Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）。`Kind` は `client.Query` / `client.Mutation` / `client.Subscription` のいずれかで、`Post` は query / mutation のみ受け付ける
 - `(*Client).Get[Vars, Res](ctx, op, vars, options...)` — query オペレーションを HTTP GET で実行する。variables は URL に JSON エンコードされる。GraphQL 仕様により GET は mutation に使えず、`Kind` の型制約でコンパイル時に防がれる
 - `(*Client).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
 - `client.WithWebSocketEndpoint(endpoint string)` — subscription 用の WebSocket エンドポイントを上書きする（未指定時は HTTP エンドポイントの `http(s)` を `ws(s)` に変換して使用）
+
+### HTTP のカスタマイズ（ヘッダー・認証）
+
+ヘッダー付与・認証・ロギング・リトライなどはすべて `WithRoundTripper` で transport を包んで行います（v0 の Interceptor は廃止）。ヘッダーには `NewHeaderTransport` が便利です。
+
+```go
+// header(ctx) はリクエストごとに評価されるため、ローテーションする
+// トークンや ctx 由来の動的な値に対応できる
+c := client.NewClient(endpoint, client.WithRoundTripper(client.NewHeaderTransport(
+    func(ctx context.Context) http.Header {
+        return http.Header{"Authorization": []string{"Bearer " + tokenFrom(ctx)}}
+    },
+)))
+
+// 呼び出し単位で付与する場合は Post / Get / Subscribe にオプションとして渡す
+c.Post(ctx, op, vars, client.WithRoundTripper(client.NewHeaderTransport(headerFunc)))
+```
+
+任意の `http.RoundTripper` を直接返すこともできます（署名・計測など）。テストでは in-memory transport を返す `WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return testTransport })` で差し替えます。
 
 ### リクエスト仕様
 

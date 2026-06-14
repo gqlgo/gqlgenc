@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+// withHeader adds static headers to a request via the RoundTripper mechanism,
+// the replacement for the removed WithHTTPHeader option.
+func withHeader(h http.Header) Option {
+	return WithRoundTripper(NewHeaderTransport(func(context.Context) http.Header { return h }))
+}
 
 func TestPost(t *testing.T) {
 	t.Parallel()
@@ -77,8 +84,8 @@ func TestPost(t *testing.T) {
 			},
 		},
 		{
-			// 呼び出し単位の WithHTTPHeader はそのリクエストに付与される
-			name: "WithHTTPHeaderで設定したヘッダーがリクエストに付与される",
+			// 呼び出し単位のヘッダー (WithRoundTripper + NewHeaderTransport) はそのリクエストに付与される
+			name: "NewHeaderTransportで設定したヘッダーがリクエストに付与される",
 			args: args{
 				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
@@ -87,7 +94,7 @@ func TestPost(t *testing.T) {
 				vars:     getUserVars{ID: "1"},
 				respBody: `{"data":{"name":"John Doe"}}`,
 				options: []Option{
-					WithHTTPHeader(http.Header{
+					withHeader(http.Header{
 						"Authorization": []string{"Bearer token"},
 						"x-request-id":  []string{"req-1"},
 					}),
@@ -106,7 +113,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			// 同名キーを指定するとデフォルトヘッダーをキー単位で上書きできる
-			name: "WithHTTPHeaderでデフォルトのContent-Typeをキー単位で上書きできる",
+			name: "NewHeaderTransportでデフォルトのContent-Typeをキー単位で上書きできる",
 			args: args{
 				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
@@ -115,7 +122,7 @@ func TestPost(t *testing.T) {
 				vars:     getUserVars{ID: "1"},
 				respBody: `{"data":{"name":"John Doe"}}`,
 				options: []Option{
-					WithHTTPHeader(http.Header{
+					withHeader(http.Header{
 						"Content-Type": []string{"application/json"},
 					}),
 				},
@@ -156,7 +163,7 @@ func TestPost(t *testing.T) {
 			t.Parallel()
 			var gotRequestBody []byte
 			var gotHeader http.Header
-			httpClient := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			rt := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				gotHeader = req.Header
 				var err error
 				gotRequestBody, err = io.ReadAll(req.Body)
@@ -168,9 +175,9 @@ func TestPost(t *testing.T) {
 					Body:       io.NopCloser(bytes.NewReader([]byte(tt.args.respBody))),
 					Header:     http.Header{},
 				}, nil
-			})}
+			})
 
-			c := NewClient("https://example.com/graphql", WithHTTPClient(httpClient))
+			c := NewClient("https://example.com/graphql", WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
 
 			got, err := c.Post(t.Context(), tt.args.op, tt.args.vars, tt.args.options...)
 
@@ -220,10 +227,10 @@ func TestPost_Errors(t *testing.T) {
 	t.Run("HTTPリクエストが失敗するとエラー", func(t *testing.T) {
 		t.Parallel()
 
-		httpClient := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		rt := roundTripperFunc(func(*http.Request) (*http.Response, error) {
 			return nil, errors.New("boom")
-		})}
-		c := NewClient("https://example.com/graphql", WithHTTPClient(httpClient))
+		})
+		c := NewClient("https://example.com/graphql", WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
 
 		if _, err := c.Post(t.Context(), op, vars{}); err == nil {
 			t.Error("transport エラーでエラーが返らなかった")

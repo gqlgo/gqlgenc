@@ -16,7 +16,14 @@ import (
 // client so that the config package can stay free of the client dependency:
 // the layer that handles config (run.go) calls this and assigns the result.
 func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error) {
-	gqlClient := client.NewClient(endpoint, client.WithHTTPClient(http.DefaultClient), client.WithHTTPHeader(header))
+	var options []client.Option
+	if len(header) > 0 {
+		options = append(options, client.WithRoundTripper(client.NewHeaderTransport(func(context.Context) http.Header {
+			return header
+		})))
+	}
+
+	gqlClient := client.NewClient(endpoint, options...)
 
 	res, err := gqlClient.Post(ctx, client.Operation[client.Query, any, Query]{
 		Name:     "Query",

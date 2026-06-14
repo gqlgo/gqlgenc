@@ -287,10 +287,11 @@ func Test_IntegrationTest(t *testing.T) {
 			srv.AddTransport(transport.POST{})
 			srv.AddTransport(transport.GET{})
 
-			httpClient := &http.Client{Transport: handlerRoundTripper{handler: srv}}
 			rawClient := client.NewClient(
 				"http://local/graphql",
-				client.WithHTTPClient(httpClient),
+				client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+					return handlerRoundTripper{handler: srv}
+				}),
 			)
 
 			// Query
@@ -541,8 +542,13 @@ func Test_Subscription(t *testing.T) {
 				})
 
 				httpServer := httptest.NewTestServer(t, srv)
+				// Client() は in-memory サーバを起動して httpServer.URL を設定するため、
+				// URL を読む前に呼ぶ
+				httpClient := httpServer.Client()
 
-				rawClient := client.NewClient(httpServer.URL, client.WithHTTPClient(httpServer.Client()))
+				rawClient := client.NewClient(httpServer.URL, client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+					return httpClient.Transport
+				}))
 
 				ctx := t.Context()
 

@@ -60,7 +60,6 @@ func (c *Client) Subscribe[Vars, Res any](ctx context.Context, op Operation[Subs
 		//nolint:bodyclose // coder/websocket does not require closing the handshake response body
 		conn, _, err := websocket.Dial(ctx, cc.wsEndpoint, &websocket.DialOptions{
 			HTTPClient:   cc.client,
-			HTTPHeader:   cc.header,
 			Subprotocols: []string{graphqlTransportWSSubprotocol},
 		})
 		if err != nil {
