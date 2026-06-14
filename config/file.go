@@ -66,27 +66,26 @@ func schemaFilenames(schemaFilenameGlobs []string) ([]string, error) {
 	for _, schemaFilenameGlob := range schemaFilenameGlobs {
 		var schemaFilenames []string
 
-		if strings.Contains(schemaFilenameGlob, "**") {
+		if before, after, found := strings.Cut(schemaFilenameGlob, "**"); found {
 			// for ** we want to override default globbing patterns and walk all
 			// subdirectories to match schema files.
-			pathParts := strings.SplitN(schemaFilenameGlob, "**", 2)
-			rest := strings.TrimPrefix(strings.TrimPrefix(pathParts[1], `\`), `/`)
+			rest := strings.TrimPrefix(strings.TrimPrefix(after, `\`), `/`)
 			// turn the rest of the glob into a regex, anchored only at the end because ** allows
 			// for any number of dirs in between and walk will let us match against the full path name
 			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
 
-			if err := filepath.Walk(pathParts[0], func(path string, _ os.FileInfo, err error) error {
+			if err := filepath.Walk(before, func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("%w", err)
 				}
 
-				if globRe.MatchString(strings.TrimPrefix(path, pathParts[0])) {
+				if globRe.MatchString(strings.TrimPrefix(path, before)) {
 					schemaFilenames = append(schemaFilenames, path)
 				}
 
 				return nil
 			}); err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
+				return nil, fmt.Errorf("failed to walk schema at root %s: %w", before, err)
 			}
 		} else {
 			var err error
