@@ -404,6 +404,7 @@ sequenceDiagram
     participant run as run.go
     participant cfg as config
     participant intro as introspection
+    participant cl as client
     participant srv as GraphQLサーバー
     participant qp as queryparser
     participant gen as plugins / codegen
@@ -415,9 +416,12 @@ sequenceDiagram
     cfg-->>run: *Config
 
     opt gqlgenc.endpoint（リモート）
+        Note over cfg,cl: config は client に依存しない。<br/>取得は run.go が introspection 経由で配線する
         run->>intro: LoadRemoteSchema(endpoint)
-        intro->>srv: introspection クエリ (client 再利用, HTTP POST)
-        srv-->>intro: __schema 結果
+        intro->>cl: client.Post(introspection)
+        cl->>srv: HTTP POST
+        srv-->>cl: __schema 結果
+        cl-->>intro: introspection.Query
         intro->>intro: SchemaFromIntrospection → AST
         intro-->>run: schema (AST)
         run->>cfg: cfg.GQLGenConfig.Schema = schema
