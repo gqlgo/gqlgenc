@@ -198,12 +198,12 @@ func (c *GQLGencConfig) LoadQuery(schema *ast.Schema) error {
 
 	queryDocument, err := queryparser.QueryDocument(schema, querySources)
 	if err != nil {
-		return fmt.Errorf(": %w", err)
+		return fmt.Errorf("build query document failed: %w", err)
 	}
 
 	operationQueryDocuments, err := queryparser.OperationQueryDocuments(schema, queryDocument.Operations)
 	if err != nil {
-		return fmt.Errorf(": %w", err)
+		return fmt.Errorf("build operation documents failed: %w", err)
 	}
 
 	c.QueryDocument = queryDocument
