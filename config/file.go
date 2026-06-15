@@ -28,6 +28,7 @@ func FindConfigFile(path string, cfgFilenames []string) (string, error) {
 		return "", fmt.Errorf("unable to get directory \"%s\" to findCfg: %w", dir, err)
 	}
 
+	startDir := dir
 	cfg := findConfigInDir(dir, cfgFilenames)
 
 	for cfg == "" && dir != filepath.Dir(dir) {
@@ -36,7 +37,7 @@ func FindConfigFile(path string, cfgFilenames []string) (string, error) {
 	}
 
 	if cfg == "" {
-		return "", fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s", dir)
+		return "", fmt.Errorf("config file not found in %q or any parent directory (looked for %s)", startDir, strings.Join(cfgFilenames, ", "))
 	}
 
 	return cfg, nil
@@ -76,7 +77,7 @@ func schemaFilenames(schemaFilenameGlobs []string) ([]string, error) {
 
 			if err := filepath.Walk(before, func(path string, _ os.FileInfo, err error) error {
 				if err != nil {
-					return fmt.Errorf("%w", err)
+					return err
 				}
 
 				if globRe.MatchString(strings.TrimPrefix(path, before)) {
