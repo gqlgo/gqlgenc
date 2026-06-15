@@ -1,11 +1,8 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-
-	"github.com/Yamashou/gqlgenc/v3/internal/transport"
 )
 
 type Client struct {
@@ -40,7 +37,8 @@ func applyOptions(httpClient *http.Client, options []Option) *http.Client {
 // WithRoundTripper wraps the HTTP transport with wrap. The wrapper applies to
 // every request, including the WebSocket handshake of the subscription client,
 // and composes on top of the existing transport so connection pooling is
-// preserved. Use NewHeaderTransport to add headers.
+// preserved. Use it to add headers, authentication or logging with your own
+// http.RoundTripper.
 //
 // Options apply per call, so passing WithRoundTripper to Post, Get or Subscribe
 // affects only that call and never mutates the base client or a shared
@@ -58,16 +56,6 @@ func WithRoundTripper(wrap func(http.RoundTripper) http.RoundTripper) Option {
 
 		return &cl
 	}
-}
-
-// NewHeaderTransport returns a transport wrapper that adds the headers returned
-// by header(ctx) to each request. Pass it to WithRoundTripper.
-//
-// header is evaluated per request, so it supports dynamic values such as a
-// rotating auth token or a header derived from the request context. Existing
-// header keys are overwritten.
-func NewHeaderTransport(header func(ctx context.Context) http.Header) func(http.RoundTripper) http.RoundTripper {
-	return transport.NewHeader(header)
 }
 
 // withOptions returns a shallow copy of c with the per-call options applied.

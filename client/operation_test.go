@@ -11,12 +11,14 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/transport"
 )
 
 // withHeader adds static headers to a request via the RoundTripper mechanism,
 // the replacement for the removed WithHTTPHeader option.
 func withHeader(h http.Header) Option {
-	return WithRoundTripper(NewHeaderTransport(func(context.Context) http.Header { return h }))
+	return WithRoundTripper(transport.NewHeader(func(context.Context) http.Header { return h }))
 }
 
 func TestPost(t *testing.T) {
@@ -84,8 +86,8 @@ func TestPost(t *testing.T) {
 			},
 		},
 		{
-			// 呼び出し単位のヘッダー (WithRoundTripper + NewHeaderTransport) はそのリクエストに付与される
-			name: "NewHeaderTransportで設定したヘッダーがリクエストに付与される",
+			// 呼び出し単位のヘッダー (WithRoundTripper) はそのリクエストに付与される
+			name: "WithRoundTripperで設定したヘッダーがリクエストに付与される",
 			args: args{
 				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",
@@ -113,7 +115,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			// 同名キーを指定するとデフォルトヘッダーをキー単位で上書きできる
-			name: "NewHeaderTransportでデフォルトのContent-Typeをキー単位で上書きできる",
+			name: "WithRoundTripperでデフォルトのContent-Typeをキー単位で上書きできる",
 			args: args{
 				op: Operation[Query, getUserVars, user]{
 					Name:     "GetUser",

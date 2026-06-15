@@ -54,7 +54,7 @@ gqlgen:
 #### ランタイムを client パッケージに刷新（clientv2 廃止）
 
 - `NewClient(client HttpClient, baseURL string, options *Options, interceptors ...RequestInterceptor)` は `NewClient(endpoint string, options ...Option)` になりました
-- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。HTTP のカスタマイズ（ヘッダー付与・認証・ロギング・テスト用 transport など）は `WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` で transport を包んで行います。ヘッダーには `NewHeaderTransport(func(ctx context.Context) http.Header)` が便利で、`header(ctx)` はリクエストごとに評価されるため動的トークンにも対応します。`WithRoundTripper` は `Post` / `Get` / `Subscribe` に渡すとその呼び出しだけに適用され、基底クライアントや共有 `http.Client` を汚しません。`WithHTTPClient` / `WithHTTPHeader` は提供しません
+- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。HTTP のカスタマイズ（ヘッダー付与・認証・ロギング・テスト用 transport など）は自前の `http.RoundTripper` を `WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` で包んで行います（RoundTripper はリクエストごとに呼ばれるため動的トークンにも対応できます）。`WithRoundTripper` は `Post` / `Get` / `Subscribe` に渡すとその呼び出しだけに適用され、基底クライアントや共有 `http.Client` を汚しません。`WithHTTPClient` / `WithHTTPHeader` は提供しません
 - subscription は query / mutation とは別の `SubscriptionClient`（`NewSubscriptionClient`）に分離しました。`Subscribe` はこの型のメソッドで、`Client` には含まれません。WebSocket URL（`ws://` / `wss://`）を `NewSubscriptionClient` に直接渡します。これに伴い `WithWebSocketEndpoint` と http(s)→ws(s) の変換は廃止しました
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
