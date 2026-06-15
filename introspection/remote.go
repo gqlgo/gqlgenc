@@ -26,10 +26,10 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 
 	gqlClient := client.NewClient(endpoint, options...)
 
-	res, err := gqlClient.Post(ctx, client.Operation[client.Query, any, Query]{
+	res, err := gqlClient.Post(ctx, client.Operation[client.Query, struct{}, Query]{
 		Name:     "Query",
 		Document: Introspection,
-	}, nil)
+	}, struct{}{})
 	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
