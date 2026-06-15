@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/introspection"
@@ -21,17 +20,9 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// リモート(endpoint)指定時は config を読み取って introspection でスキーマを取得し、
-	// config に設定する。これにより config パッケージは client に依存しない。
-	if endpoint := cfg.GQLGencConfig.Endpoint; endpoint != nil {
-		schema, err := introspection.LoadRemoteSchema(ctx, endpoint.URL, http.Header(endpoint.Headers))
-		if err != nil {
-			return fmt.Errorf("failed to introspect schema: %w", err)
-		}
-		cfg.GQLGenConfig.Schema = schema
-	}
-
-	if err := cfg.LoadSchema(); err != nil {
+	// introspection.LoadRemoteSchema を注入する。endpoint 指定時のリモート取得は
+	// LoadSchema の中でこれを呼ぶが、config パッケージ自体は client に依存しない。
+	if err := cfg.LoadSchema(ctx, introspection.LoadRemoteSchema); err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 

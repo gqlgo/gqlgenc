@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"runtime"
 	"strings"
 	"testing"
@@ -15,6 +17,20 @@ import (
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
+
+// stubRemoteLoader returns a RemoteSchemaLoader that yields a fixed schema with
+// an interface implementation, so LoadSchema's remote path and Implements sort
+// can be exercised without a real client/introspection dependency.
+func stubRemoteLoader() RemoteSchemaLoader {
+	return func(context.Context, string, http.Header) (*ast.Schema, error) {
+		return gqlparser.MustLoadSchema(&ast.Source{
+			Name: "schema.graphql",
+			Input: `interface Node { id: ID! }
+type User implements Node { id: ID! }
+type Query { user: User }`,
+		}), nil
+	}
+}
 
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
@@ -373,9 +389,8 @@ func TestLoadSchema(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		configFile   string
-		presetSchema bool
-		emptyConfig  bool
+		configFile  string
+		emptyConfig bool
 	}
 
 	type want struct {
@@ -397,13 +412,11 @@ func TestLoadSchema(t *testing.T) {
 			},
 		},
 		{
-			// リモート(endpoint)スキーマは呼び出し側が introspection で取得して Schema に
-			// 設定する。LoadSchema は設定済み Schema をそのまま使い、Init と Implements
-			// ソートを行う。
-			name: "事前設定済みスキーマ(リモート相当)で成功する",
+			// endpoint 指定時は注入された loader がリモートスキーマを返し、
+			// LoadSchema が Init と Implements ソートまで行う
+			name: "リモート(endpoint)スキーマで成功する",
 			args: args{
-				configFile:   "testdata/cfg/endpoint_only.yml",
-				presetSchema: true,
+				configFile: "testdata/cfg/endpoint_only.yml",
 			},
 			want: want{
 				err: nil,
@@ -437,18 +450,9 @@ func TestLoadSchema(t *testing.T) {
 				if err != nil {
 					t.Fatalf("LoadConfig() failed: %v", err)
 				}
-				if tt.args.presetSchema {
-					// interface 実装を含むスキーマを設定して Implements ソート処理も通す
-					cfg.GQLGenConfig.Schema = gqlparser.MustLoadSchema(&ast.Source{
-						Name: "schema.graphql",
-						Input: `interface Node { id: ID! }
-type User implements Node { id: ID! }
-type Query { user: User }`,
-					})
-				}
 			}
 
-			err = cfg.LoadSchema()
+			err = cfg.LoadSchema(t.Context(), stubRemoteLoader())
 
 			// エラーチェック
 			if tt.want.err != nil {
@@ -571,7 +575,7 @@ func TestLoadQuery(t *testing.T) {
 			}
 
 			// スキーマをロード
-			err = cfg.LoadSchema()
+			err = cfg.LoadSchema(t.Context(), stubRemoteLoader())
 			if err != nil {
 				t.Fatalf("LoadSchema() failed: %v", err)
 			}

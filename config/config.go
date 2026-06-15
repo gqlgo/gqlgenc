@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
@@ -129,15 +131,26 @@ func LoadConfig(configFilename string) (*Config, error) {
 	return &c, nil
 }
 
-func (c *Config) LoadSchema() error {
+// RemoteSchemaLoader fetches an AST schema from a GraphQL endpoint via
+// introspection. Injecting it lets LoadSchema load a remote schema while
+// keeping the config package free of the client dependency.
+type RemoteSchemaLoader func(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error)
+
+func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLoader) error {
 	// Load schema
 	switch {
-	case c.GQLGenConfig.Schema != nil:
-		// リモート(endpoint)のスキーマは呼び出し側が introspection で取得して設定済み
 	case c.GQLGenConfig.SchemaFilename != nil:
 		if err := c.GQLGenConfig.LoadSchema(); err != nil {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
+	case c.GQLGencConfig.Endpoint != nil:
+		// リモート(endpoint)のスキーマ取得は注入された loadRemoteSchema に委ねる。
+		// これにより config パッケージは client / introspection に依存しない。
+		schema, err := loadRemoteSchema(ctx, c.GQLGencConfig.Endpoint.URL, http.Header(c.GQLGencConfig.Endpoint.Headers))
+		if err != nil {
+			return fmt.Errorf("introspect schema failed: %w", err)
+		}
+		c.GQLGenConfig.Schema = schema
 	default:
 		return errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	}
