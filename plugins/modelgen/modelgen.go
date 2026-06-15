@@ -25,16 +25,16 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		// クライアントが参照するのは Input と Enum だけ。レスポンスの形は querygen の
 		// 専用型が表現し、Object / Interface / Union の型は @goFragment や autobind で供給される。
 		// よって使われている Input 型と Enum 型だけを生成し、Object / Interface / Union は生成しない。
-		var models []*modelgen.Object
+		var inputObjects []*modelgen.Object
 
 		for _, model := range build.Models {
 			typeDef := schema.Types[model.Name]
 			if typeDef != nil && typeDef.Kind == ast.InputObject && usedTypes[model.Name] {
-				models = append(models, model)
+				inputObjects = append(inputObjects, model)
 			}
 		}
 
-		build.Models = models
+		build.Models = inputObjects
 
 		var enums []*modelgen.Enum
 
