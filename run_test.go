@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -478,20 +481,35 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 func assertModelTypes(t *testing.T, modelFile string, absent, present []string) {
 	t.Helper()
 
-	content, err := os.ReadFile(modelFile)
+	file, err := parser.ParseFile(token.NewFileSet(), modelFile, nil, 0)
 	if err != nil {
-		t.Errorf("error reading model file %s: %v", modelFile, err)
+		t.Errorf("error parsing model file %s: %v", modelFile, err)
 		return
 	}
 
+	declared := make(map[string]bool)
+
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+
+		for _, spec := range genDecl.Specs {
+			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+				declared[typeSpec.Name.Name] = true
+			}
+		}
+	}
+
 	for _, typeName := range absent {
-		if bytes.Contains(content, []byte("type "+typeName+" ")) {
+		if declared[typeName] {
 			t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
 		}
 	}
 
 	for _, typeName := range present {
-		if !bytes.Contains(content, []byte("type "+typeName+" ")) {
+		if !declared[typeName] {
 			t.Errorf("model_gen.go should generate query-used type %q", typeName)
 		}
 	}
