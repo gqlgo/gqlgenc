@@ -103,7 +103,6 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 				usedTypes: map[string]bool{
 					"NewTodos":   true,
 					"NewTodo":    true,
-					"String":     true,
 					"TodoStatus": true,
 				},
 			},
@@ -140,7 +139,6 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 				usedTypes: map[string]bool{
 					"NewTodos": true,
 					"NewTodo":  true,
-					"String":   true,
 				},
 			},
 		},

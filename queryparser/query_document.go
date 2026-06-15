@@ -198,22 +198,28 @@ func fragmentsInOperationWalker(selectionSet ast.SelectionSet) ast.FragmentDefin
 	return fragments
 }
 
-// TypesFromQueryDocuments returns a map of type names used in query documents,
-// both from variable definitions (input types) and enum types from the selection set (return types).
+// TypesFromQueryDocuments returns the set of GraphQL type names a query depends
+// on that the model generator must emit: input objects reached through variable
+// definitions (recursively) and enums reached through variable definitions or
+// selection-set return types. Scalars and objects are excluded because the model
+// generator only looks this set up for input objects and enums.
 func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocument) map[string]bool {
 	usedTypes := make(map[string]bool)
 	processedTypes := make(map[string]bool)
 
 	for _, doc := range queryDocuments {
 		for _, op := range doc.Operations {
-			// Collect types from variable definitions
 			for _, v := range op.VariableDefinitions {
-				typeFromTypeReference(v.Type, usedTypes)
-				// Recursively collect input object fields
-				if typeName := v.Type.Name(); typeName != "" {
-					if def, ok := schema.Types[typeName]; ok && def.IsInputType() {
-						inputObjectFieldsWithCycle(def, schema, usedTypes, processedTypes)
-					}
+				def, ok := schema.Types[v.Type.Name()]
+				if !ok {
+					continue
+				}
+				switch def.Kind {
+				case ast.InputObject:
+					inputObjectFieldsWithCycle(def, schema, usedTypes, processedTypes)
+				case ast.Enum:
+					usedTypes[def.Name] = true
+				default:
 				}
 			}
 			enumsFromSelectionSet(op.SelectionSet, schema, usedTypes)
@@ -244,6 +250,10 @@ func enumsFromSelectionSet(selectionSet ast.SelectionSet, schema *ast.Schema, us
 	}
 }
 
+// inputObjectFieldsWithCycle records def (an input object) and, recursively, the
+// input object and enum types reachable through its fields. Scalar field types
+// are skipped because the model generator never looks them up. processedTypes
+// guards against input object cycles.
 func inputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, usedTypes, processedTypes map[string]bool) {
 	if processedTypes[def.Name] {
 		return
@@ -258,26 +268,17 @@ func inputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, usedTyp
 		}
 
 		// Type.Name() は入れ子リスト ([[T!]!] など) を辿って最内の名前付き型を返す
-		typeName := field.Type.Name()
-		if typeName != "" {
-			usedTypes[typeName] = true
-			// Recursively collect input type fields
-			if fieldDef, ok := schema.Types[typeName]; ok && fieldDef.IsInputType() {
-				inputObjectFieldsWithCycle(fieldDef, schema, usedTypes, processedTypes)
-			}
+		fieldDef, ok := schema.Types[field.Type.Name()]
+		if !ok {
+			continue
+		}
+
+		switch fieldDef.Kind {
+		case ast.InputObject:
+			inputObjectFieldsWithCycle(fieldDef, schema, usedTypes, processedTypes)
+		case ast.Enum:
+			usedTypes[fieldDef.Name] = true
+		default:
 		}
 	}
-}
-
-// typeFromTypeReference is a helper function to collect type names from type references.
-func typeFromTypeReference(t *ast.Type, usedTypes map[string]bool) {
-	if t == nil {
-		return
-	}
-
-	if t.NamedType != "" {
-		usedTypes[t.NamedType] = true
-	}
-
-	typeFromTypeReference(t.Elem, usedTypes)
 }
