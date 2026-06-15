@@ -496,12 +496,15 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 	}
 }
 
-// typeExistsInFile は goFile 内にトップレベルの型宣言 typeName が存在するかを返す。
-func typeExistsInFile(goFile, typeName string) (bool, error) {
+// typesExistsInFile は goFile を1度だけパースし、typeNames の各型がトップレベルで
+// 宣言されているかを型名→存在の map で返す。
+func typesExistsInFile(goFile string, typeNames []string) (map[string]bool, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), goFile, nil, 0)
 	if err != nil {
-		return false, fmt.Errorf("parse %s: %w", goFile, err)
+		return nil, fmt.Errorf("parse %s: %w", goFile, err)
 	}
+
+	declared := make(map[string]bool)
 
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -510,13 +513,28 @@ func typeExistsInFile(goFile, typeName string) (bool, error) {
 		}
 
 		for _, spec := range genDecl.Specs {
-			if typeSpec, ok := spec.(*ast.TypeSpec); ok && typeSpec.Name.Name == typeName {
-				return true, nil
+			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+				declared[typeSpec.Name.Name] = true
 			}
 		}
 	}
 
-	return false, nil
+	result := make(map[string]bool, len(typeNames))
+	for _, typeName := range typeNames {
+		result[typeName] = declared[typeName]
+	}
+
+	return result, nil
+}
+
+// typeExistsInFile は goFile 内にトップレベルの型宣言 typeName が存在するかを返す。
+func typeExistsInFile(goFile, typeName string) (bool, error) {
+	results, err := typesExistsInFile(goFile, []string{typeName})
+	if err != nil {
+		return false, err
+	}
+
+	return results[typeName], nil
 }
 
 type handlerRoundTripper struct {
