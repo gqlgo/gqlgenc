@@ -22,9 +22,9 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 	return func(build *modelgen.ModelBuild) *modelgen.ModelBuild {
 		schema := cfg.GQLGenConfig.Schema
 
-		// クライアントが参照するのは Input と Enum だけ。レスポンスの形は querygen の
-		// 専用型が表現し、Object / Interface / Union の型は @goFragment や autobind で供給される。
-		// よって使われている Input 型と Enum 型だけを生成し、Object / Interface / Union は生成しない。
+		// レスポンスの形は querygen の専用型が表現するため、スキーマの Object / Interface /
+		// Union のモデルはクライアントから参照されない。クライアントが参照するスキーマ由来の型は
+		// Input と Enum だけなので、使われている Input 型と Enum 型だけを生成する。
 		var inputObjects []*modelgen.Object
 
 		for _, model := range build.Models {
