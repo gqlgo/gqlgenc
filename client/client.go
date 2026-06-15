@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/transport"
 )
 
 type Client struct {
@@ -65,30 +67,7 @@ func WithRoundTripper(wrap func(http.RoundTripper) http.RoundTripper) Option {
 // rotating auth token or a header derived from the request context. Existing
 // header keys are overwritten.
 func NewHeaderTransport(header func(ctx context.Context) http.Header) func(http.RoundTripper) http.RoundTripper {
-	return func(base http.RoundTripper) http.RoundTripper {
-		return &headerTransport{base: base, header: header}
-	}
-}
-
-type headerTransport struct {
-	base   http.RoundTripper
-	header func(ctx context.Context) http.Header
-}
-
-func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	ctx := req.Context()
-	// RoundTrippers must not modify the request, so clone before adding headers
-	clone := req.Clone(ctx)
-	for key, values := range t.header(ctx) {
-		clone.Header[http.CanonicalHeaderKey(key)] = values
-	}
-
-	resp, err := t.base.RoundTrip(clone)
-	if err != nil {
-		return nil, fmt.Errorf("header transport: %w", err)
-	}
-
-	return resp, nil
+	return transport.NewHeader(header)
 }
 
 // withOptions returns a shallow copy of c with the per-call options applied.
