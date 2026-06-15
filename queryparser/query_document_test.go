@@ -19,6 +19,7 @@ type Query {
 
 type Mutation {
 	createTodos(input: NewTodos!): TodoPage
+	setMatrix(matrix: MatrixInput!): Boolean
 }
 
 type Todo {
@@ -54,6 +55,19 @@ enum SortOrder {
 enum UnusedEnum {
 	FOO
 	BAR
+}
+
+input MatrixInput {
+	rows: [[CellInput!]!]
+}
+
+input CellInput {
+	color: CellColor
+}
+
+enum CellColor {
+	RED
+	GREEN
 }
 `
 
@@ -150,6 +164,25 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 			want: want{
 				usedTypes: map[string]bool{
 					"TodoStatus": true,
+				},
+			},
+		},
+		{
+			// 入れ子リスト [[CellInput!]!] の要素型 (CellInput とその enum CellColor) も
+			// 再帰的に収集する。1 段だけ剥がす実装だと要素型が漏れて生成されない。
+			name: "入れ子リストのInput型の要素型が再帰的に収集される",
+			args: args{
+				query: `
+					mutation SetMatrix($matrix: MatrixInput!) {
+						setMatrix(matrix: $matrix)
+					}
+				`,
+			},
+			want: want{
+				usedTypes: map[string]bool{
+					"MatrixInput": true,
+					"CellInput":   true,
+					"CellColor":   true,
 				},
 			},
 		},

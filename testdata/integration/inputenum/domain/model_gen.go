@@ -12,16 +12,22 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+type FilterInput struct {
+	Field string `json:"field"`
+	Value string `json:"value"`
+}
+
 type PageInput struct {
 	Size int `json:"size"`
 }
 
 type SearchInput struct {
-	Keyword      string                        `json:"keyword"`
-	Status       Status                        `json:"status"`
-	Page         graphql.Omittable[*PageInput] `json:"page,omitempty,omitzero"`
-	CreatedAfter graphql.Omittable[*time.Time] `json:"createdAfter,omitempty,omitzero"`
-	Meta         graphql.Omittable[*string]    `json:"meta,omitempty,omitzero"`
+	Keyword      string                              `json:"keyword"`
+	Status       Status                              `json:"status"`
+	Page         graphql.Omittable[*PageInput]       `json:"page,omitempty,omitzero"`
+	CreatedAfter graphql.Omittable[*time.Time]       `json:"createdAfter,omitempty,omitzero"`
+	Meta         graphql.Omittable[*string]          `json:"meta,omitempty,omitzero"`
+	Filters      graphql.Omittable[[][]*FilterInput] `json:"filters,omitempty,omitzero"`
 }
 
 type Status string

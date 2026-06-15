@@ -8,6 +8,13 @@ input SearchInput {
   page: PageInput
   createdAfter: Timestamp
   meta: Raw
+  # 入れ子リスト経由でのみ到達する nested input。collector が 1 段しか剥がさないと生成漏れする
+  filters: [[FilterInput!]!]
+}
+
+input FilterInput {
+  field: String!
+  value: String!
 }
 
 input PageInput {

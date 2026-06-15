@@ -253,20 +253,12 @@ func inputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, usedTyp
 	usedTypes[def.Name] = true
 
 	for _, field := range def.Fields {
-		var typeName string
-		// Traverse to the element type of a list type
-		switch {
-		case field.Type == nil:
-			// No type, nothing to do
+		if field.Type == nil {
 			continue
-		case field.Type.Elem != nil:
-			// Handle slices
-			typeName = field.Type.Elem.NamedType
-		case field.Type.NamedType != "":
-			// Handle scalar named types
-			typeName = field.Type.NamedType
 		}
 
+		// Type.Name() は入れ子リスト ([[T!]!] など) を辿って最内の名前付き型を返す
+		typeName := field.Type.Name()
 		if typeName != "" {
 			usedTypes[typeName] = true
 			// Recursively collect input type fields
