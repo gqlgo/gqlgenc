@@ -18,10 +18,6 @@ const FilesDir = "./example/files-info/files/"
 
 const imageFile = "mario-strikers_1600w_original.jpg"
 
-func newof[T any](val T) *T {
-	return &val
-}
-
 func getFiles(files ...string) ([]*graphql.Upload, error) {
 	result := make([]*graphql.Upload, len(files))
 
@@ -31,7 +27,7 @@ func getFiles(files ...string) ([]*graphql.Upload, error) {
 			return result, err
 		}
 
-		result[i] = newof(uFile)
+		result[i] = &uFile
 	}
 
 	return result, nil

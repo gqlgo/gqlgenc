@@ -516,7 +516,7 @@ func (e *Encoder) Encode(v reflect.Value) ([]byte, error) {
 	t := v.Type()
 
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return e.encodePtr(v)
 	case reflect.Struct:
 		return e.encodeStruct(v)
@@ -863,7 +863,7 @@ func (e *Encoder) prepareFields(t reflect.Type) []fieldInfo {
 
 func isNil(v reflect.Value) bool {
 	switch v.Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface:
+	case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface:
 		return v.IsNil()
 	default:
 		return false

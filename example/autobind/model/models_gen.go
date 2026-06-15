@@ -10,5 +10,5 @@ type Query struct {
 
 type User struct {
 	ID      string   `json:"id"`
-	Profile *Profile `json:"profile"`
+	Profile *Profile `json:"profile,omitempty"`
 }
