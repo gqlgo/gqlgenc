@@ -131,8 +131,8 @@ type UserOperation_User_User struct {
 
 #### 未使用モデルのフィルタリングを既定動作に変更
 
-- v0 でオプトインだった `onlyUsedModels` 相当の動作を既定にしました。`querygen` / `clientgen` を使わないモデルのみの生成では、クエリで使用されていない Object 型・Enum 型を生成しません（Input 型は常に生成し、Interface は維持します）。Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
-- `querygen` / `clientgen` を使う場合は、レスポンスのデシリアライズに必要なため全ての型を生成します
+- v0 でオプトインだった `onlyUsedModels` 相当の動作を既定にしました。`querygen` / `clientgen` の有無にかかわらず、クエリで参照されない Object 型・Enum 型は生成しません。変数定義の Input 型と、セレクションセットで参照される型（フィールドの戻り型・フラグメントの対象型）を「使用中」とみなします。Input 型は常に生成し、Interface / Union / Scalar は維持します。Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
+- 手書きの autobind 型が、どのクエリでも選択されない Object 型を参照している場合、その型が生成されずコンパイルエラーになることがあります。その場合は当該フィールドをクエリで選択するか、参照先の型も autobind してください
 
 #### CLI の簡素化
 

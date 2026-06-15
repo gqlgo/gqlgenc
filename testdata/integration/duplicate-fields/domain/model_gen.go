@@ -6,6 +6,3 @@ type Object struct {
 	FooBar *string `json:"foo_bar,omitempty,omitzero"`
 	FooBar *string `json:"fooBar,omitempty,omitzero"`
 }
-
-type Query struct {
-}

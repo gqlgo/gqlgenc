@@ -53,9 +53,6 @@ type Metadata struct {
 	Level      Level          `json:"level"`
 }
 
-type Mutation struct {
-}
-
 type PrivateAddress struct {
 	ID      string `json:"id"`
 	Street  string `json:"street"`
@@ -87,12 +84,6 @@ type PublicProfile struct {
 }
 
 func (PublicProfile) IsProfile() {}
-
-type Query struct {
-}
-
-type Subscription struct {
-}
 
 type UpdateUserInput struct {
 	ID       UserID                                `json:"id"`

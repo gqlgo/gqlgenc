@@ -20,13 +20,7 @@ func New(cfg *config.Config, operationQueryDocuments []*ast.QueryDocument) *mode
 
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	return func(build *modelgen.ModelBuild) *modelgen.ModelBuild {
-		// クライアント側のコード生成では全ての型を生成する
-		// （レスポンスのデシリアライズに必要なため）
-		if cfg.GQLGencConfig.QueryGen.IsDefined() || cfg.GQLGencConfig.ClientGen.IsDefined() {
-			return build
-		}
-
-		// サーバー側のコード生成では未使用の型をフィルタリング
+		// クエリで参照されない型は生成しない
 		var newModels []*modelgen.Object
 
 		for _, model := range build.Models {

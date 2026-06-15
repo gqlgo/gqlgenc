@@ -216,10 +216,11 @@ gqlgen:
 
 ### model_gen.go（modelgen）
 
-gqlgen 標準の modelgen プラグインで input 型・enum などを生成します。gqlgenc は MutateHook で次のフィルタリングを行います。
+gqlgen 標準の modelgen プラグインで input 型・enum などを生成します。gqlgenc は MutateHook で、`querygen` / `clientgen` の有無にかかわらずクエリで参照されない型をフィルタリングします。
 
-- `querygen` または `clientgen` が定義されている場合: すべての型を生成する（レスポンスのデシリアライズに必要なため）
-- どちらも未定義の場合: Input 型は常に生成し、Object 型と Enum 型はクエリで使用されているものだけを生成する。使用判定はオペレーションの変数定義（Input 型はフィールドを再帰的に辿る）とセレクションセット（レスポンスフィールドの enum）から行う
+- Input 型は常に生成し、Interface / Union / Scalar は維持する
+- Object 型と Enum 型は、クエリで使用されているものだけを生成する。使用判定はオペレーションの変数定義（Input 型はフィールドを再帰的に辿る）と、セレクションセットで参照される型（フィールドの戻り型・フラグメントの対象型）から行う
+- レスポンス型は query_gen.go が専用構造体として生成するため Object 型のモデルは通常クライアントからは参照されないが、手書きの autobind 型がどのクエリでも選択されない Object 型を参照している場合は、その型が生成されずコンパイルエラーになることがある（クエリで選択するか、参照先も autobind する）
 
 enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[gqlgen#3663](https://github.com/99designs/gqlgen/pull/3663)）、json.Marshal でそのままシリアライズできます。
 
