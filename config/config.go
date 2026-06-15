@@ -184,16 +184,9 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		return fmt.Errorf("generating core failed: %w", err)
 	}
 
-	// model を生成しない場合は modelgen が動かないため、未バインドの custom scalar を
-	// modelgen と同じ既定 (graphql.String) に束縛する。これは gqlgen の modelgen プラグインが
-	// 非 user-defined scalar に与える既定 (plugin/modelgen の b.Scalars 束縛) と揃えている。
-	// built-in scalar と models: で明示バインドした型は UserDefined のため対象外になる。
+	// model を生成しない場合は modelgen が動かないため、custom scalar の既定を補う。
 	if !c.GQLGenConfig.Model.IsDefined() {
-		for _, t := range c.GQLGenConfig.Schema.Types {
-			if t.Kind == ast.Scalar && !c.GQLGenConfig.Models.UserDefined(t.Name) {
-				c.GQLGenConfig.Models.Add(t.Name, "github.com/99designs/gqlgen/graphql.String")
-			}
-		}
+		bindDefaultScalars(c.GQLGenConfig.Schema, c.GQLGenConfig.Models)
 	}
 
 	// sort Implements to ensure a deterministic output
@@ -204,6 +197,21 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 	}
 
 	return nil
+}
+
+// bindDefaultScalars は、まだモデルが束縛されていない schema の custom scalar を
+// graphql.String に束縛する。これは gqlgen modelgen が非 user-defined scalar に与える既定
+// (plugin/modelgen の b.Scalars 束縛) と揃えたもので、modelgen が動かない (model を生成しない)
+// 構成でも同じ既定を適用するために使う。
+//
+// autobind / models: / built-in で既に束縛済みの scalar は UserDefined のため対象外で、
+// 対応する型がある場合はその型へのバインドが優先される。
+func bindDefaultScalars(schema *ast.Schema, models gqlgenconfig.TypeMap) {
+	for _, t := range schema.Types {
+		if t.Kind == ast.Scalar && !models.UserDefined(t.Name) {
+			models.Add(t.Name, "github.com/99designs/gqlgen/graphql.String")
+		}
+	}
 }
 
 type GQLGencConfig struct {
