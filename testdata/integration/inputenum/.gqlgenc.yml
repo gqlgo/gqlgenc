@@ -15,3 +15,7 @@ gqlgen:
     filename: ./domain/model_gen.go
   enable_model_json_omitzero_tag: true
   nullable_input_omittable: true
+  models:
+    # custom scalar Timestamp を既存 Go 型にバインドする(Raw は未指定なので graphql.String 既定)
+    Timestamp:
+      model: github.com/99designs/gqlgen/graphql.Time

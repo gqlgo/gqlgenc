@@ -27,8 +27,9 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	// 生成された model_gen.go (Input 型・Enum 型のみ。Object は含まない)、query_gen.go、
-	// client_gen.go が want スナップショットと一致することを確認する
+	// 生成された model_gen.go (Input 型・Enum 型のみ。Object は含まない。custom scalar は
+	// 対応型ありの Timestamp -> time.Time、対応型なしの Raw -> graphql.String にバインド)、
+	// query_gen.go、client_gen.go が want スナップショットと一致することを確認する
 	compareFiles(t, "./want/model_gen.go.txt", "domain/model_gen.go")
 	compareFiles(t, "./want/query_gen.go.txt", "domain/query_gen.go")
 	compareFiles(t, "./want/client_gen.go.txt", "query/client_gen.go")

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 )
@@ -16,9 +17,11 @@ type PageInput struct {
 }
 
 type SearchInput struct {
-	Keyword string                        `json:"keyword"`
-	Status  Status                        `json:"status"`
-	Page    graphql.Omittable[*PageInput] `json:"page,omitempty,omitzero"`
+	Keyword      string                        `json:"keyword"`
+	Status       Status                        `json:"status"`
+	Page         graphql.Omittable[*PageInput] `json:"page,omitempty,omitzero"`
+	CreatedAfter graphql.Omittable[*time.Time] `json:"createdAfter,omitempty,omitzero"`
+	Meta         graphql.Omittable[*string]    `json:"meta,omitempty,omitzero"`
 }
 
 type Status string
