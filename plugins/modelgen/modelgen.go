@@ -26,7 +26,7 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		schema := cfg.GQLGenConfig.Schema
 
 		// Input
-		var inputObjects []*modelgen.Object
+		inputObjects := make([]*modelgen.Object, 0, len(build.Models))
 		for _, model := range build.Models {
 			typeDef := schema.Types[model.Name]
 			if typeDef != nil && typeDef.Kind == ast.InputObject && usedTypes[model.Name] {
@@ -36,7 +36,7 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		build.Models = inputObjects
 
 		// enum
-		var enums []*modelgen.Enum
+		enums := make([]*modelgen.Enum, 0, len(build.Enums))
 		for _, enum := range build.Enums {
 			if usedTypes[enum.Name] {
 				enums = append(enums, enum)
