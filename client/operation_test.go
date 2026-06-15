@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,14 +10,27 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	"github.com/Yamashou/gqlgenc/v3/internal/transport"
 )
 
-// withHeader adds static headers to a request via the RoundTripper mechanism,
-// the replacement for the removed WithHTTPHeader option.
+// withHeader adds static headers to a request via a RoundTripper, used to
+// exercise per-call WithRoundTripper.
 func withHeader(h http.Header) Option {
-	return WithRoundTripper(transport.NewHeader(func(context.Context) http.Header { return h }))
+	return WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
+		return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			ctx := req.Context()
+			clone := req.Clone(ctx)
+			for key, values := range h {
+				clone.Header[http.CanonicalHeaderKey(key)] = values
+			}
+
+			resp, err := base.RoundTrip(clone)
+			if err != nil {
+				return nil, fmt.Errorf("with header: %w", err)
+			}
+
+			return resp, nil
+		})
+	})
 }
 
 func TestPost(t *testing.T) {

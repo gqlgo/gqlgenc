@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
-	"github.com/Yamashou/gqlgenc/v3/internal/transport"
+	"github.com/Yamashou/gqlgenc/v3/introspection/internal/transport"
 
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator"
