@@ -184,6 +184,17 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		return fmt.Errorf("generating core failed: %w", err)
 	}
 
+	// model を生成しない場合は modelgen が動かないため、未バインドの custom scalar を
+	// modelgen と同じ既定 (graphql.String) に束縛する。built-in scalar と models: で
+	// 明示バインドした型は UserDefined のため対象外になる。
+	if !c.GQLGenConfig.Model.IsDefined() {
+		for _, t := range c.GQLGenConfig.Schema.Types {
+			if t.Kind == ast.Scalar && !c.GQLGenConfig.Models.UserDefined(t.Name) {
+				c.GQLGenConfig.Models.Add(t.Name, "github.com/99designs/gqlgen/graphql.String")
+			}
+		}
+	}
+
 	// sort Implements to ensure a deterministic output
 	for _, implements := range c.GQLGenConfig.Schema.Implements {
 		slices.SortFunc(implements, func(a, b *ast.Definition) int {

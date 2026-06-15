@@ -19,8 +19,6 @@ gqlgen:
   autobind:
     - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
   models:
-    JSON:
-      model: github.com/99designs/gqlgen/graphql.String
     Email:
       model: github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Email
     Map:
