@@ -1,0 +1,6 @@
+query Search($input: SearchInput!) {
+  search(input: $input) {
+    total
+    status
+  }
+}

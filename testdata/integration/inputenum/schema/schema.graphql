@@ -1,0 +1,23 @@
+type Query {
+  search(input: SearchInput!): SearchResult!
+}
+
+input SearchInput {
+  keyword: String!
+  status: Status!
+  page: PageInput
+}
+
+input PageInput {
+  size: Int!
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+type SearchResult {
+  total: Int!
+  status: Status!
+}
