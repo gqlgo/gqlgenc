@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io"
 	"net/http"
 	"testing"
@@ -29,18 +26,11 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	// 使われている Input 型と Enum 型だけを生成し、Object 型は生成しない
-	declared := declaredTypes(t, "domain/model_gen.go")
-	for _, name := range []string{"SearchInput", "PageInput", "Status"} {
-		if !declared[name] {
-			t.Errorf("model_gen.go should generate %q", name)
-		}
-	}
-	for _, name := range []string{"SearchResult", "Query"} {
-		if declared[name] {
-			t.Errorf("model_gen.go should not generate object type %q", name)
-		}
-	}
+	// 生成された model_gen.go (Input 型・Enum 型のみ。Object は含まない)、query_gen.go、
+	// client_gen.go が want スナップショットと一致することを確認する
+	compareFiles(t, "./want/model_gen.go.txt", "domain/model_gen.go")
+	compareFiles(t, "./want/query_gen.go.txt", "domain/query_gen.go")
+	compareFiles(t, "./want/client_gen.go.txt", "query/client_gen.go")
 
 	// 生成された Input / Enum / 応答型が動作することを確認する (入力エンコード + レスポンスデコード)
 	captured := &bytes.Buffer{}
@@ -78,30 +68,6 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 			t.Errorf("request body should contain %q, got: %s", want, captured.String())
 		}
 	}
-}
-
-func declaredTypes(t *testing.T, goFile string) map[string]bool {
-	t.Helper()
-
-	file, err := parser.ParseFile(token.NewFileSet(), goFile, nil, 0)
-	if err != nil {
-		t.Fatalf("parse %s: %v", goFile, err)
-	}
-
-	declared := make(map[string]bool)
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.TYPE {
-			continue
-		}
-		for _, spec := range genDecl.Specs {
-			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-				declared[typeSpec.Name.Name] = true
-			}
-		}
-	}
-
-	return declared
 }
 
 type cannedRoundTripper struct {
