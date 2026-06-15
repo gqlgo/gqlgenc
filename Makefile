@@ -6,8 +6,11 @@ fmt:
 lint:
 	golangci-lint cache clean && golangci-lint run
 
+build:
+	go build -v ./...
+
 test:
-	go test -v ./...
+	go test -race -v ./...
 
 compat:
 	go tool gorelease
