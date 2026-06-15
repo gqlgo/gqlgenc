@@ -1,0 +1,22 @@
+query Search($filter: SearchFilter!) {
+  search(filter: $filter) {
+    ... on User {
+      id
+      name
+      kind
+    }
+    ... on Post {
+      id
+      title
+    }
+  }
+  node(id: "1") {
+    id
+    ... on User {
+      name
+    }
+    ... on Post {
+      title
+    }
+  }
+}

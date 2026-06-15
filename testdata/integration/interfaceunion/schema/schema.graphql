@@ -1,0 +1,35 @@
+schema {
+  query: Query
+}
+
+type Query {
+  node(id: ID!): Node
+  search(filter: SearchFilter!): [SearchResult!]!
+}
+
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String!
+  kind: NodeKind!
+}
+
+type Post implements Node {
+  id: ID!
+  title: String!
+}
+
+union SearchResult = User | Post
+
+input SearchFilter {
+  keyword: String!
+  kind: NodeKind!
+}
+
+enum NodeKind {
+  USER
+  POST
+}
