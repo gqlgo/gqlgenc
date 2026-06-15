@@ -12,6 +12,13 @@ import (
 	"github.com/vektah/gqlparser/v2/validator"
 )
 
+// introspectionOperation is the typed operation for the GraphQL schema introspection
+// query. It takes no variables.
+var introspectionOperation = client.Operation[client.Query, struct{}, Query]{
+	Name:     "Query",
+	Document: Introspection,
+}
+
 // LoadRemoteSchema fetches the schema from a GraphQL endpoint via an
 // introspection query and returns it as a validated AST. It reuses the runtime
 // client so that the config package can stay free of the client dependency:
@@ -26,10 +33,7 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 
 	gqlClient := client.NewClient(endpoint, options...)
 
-	res, err := gqlClient.Post(ctx, client.Operation[client.Query, struct{}, Query]{
-		Name:     "Query",
-		Document: Introspection,
-	}, struct{}{})
+	res, err := gqlClient.Post(ctx, introspectionOperation, struct{}{})
 	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
