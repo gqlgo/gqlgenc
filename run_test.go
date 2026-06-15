@@ -288,20 +288,12 @@ func Test_IntegrationTest(t *testing.T) {
 			// modelgen が未使用型を生成せず、使用中の型は生成することを確認する
 			modelFile := "domain/model_gen.go"
 			for _, typeName := range tt.want.absentModelTypes {
-				exists, err := typeExistsInFile(modelFile, typeName)
-				if err != nil {
-					t.Fatalf("typeExistsInFile(%q): %v", typeName, err)
-				}
-				if exists {
+				if typeExistsInFile(modelFile, typeName) {
 					t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
 				}
 			}
 			for _, typeName := range tt.want.presentModelTypes {
-				exists, err := typeExistsInFile(modelFile, typeName)
-				if err != nil {
-					t.Fatalf("typeExistsInFile(%q): %v", typeName, err)
-				}
-				if !exists {
+				if !typeExistsInFile(modelFile, typeName) {
 					t.Errorf("model_gen.go should generate query-used type %q", typeName)
 				}
 			}
@@ -497,11 +489,11 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 }
 
 // typesExistsInFile は goFile を1度だけパースし、typeNames の各型がトップレベルで
-// 宣言されているかを型名→存在の map で返す。
-func typesExistsInFile(goFile string, typeNames []string) (map[string]bool, error) {
+// 宣言されているかを型名→存在の map で返す。パースに失敗した場合は panic する。
+func typesExistsInFile(goFile string, typeNames []string) map[string]bool {
 	file, err := parser.ParseFile(token.NewFileSet(), goFile, nil, 0)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", goFile, err)
+		panic(fmt.Sprintf("parse %s: %v", goFile, err))
 	}
 
 	declared := make(map[string]bool)
@@ -524,17 +516,12 @@ func typesExistsInFile(goFile string, typeNames []string) (map[string]bool, erro
 		result[typeName] = declared[typeName]
 	}
 
-	return result, nil
+	return result
 }
 
 // typeExistsInFile は goFile 内にトップレベルの型宣言 typeName が存在するかを返す。
-func typeExistsInFile(goFile, typeName string) (bool, error) {
-	results, err := typesExistsInFile(goFile, []string{typeName})
-	if err != nil {
-		return false, err
-	}
-
-	return results[typeName], nil
+func typeExistsInFile(goFile, typeName string) bool {
+	return typesExistsInFile(goFile, []string{typeName})[typeName]
 }
 
 type handlerRoundTripper struct {
