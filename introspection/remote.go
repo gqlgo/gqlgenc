@@ -43,13 +43,5 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
-	if schema.Query == nil {
-		schema.Query = &ast.Definition{
-			Kind: ast.Object,
-			Name: "Query",
-		}
-		schema.Types["Query"] = schema.Query
-	}
-
 	return schema, nil
 }

@@ -95,12 +95,6 @@ func TestLoadRemoteSchema(t *testing.T) {
 			want: want{err: errors.New("introspection query failed")},
 		},
 		{
-			// schema.Query が null のとき Query 型を補完する
-			name: "schema.QueryがnullでもQuery型を補完する",
-			args: args{responseFile: "testdata/remote/response_query_null.json"},
-			want: want{err: nil},
-		},
-		{
 			// endpoint.headers がリクエストに付与される
 			name: "headersがリクエストに付与される",
 			args: args{responseFile: "testdata/remote/response_ok.json", authorization: "Bearer test-token"},
