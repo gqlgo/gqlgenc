@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -29,10 +30,11 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 		userOperation *domain.UserOperation
 	}
 	tests := []struct {
-		name    string
-		testDir string
-		wantErr bool
-		want    want
+		name            string
+		testDir         string
+		wantErr         bool
+		wantErrContains string
+		want            want
 	}{
 		{
 			name:    "basic test",
@@ -250,6 +252,14 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			testDir: "testdata/integration/duplicate-fields/",
 			wantErr: true,
 		},
+		{
+			// UC1 (gqlgen.model 未指定) で enum を autobind/@goModel のいずれにも束縛せず
+			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)
+			name:            "unbound enum test - should fail with a clean error, not panic",
+			testDir:         "testdata/integration/unbound-enum/",
+			wantErr:         true,
+			wantErrContains: `no Go model is bound for GraphQL type "Status"`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -264,8 +274,11 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			t.Chdir(tt.testDir)
 			err := run(t.Context())
 			if tt.wantErr {
-				if err == nil {
+				switch {
+				case err == nil:
 					t.Errorf("run() expected error but got nil")
+				case tt.wantErrContains != "" && !strings.Contains(err.Error(), tt.wantErrContains):
+					t.Errorf("run() error = %q, want it to contain %q", err, tt.wantErrContains)
 				}
 				return // エラーが期待される場合はここでテストを終了
 			}
