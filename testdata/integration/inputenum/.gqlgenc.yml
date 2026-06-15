@@ -9,6 +9,8 @@ gqlgenc:
 gqlgen:
   schema:
     - ./schema/*.graphql
+  # gqlgen.model を指定するため gqlgenc が model_gen.go を生成する。
+  # 生成されるのはクエリで使う Input 型と Enum 型のみ(client/server で model を共有しない構成)。
   model:
     filename: ./domain/model_gen.go
   enable_model_json_omitzero_tag: true

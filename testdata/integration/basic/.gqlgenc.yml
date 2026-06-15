@@ -12,6 +12,8 @@ gqlgenc:
 gqlgen:
   schema:
     - ./schema/*.graphql
+  # gqlgen.model を指定しないため gqlgenc は model_gen.go を生成しない。
+  # autobind で既存モデル(server 側 gqlgen が生成)を使う(client/server で model を共有する構成)。
   enable_model_json_omitempty_tag: false
   enable_model_json_omitzero_tag: true
   nullable_input_omittable: true
