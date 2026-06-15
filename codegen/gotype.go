@@ -170,29 +170,32 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 
 // The typeName passed to the Type argument must be the type name derived from the analysis result, such as from selections
 func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type {
-	return resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
+	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
+	if err != nil && g.err == nil {
+		g.err = err
+	}
+	return t
 }
 
 // resolveModelType は GraphQL 型名に束縛された Go 型を gqlgen の model マップから解決する。
 // nullable な場合はポインタで包む。codegen 内の型解決はこの関数に集約する。
-func resolveModelType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) gotypes.Type {
+func resolveModelType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) (gotypes.Type, error) {
 	bindings := models[typeName].Model
 	if len(bindings) == 0 {
-		// gqlgen がすべてのスキーマ型にモデルを束縛するため通常は起きないが、
-		// 起きた場合に index out of range ではなく原因の分かるメッセージで失敗させる。
-		panic(fmt.Sprintf("no Go model is bound for GraphQL type %q", typeName))
+		// UC1 (gqlgen.model 未指定) で enum / input が autobind / @goModel のいずれにも
+		// 束縛されていないと到達する。panic ではなく原因と対処を示すエラーで失敗させる。
+		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting gqlgen.model, or bind it via autobind / @goModel", typeName)
 	}
 
 	goType, err := binder.FindTypeFromName(bindings[0])
 	if err != nil {
-		// 正しい typeName を渡している限り見つかるはずなので、見つからなければ panic する。
-		panic(fmt.Sprintf("%+v", err))
+		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("resolve Go model for GraphQL type %q: %w", typeName, err)
 	}
 	if !nonNull {
 		goType = gotypes.NewPointer(goType)
 	}
 
-	return goType
+	return goType, nil
 }
 
 // boundGoType は @goFragment(type:) ディレクティブがあればバインド先の Go 型と

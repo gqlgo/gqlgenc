@@ -35,7 +35,10 @@ func GenerateCode(cfg *config.Config) error {
 
 	codegen.StripGoFragmentDirectives(cfg.GQLGencConfig.QueryDocument)
 
-	operations := codegen.NewOperationGenerator(cfg).CreateOperations(cfg.GQLGencConfig.QueryDocument, cfg.GQLGencConfig.OperationQueryDocuments)
+	operations, err := codegen.NewOperationGenerator(cfg).CreateOperations(cfg.GQLGencConfig.QueryDocument, cfg.GQLGencConfig.OperationQueryDocuments)
+	if err != nil {
+		return fmt.Errorf("failed to create operations: %w", err)
+	}
 
 	// querygen
 	if cfg.GQLGencConfig.QueryGen.IsDefined() {

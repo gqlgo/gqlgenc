@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
+	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 )
 
 func TestFieldTypeName(t *testing.T) {
@@ -144,6 +147,69 @@ func TestGoTypeName(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.name, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveModelType(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		models   gqlgenconfig.TypeMap
+		typeName string
+		nonNull  bool
+	}
+
+	type want struct {
+		goType string
+		err    error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// UC1 (gqlgen.model 未指定) で enum/input が未束縛のとき、panic ではなくエラーを返す
+			name: "束縛が無いGraphQL型はpanicせずエラーを返す",
+			args: args{
+				models:   gqlgenconfig.TypeMap{},
+				typeName: "Status",
+				nonNull:  true,
+			},
+			want: want{
+				goType: "invalid type",
+				err:    cmpopts.AnyError,
+			},
+		},
+		{
+			// キーは在るが Model が空のときも未束縛として同じくエラーを返す
+			name: "Modelが空のGraphQL型はエラーを返す",
+			args: args{
+				models:   gqlgenconfig.TypeMap{"Status": gqlgenconfig.TypeMapEntry{}},
+				typeName: "Status",
+				nonNull:  false,
+			},
+			want: want{
+				goType: "invalid type",
+				err:    cmpopts.AnyError,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			// 未束縛の分岐では binder を参照しないため nil を渡してよい
+			got, err := resolveModelType(nil, tt.args.models, tt.args.typeName, tt.args.nonNull)
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+			if diff := cmp.Diff(tt.want.goType, got.String()); diff != "" {
+				t.Errorf("goType diff(-want +got): %s", diff)
 			}
 		})
 	}

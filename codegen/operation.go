@@ -17,6 +17,7 @@ import (
 type OperationGenerator struct {
 	cfg    *config.Config
 	binder *gqlgenconfig.Binder
+	err    error
 }
 
 func NewOperationGenerator(cfg *config.Config) *OperationGenerator {
@@ -26,7 +27,7 @@ func NewOperationGenerator(cfg *config.Config) *OperationGenerator {
 	}
 }
 
-func (g *OperationGenerator) CreateOperations(queryDocument *graphql.QueryDocument, operationQueryDocuments []*graphql.QueryDocument) []*Operation {
+func (g *OperationGenerator) CreateOperations(queryDocument *graphql.QueryDocument, operationQueryDocuments []*graphql.QueryDocument) ([]*Operation, error) {
 	queryDocumentsMap := queryDocumentMapByOperationName(operationQueryDocuments)
 
 	operations := make([]*Operation, 0, len(queryDocument.Operations))
@@ -35,7 +36,11 @@ func (g *OperationGenerator) CreateOperations(queryDocument *graphql.QueryDocume
 		operations = append(operations, newOperation(operation, queryDocumentsMap[operation.Name], args))
 	}
 
-	return operations
+	if g.err != nil {
+		return nil, g.err
+	}
+
+	return operations, nil
 }
 
 func (g *OperationGenerator) operationArguments(variableDefinitions graphql.VariableDefinitionList) []*OperationArgument {
@@ -51,7 +56,11 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 }
 
 func (g *OperationGenerator) findGoTypeName(typeName string, nonNull bool) gotypes.Type {
-	return resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
+	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
+	if err != nil && g.err == nil {
+		g.err = err
+	}
+	return t
 }
 
 func queryDocumentMapByOperationName(queryDocuments []*graphql.QueryDocument) map[string]*graphql.QueryDocument {
