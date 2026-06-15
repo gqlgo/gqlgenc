@@ -130,3 +130,14 @@ type Metadata {
   properties: Map
   level: Level!
 }
+
+# どのクエリからも参照されない型。modelgen のフィルタリングで model_gen.go に生成されないことを検証する fixture
+type UnusedType {
+  id: ID!
+  name: String!
+}
+
+enum UnusedEnum {
+  FOO
+  BAR
+}

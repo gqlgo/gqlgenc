@@ -20,34 +20,36 @@ func New(cfg *config.Config, operationQueryDocuments []*ast.QueryDocument) *mode
 
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	return func(build *modelgen.ModelBuild) *modelgen.ModelBuild {
-		// クエリで参照されない型は生成しない
-		var newModels []*modelgen.Object
+		schema := cfg.GQLGenConfig.Schema
+
+		// クエリで参照されない Object 型は生成しない（Input 型は常に生成、Interface / Union / Scalar は維持）
+		var models []*modelgen.Object
 
 		for _, model := range build.Models {
-			// スキーマから型定義を取得
-			typeDef := cfg.GQLGenConfig.Schema.Types[model.Name]
+			typeDef := schema.Types[model.Name]
 			if typeDef == nil {
-				// 型定義が見つからない場合はスキップ
 				continue
 			}
 
-			// Input型は常に生成
-			switch typeDef.Kind {
-			case ast.InputObject:
-				newModels = append(newModels, model)
-			case ast.Enum, ast.Object:
-				// Enum型とObject型は、クエリで使用されている場合のみ生成
-				if usedTypes[model.Name] {
-					newModels = append(newModels, model)
-				}
-			default:
-				// その他の型は生成
-				newModels = append(newModels, model)
+			if typeDef.Kind == ast.Object && !usedTypes[model.Name] {
+				continue
+			}
+
+			models = append(models, model)
+		}
+
+		build.Models = models
+
+		// クエリで参照されない Enum 型は生成しない
+		var enums []*modelgen.Enum
+
+		for _, enum := range build.Enums {
+			if usedTypes[enum.Name] {
+				enums = append(enums, enum)
 			}
 		}
 
-		build.Models = newModels
-		// Interfaceは維持（削除しない）
+		build.Enums = enums
 
 		return build
 	}

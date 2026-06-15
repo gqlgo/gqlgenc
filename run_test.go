@@ -25,8 +25,10 @@ import (
 
 func Test_IntegrationTest(t *testing.T) {
 	type want struct {
-		file          string
-		userOperation *domain.UserOperation
+		file              string
+		userOperation     *domain.UserOperation
+		absentModelTypes  []string
+		presentModelTypes []string
 	}
 	tests := []struct {
 		name    string
@@ -39,7 +41,9 @@ func Test_IntegrationTest(t *testing.T) {
 			testDir: "testdata/integration/basic/",
 			wantErr: false,
 			want: want{
-				file: "./want/query_gen.go.txt",
+				file:              "./want/query_gen.go.txt",
+				absentModelTypes:  []string{"UnusedType", "UnusedEnum"},
+				presentModelTypes: []string{"UserSettings", "Status"},
 				userOperation: &domain.UserOperation{
 					OptionalUser: &domain.UserOperation_OptionalUser{
 						Name:  "Sam Smith",
@@ -278,6 +282,9 @@ func Test_IntegrationTest(t *testing.T) {
 			wantFilePath := tt.want.file
 			compareFiles(t, wantFilePath, actualFilePath)
 
+			// modelgen が未使用型を生成せず、使用中の型は生成することを確認する
+			assertModelTypes(t, "domain/model_gen.go", tt.want.absentModelTypes, tt.want.presentModelTypes)
+
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// send request test
 			ctx := t.Context()
@@ -465,6 +472,28 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 
 	if diff := cmp.Diff(string(want), string(generated)); diff != "" {
 		t.Errorf("file contents differ:\n%s", diff)
+	}
+}
+
+func assertModelTypes(t *testing.T, modelFile string, absent, present []string) {
+	t.Helper()
+
+	content, err := os.ReadFile(modelFile)
+	if err != nil {
+		t.Errorf("error reading model file %s: %v", modelFile, err)
+		return
+	}
+
+	for _, typeName := range absent {
+		if bytes.Contains(content, []byte("type "+typeName+" ")) {
+			t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
+		}
+	}
+
+	for _, typeName := range present {
+		if !bytes.Contains(content, []byte("type "+typeName+" ")) {
+			t.Errorf("model_gen.go should generate query-used type %q", typeName)
+		}
 	}
 }
 
