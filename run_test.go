@@ -286,7 +286,25 @@ func Test_IntegrationTest(t *testing.T) {
 			compareFiles(t, wantFilePath, actualFilePath)
 
 			// modelgen が未使用型を生成せず、使用中の型は生成することを確認する
-			assertModelTypes(t, "domain/model_gen.go", tt.want.absentModelTypes, tt.want.presentModelTypes)
+			modelFile := "domain/model_gen.go"
+			for _, typeName := range tt.want.absentModelTypes {
+				exists, err := typeExistsInFile(modelFile, typeName)
+				if err != nil {
+					t.Fatalf("typeExistsInFile(%q): %v", typeName, err)
+				}
+				if exists {
+					t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
+				}
+			}
+			for _, typeName := range tt.want.presentModelTypes {
+				exists, err := typeExistsInFile(modelFile, typeName)
+				if err != nil {
+					t.Fatalf("typeExistsInFile(%q): %v", typeName, err)
+				}
+				if !exists {
+					t.Errorf("model_gen.go should generate query-used type %q", typeName)
+				}
+			}
 
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// send request test
@@ -478,16 +496,12 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 	}
 }
 
-func assertModelTypes(t *testing.T, modelFile string, absent, present []string) {
-	t.Helper()
-
-	file, err := parser.ParseFile(token.NewFileSet(), modelFile, nil, 0)
+// typeExistsInFile は goFile 内にトップレベルの型宣言 typeName が存在するかを返す。
+func typeExistsInFile(goFile, typeName string) (bool, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), goFile, nil, 0)
 	if err != nil {
-		t.Errorf("error parsing model file %s: %v", modelFile, err)
-		return
+		return false, fmt.Errorf("parse %s: %w", goFile, err)
 	}
-
-	declared := make(map[string]bool)
 
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -496,23 +510,13 @@ func assertModelTypes(t *testing.T, modelFile string, absent, present []string) 
 		}
 
 		for _, spec := range genDecl.Specs {
-			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-				declared[typeSpec.Name.Name] = true
+			if typeSpec, ok := spec.(*ast.TypeSpec); ok && typeSpec.Name.Name == typeName {
+				return true, nil
 			}
 		}
 	}
 
-	for _, typeName := range absent {
-		if declared[typeName] {
-			t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
-		}
-	}
-
-	for _, typeName := range present {
-		if !declared[typeName] {
-			t.Errorf("model_gen.go should generate query-used type %q", typeName)
-		}
-	}
+	return false, nil
 }
 
 type handlerRoundTripper struct {
