@@ -247,10 +247,14 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// foo_bar と fooBar が同じ Go フィールド名 FooBar になる衝突 (gqlgo/gqlgenc#108)
-			name:    "duplicate fields test - should fail due to Go field name collision",
-			testDir: "testdata/integration/duplicate-fields/",
-			wantErr: true,
+			// foo_bar と fooBar が同じ Go フィールド名 FooBar に衝突するケース (gqlgo/gqlgenc#108)。
+			// model 指定だが Object 型は input/enum のみ生成する filter で model_gen.go から
+			// 除去される (model_gen.go は空スタブ) ため、衝突は model_gen.go ではなくクエリ応答型
+			// GetObject_Object の生成時に表面化する。
+			name:            "duplicate fields test - should fail with a Go field name collision in the query type",
+			testDir:         "testdata/integration/duplicate-fields/",
+			wantErr:         true,
+			wantErrContains: `GetObject_Object map to the same Go field name "FooBar"`,
 		},
 		{
 			// UC1 (gqlgen.model 未指定) で enum を autobind/@goModel のいずれにも束縛せず
