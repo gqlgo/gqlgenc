@@ -2,7 +2,7 @@
   "__schema": {
     "queryType": { "name": "Query" },
     "mutationType": { "name": "Mutation" },
-    "subscriptionType": null,
+    "subscriptionType": { "name": "Subscription" },
     "types": [
       {
         "kind": "OBJECT",
@@ -40,6 +40,14 @@
         "name": "Mutation",
         "fields": [
           { "name": "noop", "type": { "kind": "SCALAR", "name": "Boolean", "ofType": null }, "args": [], "isDeprecated": false }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Subscription",
+        "fields": [
+          { "name": "tick", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "args": [], "isDeprecated": false }
         ],
         "interfaces": []
       },

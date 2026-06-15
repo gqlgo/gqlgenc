@@ -126,4 +126,20 @@ func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 			t.Errorf("%s: default value kind = %v, want %v", argName, got, want)
 		}
 	}
+
+	// queryType / mutationType / subscriptionType が schema 定義の operation type として取り込まれる
+	gotOps := make(map[ast.Operation]string)
+	for _, ot := range doc.Schema[0].OperationTypes {
+		gotOps[ot.Operation] = ot.Type
+	}
+	wantOps := map[ast.Operation]string{
+		ast.Query:        "Query",
+		ast.Mutation:     "Mutation",
+		ast.Subscription: "Subscription",
+	}
+	for op, want := range wantOps {
+		if got := gotOps[op]; got != want {
+			t.Errorf("operation %q type = %q, want %q", op, got, want)
+		}
+	}
 }

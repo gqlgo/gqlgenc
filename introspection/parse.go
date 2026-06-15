@@ -56,35 +56,31 @@ func (p parser) parseSchemaDefinition(query Query, typeMap map[string]*FullType)
 
 	if query.Schema.QueryType.Name != nil {
 		def.OperationTypes = append(def.OperationTypes,
-			p.parseOperationTypeDefinitionForQuery(typeMap[*query.Schema.QueryType.Name]),
+			p.parseOperationTypeDefinition(ast.Query, typeMap[*query.Schema.QueryType.Name]),
 		)
 	}
 
 	if query.Schema.MutationType != nil {
 		def.OperationTypes = append(def.OperationTypes,
-			p.parseOperationTypeDefinitionForMutation(typeMap[*query.Schema.MutationType.Name]),
+			p.parseOperationTypeDefinition(ast.Mutation, typeMap[*query.Schema.MutationType.Name]),
+		)
+	}
+
+	if query.Schema.SubscriptionType != nil {
+		def.OperationTypes = append(def.OperationTypes,
+			p.parseOperationTypeDefinition(ast.Subscription, typeMap[*query.Schema.SubscriptionType.Name]),
 		)
 	}
 
 	return &def
 }
 
-func (p parser) parseOperationTypeDefinitionForQuery(fullType *FullType) *ast.OperationTypeDefinition {
-	var op ast.OperationTypeDefinition
-	op.Operation = ast.Query
-	op.Type = *fullType.Name
-	op.Position = p.sharedPosition
-
-	return &op
-}
-
-func (p parser) parseOperationTypeDefinitionForMutation(fullType *FullType) *ast.OperationTypeDefinition {
-	var op ast.OperationTypeDefinition
-	op.Operation = ast.Mutation
-	op.Type = *fullType.Name
-	op.Position = p.sharedPosition
-
-	return &op
+func (p parser) parseOperationTypeDefinition(operation ast.Operation, fullType *FullType) *ast.OperationTypeDefinition {
+	return &ast.OperationTypeDefinition{
+		Operation: operation,
+		Type:      *fullType.Name,
+		Position:  p.sharedPosition,
+	}
 }
 
 func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.DirectiveDefinition {
@@ -160,7 +156,7 @@ func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
 		Interfaces:  interfaceNames(typeVale),
 		Fields:      p.parseObjectFields(typeVale),
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInObject(typeVale),
+		BuiltIn:     builtIn(typeVale),
 	}
 }
 
@@ -231,7 +227,7 @@ func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
 		Name:        pointerString(typeVale.Name),
 		EnumValues:  enums,
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInEnum(typeVale),
+		BuiltIn:     builtIn(typeVale),
 	}
 }
 
@@ -383,28 +379,21 @@ func pointerString(s *string) string {
 	return *s
 }
 
+// builtIn reports whether the type is an introspection meta type (name
+// prefixed with "__").
+func builtIn(fullType *FullType) bool {
+	return strings.HasPrefix(pointerString(fullType.Name), "__")
+}
+
 func builtInScalar(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-	if strings.HasPrefix(name, "__") {
+	if builtIn(fullType) {
 		return true
 	}
 
-	switch name {
+	switch pointerString(fullType.Name) {
 	case "String", "Int", "Float", "Boolean", "ID":
 		return true
 	}
 
 	return false
-}
-
-func builtInEnum(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-
-	return strings.HasPrefix(name, "__")
-}
-
-func builtInObject(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-
-	return strings.HasPrefix(name, "__")
 }
