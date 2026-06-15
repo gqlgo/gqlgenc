@@ -18,13 +18,12 @@ func New(cfg *config.Config, operationQueryDocuments []*ast.QueryDocument) *mode
 	}
 }
 
+// mutateHook は、使われている Input 型と Enum 型だけを生成するよう ModelBuild をフィルタする。
+// レスポンスの形は querygen の専用型が表現するため、スキーマの Object / Interface / Union の
+// モデルはクライアントから参照されない。クライアントが参照するスキーマ由来の型は Input と Enum だけ。
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {
 	return func(build *modelgen.ModelBuild) *modelgen.ModelBuild {
 		schema := cfg.GQLGenConfig.Schema
-
-		// レスポンスの形は querygen の専用型が表現するため、スキーマの Object / Interface /
-		// Union のモデルはクライアントから参照されない。クライアントが参照するスキーマ由来の型は
-		// Input と Enum だけなので、使われている Input 型と Enum 型だけを生成する。
 
 		// Input
 		var inputObjects []*modelgen.Object
@@ -45,6 +44,7 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 		}
 		build.Enums = enums
 
+		// Interface / Union
 		// Interface と Union のモデルは build.Models ではなく build.Interfaces に入るため、
 		// ここで nil にして生成対象から外す。
 		build.Interfaces = nil
