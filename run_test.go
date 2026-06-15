@@ -287,13 +287,13 @@ func Test_IntegrationTest(t *testing.T) {
 
 			// modelgen が未使用型を生成せず、使用中の型は生成することを確認する
 			modelFile := "domain/model_gen.go"
-			for _, typeName := range tt.want.absentModelTypes {
-				if typeExistsInFile(modelFile, typeName) {
+			for typeName, exists := range typesExistsInFile(modelFile, tt.want.absentModelTypes) {
+				if exists {
 					t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
 				}
 			}
-			for _, typeName := range tt.want.presentModelTypes {
-				if !typeExistsInFile(modelFile, typeName) {
+			for typeName, exists := range typesExistsInFile(modelFile, tt.want.presentModelTypes) {
+				if !exists {
 					t.Errorf("model_gen.go should generate query-used type %q", typeName)
 				}
 			}
@@ -517,11 +517,6 @@ func typesExistsInFile(goFile string, typeNames []string) map[string]bool {
 	}
 
 	return result
-}
-
-// typeExistsInFile は goFile 内にトップレベルの型宣言 typeName が存在するかを返す。
-func typeExistsInFile(goFile, typeName string) bool {
-	return typesExistsInFile(goFile, []string{typeName})[typeName]
 }
 
 type handlerRoundTripper struct {
