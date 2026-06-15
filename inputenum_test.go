@@ -19,10 +19,10 @@ import (
 	inputenumquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/query"
 )
 
-// Test_InputEnumGen は gqlgen.model を指定した構成 (use case 2) を検証する。gqlgenc が
-// model_gen.go を生成し、その出力 (Input 型・Enum 型) が実際にコンパイル・動作することを
-// 確認する。サーバは固定レスポンスを返すモック RoundTripper で代替する。
-func Test_InputEnumGen(t *testing.T) {
+// Test_IntegrationTest_ModelGen は gqlgen.model を指定した構成 (use case 2) を検証する。
+// gqlgenc が model_gen.go を生成し、その出力 (Input 型・Enum 型) が実際にコンパイル・動作する
+// ことを確認する。サーバは固定レスポンスを返すモック RoundTripper で代替する。
+func Test_IntegrationTest_ModelGen(t *testing.T) {
 	t.Chdir("testdata/integration/inputenum/")
 
 	if err := run(t.Context()); err != nil {

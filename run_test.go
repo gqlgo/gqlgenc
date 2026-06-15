@@ -23,7 +23,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
 )
 
-func Test_IntegrationTest(t *testing.T) {
+func Test_IntegrationTest_NoModelGen(t *testing.T) {
 	type want struct {
 		file          string
 		userOperation *domain.UserOperation
