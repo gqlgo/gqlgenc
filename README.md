@@ -220,7 +220,16 @@ gqlgen:
 
 - レスポンスの形は query_gen.go の専用型が表現し、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルはクライアントから参照されない
 - 使用判定は、変数定義の Input 型（ネストした Input を再帰的に辿る）と、セレクションセットで参照される Enum 型から行う
-- client と server で同じ model パッケージを共有する場合は、`gqlgen.model` を指定せず（modelgen を動かさず）、server 側 gqlgen が生成したフルモデルを autobind で参照する。`gqlgen.model` を指定するのは共有しない場合で、その際は Input / Enum のみが生成される
+
+`gqlgen.model` の指定有無で使い方が分かれます。
+
+| 観点 | `gqlgen.model` を指定 | `gqlgen.model` を省略 |
+| --- | --- | --- |
+| gqlgenc の model 生成 | する（modelgen が動く） | しない |
+| 生成される型 | クエリで使う **Input 型・Enum 型のみ** | なし |
+| Object / Interface / Union | 生成しない | 生成しない |
+| モデルの入手元 | gqlgenc が生成したものを使う | `autobind` で既存モデル（server 側 gqlgen 生成 など）を参照 |
+| 主な用途 | client と server で model を**共有しない** | client と server で model を**共有する** |
 
 enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[gqlgen#3663](https://github.com/99designs/gqlgen/pull/3663)）、json.Marshal でそのままシリアライズできます。
 
