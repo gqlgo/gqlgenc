@@ -236,7 +236,7 @@ type EndPointConfig struct {
 //	headers:
 //	  Authorization: "Bearer token"
 //	  Accept: ["application/json", "text/plain"]
-type Header map[string][]string
+type Header http.Header
 
 // UnmarshalYAML は文字列スカラーと文字列リストの両方をヘッダー値として受け付ける。
 func (h *Header) UnmarshalYAML(unmarshal func(any) error) error {
