@@ -2,12 +2,12 @@ package config
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/glob"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -55,54 +55,14 @@ func findConfigInDir(dir string, cfgFilenames []string) string {
 }
 
 func schemaFilenames(schemaFilenameGlobs []string) ([]string, error) {
-	path2regex := strings.NewReplacer(
-		`.`, `\.`,
-		`*`, `.+`,
-		`\`, `[\\/]`,
-		`/`, `[\\/]`,
-	)
-
-	allSchemaFilenames := make(map[string]struct{})
-
-	for _, schemaFilenameGlob := range schemaFilenameGlobs {
-		var schemaFilenames []string
-
-		if before, after, found := strings.Cut(schemaFilenameGlob, "**"); found {
-			// for ** we want to override default globbing patterns and walk all
-			// subdirectories to match schema files.
-			rest := strings.TrimPrefix(strings.TrimPrefix(after, `\`), `/`)
-			// turn the rest of the glob into a regex, anchored only at the end because ** allows
-			// for any number of dirs in between and walk will let us match against the full path name
-			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
-
-			if err := filepath.Walk(before, func(path string, _ os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if globRe.MatchString(strings.TrimPrefix(path, before)) {
-					schemaFilenames = append(schemaFilenames, path)
-				}
-
-				return nil
-			}); err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", before, err)
-			}
-		} else {
-			var err error
-
-			schemaFilenames, err = filepath.Glob(schemaFilenameGlob)
-			if err != nil {
-				return nil, fmt.Errorf("failed to glob schema filename %s: %w", schemaFilenameGlob, err)
-			}
-		}
-
-		for _, schemaFilename := range schemaFilenames {
-			allSchemaFilenames[schemaFilename] = struct{}{}
-		}
+	filenames, err := glob.Files(schemaFilenameGlobs)
+	if err != nil {
+		return nil, fmt.Errorf("schema files: %w", err)
 	}
 
-	return slices.Sorted(maps.Keys(allSchemaFilenames)), nil
+	slices.Sort(filenames)
+
+	return filenames, nil
 }
 
 func schemaFileSources(schemaFilenames []string) ([]*ast.Source, error) {

@@ -26,76 +26,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"slices"
-	"strings"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/glob"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-var path2regex = strings.NewReplacer(
-	`.`, `\.`,
-	`*`, `.+`,
-	`\`, `[\\/]`,
-	`/`, `[\\/]`,
-)
-
 // LoadQuerySources returns gqlgen ast.Source parsed GraphQL Query files.
 func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
-	var noGlobQueryFileNames []string
-
-	preGlobbing := queryFileNames
-	for _, f := range preGlobbing {
-		var matches []string
-
-		// for ** we want to override default globbing patterns and walk all
-		// subdirectories to match schema files.
-		if before, after, found := strings.Cut(f, "**"); found {
-			rest := strings.TrimPrefix(strings.TrimPrefix(after, `\`), `/`)
-			// turn the rest of the glob into a regex, anchored only at the end because ** allows
-			// for any number of dirs in between and walk will let us match against the full path name
-			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
-
-			if err := filepath.Walk(before, func(path string, _ os.FileInfo, err error) error {
-				if err != nil {
-					return fmt.Errorf("filepath.Walk(%q): %w", path, err)
-				}
-
-				if globRe.MatchString(strings.TrimPrefix(path, before)) {
-					matches = append(matches, path)
-				}
-
-				return nil
-			}); err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", before, err)
-			}
-		} else {
-			ms, err := filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to glob schema filename %v: %w", f, err)
-			}
-			matches = ms
-		}
-
-		for _, m := range matches {
-			if slices.Contains(noGlobQueryFileNames, m) {
-				continue
-			}
-
-			noGlobQueryFileNames = append(noGlobQueryFileNames, m)
-		}
+	filenames, err := glob.Files(queryFileNames)
+	if err != nil {
+		return nil, fmt.Errorf("query files: %w", err)
 	}
 
-	querySources := make([]*ast.Source, 0, len(noGlobQueryFileNames))
+	querySources := make([]*ast.Source, 0, len(filenames))
 
-	for _, filename := range noGlobQueryFileNames {
+	for _, filename := range filenames {
 		filename = filepath.ToSlash(filename)
 
-		var err error
-
-		var schemaRaw []byte
-
-		schemaRaw, err = os.ReadFile(filename)
+		schemaRaw, err := os.ReadFile(filename)
 		if err != nil {
 			return nil, fmt.Errorf("unable to open schema: %w", err)
 		}

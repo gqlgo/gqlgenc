@@ -269,7 +269,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/unwalkable.yml",
 			},
 			want: want{
-				err: errors.New("failed to walk schema at root not_walkable/: CreateFile not_walkable/: The system cannot find the file specified."), //nolint:revive // 実際のエラーメッセージと一致させるため
+				err: errors.New(`schema files: walk "not_walkable/": CreateFile not_walkable/: The system cannot find the file specified.`), //nolint:revive // 実際のエラーメッセージと一致させるため
 			},
 			skipOnGOOS: "!windows",
 		},
@@ -279,7 +279,7 @@ func TestLoadConfig(t *testing.T) {
 				file: "testdata/cfg/unwalkable.yml",
 			},
 			want: want{
-				err: errors.New("failed to walk schema at root not_walkable/: lstat not_walkable/: no such file or directory"),
+				err: errors.New(`schema files: walk "not_walkable/": lstat not_walkable/: no such file or directory`),
 			},
 			skipOnGOOS: "windows",
 		},
