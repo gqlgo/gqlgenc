@@ -35,7 +35,7 @@ func newUpload(t *testing.T, name, content string) graphql.Upload {
 	}
 }
 
-func TestNewRequestUpload(t *testing.T) {
+func TestNewPostRequestUpload(t *testing.T) {
 	type args struct {
 		operationName string
 		query         string
@@ -249,9 +249,9 @@ func TestNewRequestUpload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
+			got, err := NewPostRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
 			if err != nil {
-				t.Fatalf("NewRequest() error = %v", err)
+				t.Fatalf("NewPostRequest() error = %v", err)
 			}
 
 			if !tt.want.multipart {

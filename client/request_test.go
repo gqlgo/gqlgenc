@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestNewRequest(t *testing.T) {
+func TestNewPostRequest(t *testing.T) {
 	tests := []struct {
 		name          string
 		endpoint      string
@@ -62,7 +62,7 @@ func TestNewRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := t.Context()
-			req, err := NewRequest(ctx, tt.endpoint, tt.operationName, tt.query, tt.variables)
+			req, err := NewPostRequest(ctx, tt.endpoint, tt.operationName, tt.query, tt.variables)
 
 			if tt.wantErr {
 				if err == nil {

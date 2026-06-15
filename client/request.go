@@ -32,7 +32,7 @@ type Request struct {
 	OperationName string `json:"operationName,omitempty"`
 }
 
-func NewRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
+func NewPostRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
 	graphqlRequest := &Request{
 		Query:         query,
 		Variables:     variables,
