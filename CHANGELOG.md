@@ -129,10 +129,10 @@ type UserOperation_User_User struct {
 }
 ```
 
-#### 未使用モデルのフィルタリングを既定動作に変更
+#### モデル生成を Input 型と Enum 型に限定
 
-- v0 でオプトインだった `onlyUsedModels` 相当の動作を既定にしました。`querygen` / `clientgen` の有無にかかわらず、クエリで参照されない Object 型・Enum 型は生成しません。変数定義の Input 型と、セレクションセットで参照される型（フィールドの戻り型・フラグメントの対象型）を「使用中」とみなします。Input 型は常に生成し、Interface / Union / Scalar は維持します。Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
-- 手書きの autobind 型が、どのクエリでも選択されない Object 型を参照している場合、その型が生成されずコンパイルエラーになることがあります。その場合は当該フィールドをクエリで選択するか、参照先の型も autobind してください
+- `gqlgen.model` を指定した場合、modelgen は **クエリで使われている Input 型と Enum 型だけ** を生成します。Object / Interface / Union 型は生成しません。クライアントはレスポンスを querygen が生成する専用型へデコードし、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルは不要です。使用判定は変数定義の Input 型（ネストした Input を再帰的に辿る）とセレクションセットの Enum 型から行います。v0 でオプトインだった `onlyUsedModels` 相当で、Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
+- client と server で同じ model パッケージを共有する場合は、`gqlgen.model` を指定せず modelgen を動かさないでください（model_gen.go は server 側の gqlgen が生成し、gqlgenc は autobind で参照します）。共有しない場合は `gqlgen.model` を指定して Input / Enum を生成します
 
 #### CLI の簡素化
 

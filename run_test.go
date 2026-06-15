@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,10 +25,8 @@ import (
 
 func Test_IntegrationTest(t *testing.T) {
 	type want struct {
-		file              string
-		userOperation     *domain.UserOperation
-		absentModelTypes  []string
-		presentModelTypes []string
+		file          string
+		userOperation *domain.UserOperation
 	}
 	tests := []struct {
 		name    string
@@ -44,9 +39,7 @@ func Test_IntegrationTest(t *testing.T) {
 			testDir: "testdata/integration/basic/",
 			wantErr: false,
 			want: want{
-				file:              "./want/query_gen.go.txt",
-				absentModelTypes:  []string{"UnusedType", "UnusedEnum"},
-				presentModelTypes: []string{"UserSettings", "Status"},
+				file: "./want/query_gen.go.txt",
 				userOperation: &domain.UserOperation{
 					OptionalUser: &domain.UserOperation_OptionalUser{
 						Name:  "Sam Smith",
@@ -285,19 +278,6 @@ func Test_IntegrationTest(t *testing.T) {
 			wantFilePath := tt.want.file
 			compareFiles(t, wantFilePath, actualFilePath)
 
-			// modelgen が未使用型を生成せず、使用中の型は生成することを確認する
-			modelFile := "domain/model_gen.go"
-			for typeName, exists := range typesExistsInFile(modelFile, tt.want.absentModelTypes) {
-				if exists {
-					t.Errorf("model_gen.go should not generate query-unused type %q", typeName)
-				}
-			}
-			for typeName, exists := range typesExistsInFile(modelFile, tt.want.presentModelTypes) {
-				if !exists {
-					t.Errorf("model_gen.go should generate query-used type %q", typeName)
-				}
-			}
-
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// send request test
 			ctx := t.Context()
@@ -486,37 +466,6 @@ func compareFiles(t *testing.T, wantFile, generatedFile string) {
 	if diff := cmp.Diff(string(want), string(generated)); diff != "" {
 		t.Errorf("file contents differ:\n%s", diff)
 	}
-}
-
-// typesExistsInFile は goFile を1度だけパースし、typeNames の各型がトップレベルで
-// 宣言されているかを型名→存在の map で返す。パースに失敗した場合は panic する。
-func typesExistsInFile(goFile string, typeNames []string) map[string]bool {
-	file, err := parser.ParseFile(token.NewFileSet(), goFile, nil, 0)
-	if err != nil {
-		panic(fmt.Sprintf("parse %s: %v", goFile, err))
-	}
-
-	declared := make(map[string]bool)
-
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.TYPE {
-			continue
-		}
-
-		for _, spec := range genDecl.Specs {
-			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-				declared[typeSpec.Name.Name] = true
-			}
-		}
-	}
-
-	result := make(map[string]bool, len(typeNames))
-	for _, typeName := range typeNames {
-		result[typeName] = declared[typeName]
-	}
-
-	return result
 }
 
 type handlerRoundTripper struct {

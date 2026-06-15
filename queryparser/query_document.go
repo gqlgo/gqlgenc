@@ -198,10 +198,8 @@ func fragmentsInOperationWalker(selectionSet ast.SelectionSet) ast.FragmentDefin
 	return fragments
 }
 
-// TypesFromQueryDocuments returns the set of schema type names referenced by the
-// query documents: input types from variable definitions and the types selected
-// in the operation selection sets. The model generator uses it to skip generating
-// types that no query references.
+// TypesFromQueryDocuments returns a map of type names used in query documents,
+// both from variable definitions (input types) and enum types from the selection set (return types).
 func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocument) map[string]bool {
 	usedTypes := make(map[string]bool)
 	processedTypes := make(map[string]bool)
@@ -218,34 +216,29 @@ func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocu
 					}
 				}
 			}
-			typesFromSelectionSet(op.SelectionSet, usedTypes)
+			enumsFromSelectionSet(op.SelectionSet, schema, usedTypes)
 		}
 	}
 
 	return usedTypes
 }
 
-func typesFromSelectionSet(selectionSet ast.SelectionSet, usedTypes map[string]bool) {
+func enumsFromSelectionSet(selectionSet ast.SelectionSet, schema *ast.Schema, usedTypes map[string]bool) {
 	for _, selection := range selectionSet {
 		switch selection := selection.(type) {
 		case *ast.Field:
 			if selection.Definition != nil {
-				if typeName := selection.Definition.Type.Name(); typeName != "" {
+				typeName := selection.Definition.Type.Name()
+				if def, ok := schema.Types[typeName]; ok && def.Kind == ast.Enum {
 					usedTypes[typeName] = true
 				}
 			}
-			typesFromSelectionSet(selection.SelectionSet, usedTypes)
+			enumsFromSelectionSet(selection.SelectionSet, schema, usedTypes)
 		case *ast.InlineFragment:
-			if selection.TypeCondition != "" {
-				usedTypes[selection.TypeCondition] = true
-			}
-			typesFromSelectionSet(selection.SelectionSet, usedTypes)
+			enumsFromSelectionSet(selection.SelectionSet, schema, usedTypes)
 		case *ast.FragmentSpread:
 			if selection.Definition != nil {
-				if selection.Definition.TypeCondition != "" {
-					usedTypes[selection.Definition.TypeCondition] = true
-				}
-				typesFromSelectionSet(selection.Definition.SelectionSet, usedTypes)
+				enumsFromSelectionSet(selection.Definition.SelectionSet, schema, usedTypes)
 			}
 		}
 	}

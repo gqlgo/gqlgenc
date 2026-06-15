@@ -74,8 +74,8 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 		want want
 	}{
 		{
-			// レスポンスのセレクションセットで参照される型(Object・enum)と変数のInput型を収集する
-			name: "レスポンスフィールドと変数で参照される型が収集される",
+			// レスポンスのセレクションセットで参照されたenumを収集する
+			name: "レスポンスフィールドで使用されているenumが収集される",
 			args: args{
 				query: `
 					mutation CreateMany($todos: NewTodos!) {
@@ -90,16 +90,13 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 					"NewTodos":   true,
 					"NewTodo":    true,
 					"String":     true,
-					"TodoPage":   true,
-					"Todo":       true,
-					"ID":         true,
 					"TodoStatus": true,
 				},
 			},
 		},
 		{
-			// オペレーション引数の変数定義(enum)とセレクションで参照される型を収集する
-			name: "変数定義のenumとセレクションの型が収集される",
+			// オペレーション引数の変数定義からenumを収集する
+			name: "オペレーション引数としてのみ使用されているenumが収集される",
 			args: args{
 				query: `
 					query GetBySortOrder($order: SortOrder!) {
@@ -110,8 +107,6 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 			want: want{
 				usedTypes: map[string]bool{
 					"SortOrder": true,
-					"Todo":      true,
-					"ID":        true,
 				},
 			},
 		},
@@ -132,15 +127,12 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 					"NewTodos": true,
 					"NewTodo":  true,
 					"String":   true,
-					"TodoPage": true,
-					"Todo":     true,
-					"ID":       true,
 				},
 			},
 		},
 		{
-			// フラグメント内のセレクションセットも辿って参照される型を収集する
-			name: "フラグメントスプレッド内で参照される型が収集される",
+			// フラグメント内のセレクションセットも辿ってenumを収集する
+			name: "フラグメントスプレッド内で使用されているenumが収集される",
 			args: args{
 				query: `
 					fragment TodoFields on Todo {
@@ -157,8 +149,6 @@ func TestTypesFromQueryDocuments(t *testing.T) {
 			},
 			want: want{
 				usedTypes: map[string]bool{
-					"Todo":       true,
-					"ID":         true,
 					"TodoStatus": true,
 				},
 			},

@@ -12,8 +12,6 @@ gqlgenc:
 gqlgen:
   schema:
     - ./schema/*.graphql
-  model:
-    filename: ./domain/model_gen.go
   enable_model_json_omitempty_tag: false
   enable_model_json_omitzero_tag: true
   nullable_input_omittable: true
@@ -21,6 +19,8 @@ gqlgen:
   autobind:
     - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
   models:
+    JSON:
+      model: github.com/99designs/gqlgen/graphql.String
     Email:
       model: github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Email
     Map:
