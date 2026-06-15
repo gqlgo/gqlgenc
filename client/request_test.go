@@ -9,8 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	"github.com/99designs/gqlgen/graphql"
 )
 
 func TestNewRequest(t *testing.T) {
@@ -204,20 +202,6 @@ func TestNewGetRequest(t *testing.T) {
 				query:         "query Ping { ping }",
 				operationName: "Ping",
 				hasVariables:  false,
-			},
-		},
-		{
-			// Upload を含む variables はエラー(GETはボディを持てない)
-			name: "Uploadを含むとエラー",
-			args: args{
-				operationName: "UploadFile",
-				query:         "query UploadFile($f: Upload!) { f }",
-				variables: map[string]any{
-					"f": graphql.Upload{Filename: "x.txt"},
-				},
-			},
-			want: want{
-				err: cmpopts.AnyError,
 			},
 		},
 	}

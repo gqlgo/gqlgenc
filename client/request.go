@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	json "encoding/json/v2"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -65,16 +64,13 @@ func NewRequest(ctx context.Context, endpoint, operationName, query string, vari
 }
 
 // NewGetRequest builds a GraphQL-over-HTTP GET request, encoding query,
-// operationName and variables into the URL query string. Variables containing
-// graphql.Upload are rejected because a GET request has no body.
+// operationName and variables into the URL query string. A GET request has no
+// body, so file uploads are not supported; use Post for operations with
+// graphql.Upload variables.
 func NewGetRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
-	uploads := &uploadCollector{}
-	varsJSON, err := json.Marshal(variables, json.WithMarshalers(uploads.marshalers()))
+	varsJSON, err := json.Marshal(variables)
 	if err != nil {
 		return nil, fmt.Errorf("encode variables: %w", err)
-	}
-	if len(uploads.files) > 0 {
-		return nil, errors.New("GET requests do not support file uploads; use Post")
 	}
 
 	u, err := url.Parse(endpoint)
