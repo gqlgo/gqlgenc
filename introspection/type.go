@@ -25,19 +25,21 @@ func (fs FullTypes) NameMap() map[string]*FullType {
 }
 
 type FullType struct {
-	Kind        TypeKind      `json:"kind"`
-	Name        *string       `json:"name"`
-	Description *string       `json:"description"`
-	Fields      []*FieldValue `json:"fields"`
-	InputFields []*InputValue `json:"inputFields"`
-	Interfaces  []*TypeRef    `json:"interfaces"`
-	EnumValues  []*struct {
-		Description       *string `json:"description"`
-		DeprecationReason *string `json:"deprecationReason"`
-		Name              string  `json:"name"`
-		IsDeprecated      bool    `json:"isDeprecated"`
-	} `json:"enumValues"`
-	PossibleTypes []*TypeRef `json:"possibleTypes"`
+	Kind          TypeKind      `json:"kind"`
+	Name          *string       `json:"name"`
+	Description   *string       `json:"description"`
+	Fields        []*FieldValue `json:"fields"`
+	InputFields   []*InputValue `json:"inputFields"`
+	Interfaces    []*TypeRef    `json:"interfaces"`
+	EnumValues    []*EnumValue  `json:"enumValues"`
+	PossibleTypes []*TypeRef    `json:"possibleTypes"`
+}
+
+type EnumValue struct {
+	Description       *string `json:"description"`
+	DeprecationReason *string `json:"deprecationReason"`
+	Name              string  `json:"name"`
+	IsDeprecated      bool    `json:"isDeprecated"`
 }
 
 type FieldValue struct {
