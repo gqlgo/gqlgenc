@@ -26,7 +26,7 @@ func GenerateCode(cfg *config.Config) error {
 	// gqlgenc Plugin
 
 	// generate template sources
-	// 型生成で @goFragment(model:) を読み取った後、サーバーへ送る Document に残さないよう
+	// 型生成で @goFragment(type:) を読み取った後、サーバーへ送る Document に残さないよう
 	// AST から @goFragment を除去してから Document を生成する。
 	goTypes, err := codegen.NewGoTypeGenerator(cfg).CreateGoTypes(cfg.GQLGencConfig.QueryDocument.Operations)
 	if err != nil {

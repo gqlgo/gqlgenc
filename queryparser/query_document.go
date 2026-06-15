@@ -110,7 +110,7 @@ func injectGoFragmentDirective(schema *ast.Schema) {
 	schema.Directives[goFragmentDirectiveName] = &ast.DirectiveDefinition{
 		Name: goFragmentDirectiveName,
 		Arguments: ast.ArgumentDefinitionList{
-			{Name: "model", Type: ast.NamedType("String", nil)},
+			{Name: "type", Type: ast.NamedType("String", nil)},
 		},
 		Locations: []ast.DirectiveLocation{
 			ast.LocationFragmentDefinition,
