@@ -64,6 +64,9 @@ func TestBindDefaultScalars(t *testing.T) {
 			schema := gqlparser.MustLoadSchema(&ast.Source{Input: tt.fields.schema})
 			bindDefaultScalars(schema, tt.fields.models)
 
+			// 本番では built-in scalar (String など) は injectBuiltins で先に束縛されるが、
+			// このテストは bindDefaultScalars を単体で呼ぶため built-in も graphql.String 化される。
+			// よって対象の custom scalar のみを検証する。
 			if diff := cmp.Diff(tt.want.model, []string(tt.fields.models[tt.want.typeName].Model)); diff != "" {
 				t.Errorf("%q model diff(-want +got): %s", tt.want.typeName, diff)
 			}
