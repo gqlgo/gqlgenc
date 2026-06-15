@@ -185,8 +185,9 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 	}
 
 	// model を生成しない場合は modelgen が動かないため、未バインドの custom scalar を
-	// modelgen と同じ既定 (graphql.String) に束縛する。built-in scalar と models: で
-	// 明示バインドした型は UserDefined のため対象外になる。
+	// modelgen と同じ既定 (graphql.String) に束縛する。これは gqlgen の modelgen プラグインが
+	// 非 user-defined scalar に与える既定 (plugin/modelgen の b.Scalars 束縛) と揃えている。
+	// built-in scalar と models: で明示バインドした型は UserDefined のため対象外になる。
 	if !c.GQLGenConfig.Model.IsDefined() {
 		for _, t := range c.GQLGenConfig.Schema.Types {
 			if t.Kind == ast.Scalar && !c.GQLGenConfig.Models.UserDefined(t.Name) {
