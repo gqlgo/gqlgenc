@@ -8,7 +8,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"syscall"
 
 	"github.com/goccy/go-yaml"
 
@@ -19,6 +18,10 @@ import (
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
+
+// errNoSchemaSource is returned when neither a local schema nor a remote
+// endpoint is configured.
+var errNoSchemaSource = errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 
 // Config represents the config file.
 type Config struct {
@@ -53,7 +56,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 	}
 
 	if c.GQLGenConfig.SchemaFilename == nil && c.GQLGencConfig.Endpoint == nil {
-		return nil, errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+		return nil, errNoSchemaSource
 	}
 
 	if c.GQLGencConfig.ClientGen.IsDefined() && !c.GQLGencConfig.QueryGen.IsDefined() {
@@ -152,21 +155,21 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		}
 		c.GQLGenConfig.Schema = schema
 	default:
-		return errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+		return errNoSchemaSource
 	}
 
 	// delete exist gen file
 	if c.GQLGenConfig.Model.IsDefined() {
 		// model gen file must be removed before cfg.PrepareSchema()
-		_ = syscall.Unlink(c.GQLGenConfig.Model.Filename)
+		_ = os.Remove(c.GQLGenConfig.Model.Filename)
 	}
 
 	if c.GQLGencConfig.QueryGen.IsDefined() {
-		_ = syscall.Unlink(c.GQLGencConfig.QueryGen.Filename)
+		_ = os.Remove(c.GQLGencConfig.QueryGen.Filename)
 	}
 
 	if c.GQLGencConfig.ClientGen.IsDefined() {
-		_ = syscall.Unlink(c.GQLGencConfig.ClientGen.Filename)
+		_ = os.Remove(c.GQLGencConfig.ClientGen.Filename)
 	}
 
 	// gqlgen.Config.Init() に必要なフィールドを初期化
