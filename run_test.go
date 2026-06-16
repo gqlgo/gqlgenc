@@ -258,11 +258,21 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 		},
 		{
 			// UC1 (gqlgen.model 未指定) で enum を autobind/@goModel のいずれにも束縛せず
-			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)
+			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)。
+			// これはリーフ型を解決する CreateGoTypes (GoTypeGenerator) 側の経路。
 			name:            "unbound enum test - should fail with a clean error, not panic",
 			testDir:         "testdata/integration/unbound-enum/",
 			wantErr:         true,
 			wantErrContains: `no Go model is bound for GraphQL type "Status"`,
+		},
+		{
+			// UC1 で未束縛の input 型を変数に使うケース。リーフ ok は Boolean (built-in) で
+			// 束縛されるため CreateGoTypes は成功し、未束縛は変数 SearchFilter を解決する
+			// CreateOperations (OperationGenerator) 側でエラーになる (#4 の OperationGenerator 経路)。
+			name:            "unbound input variable test - should fail in the operation generator",
+			testDir:         "testdata/integration/unbound-input/",
+			wantErr:         true,
+			wantErrContains: `failed to create operations: no Go model is bound for GraphQL type "SearchFilter"`,
 		},
 	}
 	for _, tt := range tests {

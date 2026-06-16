@@ -1,0 +1,14 @@
+gqlgenc:
+  query:
+    - ./query/*.graphql
+  querygen:
+    filename: ./domain/query_gen.go
+  clientgen:
+    filename: ./query/client_gen.go
+  export_query_type: true
+gqlgen:
+  schema:
+    - ./schema/*.graphql
+  # gqlgen.model も autobind も指定しないため input 型 SearchFilter がどこにも束縛されない。
+  # リーフ ok は Boolean (built-in) で束縛されるため CreateGoTypes は成功し、未束縛は変数
+  # SearchFilter を解決する CreateOperations (OperationGenerator) 側で表面化する。
