@@ -1,0 +1,12 @@
+schema {
+  query: Query
+}
+
+type Query {
+  search(filters: [FilterInput!]!, ids: [ID!]!, matrix: [[String!]]): [String!]!
+}
+
+input FilterInput {
+  key: String!
+  value: String!
+}

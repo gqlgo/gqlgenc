@@ -1,0 +1,3 @@
+query Search($filters: [FilterInput!]!, $ids: [ID!]!, $matrix: [[String!]]) {
+  search(filters: $filters, ids: $ids, matrix: $matrix)
+}

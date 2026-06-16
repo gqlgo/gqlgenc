@@ -48,11 +48,26 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 	for _, v := range variableDefinitions {
 		argumentTypes = append(argumentTypes, &OperationArgument{
 			Variable: v.Variable,
-			Type:     g.findGoTypeName(v.Type.Name(), v.Type.NonNull),
+			Type:     g.operationArgumentType(v.Type),
 		})
 	}
 
 	return argumentTypes
+}
+
+// operationArgumentType は変数のリスト構造を保ったまま Go 型を組み立てる。リストは要素型の
+// スライスにし、nullable なリストはポインタで包む (gotype.go の newScalarGoType と対称)。
+func (g *OperationGenerator) operationArgumentType(t *graphql.Type) gotypes.Type {
+	if t.NamedType != "" {
+		return g.findGoTypeName(t.NamedType, t.NonNull)
+	}
+
+	sliceType := gotypes.NewSlice(g.operationArgumentType(t.Elem))
+	if !t.NonNull {
+		return gotypes.NewPointer(sliceType)
+	}
+
+	return sliceType
 }
 
 func (g *OperationGenerator) findGoTypeName(typeName string, nonNull bool) gotypes.Type {

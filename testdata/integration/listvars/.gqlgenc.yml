@@ -1,0 +1,17 @@
+gqlgenc:
+  query:
+    - ./query/*.graphql
+  querygen:
+    filename: ./domain/query_gen.go
+  clientgen:
+    filename: ./query/client_gen.go
+  export_query_type: true
+gqlgen:
+  schema:
+    - ./schema/*.graphql
+  # gqlgen.model を指定する UC2。リスト型のクエリ変数 (スカラー / 入れ子 / Input オブジェクト)
+  # が Vars 構造体でリスト構造を保って生成されることを担保する回帰 fixture。
+  model:
+    filename: ./domain/model_gen.go
+  enable_model_json_omitzero_tag: true
+  nullable_input_omittable: true
