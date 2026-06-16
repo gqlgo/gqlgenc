@@ -1,0 +1,10 @@
+query GetGrid($kind: CellKind!) {
+  grid(kind: $kind) {
+    ... on TextCell {
+      text
+    }
+    ... on NumberCell {
+      number
+    }
+  }
+}

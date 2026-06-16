@@ -1,0 +1,22 @@
+schema {
+  query: Query
+}
+
+type Query {
+  grid(kind: CellKind!): [[Cell!]!]!
+}
+
+enum CellKind {
+  TEXT
+  NUMBER
+}
+
+union Cell = TextCell | NumberCell
+
+type TextCell {
+  text: String!
+}
+
+type NumberCell {
+  number: Int!
+}

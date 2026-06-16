@@ -152,10 +152,16 @@ func (g *GoTypeGenerator) newObjectGoType(baseType gotypes.Type, gqlType *graphq
 		return baseType
 	}
 
-	// List type case: elements are always pointers for object types
+	// List type case: object elements are always a single pointer. The element
+	// pointer must be added once, at the innermost level, not once per list
+	// level (else [[Cell!]!] would become [][]**Cell instead of [][]*Cell).
 	if gqlType.Elem != nil {
-		elemBaseType := gotypes.NewPointer(baseType)
-		elemType := g.newObjectGoType(elemBaseType, gqlType.Elem)
+		var elemType gotypes.Type
+		if gqlType.Elem.NamedType != "" {
+			elemType = gotypes.NewPointer(baseType)
+		} else {
+			elemType = g.newObjectGoType(baseType, gqlType.Elem)
+		}
 		sliceType := gotypes.NewSlice(elemType)
 		if !gqlType.NonNull {
 			return gotypes.NewPointer(sliceType)
