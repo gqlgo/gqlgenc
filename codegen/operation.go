@@ -72,10 +72,15 @@ func (g *OperationGenerator) operationArgumentType(t *graphql.Type) gotypes.Type
 
 func (g *OperationGenerator) findGoTypeName(typeName string, nonNull bool) gotypes.Type {
 	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
+	g.setErr(err)
+	return t
+}
+
+// setErr は最初に起きたエラーだけを保持する (first-error-wins)。GoTypeGenerator.setErr と対称。
+func (g *OperationGenerator) setErr(err error) {
 	if err != nil && g.err == nil {
 		g.err = err
 	}
-	return t
 }
 
 func queryDocumentMapByOperationName(queryDocuments []*graphql.QueryDocument) map[string]*graphql.QueryDocument {

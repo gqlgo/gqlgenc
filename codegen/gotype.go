@@ -51,6 +51,14 @@ func (g *GoTypeGenerator) goTypes() []gotypes.Type {
 	})
 }
 
+// setErr は最初に起きたエラーだけを保持する (first-error-wins)。型生成は途中で止めず走査後に
+// g.err をまとめて返すため、後続のエラーで最初の原因が上書きされないようにする。
+func (g *GoTypeGenerator) setErr(err error) {
+	if err != nil && g.err == nil {
+		g.err = err
+	}
+}
+
 // When parentTypeName is empty, the parent is an inline fragment
 func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.SelectionSet) Fields {
 	fields := make(Fields, 0, len(selectionSet))
@@ -58,9 +66,7 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 		fields = append(fields, g.newField(parentTypeName, selection))
 	}
 
-	if err := fields.checkGoNameCollision(parentTypeName); err != nil && g.err == nil {
-		g.err = err
-	}
+	g.setErr(fields.checkGoNameCollision(parentTypeName))
 
 	return fields
 }
@@ -171,9 +177,7 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 // The typeName passed to the Type argument must be the type name derived from the analysis result, such as from selections
 func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type {
 	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
-	if err != nil && g.err == nil {
-		g.err = err
-	}
+	g.setErr(err)
 	return t
 }
 
@@ -218,19 +222,19 @@ func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes
 
 	value, err := arg.Value.Value(nil)
 	if err != nil {
-		g.err = fmt.Errorf("@goFragment: %w", err)
+		g.setErr(fmt.Errorf("@goFragment: %w", err))
 		return nil, "", false
 	}
 
 	typeName, ok := value.(string)
 	if !ok {
-		g.err = errors.New("@goFragment: type argument must be a string")
+		g.setErr(errors.New("@goFragment: type argument must be a string"))
 		return nil, "", false
 	}
 
 	goType, err := g.binder.FindTypeFromName(typeName)
 	if err != nil {
-		g.err = fmt.Errorf("@goFragment: failed to resolve %q: %w", typeName, err)
+		g.setErr(fmt.Errorf("@goFragment: failed to resolve %q: %w", typeName, err))
 		return nil, "", false
 	}
 
@@ -249,7 +253,7 @@ func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, s
 			if errors.Is(err, gqlgenconfig.ErrTypeNotFound) {
 				continue
 			}
-			g.err = fmt.Errorf("autobind: failed to load package %q: %w", pkgPath, err)
+			g.setErr(fmt.Errorf("autobind: failed to load package %q: %w", pkgPath, err))
 			return nil, "", false
 		}
 
