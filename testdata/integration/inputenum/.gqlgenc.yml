@@ -1,8 +1,9 @@
 schema:
   files:
     - ./schema/*.graphql
-queries:
-  - ./query/*.graphql
+query:
+  files:
+    - ./query/*.graphql
 generate:
   query: ./domain/query_gen.go
   client: ./query/client_gen.go

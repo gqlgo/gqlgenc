@@ -1,5 +1,6 @@
 schema:
   files:
     - testdata/cfg/glob/**/*.graphql
-queries:
-  - "./queries/*.graphql"
+query:
+  files:
+    - "./queries/*.graphql"

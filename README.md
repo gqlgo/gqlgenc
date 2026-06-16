@@ -42,8 +42,9 @@ go install github.com/Yamashou/gqlgenc/v3@latest
 schema:
   files:
     - ./schema/*.graphql
-queries:
-  - ./query/*.graphql
+query:
+  files:
+    - ./query/*.graphql
 generate:
   query: ./domain/query_gen.go
   client: ./query/client_gen.go
@@ -64,8 +65,9 @@ schema:
     url: https://api.example.com/graphql
     headers:
       Authorization: "Bearer ${TOKEN}" # 環境変数を展開できる
-queries:
-  - ./query/*.graphql
+query:
+  files:
+    - ./query/*.graphql
 generate:
   query: ./gen/query_gen.go
   client: ./gen/client_gen.go
@@ -125,9 +127,11 @@ schema:
     headers:
       Authorization: "Bearer ${TOKEN}"
 
-# []string（必須、glob 可）クエリファイルのパス
-queries:
-  - ./query/*.graphql
+# クエリの取得元
+query:
+  # []string（必須、glob 可）クエリファイルのパス
+  files:
+    - ./query/*.graphql
 
 # 生成先ファイル。各ファイルの package はディレクトリ名から導出される
 generate:
@@ -169,7 +173,7 @@ options:
 ### バリデーションルール
 
 - `schema.files` と `schema.endpoint` はどちらか一方を必ず指定する（両方指定・両方未指定はエラー）
-- `queries` は必須
+- `query.files` は必須
 - `generate.query` と `generate.model` の少なくとも一方の指定が必須（どちらも無いと生成するものがないためエラー）
 - `generate.client` を指定する場合は `generate.query` の指定が必須
 - クエリ全体でオペレーション名が重複しているとエラー
@@ -580,7 +584,7 @@ genqlient の設定オプションや `@genqlient` ディレクティブを、gq
 | genqlient | 役割 | gqlgenc での実現 |
 |---|---|---|
 | `schema` | スキーマファイル | `schema.files`（ローカル SDL）/ `schema.endpoint`（イントロスペクション） |
-| `operations` | クエリファイル | `queries` |
+| `operations` | クエリファイル | `query.files` |
 | `generated` / `package` | 生成先・パッケージ名 | `generate.query` + `generate.client`（レスポンス型とクライアントで分割）。package はファイルのディレクトリ名から導出 |
 | `bindings`（型→Go 型） | スカラー/型を Go 型にバインド | `models`（`型名: { model: ... }`） |
 | `package_bindings` | パッケージ内の同名型を一括バインド | クエリのフラグメントは `autobind.fragment`（フラグメント名と同名の Go 型にバインド）、サーバーモデルは `autobind.model`（いずれもパッケージのリスト） |

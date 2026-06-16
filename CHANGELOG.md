@@ -21,7 +21,7 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 #### 設定ファイルを gqlgenc 専用のフラットな形式に刷新
 
 - gqlgenc が独自の設定スキーマを持ち、クライアント生成に必要な項目だけを公開します。gqlgen の生 config は露出させず、json/v2 タグ・`graphql.Omittable`・`omitzero` など v3 が常に必要とする gqlgen 設定は内部で固定します（`nullable_input_omittable` / `enable_model_json_omitzero_tag` / `struct_fields_always_pointers` などのトグルは廃止）
-- トップレベルキーは `schema` / `queries` / `generate` / `autobind` / `models` / `federation` / `options` です
+- トップレベルキーは `schema` / `query` / `generate` / `autobind` / `models` / `federation` / `options` です
 - スキーマは `schema.files`（ローカル）か `schema.endpoint`（introspection で取得。URL とヘッダーを指定）のどちらか一方を指定します（同時指定・両方未指定はエラー）
 - 生成先は `generate.query`（レスポンス型）/ `generate.client`（variables・Operation 値）/ `generate.model`（input・enum モデル、省略可）で、各ファイルの package はディレクトリ名から導出します
 - 既存 Go 型へのバインドは `autobind.model`（スキーマ型名）と `autobind.fragment`（フラグメント名）に分けます。個別バインドは `models`、Federation は `federation.version` です
@@ -32,8 +32,9 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 schema:
   files:
     - ./schema/*.graphql
-queries:
-  - ./query/*.graphql
+query:
+  files:
+    - ./query/*.graphql
 generate:
   query: ./domain/query_gen.go
   client: ./query/client_gen.go

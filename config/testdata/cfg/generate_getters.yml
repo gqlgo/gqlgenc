@@ -1,8 +1,9 @@
 schema:
   files:
     - testdata/cfg/glob/**/*.graphql
-queries:
-  - "./queries/*.graphql"
+query:
+  files:
+    - "./queries/*.graphql"
 generate:
   query: ./gen/query.go
   client: ./gen/client.go

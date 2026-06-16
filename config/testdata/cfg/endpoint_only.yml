@@ -1,8 +1,9 @@
 schema:
   endpoint:
     url: http://mock-server.example.com/graphql
-queries:
-  - "./queries/*.graphql"
+query:
+  files:
+    - "./queries/*.graphql"
 generate:
   query: ./gen/query.go
   client: ./gen/client.go

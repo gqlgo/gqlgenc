@@ -2,7 +2,8 @@ unknown: foo
 schema:
   files:
     - outer
-queries:
-  - "./queries/*.graphql"
+query:
+  files:
+    - "./queries/*.graphql"
 generate:
   query: ./gen/query.go

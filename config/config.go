@@ -36,12 +36,17 @@ type Config struct {
 // settings that v3 always requires (json/v2 tags, etc.) are fixed internally.
 type fileConfig struct {
 	Schema     schemaConfig         `yaml:"schema"`
-	Queries    []string             `yaml:"queries"`
+	Query      queryConfig          `yaml:"query"`
 	Generate   generateConfig       `yaml:"generate"`
 	Autobind   autobindConfig       `yaml:"autobind,omitempty"`
 	Models     gqlgenconfig.TypeMap `yaml:"models,omitempty"`
 	Federation *federationConfig    `yaml:"federation,omitempty"`
 	Options    optionsConfig        `yaml:"options,omitempty"`
+}
+
+// queryConfig is the GraphQL operation documents to generate clients for.
+type queryConfig struct {
+	Files []string `yaml:"files,omitempty"`
 }
 
 // federationConfig enables Apollo Federation schema directives of the given version.
@@ -99,8 +104,8 @@ func LoadConfig(configFilename string) (*Config, error) {
 	if !hasFiles && !hasEndpoint {
 		return nil, errNoSchemaSource
 	}
-	if len(fc.Queries) == 0 {
-		return nil, errors.New("'queries' is required")
+	if len(fc.Query.Files) == 0 {
+		return nil, errors.New("'query.files' is required")
 	}
 	if fc.Generate.Query == "" && fc.Generate.Model == "" {
 		return nil, errors.New("neither 'generate.query' nor 'generate.model' specified, at least one generation target is required")
@@ -120,7 +125,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 			QueryGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Query},
 			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Generate.Client},
 			Endpoint:         fc.Schema.Endpoint,
-			Query:            fc.Queries,
+			Query:            fc.Query.Files,
 			FragmentAutobind: fc.Autobind.Fragment,
 			GenerateGetters:  fc.Options.Getters,
 		},
