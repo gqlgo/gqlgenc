@@ -3,10 +3,14 @@ schema:
     - testdata/cfg/glob/**/*.graphql
   endpoint:
     url: http://localhost:4000/graphql
+  out:
+    model:
+      file: ./gen/models_gen.go
 query:
   files:
     - "./queries/*.graphql"
-generate:
-  query: ./gen/query.go
-  client: ./gen/client.go
-  model: ./gen/models_gen.go
+  out:
+    query:
+      file: ./gen/query.go
+    client:
+      file: ./gen/client.go

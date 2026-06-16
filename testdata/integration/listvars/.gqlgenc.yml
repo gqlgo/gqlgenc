@@ -1,12 +1,16 @@
 schema:
   files:
     - ./schema/*.graphql
+  out:
+    model:
+      # file を指定する UC2。リスト型のクエリ変数 (スカラー / 入れ子 / Input オブジェクト)
+      # が Vars 構造体でリスト構造を保って生成されることを担保する回帰 fixture。
+      file: ./domain/model_gen.go
 query:
   files:
     - ./query/*.graphql
-generate:
-  query: ./domain/query_gen.go
-  client: ./query/client_gen.go
-  # generate.model を指定する UC2。リスト型のクエリ変数 (スカラー / 入れ子 / Input オブジェクト)
-  # が Vars 構造体でリスト構造を保って生成されることを担保する回帰 fixture。
-  model: ./domain/model_gen.go
+  out:
+    query:
+      file: ./domain/query_gen.go
+    client:
+      file: ./query/client_gen.go

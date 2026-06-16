@@ -18,34 +18,38 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 - v0 のクライアントが持っていた独自の JSON エンコード処理（`MarshalJSON`）を廃止し、リクエストボディは `json.MarshalWrite` で直接エンコードします。`graphql.Omittable` のエンコードは gqlgen 本体の対応（[99designs/gqlgen#3659](https://github.com/99designs/gqlgen/pull/3659)、[#3660](https://github.com/99designs/gqlgen/pull/3660)、[#3663](https://github.com/99designs/gqlgen/pull/3663)、[#3675](https://github.com/99designs/gqlgen/pull/3675)）と json/v2 の `omitzero` を利用します
 - json/v2 のデフォルト挙動の変更により、リクエストの variables などのエンコードで nil スライスは `null` ではなく `[]`、nil マップは `{}` として送信されます（v1 json を使う v0 は `null` を送信していました）。GraphQL では `null` と空リスト `[]` をサーバーが区別し得るため注意してください。`null` を送りたい場合はポインタ型（nil の `*[]T`）を使うか、独自構造体ではフィールドに `format:emitnull` タグを指定してください
 
-#### 設定ファイルを gqlgenc 専用のフラットな形式に刷新
+#### 設定ファイルを gqlgenc 専用の形式に刷新
 
 - gqlgenc が独自の設定スキーマを持ち、クライアント生成に必要な項目だけを公開します。gqlgen の生 config は露出させず、json/v2 タグ・`graphql.Omittable`・`omitzero` など v3 が常に必要とする gqlgen 設定は内部で固定します（`nullable_input_omittable` / `enable_model_json_omitzero_tag` / `struct_fields_always_pointers` などのトグルは廃止）
-- トップレベルキーは `schema` / `query` / `generate` / `autobind` / `models` / `federation` / `options` です
+- トップレベルは `schema`（スキーマ＝型に関すること）と `query`（クエリ＝オペレーション/フラグメント）の2セクションで、各セクションが取得元（`files` / `endpoint`）と生成物（`out`）を持ちます
 - スキーマは `schema.files`（ローカル）か `schema.endpoint`（introspection で取得。URL とヘッダーを指定）のどちらか一方を指定します（同時指定・両方未指定はエラー）
-- 生成先は `generate.query`（レスポンス型）/ `generate.client`（variables・Operation 値）/ `generate.model`（input・enum モデル、省略可）で、各ファイルの package はディレクトリ名から導出します
-- 既存 Go 型へのバインドは `autobind.model`（スキーマ型名）と `autobind.fragment`（フラグメント名）に分けます。個別バインドは `models`、Federation は `federation.version` です
-- nil 安全な Getter の生成は `options.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
+- 生成先は `query.out.query.file`（レスポンス型）/ `query.out.client.file`（variables・Operation 値）/ `schema.out.model.file`（input・enum モデル、省略可）で、各ファイルの package はディレクトリ名から導出します
+- 既存 Go 型へのバインドは `schema.out.model.bind.package`（スキーマ型名）と `query.out.fragment.bind.package`（フラグメント名）に分けます。個別バインドは `schema.out.model.bind.type`、Federation は `schema.out.model.federation.version` です
+- nil 安全な Getter の生成は `query.out.query.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
 - 設定ファイルに未知のフィールドがあるとエラーになります
 
 ```yaml
 schema:
   files:
     - ./schema/*.graphql
+  out:
+    model:
+      file: ./domain/model_gen.go
 query:
   files:
     - ./query/*.graphql
-generate:
-  query: ./domain/query_gen.go
-  client: ./query/client_gen.go
-  model: ./domain/model_gen.go
+  out:
+    query:
+      file: ./domain/query_gen.go
+    client:
+      file: ./query/client_gen.go
 ```
 
 #### コード生成を querygen と clientgen に分割
 
-- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `options.getters: true` のときのみ生成します
+- querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `query.out.query.getters: true` のときのみ生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
-- `generate.client` を使う場合は `generate.query` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）
+- `query.out.client.file` を使う場合は `query.out.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
 - 生成後のファイルには goimports を適用します
 
@@ -78,7 +82,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 - `json` タグに `omitempty` を付与しません。クエリレスポンス型はデコード専用で `omitzero` がマーシャル時にしか効かないため、レスポンス型のフィールドには `omitzero` を付与しません（入力型・モデルの nullable フィールドには gqlgenc が `omitzero` を常に付与します）
 - フラグメントの埋め込みとインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
 - フラグメントを non-optional の埋め込みにしたことで、Getter 関数の生成量を削減しました
-- レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `options.getters: true` を指定してください
+- レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `query.out.query.getters: true` を指定してください
 
 ```graphql
 query UserOperation {
@@ -129,8 +133,8 @@ type UserOperation_User_User struct {
 
 #### モデル生成を Input 型と Enum 型に限定
 
-- `generate.model` を指定した場合、modelgen は **クエリで使われている Input 型と Enum 型だけ** を生成します。Object / Interface / Union 型は生成しません。クライアントはレスポンスを querygen が生成する専用型へデコードし、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルは不要です。使用判定は変数定義の Input 型（ネストした Input を再帰的に辿る）とセレクションセットの Enum 型から行います。v0 でオプトインだった `onlyUsedModels` 相当で、Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
-- client と server で同じ model パッケージを共有する場合は、`generate.model` を指定せず modelgen を動かさないでください（model_gen.go は server 側の gqlgen が生成し、gqlgenc は autobind で参照します）。共有しない場合は `generate.model` を指定して Input / Enum を生成します
+- `schema.out.model.file` を指定した場合、modelgen は **クエリで使われている Input 型と Enum 型だけ** を生成します。Object / Interface / Union 型は生成しません。クライアントはレスポンスを querygen が生成する専用型へデコードし、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルは不要です。使用判定は変数定義の Input 型（ネストした Input を再帰的に辿る）とセレクションセットの Enum 型から行います。v0 でオプトインだった `onlyUsedModels` 相当で、Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
+- client と server で同じ model パッケージを共有する場合は、`schema.out.model.file` を指定せず modelgen を動かさないでください（model_gen.go は server 側の gqlgen が生成し、gqlgenc は autobind で参照します）。共有しない場合は `schema.out.model.file` を指定して Input / Enum を生成します
 
 #### CLI の簡素化
 
@@ -174,9 +178,9 @@ type UserOperation_User_User struct {
 - フィールドごと・呼び出しごとに undefined / null / 値を使い分けられます。`graphql.Omittable[*string]{}`（省略 = JSON に含めない）、`graphql.OmittableOf[*string](nil)`（明示 null）、`graphql.OmittableOf(&v)`（値）。生成時に `omitzero` を固定する設定は不要で、`graphql.Omittable[T]` により実行時に制御します
 - gqlgen サーバー側も受け取った入力の undefined / null を区別でき（[99designs/gqlgen#3660](https://github.com/99designs/gqlgen/pull/3660)）、Go 1.24 以降の `omitempty` + `IsZero` メソッドによりレスポンスで undefined を返せます（[99designs/gqlgen#3659](https://github.com/99designs/gqlgen/pull/3659)）
 
-#### options.getters オプション
+#### query.out.query.getters オプション
 
-- `options.getters` オプションを追加しました。レスポンス型に nil セーフな getter を生成するかを選べます（デフォルト false）
+- `query.out.query.getters` オプションを追加しました。レスポンス型に nil セーフな getter を生成するかを選べます（デフォルト false）
 
 #### @goField ディレクティブへの対応
 
@@ -185,11 +189,11 @@ type UserOperation_User_User struct {
 #### クエリでの @goFragment バインド
 
 - クエリのフラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、レスポンス型を生成せず指定した既存 Go 型にバインドします。型を共有したり、生成型にできないメソッドを持たせたい場合に使えます。`@goFragment` は gqlgenc が注入するクライアント側のコード生成専用ディレクティブで、サーバーへ送るクエリからは自動的に除去されます
-- `autobind.fragment` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（`autobind.model` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(type: ...)` が優先されます。サーバーモデル用の `autobind.model` とは独立した設定です
+- `query.out.fragment.bind.package` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（`schema.out.model.bind.package` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(type: ...)` が優先されます。サーバーモデル用の `schema.out.model.bind.package` とは独立した設定です
 
 - エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 
-- `generate.model` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `autobind.model` で参照する構成に対応します。`generate.model` と `generate.query` は少なくとも一方の指定が必須です
+- `schema.out.model.file` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `schema.out.model.bind.package` で参照する構成に対応します。`schema.out.model.file` と `query.out.query.file` は少なくとも一方の指定が必須です
 
 ### 解決済みの issue
 

@@ -1,13 +1,17 @@
 schema:
   files:
     - ./schema/*.graphql
+  out:
+    model:
+      # file を指定する UC2。入れ子リストの union ([[Cell!]!]!) を inline fragment で選択した
+      # 応答が [][]*GetGrid_Grid (要素は単一ポインタ) として生成され、__typename で判別デコードできる
+      # ことを担保する。リスト段ごとにポインタを重ねると [][]**GetGrid_Grid になる回帰を防ぐ。
+      file: ./domain/model_gen.go
 query:
   files:
     - ./query/*.graphql
-generate:
-  query: ./domain/query_gen.go
-  client: ./query/client_gen.go
-  # generate.model を指定する UC2。入れ子リストの union ([[Cell!]!]!) を inline fragment で選択した
-  # 応答が [][]*GetGrid_Grid (要素は単一ポインタ) として生成され、__typename で判別デコードできる
-  # ことを担保する。リスト段ごとにポインタを重ねると [][]**GetGrid_Grid になる回帰を防ぐ。
-  model: ./domain/model_gen.go
+  out:
+    query:
+      file: ./domain/query_gen.go
+    client:
+      file: ./query/client_gen.go

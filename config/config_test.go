@@ -97,26 +97,26 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "generate.query も generate.model も未定義の場合はエラー",
+			name: "query.out.query.file も schema.out.model.file も未定義の場合はエラー",
 			args: args{
 				file: "testdata/cfg/no_generator.yml",
 			},
 			want: want{
-				err: errors.New("neither 'generate.query' nor 'generate.model' specified, at least one generation target is required"),
+				err: errors.New("neither 'query.out.query.file' nor 'schema.out.model.file' specified, at least one generation target is required"),
 			},
 		},
 		{
-			name: "generate.client を指定して generate.query が無い場合はエラー",
+			name: "query.out.client.file を指定して query.out.query.file が無い場合はエラー",
 			args: args{
 				file: "testdata/cfg/client_without_query.yml",
 			},
 			want: want{
-				err: errors.New("'generate.client' is set, 'generate.query' must be set"),
+				err: errors.New("'query.out.client.file' is set, 'query.out.query.file' must be set"),
 			},
 		},
 		{
 			// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
-			name: "generate.model を省略しても generate.query があれば読み込める",
+			name: "schema.out.model.file を省略しても query.out.query.file があれば読み込める",
 			args: args{
 				file: "testdata/cfg/skip_model.yml",
 			},

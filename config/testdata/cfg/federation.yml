@@ -1,11 +1,14 @@
 schema:
   files:
     - testdata/cfg/glob/**/*.graphql
+  out:
+    model:
+      file: ./gen/models_gen.go
+      federation:
+        version: 2
 query:
   files:
     - "./queries/*.graphql"
-generate:
-  query: ./gen/query.go
-  model: ./gen/models_gen.go
-federation:
-  version: 2
+  out:
+    query:
+      file: ./gen/query.go

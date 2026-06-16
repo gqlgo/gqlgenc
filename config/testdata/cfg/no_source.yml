@@ -1,7 +1,8 @@
 query:
   files:
     - "./queries/*.graphql"
-generate:
-  query: ./gen/query.go
-  client: ./gen/client.go
-  model: ./gen/models_gen.go
+  out:
+    query:
+      file: ./gen/query.go
+    client:
+      file: ./gen/client.go

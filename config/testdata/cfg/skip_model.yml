@@ -4,6 +4,8 @@ schema:
 query:
   files:
     - "./queries/*.graphql"
-generate:
-  query: ./gen/query.go
-  client: ./gen/client.go
+  out:
+    query:
+      file: ./gen/query.go
+    client:
+      file: ./gen/client.go
