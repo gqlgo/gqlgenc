@@ -564,8 +564,7 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 			},
 			want: want{
 				contains: []string{
-					"t.User = &UserInline{}",
-					"json.Unmarshal(data, t.User)",
+					"json.Unmarshal(data, &t.User)",
 					"json.Unmarshal(data, &t.User.UserFragment2)",
 				},
 			},

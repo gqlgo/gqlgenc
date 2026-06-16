@@ -38,17 +38,11 @@ func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch typeName_t {
 	case "Post":
-		t.Post = &struct {
-			Title string "json:\"title\""
-		}{}
-		if err := json.Unmarshal(data, t.Post); err != nil {
+		if err := json.Unmarshal(data, &t.Post); err != nil {
 			return err
 		}
 	case "User":
-		t.User = &struct {
-			Name string "json:\"name\""
-		}{}
-		if err := json.Unmarshal(data, t.User); err != nil {
+		if err := json.Unmarshal(data, &t.User); err != nil {
 			return err
 		}
 	}
@@ -83,20 +77,11 @@ func (t *Search_Search) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch typeName_t {
 	case "Post":
-		t.Post = &struct {
-			ID    string "json:\"id\""
-			Title string "json:\"title\""
-		}{}
-		if err := json.Unmarshal(data, t.Post); err != nil {
+		if err := json.Unmarshal(data, &t.Post); err != nil {
 			return err
 		}
 	case "User":
-		t.User = &struct {
-			ID   string   "json:\"id\""
-			Kind NodeKind "json:\"kind\""
-			Name string   "json:\"name\""
-		}{}
-		if err := json.Unmarshal(data, t.User); err != nil {
+		if err := json.Unmarshal(data, &t.User); err != nil {
 			return err
 		}
 	}

@@ -283,6 +283,16 @@ func (b *UnmarshalBuilder) decodeInlineFragments(fragments []InlineFragmentInfo,
 // 戻り値:
 //   - []Statement: case 本体のステートメントリスト
 func (b *UnmarshalBuilder) buildInlineFragmentCaseBody(frag InlineFragmentInfo) []Statement {
+	// 通常フィールドがあれば json.Unmarshal(data, &t.Field) にポインタのアドレスを渡すだけで
+	// json/v2 が確保してデコードするため、匿名構造体型を再スペルした明示確保
+	// (t.Field = &struct{...}{}) は不要。fragment spread と同じ "&" パターンに揃える。
+	regularFields, _, _ := b.separateFieldTypesAt(frag.Field.SubFields, frag.FieldExpr)
+	if hasDecodableField(regularFields) {
+		return b.decodeNested(frag.FieldExpr, frag.Field.SubFields, "&"+frag.FieldExpr)
+	}
+
+	// 通常フィールドが無く入れ子フラグメントのみの場合は直接デコードが走らない
+	// (json/v2 がフィールドの無い構造体をエラーにする) ため、再帰のターゲットとして明示確保する。
 	assignment := &Assignment{
 		Target: frag.FieldExpr,
 		Value:  fmt.Sprintf("&%s{}", frag.ElemTypeStr),

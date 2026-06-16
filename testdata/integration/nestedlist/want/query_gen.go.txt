@@ -36,17 +36,11 @@ func (t *GetGrid_Grid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch typeName_t {
 	case "NumberCell":
-		t.NumberCell = &struct {
-			Number int "json:\"number\""
-		}{}
-		if err := json.Unmarshal(data, t.NumberCell); err != nil {
+		if err := json.Unmarshal(data, &t.NumberCell); err != nil {
 			return err
 		}
 	case "TextCell":
-		t.TextCell = &struct {
-			Text string "json:\"text\""
-		}{}
-		if err := json.Unmarshal(data, t.TextCell); err != nil {
+		if err := json.Unmarshal(data, &t.TextCell); err != nil {
 			return err
 		}
 	}
