@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-// Statement は AST におけるコードステートメントを表す。
+// Statement は生成コードの1ステートメントを表す。
 //
-// String メソッドは指定されたインデントレベルで文字列表現を返す。
+// 出力は templates.Render が gofmt で再整形するため、String は手動でインデントを付けない。
 type Statement interface {
-	String(indent int) string
+	String() string
 }
 
 // IfStatement は if 文を表す。
@@ -25,8 +25,8 @@ type IfStatement struct {
 }
 
 // String は if 文の文字列表現を返す。
-func (i *IfStatement) String(indent int) string {
-	return renderBlock(indent, "if "+i.Condition, i.Body)
+func (i *IfStatement) String() string {
+	return renderBlock("if "+i.Condition, i.Body)
 }
 
 // SwitchStatement は switch 文を表す。
@@ -51,16 +51,15 @@ type SwitchCase struct {
 }
 
 // String は switch 文の文字列表現を返す。
-func (s *SwitchStatement) String(indent int) string {
+func (s *SwitchStatement) String() string {
 	var buf strings.Builder
-	tabs := strings.Repeat("\t", indent)
 
 	fmt.Fprintf(&buf, "switch %s {\n", s.Expr)
 	for _, c := range s.Cases {
-		fmt.Fprintf(&buf, "%scase %q:\n", tabs, c.Value)
-		writeBody(&buf, indent, c.Body)
+		fmt.Fprintf(&buf, "case %q:\n", c.Value)
+		writeBody(&buf, c.Body)
 	}
-	buf.WriteString(tabs + "}")
+	buf.WriteString("}")
 
 	return buf.String()
 }
@@ -74,7 +73,7 @@ type Assignment struct {
 }
 
 // String は代入文の文字列表現を返す。
-func (a *Assignment) String(_ int) string {
+func (a *Assignment) String() string {
 	return fmt.Sprintf("%s = %s", a.Target, a.Value)
 }
 
@@ -86,7 +85,7 @@ type ReturnStatement struct {
 }
 
 // String は return 文の文字列表現を返す。
-func (r *ReturnStatement) String(_ int) string {
+func (r *ReturnStatement) String() string {
 	if r.Value == "" {
 		return "return"
 	}
@@ -101,7 +100,7 @@ type RawStatement struct {
 }
 
 // String は生のコードをそのまま返す。
-func (r *RawStatement) String(_ int) string {
+func (r *RawStatement) String() string {
 	return r.Code
 }
 
@@ -118,29 +117,27 @@ type ErrorCheckStatement struct {
 }
 
 // String はエラーチェック文の文字列表現を返す。
-func (e *ErrorCheckStatement) String(indent int) string {
-	return renderBlock(indent, "if err := "+e.ErrorExpr+"; err != nil", e.Body)
+func (e *ErrorCheckStatement) String() string {
+	return renderBlock("if err := "+e.ErrorExpr+"; err != nil", e.Body)
 }
 
-// renderBlock は "<header> {" 行・1段深い body・閉じ括弧 "}" からなるブロックを描画する。
-func renderBlock(indent int, header string, body []Statement) string {
+// renderBlock は "<header> {" 行・body・閉じ括弧 "}" からなるブロックを描画する。
+// インデントは付けない（gofmt が整形する）。
+func renderBlock(header string, body []Statement) string {
 	var buf strings.Builder
-	tabs := strings.Repeat("\t", indent)
 
 	buf.WriteString(header)
 	buf.WriteString(" {\n")
-	writeBody(&buf, indent, body)
-	buf.WriteString(tabs + "}")
+	writeBody(&buf, body)
+	buf.WriteString("}")
 
 	return buf.String()
 }
 
-// writeBody は body の各ステートメントを、ブロックより1段深いインデントで書き込む。
-func writeBody(buf *strings.Builder, indent int, body []Statement) {
-	tabs := strings.Repeat("\t", indent)
+// writeBody は body の各ステートメントを1行ずつ書き込む（インデントなし）。
+func writeBody(buf *strings.Builder, body []Statement) {
 	for _, stmt := range body {
-		buf.WriteString(tabs + "\t")
-		buf.WriteString(stmt.String(indent + 1))
+		buf.WriteString(stmt.String())
 		buf.WriteString("\n")
 	}
 }

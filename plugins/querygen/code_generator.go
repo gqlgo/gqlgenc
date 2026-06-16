@@ -302,10 +302,9 @@ func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement)
 	// Method signature
 	fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", typeName)
 
-	// Method body
+	// Method body (gofmt が整形するため手動インデントはしない)
 	for _, stmt := range body {
-		buf.WriteString("\t")
-		buf.WriteString(stmt.String(1))
+		buf.WriteString(stmt.String())
 		buf.WriteString("\n")
 	}
 

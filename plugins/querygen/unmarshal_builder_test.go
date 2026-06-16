@@ -396,7 +396,7 @@ func TestUnmarshalBuilder_decodeSingleFragmentSpread(t *testing.T) {
 
 			var buf strings.Builder
 			for _, stmt := range got {
-				buf.WriteString(stmt.String(1))
+				buf.WriteString(stmt.String())
 				buf.WriteString("\n")
 			}
 			gotString := buf.String()
@@ -620,7 +620,7 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 
 			var buf strings.Builder
 			for _, stmt := range got {
-				buf.WriteString(stmt.String(1))
+				buf.WriteString(stmt.String())
 				buf.WriteString("\n")
 			}
 			gotString := buf.String()
