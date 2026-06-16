@@ -104,7 +104,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 }
 
 func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graphql.Field) (TypeKind, gotypes.Type) {
-	typeName := fieldTypeName(parentTypeName, sel.Alias, g.cfg.GQLGencConfig.ExportQueryType)
+	typeName := fieldTypeName(parentTypeName, sel.Alias)
 	fields := g.newFields(typeName, sel.SelectionSet)
 	if len(fields) == 0 {
 		fieldType := sel.Definition.Type
@@ -254,7 +254,7 @@ func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes
 // バインドできる。戻り値は boundGoType と同じ（バインド先 Go 型、埋め込みフィールド名、
 // 見つかったか）。
 func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, string, bool) {
-	for _, pkgPath := range g.cfg.GQLGencConfig.Autobind {
+	for _, pkgPath := range g.cfg.GQLGencConfig.FragmentAutobind {
 		goType, err := g.binder.FindType(pkgPath, fragmentName)
 		if err != nil {
 			if errors.Is(err, gqlgenconfig.ErrTypeNotFound) {
@@ -281,13 +281,10 @@ func (g *GoTypeGenerator) fragmentBinding(def *graphql.FragmentDefinition) (goty
 	return g.autobindFragment(def.Name)
 }
 
-func fieldTypeName(parentTypeName, fieldName string, exportQueryType bool) string {
-	if exportQueryType {
-		return fmt.Sprintf("%s_%s", firstUpper(parentTypeName), templates.ToGo(fieldName))
-	}
-
-	// default: query type is not exported
-	return fmt.Sprintf("%s_%s", firstLower(parentTypeName), templates.ToGo(fieldName))
+// fieldTypeName builds the generated subtype name. Query response types are
+// always exported, so the parent name is upper-cased.
+func fieldTypeName(parentTypeName, fieldName string) string {
+	return fmt.Sprintf("%s_%s", firstUpper(parentTypeName), templates.ToGo(fieldName))
 }
 
 func firstUpper(s string) string {
@@ -296,15 +293,6 @@ func firstUpper(s string) string {
 	}
 	r := []rune(s)
 	r[0] = unicode.ToUpper(r[0])
-	return string(r)
-}
-
-func firstLower(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	r := []rune(s)
-	r[0] = unicode.ToLower(r[0])
 	return string(r)
 }
 

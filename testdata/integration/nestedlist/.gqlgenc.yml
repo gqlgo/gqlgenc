@@ -1,18 +1,12 @@
-gqlgenc:
-  query:
-    - ./query/*.graphql
-  querygen:
-    filename: ./domain/query_gen.go
-  clientgen:
-    filename: ./query/client_gen.go
-  export_query_type: true
-gqlgen:
-  schema:
+schema:
+  files:
     - ./schema/*.graphql
-  # gqlgen.model を指定する UC2。入れ子リストの union ([[Cell!]!]!) を inline fragment で選択した
+queries:
+  - ./query/*.graphql
+generate:
+  query: ./domain/query_gen.go
+  client: ./query/client_gen.go
+  # generate.model を指定する UC2。入れ子リストの union ([[Cell!]!]!) を inline fragment で選択した
   # 応答が [][]*GetGrid_Grid (要素は単一ポインタ) として生成され、__typename で判別デコードできる
   # ことを担保する。リスト段ごとにポインタを重ねると [][]**GetGrid_Grid になる回帰を防ぐ。
-  model:
-    filename: ./domain/model_gen.go
-  enable_model_json_omitzero_tag: true
-  nullable_input_omittable: true
+  model: ./domain/model_gen.go

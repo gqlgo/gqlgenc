@@ -4,8 +4,5 @@ schema:
 queries:
   - "./queries/*.graphql"
 generate:
-  query: ./gen/query.go
   client: ./gen/client.go
   model: ./gen/models_gen.go
-options:
-  getters: true

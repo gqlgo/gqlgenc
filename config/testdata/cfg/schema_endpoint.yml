@@ -1,14 +1,11 @@
-gqlgenc:
-  clientgen:
-    filename: ./gen/client.go
-  querygen:
-    filename: ./gen/query.go
+schema:
+  files:
+    - testdata/cfg/glob/**/*.graphql
   endpoint:
     url: http://localhost:4000/graphql
-  query:
-    - "./queries/*.graphql"
-gqlgen:
-  model:
-    filename: ./gen/models_gen.go
-  schema:
-    - testdata/cfg/glob/**/*.graphql
+queries:
+  - "./queries/*.graphql"
+generate:
+  query: ./gen/query.go
+  client: ./gen/client.go
+  model: ./gen/models_gen.go

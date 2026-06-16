@@ -1,6 +1,5 @@
-gqlgenc:
-  query:
-    - "./queries/*.graphql"
-gqlgen:
-  schema:
+schema:
+  files:
     - testdata/cfg/glob/**/*.graphql
+queries:
+  - "./queries/*.graphql"

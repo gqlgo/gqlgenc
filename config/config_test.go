@@ -70,16 +70,25 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "schemaとendpointが両方指定されている場合はエラー",
+			name: "不明なキーが含まれている場合はエラー",
+			args: args{
+				file: "testdata/cfg/unknownkeys.yml",
+			},
+			want: want{
+				err: errors.New("unable to parse config: [1:1] unknown field \"unknown\"\n>  1 | unknown: foo\n       ^\n   2 | schema:\n   3 |   files:\n   4 |     - outer\n   5 | "),
+			},
+		},
+		{
+			name: "schema.files と schema.endpoint が両方指定されている場合はエラー",
 			args: args{
 				file: "testdata/cfg/schema_endpoint.yml",
 			},
 			want: want{
-				err: errors.New("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)"),
+				err: errors.New("'schema.files' and 'schema.endpoint' both specified. Use files to load from local files, use endpoint to load from a remote server (using introspection)"),
 			},
 		},
 		{
-			name: "schemaとendpointのどちらも指定されていない場合はエラー",
+			name: "schema も endpoint も指定されていない場合はエラー",
 			args: args{
 				file: "testdata/cfg/no_source.yml",
 			},
@@ -88,129 +97,42 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "gqlgencセクションが無い場合はエラー",
+			name: "generate.query も generate.model も未定義の場合はエラー",
 			args: args{
-				file: "testdata/cfg/only_gqlgen.yml",
+				file: "testdata/cfg/no_generator.yml",
 			},
 			want: want{
-				err: errors.New("'gqlgenc' section is not specified"),
+				err: errors.New("neither 'generate.query' nor 'generate.model' specified, at least one generation target is required"),
 			},
 		},
 		{
-			name: "gqlgenセクションが無い場合はエラー",
+			name: "generate.client を指定して generate.query が無い場合はエラー",
 			args: args{
-				file: "testdata/cfg/only_gqlgenc.yml",
+				file: "testdata/cfg/client_without_query.yml",
 			},
 			want: want{
-				err: errors.New("'gqlgen' section is not specified"),
+				err: errors.New("'generate.client' is set, 'generate.query' must be set"),
 			},
 		},
 		{
-			name: "不明なキーが含まれている場合はエラー",
+			// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
+			name: "generate.model を省略しても generate.query があれば読み込める",
 			args: args{
-				file: "testdata/cfg/unknownkeys.yml",
+				file: "testdata/cfg/skip_model.yml",
 			},
-			want: want{
-				err: errors.New("unable to parse config: [1:1] unknown field \"unknown\"\n>  1 | unknown: foo\n       ^\n   2 | gqlgen:\n   3 |   schema:\n   4 |     - outer"),
-			},
+			want: want{},
 		},
 		{
-			name: "nullable_input_omittableが指定された設定を正しく読み込めることを確認する",
-			args: args{
-				file: "testdata/cfg/nullable_input_omittable.yml",
-			},
-			want: want{
-				config: &Config{
-					GQLGencConfig: &GQLGencConfig{
-						Query: []string{"./queries/*.graphql"},
-						QueryGen: config.PackageConfig{
-							Package: "gen",
-						},
-						ClientGen: config.PackageConfig{
-							Package: "gen",
-						},
-					},
-					GQLGenConfig: &config.Config{
-						SchemaFilename: config.StringList{
-							"testdata/cfg/glob/bar/bar with spaces.graphql",
-							"testdata/cfg/glob/foo/foo.graphql",
-						},
-						Exec: config.ExecConfig{
-							Filename: "generated.go",
-						},
-						Model: config.PackageConfig{
-							Filename: "./gen/models_gen.go",
-							Package:  "gen",
-						},
-						Federation: config.PackageConfig{
-							Filename: "generated.go",
-						},
-						Resolver: config.ResolverConfig{
-							Filename: "generated.go",
-						},
-						NullableInputOmittable: true,
-						Directives:             map[string]config.DirectiveConfig{},
-						GoInitialisms:          config.GoInitialismsConfig{},
-					},
-				},
-			},
-		},
-		{
-			name: "omitzeroが指定された設定を正しく読み込めることを確認する",
-			args: args{
-				file: "testdata/cfg/omitzero.yml",
-			},
-			want: want{
-				config: &Config{
-					GQLGencConfig: &GQLGencConfig{
-						Query: []string{"./queries/*.graphql"},
-						QueryGen: config.PackageConfig{
-							Package: "gen",
-						},
-						ClientGen: config.PackageConfig{
-							Package: "gen",
-						},
-					},
-					GQLGenConfig: &config.Config{
-						SchemaFilename: config.StringList{
-							"testdata/cfg/glob/bar/bar with spaces.graphql",
-							"testdata/cfg/glob/foo/foo.graphql",
-						},
-						Exec: config.ExecConfig{
-							Filename: "generated.go",
-						},
-						Model: config.PackageConfig{
-							Filename: "./gen/models_gen.go",
-							Package:  "gen",
-						},
-						Federation: config.PackageConfig{
-							Filename: "generated.go",
-						},
-						Resolver: config.ResolverConfig{
-							Filename: "generated.go",
-						},
-						EnableModelJsonOmitzeroTag: new(true),
-						Directives:                 map[string]config.DirectiveConfig{},
-						GoInitialisms:              config.GoInitialismsConfig{},
-					},
-				},
-			},
-		},
-		{
-			name: "generate_gettersが指定された設定を正しく読み込めることを確認する",
+			name: "options.getters を指定した設定を正しく読み込めることを確認する",
 			args: args{
 				file: "testdata/cfg/generate_getters.yml",
 			},
 			want: want{
 				config: &Config{
 					GQLGencConfig: &GQLGencConfig{
-						Query: []string{"./queries/*.graphql"},
-						QueryGen: config.PackageConfig{
-							Package: "gen",
-						},
-						ClientGen: config.PackageConfig{
-							Package: "gen",
-						},
+						Query:           []string{"./queries/*.graphql"},
+						QueryGen:        config.PackageConfig{Package: "gen"},
+						ClientGen:       config.PackageConfig{Package: "gen"},
 						GenerateGetters: true,
 					},
 					GQLGenConfig: &config.Config{
@@ -221,18 +143,14 @@ func TestLoadConfig(t *testing.T) {
 						Exec: config.ExecConfig{
 							Filename: "generated.go",
 						},
-						Model: config.PackageConfig{
-							Filename: "./gen/models_gen.go",
-							Package:  "gen",
-						},
-						Federation: config.PackageConfig{
-							Filename: "generated.go",
-						},
+						Model: config.PackageConfig{Package: "gen"},
 						Resolver: config.ResolverConfig{
 							Filename: "generated.go",
 						},
-						Directives:    map[string]config.DirectiveConfig{},
-						GoInitialisms: config.GoInitialismsConfig{},
+						StructTag:                  "json",
+						NullableInputOmittable:     true,
+						EnableModelJsonOmitzeroTag: new(true),
+						Directives:                 map[string]config.DirectiveConfig{},
 					},
 				},
 			},
@@ -282,23 +200,6 @@ func TestLoadConfig(t *testing.T) {
 				err: errors.New(`schema files: walk "not_walkable/": lstat not_walkable/: no such file or directory`),
 			},
 			skipOnGOOS: "windows",
-		},
-		{
-			// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
-			name: "modelを省略してもquerygenが定義されていれば読み込める",
-			args: args{
-				file: "testdata/cfg/skip_model.yml",
-			},
-			want: want{},
-		},
-		{
-			name: "modelもquerygenも未定義の場合はエラー",
-			args: args{
-				file: "testdata/cfg/no_generator.yml",
-			},
-			want: want{
-				err: errors.New("neither 'model' nor 'querygen' specified, at least one generation target is required"),
-			},
 		},
 	}
 

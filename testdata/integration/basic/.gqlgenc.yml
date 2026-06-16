@@ -1,22 +1,17 @@
-gqlgenc:
-  query:
-    - ./query/*.graphql
-  autobind:
-    - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
-  querygen:
-    filename: ./domain/query_gen.go
-  clientgen:
-    filename: ./query/client_gen.go
-  export_query_type: true
-  generate_getters: true
-gqlgen:
-  schema:
+schema:
+  files:
     - ./schema/*.graphql
-  # gqlgen.model を指定しないため gqlgenc は model_gen.go を生成しない。
-  # autobind で既存モデル(server 側 gqlgen が生成)を使う(client/server で model を共有する構成)。
-  enable_model_json_omitempty_tag: false
-  enable_model_json_omitzero_tag: true
-  nullable_input_omittable: true
-  struct_fields_always_pointers: false
-  autobind:
+queries:
+  - ./query/*.graphql
+generate:
+  query: ./domain/query_gen.go
+  client: ./query/client_gen.go
+# generate.model を指定しないため gqlgenc は model_gen.go を生成しない。
+# autobind.model で既存モデル(server 側 gqlgen が生成)を使う(client/server で model を共有する構成)。
+autobind:
+  model:
     - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
+  fragment:
+    - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
+options:
+  getters: true

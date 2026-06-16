@@ -1,4 +1,8 @@
 unknown: foo
-gqlgen:
-  schema:
+schema:
+  files:
     - outer
+queries:
+  - "./queries/*.graphql"
+generate:
+  query: ./gen/query.go

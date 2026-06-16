@@ -1,13 +1,10 @@
-gqlgenc:
-  query:
-    - ./query/*.graphql
-  querygen:
-    filename: ./domain/query_gen.go
-  clientgen:
-    filename: ./query/client_gen.go
-  export_query_type: true
-gqlgen:
-  schema:
+schema:
+  files:
     - ./schema/*.graphql
-  # gqlgen.model を指定せず autobind もしないため、enum Status がどこにもバインドされない。
-  # UC1 (client/server で model 共有) で autobind 先に enum 型が無い設定不備を再現する。
+queries:
+  - ./query/*.graphql
+generate:
+  query: ./domain/query_gen.go
+  client: ./query/client_gen.go
+# generate.model を指定せず autobind もしないため、enum Status がどこにもバインドされない。
+# UC1 (client/server で model 共有) で autobind 先に enum 型が無い設定不備を再現する。

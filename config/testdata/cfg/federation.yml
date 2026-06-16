@@ -1,12 +1,10 @@
-gqlgenc:
-  query:
-    - "./queries/*.graphql"
-  querygen:
-    filename: ./gen/query.go
-gqlgen:
-  federation:
-    version: 2
-  model:
-    filename: ./gen/models_gen.go
-  schema:
+schema:
+  files:
     - testdata/cfg/glob/**/*.graphql
+queries:
+  - "./queries/*.graphql"
+generate:
+  query: ./gen/query.go
+  model: ./gen/models_gen.go
+federation:
+  version: 2

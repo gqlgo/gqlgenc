@@ -14,9 +14,8 @@ func TestFieldTypeName(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		parentTypeName  string
-		fieldName       string
-		exportQueryType bool
+		parentTypeName string
+		fieldName      string
 	}
 
 	type want struct {
@@ -29,48 +28,22 @@ func TestFieldTypeName(t *testing.T) {
 		want want
 	}{
 		{
-			// export_query_type が true のときは親型名の先頭を大文字にして公開型名にする
-			name: "export_query_typeがtrueのとき先頭大文字の公開型名になる",
+			// 親型名の先頭を大文字にし、フィールド名を Go の公開名に変換して結合する
+			name: "親型名とフィールド名から公開型名を生成する",
 			args: args{
-				parentTypeName:  "userOperation",
-				fieldName:       "article",
-				exportQueryType: true,
+				parentTypeName: "userOperation",
+				fieldName:      "article",
 			},
 			want: want{
 				typeName: "UserOperation_Article",
 			},
 		},
 		{
-			// export_query_type が false (デフォルト) のときは親型名の先頭を小文字にして非公開型名にする
-			name: "export_query_typeがfalseのとき先頭小文字の非公開型名になる",
-			args: args{
-				parentTypeName:  "userOperation",
-				fieldName:       "article",
-				exportQueryType: false,
-			},
-			want: want{
-				typeName: "userOperation_Article",
-			},
-		},
-		{
-			// 親型名が空 (インラインフラグメント) でも firstLower が panic せず "_<Field>" になる
-			name: "親型名が空でもfirstLowerが安全に動く",
-			args: args{
-				parentTypeName:  "",
-				fieldName:       "article",
-				exportQueryType: false,
-			},
-			want: want{
-				typeName: "_Article",
-			},
-		},
-		{
-			// 親型名が空でも firstUpper が panic せず "_<Field>" になる
+			// 親型名が空 (インラインフラグメント) でも firstUpper が panic せず "_<Field>" になる
 			name: "親型名が空でもfirstUpperが安全に動く",
 			args: args{
-				parentTypeName:  "",
-				fieldName:       "article",
-				exportQueryType: true,
+				parentTypeName: "",
+				fieldName:      "article",
 			},
 			want: want{
 				typeName: "_Article",
@@ -81,7 +54,7 @@ func TestFieldTypeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := fieldTypeName(tt.args.parentTypeName, tt.args.fieldName, tt.args.exportQueryType)
+			got := fieldTypeName(tt.args.parentTypeName, tt.args.fieldName)
 
 			if diff := cmp.Diff(tt.want.typeName, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
