@@ -24,8 +24,8 @@ type SubscriptionClient struct {
 // NewSubscriptionClient creates a client for subscription operations.
 //
 // endpoint is the WebSocket endpoint (ws:// or wss://). Customize the
-// HTTP/handshake behaviour (headers, auth) by wrapping the transport with
-// WithRoundTripper.
+// HTTP/handshake behaviour (headers, auth) by passing your own Option that
+// returns the http.Client to use; gqlgenc ships no option helpers.
 func NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient {
 	return &SubscriptionClient{
 		client:     applyOptions(http.DefaultClient, options),

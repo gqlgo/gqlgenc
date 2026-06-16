@@ -15,7 +15,7 @@ gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から�
 - シンプルな実装コード
 - 最小のConfig、設定より規約
 - モダンな言語機能の採用
-- HTTP リクエストの操作は標準 `net/http`（`http.RoundTripper`）に寄せ、GraphQL クライアントの責務は最小限にする
+- **`http.Client` の責務を持たず、ユーザに全権を渡す** — HTTP の操作（ヘッダー・認証・タイムアウト・ロギング・リトライなど）は標準 `net/http`（`http.RoundTripper`）と自前の `Option` に寄せ、GraphQL クライアント自身はオプションヘルパーを一切持たない
 
 ## 動作要件
 
@@ -317,14 +317,14 @@ Name: graphql.OmittableOf(&name),
 
 - `client.NewClient(endpoint string, options ...Option) *Client` — query / mutation 用のクライアント（`Post` / `Get`）
 - `client.NewSubscriptionClient(endpoint string, options ...Option) *SubscriptionClient` — subscription 用のクライアント（`Subscribe`）。endpoint は WebSocket URL（`ws://` / `wss://`）を直接渡す
-- `client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper)` — HTTP transport を任意の RoundTripper で包む。ヘッダー付与・認証・ロギング・テスト用 transport をここで行う。WebSocket ハンドシェイクを含む全リクエストに適用され、既存 transport を委譲ラップするためコネクションプールは維持される。`Post`/`Get`/`Subscribe` に渡すと**その呼び出しだけ**に適用され、基底クライアントや共有 `http.Client` を汚さない
+- `client.Option`（`func(*http.Client) *http.Client`）— 使用する `http.Client` を返す関数。gqlgenc はヘルパーを一切提供せず、ユーザが自分で書く。`NewClient` / `NewSubscriptionClient` に渡すか、`Post` / `Get` / `Subscribe` に渡すと**その呼び出しだけ**に適用される。`Option` 内で `http.Client` をコピーして返せば、基底クライアントや共有 `http.Client`（`http.DefaultClient` など）を汚さない
 - `client.Operation[Kind, Vars, Res]` / `(*Client).Post[Kind, Vars, Res](ctx, op, vars, options...)` — clientgen が生成する Operation 値を型付き variables で実行するジェネリックメソッド（Go 1.27 の generic methods を使用）。`Kind` は `client.Query` / `client.Mutation` / `client.Subscription` のいずれかで、`Post` は query / mutation のみ受け付ける
 - `(*Client).Get[Vars, Res](ctx, op, vars, options...)` — query オペレーションを HTTP GET で実行する。variables は URL に JSON エンコードされる。GraphQL 仕様により GET は mutation に使えず、`Kind` の型制約でコンパイル時に防がれる
 - `(*SubscriptionClient).Subscribe[Vars, Res](ctx, op, vars, options...) iter.Seq2[*Res, error]` — subscription オペレーションを WebSocket で実行し、結果を逐次返すイテレータを返す
 
 ### HTTP のカスタマイズ（ヘッダー・認証）
 
-**設計方針**: リクエストの操作（ヘッダー付与・認証・ロギング・リトライなど）は標準の `net/http`（`http.RoundTripper`）に寄せ、GraphQL クライアント自身は独自の HTTP オプションを持たず責務を最小限にしています。そのため、これらはすべて自前の `http.RoundTripper` を `WithRoundTripper` で包んで行います（v0 の Interceptor や独自の `WithHTTPClient` / `WithHTTPHeader` は提供しません）。
+**設計方針**: gqlgenc は `http.Client` の設定責務を持たず、ユーザに全権を渡します。ヘッダー付与・認証・タイムアウト・ロギング・リトライ・テスト用 transport などは、すべて標準の `net/http`（`http.RoundTripper`）と自前の `Option` で行います。GraphQL クライアント自身は `WithRoundTripper` / `WithHTTPClient` / `WithHTTPHeader` などの**オプションヘルパーを一切提供しません**（v0 の Interceptor も廃止）。`Option` は `func(*http.Client) *http.Client` なので、使用する `http.Client` を自由に組み立てて返せます。
 
 ```go
 // ヘッダー付与・認証などは自前の http.RoundTripper で行う。RoundTripper は
@@ -337,17 +337,36 @@ func (t authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     return t.base.RoundTrip(req)
 }
 
-c := client.NewClient(endpoint, client.WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
+// gqlgenc はヘルパーを提供しないので、transport を包む Option は自分で書く。
+// 共有 http.Client を汚さないようコピーしてから transport を差し替える。
+withTransport := func(wrap func(http.RoundTripper) http.RoundTripper) client.Option {
+    return func(c *http.Client) *http.Client {
+        base := c.Transport
+        if base == nil {
+            base = http.DefaultTransport
+        }
+        cc := *c
+        cc.Transport = wrap(base)
+        return &cc
+    }
+}
+
+c := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
     return authTransport{base: base}
 }))
 
 // 呼び出し単位で付与する場合は Post / Get / Subscribe にオプションとして渡す
-c.Post(ctx, op, vars, client.WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
+c.Post(ctx, op, vars, withTransport(func(base http.RoundTripper) http.RoundTripper {
     return authTransport{base: base}
 }))
+
+// 独自の http.Client（タイムアウト等）をまるごと使いたい場合は、それを返す Option を書く
+c2 := client.NewClient(endpoint, func(*http.Client) *http.Client {
+    return &http.Client{Timeout: 10 * time.Second}
+})
 ```
 
-テストでは in-memory transport を返す `WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return testTransport })` で差し替えます。
+テストでは in-memory transport を返す `Option`（上の `withTransport` 等）で差し替えます。
 
 ### リクエスト仕様
 

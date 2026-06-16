@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	nldomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/domain"
 	nlquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/query"
 )
@@ -30,7 +31,7 @@ func Test_IntegrationTest_ModelGen_NestedList(t *testing.T) {
 
 	// 入れ子リストの union 応答が __typename で正しく判別デコードされることを確認する
 	captured := &bytes.Buffer{}
-	rawClient := client.NewClient("http://local/graphql", client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+	rawClient := client.NewClient("http://local/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 		return &cannedRoundTripper{
 			response: `{"data":{"grid":[[{"__typename":"TextCell","text":"hi"},{"__typename":"NumberCell","number":5}]]}}`,
 			captured: captured,

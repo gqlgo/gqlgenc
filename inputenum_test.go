@@ -12,6 +12,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	inputenumdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/domain"
 	inputenumquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/query"
 )
@@ -36,7 +37,7 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 
 	// 生成された Input / Enum / 応答型が動作することを確認する (入力エンコード + レスポンスデコード)
 	captured := &bytes.Buffer{}
-	rawClient := client.NewClient("http://local/graphql", client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+	rawClient := client.NewClient("http://local/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 		return &cannedRoundTripper{
 			response: `{"data":{"search":{"total":42,"status":"ACTIVE"}}}`,
 			captured: captured,

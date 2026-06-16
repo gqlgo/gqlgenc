@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	lvdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/domain"
 	lvquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/query"
 )
@@ -30,7 +31,7 @@ func Test_IntegrationTest_ModelGen_ListVars(t *testing.T) {
 	compareFiles(t, "./want/client_gen.go.txt", "query/client_gen.go")
 
 	captured := &bytes.Buffer{}
-	rawClient := client.NewClient("http://local/graphql", client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+	rawClient := client.NewClient("http://local/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 		return &cannedRoundTripper{
 			response: `{"data":{"search":["a","b"]}}`,
 			captured: captured,

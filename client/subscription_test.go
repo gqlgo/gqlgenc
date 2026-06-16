@@ -11,6 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 )
 
 // fakeGraphQLWSServer is a minimal graphql-transport-ws server for tests.
@@ -185,7 +187,7 @@ func TestSubscriptionClient_Subscribe(t *testing.T) {
 				// Client() は in-memory サーバを起動して httpServer.URL を設定するため、URL を読む前に呼ぶ
 				httpClient := httpServer.Client()
 
-				c := NewSubscriptionClient(httpServer.URL, WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return httpClient.Transport }))
+				c := NewSubscriptionClient(httpServer.URL, clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return httpClient.Transport }))
 
 				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 				defer cancel()

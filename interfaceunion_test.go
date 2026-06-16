@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	ifudomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/domain"
 	ifuquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/query"
 )
@@ -32,7 +33,7 @@ func Test_IntegrationTest_ModelGen_InterfaceUnion(t *testing.T) {
 
 	// union / interface への inline fragment 応答が __typename で正しく判別デコードされることを確認する
 	captured := &bytes.Buffer{}
-	rawClient := client.NewClient("http://local/graphql", client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+	rawClient := client.NewClient("http://local/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 		return &cannedRoundTripper{
 			response: `{"data":{"search":[{"__typename":"User","id":"u1","name":"Alice","kind":"USER"},{"__typename":"Post","id":"p1","title":"Hello"}],"node":{"__typename":"User","id":"u1","name":"Alice"}}}`,
 			captured: captured,

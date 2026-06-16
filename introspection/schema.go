@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	"github.com/Yamashou/gqlgenc/v3/introspection/internal/transport"
 
 	"github.com/vektah/gqlparser/v2/ast"
@@ -205,7 +206,7 @@ var introspectionOperation = client.Operation[client.Query, struct{}, Query]{
 func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error) {
 	var options []client.Option
 	if len(header) > 0 {
-		options = append(options, client.WithRoundTripper(transport.NewHeader(func(context.Context) http.Header {
+		options = append(options, clientopt.WithRoundTripper(transport.NewHeader(func(context.Context) http.Header {
 			return header
 		})))
 	}

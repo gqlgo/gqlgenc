@@ -10,12 +10,14 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 )
 
 // withHeader adds static headers to a request via a RoundTripper, used to
 // exercise per-call WithRoundTripper.
 func withHeader(h http.Header) Option {
-	return WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
+	return clientopt.WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
 		return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			ctx := req.Context()
 			clone := req.Clone(ctx)
@@ -191,7 +193,7 @@ func TestPost(t *testing.T) {
 				}, nil
 			})
 
-			c := NewClient("https://example.com/graphql", WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
+			c := NewClient("https://example.com/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
 
 			got, err := c.Post(t.Context(), tt.args.op, tt.args.vars, tt.args.options...)
 
@@ -244,7 +246,7 @@ func TestPost_Errors(t *testing.T) {
 		rt := roundTripperFunc(func(*http.Request) (*http.Response, error) {
 			return nil, errors.New("boom")
 		})
-		c := NewClient("https://example.com/graphql", WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
+		c := NewClient("https://example.com/graphql", clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper { return rt }))
 
 		if _, err := c.Post(t.Context(), op, vars{}); err == nil {
 			t.Error("transport エラーでエラーが返らなかった")

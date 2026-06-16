@@ -19,6 +19,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
@@ -316,7 +317,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 
 			rawClient := client.NewClient(
 				"http://local/graphql",
-				client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+				clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 					return handlerRoundTripper{handler: srv}
 				}),
 			)
@@ -573,7 +574,7 @@ func Test_Subscription(t *testing.T) {
 				// URL を読む前に呼ぶ
 				httpClient := httpServer.Client()
 
-				subClient := client.NewSubscriptionClient(httpServer.URL, client.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+				subClient := client.NewSubscriptionClient(httpServer.URL, clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
 					return httpClient.Transport
 				}))
 
