@@ -156,6 +156,7 @@ func TestResolveModelType(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
+		binder   *gqlgenconfig.Binder
 		models   gqlgenconfig.TypeMap
 		typeName string
 		nonNull  bool
@@ -197,13 +198,28 @@ func TestResolveModelType(t *testing.T) {
 				err:    cmpopts.AnyError,
 			},
 		},
+		{
+			// 束縛は在るが指す Go 型を binder が解決できないときもエラーを返す
+			// (@goModel(model: "誤り") 相当)。パッケージ区切りの無い束縛名なら FindObject が
+			// pkgs を参照せず失敗するため、最小構成の binder (nil pkgs) でも安全に到達する。
+			name: "束縛先のGo型を解決できないときはエラーを返す",
+			args: args{
+				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				models:   gqlgenconfig.TypeMap{"Status": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"NoPackageSeparator"}}},
+				typeName: "Status",
+				nonNull:  true,
+			},
+			want: want{
+				goType: "invalid type",
+				err:    cmpopts.AnyError,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			// 未束縛の分岐では binder を参照しないため nil を渡してよい
-			got, err := resolveModelType(nil, tt.args.models, tt.args.typeName, tt.args.nonNull)
+			got, err := resolveModelType(tt.args.binder, tt.args.models, tt.args.typeName, tt.args.nonNull)
 
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("error diff(-want +got): %s", diff)
