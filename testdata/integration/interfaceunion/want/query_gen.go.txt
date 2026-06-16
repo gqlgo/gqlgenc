@@ -19,8 +19,8 @@ type Search_Node struct {
 	User *struct {
 		Name string "json:\"name\""
 	} "json:\"-\""
-	Typename *string "json:\"__typename\""
-	ID       string  "json:\"id\""
+	Typename string "json:\"__typename\""
+	ID       string "json:\"id\""
 }
 
 func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -32,11 +32,7 @@ func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
-	var typeName_t string
-	if t.Typename != nil {
-		typeName_t = *t.Typename
-	}
-	switch typeName_t {
+	switch t.Typename {
 	case "Post":
 		if err := json.Unmarshal(data, &t.Post); err != nil {
 			return err
@@ -59,7 +55,7 @@ type Search_Search struct {
 		Kind NodeKind "json:\"kind\""
 		Name string   "json:\"name\""
 	} "json:\"-\""
-	Typename *string "json:\"__typename\""
+	Typename string "json:\"__typename\""
 }
 
 func (t *Search_Search) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -71,11 +67,7 @@ func (t *Search_Search) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
-	var typeName_t string
-	if t.Typename != nil {
-		typeName_t = *t.Typename
-	}
-	switch typeName_t {
+	switch t.Typename {
 	case "Post":
 		if err := json.Unmarshal(data, &t.Post); err != nil {
 			return err

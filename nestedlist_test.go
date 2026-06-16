@@ -51,13 +51,13 @@ func Test_IntegrationTest_ModelGen_NestedList(t *testing.T) {
 					TextCell: &struct {
 						Text string `json:"text"`
 					}{Text: "hi"},
-					Typename: new("TextCell"),
+					Typename: "TextCell",
 				},
 				{
 					NumberCell: &struct {
 						Number int `json:"number"`
 					}{Number: 5},
-					Typename: new("NumberCell"),
+					Typename: "NumberCell",
 				},
 			},
 		},

@@ -57,21 +57,21 @@ func Test_IntegrationTest_ModelGen_InterfaceUnion(t *testing.T) {
 					Kind ifudomain.NodeKind `json:"kind"`
 					Name string             `json:"name"`
 				}{ID: "u1", Kind: ifudomain.NodeKindUser, Name: "Alice"},
-				Typename: new("User"),
+				Typename: "User",
 			},
 			{
 				Post: &struct {
 					ID    string `json:"id"`
 					Title string `json:"title"`
 				}{ID: "p1", Title: "Hello"},
-				Typename: new("Post"),
+				Typename: "Post",
 			},
 		},
 		Node: &ifudomain.Search_Node{
 			User: &struct {
 				Name string `json:"name"`
 			}{Name: "Alice"},
-			Typename: new("User"),
+			Typename: "User",
 			ID:       "u1",
 		},
 	}

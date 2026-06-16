@@ -2,7 +2,6 @@ package querygen
 
 import (
 	"fmt"
-	"strings"
 )
 
 // UnmarshalBuilder は UnmarshalJSONFrom メソッドのステートメントを構築する。
@@ -210,18 +209,13 @@ func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath s
 }
 
 // decodeInlineFragments は __typename を使って inline fragments をデコードするステートメントを生成する。
-// 型名は __typename を再パースせず、デコード済みの Typename フィールドから読む。
+// __typename は非 null の string として生成されるため、デコード済みの Typename フィールドで直接分岐する。
 //
 // 以下のようなコードを生成する:
 //
-//	var typeName_t string
-//	if t.Typename != nil {
-//	    typeName_t = *t.Typename
-//	}
-//	switch typeName_t {
+//	switch t.Typename {
 //	case "User":
-//	    t.User = &UserFragment{}
-//	    if err := json.Unmarshal(data, t.User); err != nil {
+//	    if err := json.Unmarshal(data, &t.User); err != nil {
 //	        return err
 //	    }
 //	}
@@ -237,20 +231,6 @@ func (b *UnmarshalBuilder) decodeInlineFragments(fragments []InlineFragmentInfo,
 		return nil
 	}
 
-	typeNameVar := fmt.Sprintf("typeName_%s", strings.ReplaceAll(targetExpr, ".", "_"))
-
-	statements := make([]Statement, 0, 3)
-
-	statements = append(statements, &RawStatement{
-		Code: fmt.Sprintf("var %s string", typeNameVar),
-	})
-	statements = append(statements, &IfStatement{
-		Condition: fmt.Sprintf("%s.Typename != nil", targetExpr),
-		Body: []Statement{
-			&RawStatement{Code: fmt.Sprintf("%s = *%s.Typename", typeNameVar, targetExpr)},
-		},
-	})
-
 	cases := make([]SwitchCase, 0, len(fragments))
 	for _, frag := range fragments {
 		cases = append(cases, SwitchCase{
@@ -259,12 +239,13 @@ func (b *UnmarshalBuilder) decodeInlineFragments(fragments []InlineFragmentInfo,
 		})
 	}
 
-	statements = append(statements, &SwitchStatement{
-		Expr:  typeNameVar,
-		Cases: cases,
-	})
-
-	return statements
+	// __typename は非 null の string として生成されるため、ポインタ外しなしで直接分岐する。
+	return []Statement{
+		&SwitchStatement{
+			Expr:  fmt.Sprintf("%s.Typename", targetExpr),
+			Cases: cases,
+		},
+	}
 }
 
 // buildInlineFragmentCaseBody は inline fragment の switch case 本体を構築する。

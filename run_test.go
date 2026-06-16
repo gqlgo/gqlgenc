@@ -106,7 +106,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 								PublicAddress: &struct {
 									Public bool "json:\"public\""
 								}{Public: false},
-								Typename: new("PublicAddress"),
+								Typename: "PublicAddress",
 							},
 						},
 						Profiles: []*domain.UserOperation_Article_Profiles{
@@ -134,7 +134,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 								PublicProfile: &struct {
 									Status domain.Status "json:\"status\""
 								}{Status: domain.StatusInactive},
-								Typename: new("PublicProfile"),
+								Typename: "PublicProfile",
 							},
 						},
 						Matrix: [][]string{
@@ -172,7 +172,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 							}{
 								Name: "John Doe",
 							},
-							Typename: new("User"),
+							Typename: "User",
 							Name:     "John Doe",
 							Profile: domain.UserFragment1_Profile{
 								PrivateProfile: &struct {
@@ -180,11 +180,11 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 								}{
 									Age: func() *int { i := 30; return &i }(),
 								},
-								Typename: new("PrivateProfile"),
+								Typename: "PrivateProfile",
 							},
 						},
 						UserFragment2: domain.UserFragment2{Name: "John Doe"},
-						Typename:      new("User"),
+						Typename:      "User",
 						Name:          "John Doe",
 						Name2:         "John Doe",
 						SmallPic:      "https://example.com/pic_1_50.jpg",
@@ -216,7 +216,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 							}{
 								Age: func() *int { i := 30; return &i }(),
 							},
-							Typename: new("PrivateProfile"),
+							Typename: "PrivateProfile",
 						},
 						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
 							PublicProfileFields: domain.PublicProfileFields{
@@ -235,7 +235,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 							}{
 								Street: "456 Elm St",
 							},
-							Typename: new("PublicAddress"),
+							Typename: "PublicAddress",
 						},
 					},
 				},

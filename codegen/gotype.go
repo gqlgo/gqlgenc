@@ -107,7 +107,11 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	typeName := fieldTypeName(parentTypeName, sel.Alias, g.cfg.GQLGencConfig.ExportQueryType)
 	fields := g.newFields(typeName, sel.SelectionSet)
 	if len(fields) == 0 {
-		t := scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, sel.Definition.Type, g.setErr)
+		fieldType := sel.Definition.Type
+		if sel.Name == typenameFieldName {
+			fieldType = &graphql.Type{NamedType: fieldType.NamedType, NonNull: true}
+		}
+		t := scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, fieldType, g.setErr)
 		return Scalar, t
 	}
 
@@ -317,6 +321,10 @@ const (
 )
 
 const jsonIgnoreTag = `json:"-"`
+
+// typenameFieldName は interface / union を判別する GraphQL メタフィールド。gqlparser は注入された
+// __typename を nullable な String で束縛するが、__typename は常に存在する非 null なので string で生成する。
+const typenameFieldName = "__typename"
 
 type Field struct {
 	Name     string

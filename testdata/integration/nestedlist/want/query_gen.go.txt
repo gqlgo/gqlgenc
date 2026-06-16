@@ -18,7 +18,7 @@ type GetGrid_Grid struct {
 	TextCell *struct {
 		Text string "json:\"text\""
 	} "json:\"-\""
-	Typename *string "json:\"__typename\""
+	Typename string "json:\"__typename\""
 }
 
 func (t *GetGrid_Grid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -30,11 +30,7 @@ func (t *GetGrid_Grid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
-	var typeName_t string
-	if t.Typename != nil {
-		typeName_t = *t.Typename
-	}
-	switch typeName_t {
+	switch t.Typename {
 	case "NumberCell":
 		if err := json.Unmarshal(data, &t.NumberCell); err != nil {
 			return err
