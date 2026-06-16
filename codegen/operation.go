@@ -48,32 +48,11 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 	for _, v := range variableDefinitions {
 		argumentTypes = append(argumentTypes, &OperationArgument{
 			Variable: v.Variable,
-			Type:     g.operationArgumentType(v.Type),
+			Type:     scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
 		})
 	}
 
 	return argumentTypes
-}
-
-// operationArgumentType は変数のリスト構造を保ったまま Go 型を組み立てる。リストは要素型の
-// スライスにし、nullable なリストはポインタで包む (gotype.go の newScalarGoType と対称)。
-func (g *OperationGenerator) operationArgumentType(t *graphql.Type) gotypes.Type {
-	if t.NamedType != "" {
-		return g.findGoTypeName(t.NamedType, t.NonNull)
-	}
-
-	sliceType := gotypes.NewSlice(g.operationArgumentType(t.Elem))
-	if !t.NonNull {
-		return gotypes.NewPointer(sliceType)
-	}
-
-	return sliceType
-}
-
-func (g *OperationGenerator) findGoTypeName(typeName string, nonNull bool) gotypes.Type {
-	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
-	g.setErr(err)
-	return t
 }
 
 // setErr は最初に起きたエラーだけを保持する (first-error-wins)。GoTypeGenerator.setErr と対称。

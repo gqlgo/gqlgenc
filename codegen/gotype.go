@@ -107,7 +107,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	typeName := fieldTypeName(parentTypeName, sel.Alias, g.cfg.GQLGencConfig.ExportQueryType)
 	fields := g.newFields(typeName, sel.SelectionSet)
 	if len(fields) == 0 {
-		t := g.newScalarGoType(sel.Definition.Type)
+		t := scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, sel.Definition.Type, g.setErr)
 		return Scalar, t
 	}
 
@@ -117,25 +117,29 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	return Object, t
 }
 
-// newScalarGoType recursively builds Go type from GraphQL scalar type structure
-func (g *GoTypeGenerator) newScalarGoType(gqlType *graphql.Type) gotypes.Type {
+// scalarGoType は GraphQL のスカラー的な型 (レスポンスのリーフ scalar/enum、変数の Input 型)
+// を、リスト構造を保ったまま Go 型へ変換する。リストは要素型のスライスにし、nullable なリストは
+// ポインタで包む。最内の名前付き型はモデルマップから解決し、最初の解決エラーを setErr に渡す。
+// GoTypeGenerator (リーフ) と OperationGenerator (変数) の双方が使う共有関数。
+func scalarGoType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, t *graphql.Type, setErr func(error)) gotypes.Type {
 	// Base case: named type (e.g., String, Int, Status)
-	if gqlType.NamedType != "" {
-		return g.findGoType(gqlType.NamedType, gqlType.NonNull)
+	if t.NamedType != "" {
+		goType, err := resolveModelType(binder, models, t.NamedType, t.NonNull)
+		setErr(err)
+		return goType
 	}
 
 	// List type case
-	if gqlType.Elem != nil {
-		elemType := g.newScalarGoType(gqlType.Elem)
-		sliceType := gotypes.NewSlice(elemType)
-		if !gqlType.NonNull {
+	if t.Elem != nil {
+		sliceType := gotypes.NewSlice(scalarGoType(binder, models, t.Elem, setErr))
+		if !t.NonNull {
 			return gotypes.NewPointer(sliceType)
 		}
 		return sliceType
 	}
 
-	// 事前条件: gqlType は NamedType かリスト(Elem)を持つ。
-	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
+	// 事前条件: t は NamedType かリスト(Elem)を持つ。
+	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", t))
 }
 
 // newObjectGoType wraps object base type with GraphQL type structure (elements are always pointers)
@@ -172,13 +176,6 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 	// new type set to g.types
 	g.types[namedType.String()] = namedType
 	return namedType
-}
-
-// The typeName passed to the Type argument must be the type name derived from the analysis result, such as from selections
-func (g *GoTypeGenerator) findGoType(typeName string, nonNull bool) gotypes.Type {
-	t, err := resolveModelType(g.binder, g.cfg.GQLGenConfig.Models, typeName, nonNull)
-	g.setErr(err)
-	return t
 }
 
 // resolveModelType は GraphQL 型名に束縛された Go 型を gqlgen の model マップから解決する。

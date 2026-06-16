@@ -214,13 +214,7 @@ func TypesFromQueryDocuments(schema *ast.Schema, queryDocuments []*ast.QueryDocu
 				if !ok {
 					continue
 				}
-				switch def.Kind {
-				case ast.InputObject:
-					inputObjectFieldsWithCycle(def, schema, usedTypes, processedTypes)
-				case ast.Enum:
-					usedTypes[def.Name] = true
-				default:
-				}
+				collectInputOrEnum(def, schema, usedTypes, processedTypes)
 			}
 			enumsFromSelectionSet(op.SelectionSet, schema, usedTypes)
 		}
@@ -273,12 +267,19 @@ func inputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, usedTyp
 			continue
 		}
 
-		switch fieldDef.Kind {
-		case ast.InputObject:
-			inputObjectFieldsWithCycle(fieldDef, schema, usedTypes, processedTypes)
-		case ast.Enum:
-			usedTypes[fieldDef.Name] = true
-		default:
-		}
+		collectInputOrEnum(fieldDef, schema, usedTypes, processedTypes)
+	}
+}
+
+// collectInputOrEnum は def を分類し、InputObject ならフィールドを再帰収集し、Enum なら名前を
+// 記録する。scalar / object 等は model 生成器が参照しないため無視する。変数定義と Input フィールド
+// の両方から呼ばれる。
+func collectInputOrEnum(def *ast.Definition, schema *ast.Schema, usedTypes, processedTypes map[string]bool) {
+	switch def.Kind {
+	case ast.InputObject:
+		inputObjectFieldsWithCycle(def, schema, usedTypes, processedTypes)
+	case ast.Enum:
+		usedTypes[def.Name] = true
+	default:
 	}
 }
