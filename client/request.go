@@ -25,15 +25,15 @@ func acceptHeaderValues() []string {
 	return []string{acceptGraphQLResponse, contentTypeJSON}
 }
 
-// Request represents an outgoing GraphQL request.
-type Request struct {
+// request represents an outgoing GraphQL request.
+type request struct {
 	Query         string `json:"query"`
 	Variables     any    `json:"variables,omitempty"`
 	OperationName string `json:"operationName,omitempty"`
 }
 
-func NewPostRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
-	graphqlRequest := &Request{
+func newPostRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
+	graphqlRequest := &request{
 		Query:         query,
 		Variables:     variables,
 		OperationName: operationName,
@@ -63,11 +63,11 @@ func NewPostRequest(ctx context.Context, endpoint, operationName, query string, 
 	return req, nil
 }
 
-// NewGetRequest builds a GraphQL-over-HTTP GET request, encoding query,
+// newGetRequest builds a GraphQL-over-HTTP GET request, encoding query,
 // operationName and variables into the URL query string. A GET request has no
 // body, so file uploads are not supported; use Post for operations with
 // graphql.Upload variables.
-func NewGetRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
+func newGetRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
 	varsJSON, err := json.Marshal(variables)
 	if err != nil {
 		return nil, fmt.Errorf("encode variables: %w", err)

@@ -175,7 +175,7 @@ func (c *SubscriptionClient) handshake(ctx context.Context, conn *websocket.Conn
 
 // writeSubscribe sends a subscribe message carrying the GraphQL request.
 func writeSubscribe(ctx context.Context, conn *websocket.Conn, id, operationName, query string, vars any) error {
-	payload, err := json.Marshal(&Request{
+	payload, err := json.Marshal(&request{
 		Query:         query,
 		Variables:     vars,
 		OperationName: operationName,

@@ -54,5 +54,5 @@ func (c *Client) do(req *http.Request, out any) error {
 	}
 	defer resp.Body.Close()
 
-	return ParseResponse(resp, out)
+	return parseResponse(resp, out)
 }

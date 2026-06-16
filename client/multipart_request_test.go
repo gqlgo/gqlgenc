@@ -249,9 +249,9 @@ func TestNewPostRequestUpload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewPostRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
+			got, err := newPostRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
 			if err != nil {
-				t.Fatalf("NewPostRequest() error = %v", err)
+				t.Fatalf("newPostRequest() error = %v", err)
 			}
 
 			if !tt.want.multipart {

@@ -94,7 +94,7 @@ func TestParseResponse(t *testing.T) {
 
 			// テスト対象の関数を実行
 			var result testData
-			err := ParseResponse(resp, &result)
+			err := parseResponse(resp, &result)
 
 			// 期待する結果を検証
 			if tt.expectError {

@@ -522,7 +522,7 @@ sequenceDiagram
     C->>C: vars を json/v2 でエンコード<br/>Upload があれば multipart に切替
     C->>S: HTTP リクエスト（query / variables / operationName）
     S-->>C: data + errors（gzip 対応）
-    C->>C: ParseResponse → *Res に UnmarshalJSONFrom
+    C->>C: レスポンスを解析し *Res に UnmarshalJSONFrom
     C-->>App: *Res, error（NetworkError / GqlErrors）
 
     Note over App,S: Subscription … SubscriptionClient.Subscribe（graphql-transport-ws）

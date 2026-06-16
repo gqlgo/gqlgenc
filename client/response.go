@@ -13,7 +13,7 @@ import (
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
-func ParseResponse(resp *http.Response, out any) error {
+func parseResponse(resp *http.Response, out any) error {
 	reader := resp.Body
 	if resp.Header.Get("Content-Encoding") == "gzip" {
 		gz, err := gzip.NewReader(resp.Body)

@@ -62,7 +62,7 @@ func TestNewPostRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := t.Context()
-			req, err := NewPostRequest(ctx, tt.endpoint, tt.operationName, tt.query, tt.variables)
+			req, err := newPostRequest(ctx, tt.endpoint, tt.operationName, tt.query, tt.variables)
 
 			if tt.wantErr {
 				if err == nil {
@@ -104,7 +104,7 @@ func TestNewPostRequest(t *testing.T) {
 				t.Fatalf("Failed to read request body: %v", err)
 			}
 
-			var requestBody Request
+			var requestBody request
 			err = json.Unmarshal(body, &requestBody)
 			if err != nil {
 				t.Fatalf("Failed to unmarshal request body: %v", err)
@@ -210,7 +210,7 @@ func TestNewGetRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			req, err := NewGetRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables)
+			req, err := newGetRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables)
 
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("error diff(-want +got): %s", diff)

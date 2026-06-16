@@ -41,7 +41,7 @@ type Operation[Kind, Vars, Res any] struct {
 func (c *Client) Post[Kind httpKind, Vars, Res any](ctx context.Context, op Operation[Kind, Vars, Res], vars Vars, options ...Option) (*Res, error) {
 	cc := c.withOptions(options...)
 
-	req, err := NewPostRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
+	req, err := newPostRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create post request: %w", err)
 	}
@@ -64,7 +64,7 @@ func (c *Client) Post[Kind httpKind, Vars, Res any](ctx context.Context, op Oper
 func (c *Client) Get[Vars, Res any](ctx context.Context, op Operation[Query, Vars, Res], vars Vars, options ...Option) (*Res, error) {
 	cc := c.withOptions(options...)
 
-	req, err := NewGetRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
+	req, err := newGetRequest(ctx, cc.endpoint, op.Name, op.Document, vars)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get request: %w", err)
 	}
