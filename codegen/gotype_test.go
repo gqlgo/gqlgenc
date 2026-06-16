@@ -214,6 +214,33 @@ func TestResolveModelType(t *testing.T) {
 				err:    cmpopts.AnyError,
 			},
 		},
+		{
+			// 束縛が解決できるときはその Go 型を返す。nonNull なのでポインタで包まない。
+			// map[string]any は FindType の特殊扱いで pkgs を参照せず解決できる。
+			name: "束縛が解決できるときはその型を返す",
+			args: args{
+				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
+				typeName: "Meta",
+				nonNull:  true,
+			},
+			want: want{
+				goType: "map[string]any",
+			},
+		},
+		{
+			// nullable のときは解決した型をポインタで包む。
+			name: "nullableのときは解決した型をポインタで包む",
+			args: args{
+				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
+				typeName: "Meta",
+				nonNull:  false,
+			},
+			want: want{
+				goType: "*map[string]any",
+			},
+		},
 	}
 
 	for _, tt := range tests {
