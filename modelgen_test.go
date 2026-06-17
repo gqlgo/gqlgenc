@@ -13,12 +13,10 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
-	inputenumdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/domain"
-	inputenumquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/query"
-	ifudomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/domain"
-	ifuquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/query"
 	lvdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/domain"
 	lvquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/query"
+	mgdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/domain"
+	mgquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/query"
 	nldomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/domain"
 	nlquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/query"
 )
@@ -37,64 +35,44 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 		check func(t *testing.T, c *client.Client, captured *bytes.Buffer)
 	}{
 		{
-			// Input 型・Enum 型の生成と custom scalar バインド (Timestamp -> time.Time、Raw -> graphql.String)
-			name:     "input型 enum型 custom scalar の生成とエンコード/デコード",
-			dir:      "testdata/integration/inputenum/",
-			response: `{"data":{"search":{"total":42,"status":"ACTIVE"}}}`,
+			// generate.model.file 指定 (UC2)。model_gen.go は Input 型 (SearchInput/FilterInput/
+			// PageInput/SearchFilter) と Enum 型 (Status/NodeKind) のみで、interface (Node) /
+			// union (SearchResult) / object は除去される (mutateHook の build.Interfaces=nil 経路)。
+			// custom scalar は Timestamp -> time.Time、Raw -> graphql.String にバインド。inline
+			// fragment の応答型は querygen が生成し、__typename で判別デコードする。
+			name:     "Input/Enum/custom scalar の生成と interface/union の model 除去",
+			dir:      "testdata/integration/modelgen/",
+			response: `{"data":{"searchInput":{"total":42,"status":"ACTIVE"},"searchNodes":[{"__typename":"User","id":"u1","name":"Alice","kind":"USER"},{"__typename":"Post","id":"p1","title":"Hello"}],"node":{"__typename":"User","id":"u1","name":"Alice"}}}`,
 			check: func(t *testing.T, c *client.Client, captured *bytes.Buffer) {
 				t.Helper()
 
-				got, err := c.Post(t.Context(), inputenumquery.SearchOp, inputenumquery.SearchVars{
-					Input: inputenumdomain.SearchInput{
+				got, err := c.Post(t.Context(), mgquery.SearchOp, mgquery.SearchVars{
+					Input: mgdomain.SearchInput{
 						Keyword: "go",
-						Status:  inputenumdomain.StatusActive,
-						Page:    graphql.OmittableOf(&inputenumdomain.PageInput{Size: 10}),
+						Status:  mgdomain.StatusActive,
+						Page:    graphql.OmittableOf(&mgdomain.PageInput{Size: 10}),
+					},
+					Filter: mgdomain.SearchFilter{
+						Keyword: "go",
+						Kind:    mgdomain.NodeKindUser,
 					},
 				})
 				if err != nil {
 					t.Fatalf("Post error = %v", err)
 				}
 
-				want := &inputenumdomain.Search{
-					Search: inputenumdomain.Search_Search{
+				want := &mgdomain.Search{
+					SearchInput: mgdomain.Search_SearchInput{
+						Status: mgdomain.StatusActive,
 						Total:  42,
-						Status: inputenumdomain.StatusActive,
 					},
-				}
-				if diff := cmp.Diff(want, got); diff != "" {
-					t.Errorf("response diff(-want +got): %s", diff)
-				}
-
-				assertBodyContains(t, captured, `"keyword":"go"`, `"status":"ACTIVE"`, `"size":10`)
-			},
-		},
-		{
-			// interface (Node) / union (SearchResult) / object は model_gen.go から除去され、Input+Enum のみ生成。
-			// inline fragment の応答型は querygen が生成し、__typename で判別デコードする。
-			name:     "interface/union は model から除去され inline fragment は __typename で判別",
-			dir:      "testdata/integration/interfaceunion/",
-			response: `{"data":{"search":[{"__typename":"User","id":"u1","name":"Alice","kind":"USER"},{"__typename":"Post","id":"p1","title":"Hello"}],"node":{"__typename":"User","id":"u1","name":"Alice"}}}`,
-			check: func(t *testing.T, c *client.Client, captured *bytes.Buffer) {
-				t.Helper()
-
-				got, err := c.Post(t.Context(), ifuquery.SearchOp, ifuquery.SearchVars{
-					Filter: ifudomain.SearchFilter{
-						Keyword: "go",
-						Kind:    ifudomain.NodeKindUser,
-					},
-				})
-				if err != nil {
-					t.Fatalf("Post error = %v", err)
-				}
-
-				want := &ifudomain.Search{
-					Search: []*ifudomain.Search_Search{
+					SearchNodes: []*mgdomain.Search_SearchNodes{
 						{
 							User: &struct {
-								ID   string             `json:"id"`
-								Kind ifudomain.NodeKind `json:"kind"`
-								Name string             `json:"name"`
-							}{ID: "u1", Kind: ifudomain.NodeKindUser, Name: "Alice"},
+								ID   string            `json:"id"`
+								Kind mgdomain.NodeKind `json:"kind"`
+								Name string            `json:"name"`
+							}{ID: "u1", Kind: mgdomain.NodeKindUser, Name: "Alice"},
 							Typename: "User",
 						},
 						{
@@ -105,7 +83,7 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 							Typename: "Post",
 						},
 					},
-					Node: &ifudomain.Search_Node{
+					Node: &mgdomain.Search_Node{
 						User: &struct {
 							Name string `json:"name"`
 						}{Name: "Alice"},
@@ -117,7 +95,7 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 					t.Errorf("response diff(-want +got): %s", diff)
 				}
 
-				assertBodyContains(t, captured, `"keyword":"go"`, `"kind":"USER"`)
+				assertBodyContains(t, captured, `"keyword":"go"`, `"status":"ACTIVE"`, `"size":10`, `"kind":"USER"`)
 			},
 		},
 		{

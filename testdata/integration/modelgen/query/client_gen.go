@@ -4,10 +4,11 @@ package query
 
 import (
 	"github.com/Yamashou/gqlgenc/v3/client"
-	"github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/domain"
+	"github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/domain"
 )
 
 type SearchVars struct {
+	Input  domain.SearchInput  `json:"input"`
 	Filter domain.SearchFilter `json:"filter"`
 }
 

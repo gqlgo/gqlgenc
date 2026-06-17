@@ -11,8 +11,9 @@ bind:
       Timestamp:
         model: github.com/99designs/gqlgen/graphql.Time
 generate:
-  # file を指定するため gqlgenc が model_gen.go を生成する。
-  # 生成されるのはクエリで使う Input 型と Enum 型のみ(client/server で model を共有しない構成)。
+  # file を指定するため gqlgenc が model_gen.go を生成する。スキーマに interface (Node) /
+  # union (SearchResult) / object を含むが、生成されるのは Input 型と Enum 型のみで、
+  # interface / union / object は除去されることを担保する。
   model:
     file: ./domain/model_gen.go
   query:

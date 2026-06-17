@@ -6,19 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	ifudomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/domain"
+	mgdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/domain"
 )
 
 // flatCell mirrors the union's decodable fields as a single flat struct decoded
-// in one json/v2 pass. It is the baseline against the generated Search_Search,
+// in one json/v2 pass. It is the baseline against the generated Search_SearchNodes,
 // whose UnmarshalJSONFrom buffers the value and re-tokenizes it once for the
 // plain pass and once more for the matched inline fragment.
 type flatCell struct {
-	Typename *string            `json:"__typename"`
-	ID       string             `json:"id"`
-	Title    string             `json:"title"`
-	Name     string             `json:"name"`
-	Kind     ifudomain.NodeKind `json:"kind"`
+	Typename *string           `json:"__typename"`
+	ID       string            `json:"id"`
+	Title    string            `json:"title"`
+	Name     string            `json:"name"`
+	Kind     mgdomain.NodeKind `json:"kind"`
 }
 
 func buildCellsJSON(n int) []byte {
@@ -49,7 +49,7 @@ func BenchmarkDecodeUnion(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(data)))
 			for range b.N {
-				var got []*ifudomain.Search_Search
+				var got []*mgdomain.Search_SearchNodes
 				if err := json.Unmarshal(data, &got); err != nil {
 					b.Fatal(err)
 				}

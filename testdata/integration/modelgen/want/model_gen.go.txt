@@ -21,6 +21,11 @@ type PageInput struct {
 	Size int `json:"size"`
 }
 
+type SearchFilter struct {
+	Keyword string   `json:"keyword"`
+	Kind    NodeKind `json:"kind"`
+}
+
 type SearchInput struct {
 	Keyword      string                              `json:"keyword"`
 	Status       Status                              `json:"status"`
@@ -28,6 +33,61 @@ type SearchInput struct {
 	CreatedAfter graphql.Omittable[*time.Time]       `json:"createdAfter,omitzero"`
 	Meta         graphql.Omittable[*string]          `json:"meta,omitzero"`
 	Filters      graphql.Omittable[[][]*FilterInput] `json:"filters,omitzero"`
+}
+
+type NodeKind string
+
+const (
+	NodeKindUser NodeKind = "USER"
+	NodeKindPost NodeKind = "POST"
+)
+
+var AllNodeKind = []NodeKind{
+	NodeKindUser,
+	NodeKindPost,
+}
+
+func (e NodeKind) IsValid() bool {
+	switch e {
+	case NodeKindUser, NodeKindPost:
+		return true
+	}
+	return false
+}
+
+func (e NodeKind) String() string {
+	return string(e)
+}
+
+func (e *NodeKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NodeKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NodeKind", str)
+	}
+	return nil
+}
+
+func (e NodeKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NodeKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NodeKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type Status string

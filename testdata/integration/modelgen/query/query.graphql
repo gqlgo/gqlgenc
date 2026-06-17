@@ -1,5 +1,9 @@
-query Search($filter: SearchFilter!) {
-  search(filter: $filter) {
+query Search($input: SearchInput!, $filter: SearchFilter!) {
+  searchInput(input: $input) {
+    total
+    status
+  }
+  searchNodes(filter: $filter) {
     ... on User {
       id
       name

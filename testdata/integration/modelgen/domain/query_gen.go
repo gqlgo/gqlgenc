@@ -8,8 +8,9 @@ import (
 )
 
 type Search struct {
-	Node   *Search_Node     "json:\"node\""
-	Search []*Search_Search "json:\"search\""
+	Node        *Search_Node          "json:\"node\""
+	SearchInput Search_SearchInput    "json:\"searchInput\""
+	SearchNodes []*Search_SearchNodes "json:\"searchNodes\""
 }
 
 type Search_Node struct {
@@ -45,7 +46,12 @@ func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	return nil
 }
 
-type Search_Search struct {
+type Search_SearchInput struct {
+	Status Status "json:\"status\""
+	Total  int    "json:\"total\""
+}
+
+type Search_SearchNodes struct {
 	Post *struct {
 		ID    string "json:\"id\""
 		Title string "json:\"title\""
@@ -58,12 +64,12 @@ type Search_Search struct {
 	Typename string "json:\"__typename\""
 }
 
-func (t *Search_Search) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+func (t *Search_SearchNodes) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	data, err := dec.ReadValue()
 	if err != nil {
 		return err
 	}
-	type plain Search_Search
+	type plain Search_SearchNodes
 	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
 		return err
 	}
@@ -80,4 +86,4 @@ func (t *Search_Search) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	return nil
 }
 
-const SearchDocument = `query Search($filter: SearchFilter!) { search(filter: $filter) { __typename ... on User { id name kind } ... on Post { id title } } node(id: "1") { __typename id ... on User { name } ... on Post { title } } }`
+const SearchDocument = `query Search($input: SearchInput!, $filter: SearchFilter!) { searchInput(input: $input) { total status } searchNodes(filter: $filter) { __typename ... on User { id name kind } ... on Post { id title } } node(id: "1") { __typename id ... on User { name } ... on Post { title } } }`
