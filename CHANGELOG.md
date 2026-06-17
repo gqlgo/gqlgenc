@@ -59,6 +59,8 @@ generate:
 - subscription は query / mutation とは別の `SubscriptionClient`（`NewSubscriptionClient`）に分離しました。`Subscribe` はこの型のメソッドで、`Client` には含まれません。WebSocket URL（`ws://` / `wss://`）を `NewSubscriptionClient` に直接渡します。これに伴い `WithWebSocketEndpoint` と http(s)→ws(s) の変換は廃止しました
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
+- `data` が応答型と一致しなくても、同梱された GraphQL エラー（`errors`）をデコードエラーで握り潰さず優先して返します
+- HTTP ステータスが異常（非2xx）のとき、`HTTPError.Message` にはレスポンスボディの先頭 1 KiB のみを埋め込み、全文は新設の `HTTPError.Body` フィールドに保持します（巨大・機微なエラーページでエラー文字列やログが汚れるのを防ぐため）
 - `graphql.Upload` を variables に含むオペレーションは、`Post` が自動で multipart リクエスト（graphql-multipart-request-spec）を構築します。Upload はエンコード中に検出されるため、v0 と異なりネストした input オブジェクトやリスト内の Upload にも対応します。リクエストボディのエンコード中に Upload を検出するため、配列要素や入れ子 input の中の Upload も認識します（[gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292)）
 
 #### 生成される Go 型の構造変更

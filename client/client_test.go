@@ -126,7 +126,23 @@ func TestClient_unmarshalResponse(t *testing.T) {
 			},
 			want: want{
 				data: &map[string]any{},
-				err:  errors.New(`failed to decode response data: json: cannot unmarshal JSON string into Go map[string]interface {} within "/data"`),
+				err:  errors.New(`failed to decode response data: json: cannot unmarshal JSON string into Go map[string]interface {}`),
+			},
+		},
+		{
+			// data が out の型と不一致でも、同梱された GraphQL errors をデコードエラーで握り潰さない
+			name: "data が型不一致でも errors を優先して返す",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte(`{"data":"invalid data format","errors":[{"message":"boom"}]}`),
+				out:      &map[string]any{},
+			},
+			want: want{
+				data: &map[string]any{},
+				err:  gqlerror.List{{Message: "boom"}},
 			},
 		},
 		{
@@ -417,4 +433,64 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+func TestTruncateForMessage(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		s string
+	}
+
+	type want struct {
+		message string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// 上限以下のボディはそのまま返す
+			name: "上限以下はそのまま返す",
+			args: args{
+				s: "short body",
+			},
+			want: want{
+				message: "short body",
+			},
+		},
+		{
+			// 上限超過の ASCII ボディは上限で切り詰め、全長の注記を付ける
+			name: "上限超過のASCIIボディは切り詰めて注記を付ける",
+			args: args{
+				s: strings.Repeat("a", maxErrorBodyLen+10),
+			},
+			want: want{
+				message: strings.Repeat("a", maxErrorBodyLen) + "… (1034 bytes total, truncated; full body in HTTPError.Body)",
+			},
+		},
+		{
+			// 切り詰め位置がマルチバイト文字の途中になる場合は手前のルーン境界まで戻す
+			name: "切り詰め位置がマルチバイト境界をまたぐ場合は手前のルーン境界で切る",
+			args: args{
+				s: strings.Repeat("a", maxErrorBodyLen-2) + "ああ",
+			},
+			want: want{
+				message: strings.Repeat("a", maxErrorBodyLen-2) + "… (1028 bytes total, truncated; full body in HTTPError.Body)",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := truncateForMessage(tt.args.s)
+
+			if diff := cmp.Diff(tt.want.message, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
 }

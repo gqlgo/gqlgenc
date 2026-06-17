@@ -210,6 +210,8 @@ generate:
 
 enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[gqlgen#3663](https://github.com/99designs/gqlgen/pull/3663)）、json.Marshal でそのままシリアライズできます。
 
+生成された enum の `UnmarshalJSON` は `IsValid()` で未知の値を拒否します。そのため、**コード生成後にサーバー側スキーマへ enum 値が追加されると、その値を含むレスポンス全体がデコードエラーになります**（未知 enum を素通しする前方互換動作ではありません）。サーバーが enum 値を増やしたら、クライアントを再生成してください。これは強い型安全と引き換えの挙動です。
+
 ### query_gen.go（querygen）
 
 オペレーションごとに以下を生成します。
@@ -379,10 +381,12 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 ### レスポンス解析とエラー
 
 - `Content-Encoding: gzip` のレスポンスは透過的に展開される
-- レスポンスボディを1パスで走査し、`data` は生成されたレスポンス型へ直接デコードし、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする
+- レスポンスボディを走査して `data` の生 JSON を取り出し、`errors` は `gqlerror.List`（vektah/gqlparser）としてデコードする。`data` は `errors` を読み終えてからレスポンス型へデコードするため、`data` が型と一致しなくても同梱された GraphQL エラーをデコードエラーで握り潰さず、GraphQL エラーを優先して返す
 - エラー時は `ErrorResponse` が返り、`errors.As` で `*client.HTTPError`（HTTP ステータス異常）や `gqlerror.List`（GraphQL エラー）を取り出せる
 - GraphQL エラー時もデコード済みの部分データが `Post` の戻り値として返る（GraphQL は data と errors の共存を許すため）
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
+- HTTP ステータスが異常（非2xx）のとき、`HTTPError.Message` にはレスポンスボディの先頭 1 KiB だけを埋め込み（巨大・機微なエラーページがエラー文字列やログを汚さないため）、全文は `HTTPError.Body` に保持する
+- デコードはレスポンスがスキーマの nullability に従うことを前提とする。スキーマが非 null としていたフィールドをサーバーが `null` で返すと、json/v2 がサイレントにゼロ値（空文字・0 など）へデコードし、`null` と「フィールド欠落」を区別しない。コード生成後にサーバー側スキーマが非 null→null へ変わるスキーマ drift はクライアントでは検知できない
 
 ### Subscription
 
