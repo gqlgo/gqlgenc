@@ -24,7 +24,7 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 - トップレベルは `schema`（スキーマ＝型に関すること）と `query`（クエリ＝オペレーション/フラグメント）の2セクションで、各セクションが取得元（`files` / `endpoint`）と生成物（`out`）を持ちます
 - スキーマは `schema.files`（ローカル）か `schema.endpoint`（introspection で取得。URL とヘッダーを指定）のどちらか一方を指定します（同時指定・両方未指定はエラー）
 - 生成先は `query.out.query.file`（レスポンス型）/ `query.out.client.file`（variables・Operation 値）/ `schema.out.model.file`（input・enum モデル、省略可）で、各ファイルの package はディレクトリ名から導出します
-- 既存 Go 型へのバインドは `schema.out.model.bind.package`（スキーマ型名）と `query.out.fragment.bind.package`（フラグメント名）に分けます。個別バインドは `schema.out.model.bind.type`、Federation は `schema.out.model.federation.version` です
+- 既存 Go 型へのバインドは `schema.out.model.bind.package`（スキーマ型名）と `query.out.query.fragment.bind.package`（フラグメント名）に分けます。個別バインドは `schema.out.model.bind.type`、Federation は `schema.out.model.federation.version` です
 - nil 安全な Getter の生成は `query.out.query.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
 - 設定ファイルに未知のフィールドがあるとエラーになります
 
@@ -180,7 +180,7 @@ type UserOperation_User_User struct {
 
 #### query.out.query.getters オプション
 
-- `query.out.query.getters` オプションを追加しました。レスポンス型に nil セーフな getter を生成するかを選べます（デフォルト false）
+- `query.out.query.getters` オプションを追加しました。query_gen.go の全生成型（レスポンス型・生成フラグメント型）に nil セーフな getter を生成するかを選べます（デフォルト false）
 
 #### @goField ディレクティブへの対応
 
@@ -189,7 +189,7 @@ type UserOperation_User_User struct {
 #### クエリでの @goFragment バインド
 
 - クエリのフラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、レスポンス型を生成せず指定した既存 Go 型にバインドします。型を共有したり、生成型にできないメソッドを持たせたい場合に使えます。`@goFragment` は gqlgenc が注入するクライアント側のコード生成専用ディレクティブで、サーバーへ送るクエリからは自動的に除去されます
-- `query.out.fragment.bind.package` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（`schema.out.model.bind.package` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(type: ...)` が優先されます。サーバーモデル用の `schema.out.model.bind.package` とは独立した設定です
+- `query.out.query.fragment.bind.package` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（`schema.out.model.bind.package` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(type: ...)` が優先されます。サーバーモデル用の `schema.out.model.bind.package` とは独立した設定です
 
 - エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
 

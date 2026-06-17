@@ -15,9 +15,9 @@ query:
     query:
       file: ./domain/query_gen.go
       getters: true
-    fragment:
-      bind:
-        package:
-          - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
+      fragment:
+        bind:
+          package:
+            - github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain
     client:
       file: ./query/client_gen.go

@@ -81,18 +81,20 @@ type queryConfig struct {
 	Out   queryOutConfig `yaml:"out,omitempty"`
 }
 
-// queryOutConfig is the query-derived output: the response types (query), the
-// fragment bindings, and the typed client.
+// queryOutConfig is the query-derived output: the query_gen.go output (query)
+// and the typed client.
 type queryOutConfig struct {
-	Query    queryOutQueryConfig    `yaml:"query,omitempty"`
-	Fragment queryOutFragmentConfig `yaml:"fragment,omitempty"`
-	Client   queryOutClientConfig   `yaml:"client,omitempty"`
+	Query  queryOutQueryConfig  `yaml:"query,omitempty"`
+	Client queryOutClientConfig `yaml:"client,omitempty"`
 }
 
-// queryOutQueryConfig is the generated response types and their getter toggle.
+// queryOutQueryConfig is the generated query_gen.go output: the response types
+// (file), the getter toggle (which applies to all types generated into the file,
+// fragment types included), and the fragment bindings.
 type queryOutQueryConfig struct {
-	File    string `yaml:"file,omitempty"`
-	Getters bool   `yaml:"getters,omitempty"`
+	File     string                 `yaml:"file,omitempty"`
+	Getters  bool                   `yaml:"getters,omitempty"`
+	Fragment queryOutFragmentConfig `yaml:"fragment,omitempty"`
 }
 
 // queryOutFragmentConfig binds query fragments to existing Go types.
@@ -155,7 +157,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Query.Out.Client.File},
 			Endpoint:         fc.Schema.Endpoint,
 			Query:            fc.Query.Files,
-			FragmentAutobind: fc.Query.Out.Fragment.Bind.Package,
+			FragmentAutobind: fc.Query.Out.Query.Fragment.Bind.Package,
 			GenerateGetters:  fc.Query.Out.Query.Getters,
 		},
 		GQLGenConfig: &gqlgenconfig.Config{
