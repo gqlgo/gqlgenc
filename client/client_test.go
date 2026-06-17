@@ -12,6 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
+
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -379,7 +381,7 @@ func TestClient_parseResponse(t *testing.T) {
 								len(*wantErrResp.GqlErrors), len(*gotErrResp.GqlErrors))
 						}
 					}
-				} else if tt.want.err.Error() != err.Error() {
+				} else if !cmputil.EqualErrorMessage(tt.want.err, err) {
 					t.Errorf("parseResponse() error message:\nwant: %v\n got: %v", tt.want.err, err)
 				}
 			}

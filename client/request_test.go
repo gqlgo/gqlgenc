@@ -122,31 +122,13 @@ func TestNewPostRequest(t *testing.T) {
 					t.Errorf("Expected nil variables, but got %v", requestBody.Variables)
 				}
 			} else {
-				// 変数の検証
+				// 変数の検証 (期待値との厳密一致)
 				actualVariables, ok := requestBody.Variables.(map[string]any)
 				if !ok {
-					t.Fatalf("Expected variables to be a map, but got %T", requestBody.Variables)
+					t.Fatalf("variables should be a map, but got %T", requestBody.Variables)
 				}
-				for key, expectedValue := range tt.variables {
-					actualValue, ok := actualVariables[key]
-					if !ok {
-						t.Errorf("Variable %s not found", key)
-						continue
-					}
-
-					// マップの場合は個別に検証
-					expectedMap, expectedIsMap := expectedValue.(map[string]any)
-					actualMap, actualIsMap := actualValue.(map[string]any)
-
-					if expectedIsMap && actualIsMap {
-						for k, v := range expectedMap {
-							if !cmp.Equal(v, actualMap[k]) {
-								t.Errorf("Variable %s.%s: expected %v, but got %v", key, k, v, actualMap[k])
-							}
-						}
-					} else if !cmp.Equal(expectedValue, actualValue) {
-						t.Errorf("Variable %s: expected %v, but got %v", key, expectedValue, actualValue)
-					}
+				if diff := cmp.Diff(tt.variables, actualVariables); diff != "" {
+					t.Errorf("variables diff(-want +got): %s", diff)
 				}
 			}
 		})

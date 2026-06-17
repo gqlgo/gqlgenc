@@ -14,6 +14,8 @@ import (
 
 	"github.com/99designs/gqlgen/codegen/config"
 
+	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
+
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -225,19 +227,10 @@ func TestLoadConfig(t *testing.T) {
 
 			got, err := LoadConfig(tt.args.file)
 
-			// エラーチェック
-			if tt.want.err != nil {
-				if err == nil {
-					t.Errorf("error = nil, want error")
-					return
-				}
-				if tt.want.err.Error() != err.Error() {
-					t.Errorf("error message = %q, want %q", err.Error(), tt.want.err.Error())
-					return
-				}
-			} else if err != nil {
-				t.Errorf("error = %v, want nil", err)
-				return
+			// エラーチェック (メッセージ一致を含む。裸の error は cmp.Comparer が
+			// トップレベルで効かないため cmputil ヘルパーを真偽値で使う)
+			if !cmputil.EqualErrorMessage(tt.want.err, err) {
+				t.Errorf("error = %v, want %v", err, tt.want.err)
 			}
 
 			// schemaFilenameのチェック
