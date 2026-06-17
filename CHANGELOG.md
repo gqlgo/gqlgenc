@@ -78,7 +78,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 これに伴い、生成コードも次のように変わりました。
 
 - 構造体タグから `graphql` タグを削除し、`json` タグのみを生成します
-- `json` タグに `omitempty` を付与しません。クエリレスポンス型はデコード専用で `omitzero` がマーシャル時にしか効かないため、レスポンス型のフィールドには `omitzero` を付与しません（入力型・モデルの nullable フィールドには gqlgenc が `omitzero` を常に付与します）
+- `json` タグに `omitempty` を付与しません（`EnableModelJsonOmitemptyTag` を無効化）。json/v2 では undefined の省略は `omitzero` が担うため `omitempty` は不要で、入力型・モデルおよび OperationVars の nullable フィールドはいずれも `omitzero` のみで揃えています。クエリレスポンス型はデコード専用（`omitzero` はマーシャル時にしか効かない）のため `omitzero` も付与しません
 - フラグメントの埋め込みとインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
 - フラグメントを non-optional の埋め込みにしたことで、Getter 関数の生成量を削減しました
 - レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `generate.query.getters: true` を指定してください

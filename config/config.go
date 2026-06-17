@@ -161,11 +161,13 @@ func LoadConfig(configFilename string) (*Config, error) {
 			Models:         fc.Bind.Type.Named,
 			Federation:     gqlgenconfig.PackageConfig{Version: federationVersion},
 			// v3 が常に使う設定を固定する (gqlgen の生 config はユーザに露出しない)。
-			// EnableModelJsonOmitemptyTag は未設定 (nil = gqlgen 既定で omitempty 付与) のままにする。
-			StructTag:                  "json",
-			StructFieldsAlwaysPointers: false,
-			NullableInputOmittable:     true,
-			EnableModelJsonOmitzeroTag: new(true),
+			// json/v2 では omitzero が undefined の省略を担うため omitempty は不要。明示的に無効化して
+			// model の nullable フィールドのタグを OperationVars と同じ omitzero のみに揃える。
+			StructTag:                   "json",
+			StructFieldsAlwaysPointers:  false,
+			NullableInputOmittable:      true,
+			EnableModelJsonOmitzeroTag:  new(true),
+			EnableModelJsonOmitemptyTag: new(false),
 		},
 	}
 

@@ -24,10 +24,10 @@ type PageInput struct {
 type SearchInput struct {
 	Keyword      string                              `json:"keyword"`
 	Status       Status                              `json:"status"`
-	Page         graphql.Omittable[*PageInput]       `json:"page,omitempty,omitzero"`
-	CreatedAfter graphql.Omittable[*time.Time]       `json:"createdAfter,omitempty,omitzero"`
-	Meta         graphql.Omittable[*string]          `json:"meta,omitempty,omitzero"`
-	Filters      graphql.Omittable[[][]*FilterInput] `json:"filters,omitempty,omitzero"`
+	Page         graphql.Omittable[*PageInput]       `json:"page,omitzero"`
+	CreatedAfter graphql.Omittable[*time.Time]       `json:"createdAfter,omitzero"`
+	Meta         graphql.Omittable[*string]          `json:"meta,omitzero"`
+	Filters      graphql.Omittable[[][]*FilterInput] `json:"filters,omitzero"`
 }
 
 type Status string
