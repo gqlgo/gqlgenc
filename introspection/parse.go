@@ -1,13 +1,30 @@
 package introspection
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-func SchemaFromIntrospection(url string, query Query) *ast.SchemaDocument {
+// errIntrospectionTypeTooDeep は、introspection パースで唯一「仕様違反の応答ではなく valid な
+// スキーマ」が原因で起きる panic の sentinel。型の list/non-null 入れ子が introspection クエリの
+// ofType 深さ (7) を超えると getType が OfType=nil に当たる。SchemaFromIntrospection はこれだけを
+// エラーに変換し、仕様違反由来の panic (kind 不一致・型欠落) はそのまま再 panic する。
+var errIntrospectionTypeTooDeep = errors.New("type nested deeper than the introspection query's ofType depth (7); use a local schema (schema.files) instead of endpoint introspection for deeply nested list/non-null types")
+
+func SchemaFromIntrospection(url string, query Query) (doc *ast.SchemaDocument, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok && errors.Is(e, errIntrospectionTypeTooDeep) {
+				err = fmt.Errorf("introspection schema parse failed: %w", e)
+				return
+			}
+			panic(r)
+		}
+	}()
+
 	parser := parser{
 		sharedPosition: &ast.Position{Src: &ast.Source{
 			Name:    "remote",
@@ -20,7 +37,7 @@ func SchemaFromIntrospection(url string, query Query) *ast.SchemaDocument {
 		parser.sharedPosition.Src.Name = url
 	}
 
-	return parser.parseIntrospectionQuery(query)
+	return parser.parseIntrospectionQuery(query), nil
 }
 
 type parser struct {
@@ -287,7 +304,7 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	if typeRef.Kind == TypeKindList {
 		itemRef := typeRef.OfType
 		if itemRef == nil {
-			panic("Decorated type deeper than introspection query.")
+			panic(errIntrospectionTypeTooDeep)
 		}
 
 		return ast.ListType(p.getType(itemRef), p.sharedPosition)
@@ -296,7 +313,7 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	if typeRef.Kind == TypeKindNonNull {
 		nullableRef := typeRef.OfType
 		if nullableRef == nil {
-			panic("Decorated type deeper than introspection query.")
+			panic(errIntrospectionTypeTooDeep)
 		}
 
 		nullableType := p.getType(nullableRef)

@@ -33,7 +33,10 @@ func TestSchemaFromIntrospection_Parse(t *testing.T) {
 
 			query := readQueryResult(t, tt.filename)
 
-			ast := SchemaFromIntrospection("test", query)
+			ast, err := SchemaFromIntrospection("test", query)
+			if err != nil {
+				t.Fatalf("SchemaFromIntrospection() error = %v", err)
+			}
 			if ast == nil {
 				t.Error("SchemaFromIntrospection() returned nil")
 			}
@@ -70,7 +73,10 @@ func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 
 	query := readQueryResult(t, "testdata/introspection_result_all_kinds.json")
 
-	doc := SchemaFromIntrospection("test", query)
+	doc, err := SchemaFromIntrospection("test", query)
+	if err != nil {
+		t.Fatalf("SchemaFromIntrospection() error = %v", err)
+	}
 	if doc == nil {
 		t.Fatal("SchemaFromIntrospection() returned nil")
 	}
@@ -141,5 +147,34 @@ func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 		if got := gotOps[op]; got != want {
 			t.Errorf("operation %q type = %q, want %q", op, got, want)
 		}
+	}
+}
+
+// TestSchemaFromIntrospection_TypeTooDeep は、型の入れ子が introspection クエリの ofType 深さ
+// を超えて切り詰められた (OfType=nil) 応答で、panic ではなくエラーが返ることを確認する。
+// これは仕様違反の応答ではなく valid なスキーマで起き得る唯一のケースで、recover で救う対象。
+func TestSchemaFromIntrospection_TypeTooDeep(t *testing.T) {
+	t.Parallel()
+
+	queryName := "Query"
+	var query Query
+	query.Schema.QueryType.Name = &queryName
+	query.Schema.Types = FullTypes{
+		{
+			Kind: TypeKindObject,
+			Name: &queryName,
+			Fields: []*FieldValue{
+				{
+					Name: "deep",
+					// ofType 深さ超過で切り詰められた型を模す (LIST なのに OfType が無い)。
+					Type: TypeRef{Kind: TypeKindList, OfType: nil},
+				},
+			},
+		},
+	}
+
+	_, err := SchemaFromIntrospection("test", query)
+	if err == nil {
+		t.Fatal("SchemaFromIntrospection() should return an error for a type deeper than the introspection query, got nil")
 	}
 }

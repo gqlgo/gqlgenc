@@ -218,7 +218,12 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
 
-	schema, err := validator.ValidateSchemaDocument(SchemaFromIntrospection(endpoint, *res))
+	schemaDoc, err := SchemaFromIntrospection(endpoint, *res)
+	if err != nil {
+		return nil, err
+	}
+
+	schema, err := validator.ValidateSchemaDocument(schemaDoc)
 	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
