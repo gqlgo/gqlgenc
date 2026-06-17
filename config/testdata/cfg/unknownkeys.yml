@@ -5,6 +5,6 @@ schema:
 query:
   files:
     - "./queries/*.graphql"
-  out:
-    query:
-      file: ./gen/query.go
+generate:
+  query:
+    file: ./gen/query.go

@@ -4,11 +4,11 @@ schema:
 query:
   files:
     - ./query/*.graphql
-  out:
-    query:
-      file: ./domain/query_gen.go
-    client:
-      file: ./query/client_gen.go
-# schema.out.model.file も bind も指定しないため input 型 SearchFilter がどこにも束縛されない。
+generate:
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go
+# generate.model.file も bind も指定しないため input 型 SearchFilter がどこにも束縛されない。
 # リーフ ok は Boolean (built-in) で束縛されるため CreateGoTypes は成功し、未束縛は変数
 # SearchFilter を解決する CreateOperations (OperationGenerator) 側で表面化する。

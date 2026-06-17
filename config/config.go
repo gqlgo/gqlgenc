@@ -35,39 +35,18 @@ type Config struct {
 // translates it into Config; the raw gqlgen config is not exposed. The gqlgen
 // settings that v3 always requires (json/v2 tags, etc.) are fixed internally.
 type fileConfig struct {
-	Schema schemaConfig `yaml:"schema"`
-	Query  queryConfig  `yaml:"query"`
+	Schema   schemaConfig   `yaml:"schema"`
+	Query    queryConfig    `yaml:"query"`
+	Bind     bindConfig     `yaml:"bind,omitempty"`
+	Generate generateConfig `yaml:"generate"`
 }
 
-// schemaConfig holds the schema source (local files or a remote endpoint,
-// exactly one) and the schema-derived output (the generated model and its
-// type bindings).
+// schemaConfig is the schema source: local files or a remote endpoint (exactly
+// one), plus the Apollo Federation setting that shapes how the schema parses.
 type schemaConfig struct {
-	Files    []string        `yaml:"files,omitempty"`
-	Endpoint *EndPointConfig `yaml:"endpoint,omitempty"`
-	Out      schemaOutConfig `yaml:"out,omitempty"`
-}
-
-// schemaOutConfig is the schema-derived output.
-type schemaOutConfig struct {
-	Model schemaOutModelConfig `yaml:"model,omitempty"`
-}
-
-// schemaOutModelConfig is the generated input/enum model. file is optional:
-// when set the query's input and enum types are generated, when omitted they
-// are shared via bind.package. The package is inferred from the file directory.
-type schemaOutModelConfig struct {
-	File       string            `yaml:"file,omitempty"`
+	Files      []string          `yaml:"files,omitempty"`
+	Endpoint   *EndPointConfig   `yaml:"endpoint,omitempty"`
 	Federation *federationConfig `yaml:"federation,omitempty"`
-	Bind       schemaBindConfig  `yaml:"bind,omitempty"`
-}
-
-// schemaBindConfig binds schema types to existing Go types: package binds schema
-// type names to same-named types in the listed packages, type binds individual
-// GraphQL types to Go types.
-type schemaBindConfig struct {
-	Package []string             `yaml:"package,omitempty"`
-	Type    gqlgenconfig.TypeMap `yaml:"type,omitempty"`
 }
 
 // federationConfig enables Apollo Federation schema directives of the given version.
@@ -75,40 +54,55 @@ type federationConfig struct {
 	Version int `yaml:"version"`
 }
 
-// queryConfig holds the query source files and the query-derived output.
+// queryConfig is the query source files.
 type queryConfig struct {
-	Files []string       `yaml:"files,omitempty"`
-	Out   queryOutConfig `yaml:"out,omitempty"`
+	Files []string `yaml:"files,omitempty"`
 }
 
-// queryOutConfig is the query-derived output: the query_gen.go output (query)
-// and the typed client.
-type queryOutConfig struct {
-	Query  queryOutQueryConfig  `yaml:"query,omitempty"`
-	Client queryOutClientConfig `yaml:"client,omitempty"`
+// bindConfig binds GraphQL names to existing Go types: type binds schema types,
+// fragment binds query fragments. Bindings affect all generation (models and
+// query response types), so they are kept separate from the generation outputs.
+type bindConfig struct {
+	Type     typeBindConfig     `yaml:"type,omitempty"`
+	Fragment fragmentBindConfig `yaml:"fragment,omitempty"`
 }
 
-// queryOutQueryConfig is the generated query_gen.go output: the response types
-// (file), the getter toggle (which applies to all types generated into the file,
-// fragment types included), and the fragment bindings.
-type queryOutQueryConfig struct {
-	File     string                 `yaml:"file,omitempty"`
-	Getters  bool                   `yaml:"getters,omitempty"`
-	Fragment queryOutFragmentConfig `yaml:"fragment,omitempty"`
-}
-
-// queryOutFragmentConfig binds query fragments to existing Go types.
-type queryOutFragmentConfig struct {
-	Bind fragmentBindConfig `yaml:"bind,omitempty"`
+// typeBindConfig binds schema types: packages binds type names to same-named Go
+// types in the listed packages, named binds individual GraphQL types to Go types.
+type typeBindConfig struct {
+	Packages []string             `yaml:"packages,omitempty"`
+	Named    gqlgenconfig.TypeMap `yaml:"named,omitempty"`
 }
 
 // fragmentBindConfig binds fragment names to same-named Go types in the listed packages.
 type fragmentBindConfig struct {
-	Package []string `yaml:"package,omitempty"`
+	Packages []string `yaml:"packages,omitempty"`
 }
 
-// queryOutClientConfig is the generated typed client.
-type queryOutClientConfig struct {
+// generateConfig lists the files to generate. model is optional: when set the
+// query's input and enum types are generated, when omitted they are shared via
+// bind.type.packages. The package of each file is inferred from its directory.
+type generateConfig struct {
+	Model  generateModelConfig  `yaml:"model,omitempty"`
+	Query  generateQueryConfig  `yaml:"query,omitempty"`
+	Client generateClientConfig `yaml:"client,omitempty"`
+}
+
+// generateModelConfig is the generated input/enum model output.
+type generateModelConfig struct {
+	File string `yaml:"file,omitempty"`
+}
+
+// generateQueryConfig is the generated query_gen.go output: the response types
+// (file) and the getter toggle (which applies to all types generated into the
+// file, fragment types included).
+type generateQueryConfig struct {
+	File    string `yaml:"file,omitempty"`
+	Getters bool   `yaml:"getters,omitempty"`
+}
+
+// generateClientConfig is the generated typed client output.
+type generateClientConfig struct {
 	File string `yaml:"file,omitempty"`
 }
 
@@ -138,33 +132,33 @@ func LoadConfig(configFilename string) (*Config, error) {
 	if len(fc.Query.Files) == 0 {
 		return nil, errors.New("'query.files' is required")
 	}
-	if fc.Query.Out.Query.File == "" && fc.Schema.Out.Model.File == "" {
-		return nil, errors.New("neither 'query.out.query.file' nor 'schema.out.model.file' specified, at least one generation target is required")
+	if fc.Generate.Query.File == "" && fc.Generate.Model.File == "" {
+		return nil, errors.New("neither 'generate.query.file' nor 'generate.model.file' specified, at least one generation target is required")
 	}
-	if fc.Query.Out.Client.File != "" && fc.Query.Out.Query.File == "" {
-		return nil, errors.New("'query.out.client.file' is set, 'query.out.query.file' must be set")
+	if fc.Generate.Client.File != "" && fc.Generate.Query.File == "" {
+		return nil, errors.New("'generate.client.file' is set, 'generate.query.file' must be set")
 	}
 
 	var federationVersion int
-	if fc.Schema.Out.Model.Federation != nil {
-		federationVersion = fc.Schema.Out.Model.Federation.Version
+	if fc.Schema.Federation != nil {
+		federationVersion = fc.Schema.Federation.Version
 	}
 
 	// translate fileConfig into the internal Config
 	c := Config{
 		GQLGencConfig: &GQLGencConfig{
-			QueryGen:         gqlgenconfig.PackageConfig{Filename: fc.Query.Out.Query.File},
-			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Query.Out.Client.File},
+			QueryGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Query.File},
+			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Generate.Client.File},
 			Endpoint:         fc.Schema.Endpoint,
 			Query:            fc.Query.Files,
-			FragmentAutobind: fc.Query.Out.Query.Fragment.Bind.Package,
-			GenerateGetters:  fc.Query.Out.Query.Getters,
+			FragmentAutobind: fc.Bind.Fragment.Packages,
+			GenerateGetters:  fc.Generate.Query.Getters,
 		},
 		GQLGenConfig: &gqlgenconfig.Config{
 			SchemaFilename: gqlgenconfig.StringList(fc.Schema.Files),
-			Model:          gqlgenconfig.PackageConfig{Filename: fc.Schema.Out.Model.File},
-			AutoBind:       fc.Schema.Out.Model.Bind.Package,
-			Models:         fc.Schema.Out.Model.Bind.Type,
+			Model:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
+			AutoBind:       fc.Bind.Type.Packages,
+			Models:         fc.Bind.Type.Named,
 			Federation:     gqlgenconfig.PackageConfig{Version: federationVersion},
 			// v3 が常に使う設定を固定する (gqlgen の生 config はユーザに露出しない)。
 			// EnableModelJsonOmitemptyTag は未設定 (nil = gqlgen 既定で omitempty 付与) のままにする。
@@ -178,7 +172,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 	// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
 	if c.GQLGenConfig.Model.IsDefined() {
 		if err := c.GQLGenConfig.Model.Check(); err != nil {
-			return nil, fmt.Errorf("schema.out.model.file: %w", err)
+			return nil, fmt.Errorf("generate.model.file: %w", err)
 		}
 	}
 
@@ -221,12 +215,12 @@ func LoadConfig(configFilename string) (*Config, error) {
 	// gqlgenc validation
 	if c.GQLGencConfig.QueryGen.IsDefined() {
 		if err := c.GQLGencConfig.QueryGen.Check(); err != nil {
-			return nil, fmt.Errorf("query.out.query.file: %w", err)
+			return nil, fmt.Errorf("generate.query.file: %w", err)
 		}
 	}
 	if c.GQLGencConfig.ClientGen.IsDefined() {
 		if err := c.GQLGencConfig.ClientGen.Check(); err != nil {
-			return nil, fmt.Errorf("query.out.client.file: %w", err)
+			return nil, fmt.Errorf("generate.client.file: %w", err)
 		}
 	}
 

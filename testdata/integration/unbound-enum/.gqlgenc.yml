@@ -4,10 +4,10 @@ schema:
 query:
   files:
     - ./query/*.graphql
-  out:
-    query:
-      file: ./domain/query_gen.go
-    client:
-      file: ./query/client_gen.go
-# schema.out.model.file を指定せず bind もしないため、enum Status がどこにもバインドされない。
+generate:
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go
+# generate.model.file を指定せず bind もしないため、enum Status がどこにもバインドされない。
 # UC1 (client/server で model 共有) で autobind 先に enum 型が無い設定不備を再現する。

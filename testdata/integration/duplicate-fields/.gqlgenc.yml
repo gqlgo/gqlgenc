@@ -1,14 +1,13 @@
 schema:
   files:
     - ./schema/*.graphql
-  out:
-    model:
-      file: ./domain/model_gen.go
 query:
   files:
     - ./query/*.graphql
-  out:
-    query:
-      file: ./domain/query_gen.go
-    client:
-      file: ./query/client_gen.go
+generate:
+  model:
+    file: ./domain/model_gen.go
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go

@@ -1,21 +1,21 @@
 schema:
   files:
     - ./schema/*.graphql
-  out:
-    model:
-      # file を指定するため gqlgenc が model_gen.go を生成する。
-      # 生成されるのはクエリで使う Input 型と Enum 型のみ(client/server で model を共有しない構成)。
-      file: ./domain/model_gen.go
-      bind:
-        # custom scalar Timestamp を既存 Go 型にバインドする(Raw は未指定なので graphql.String 既定)
-        type:
-          Timestamp:
-            model: github.com/99designs/gqlgen/graphql.Time
 query:
   files:
     - ./query/*.graphql
-  out:
-    query:
-      file: ./domain/query_gen.go
-    client:
-      file: ./query/client_gen.go
+bind:
+  type:
+    # custom scalar Timestamp を既存 Go 型にバインドする(Raw は未指定なので graphql.String 既定)
+    named:
+      Timestamp:
+        model: github.com/99designs/gqlgen/graphql.Time
+generate:
+  # file を指定するため gqlgenc が model_gen.go を生成する。
+  # 生成されるのはクエリで使う Input 型と Enum 型のみ(client/server で model を共有しない構成)。
+  model:
+    file: ./domain/model_gen.go
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go
