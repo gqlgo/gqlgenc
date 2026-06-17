@@ -352,7 +352,10 @@ func newField(typeKind TypeKind, fieldType gotypes.Type, name string, tags []str
 }
 
 func (r *Field) goVar() *gotypes.Var {
-	return gotypes.NewField(0, nil, templates.ToGo(r.Name), r.Type, r.TypeKind == FragmentSpread)
+	// フラグメントは名前付きフィールドとして生成し、埋め込まない。埋め込むと Go のフィールド昇格で
+	// 複数フラグメントの同名フィールドが曖昧になり (ambiguous selector)、利用者が t.Field を読めなく
+	// なるため。アクセスは常に t.<FragmentName>.Field となる。
+	return gotypes.NewField(0, nil, templates.ToGo(r.Name), r.Type, false)
 }
 
 func (r *Field) joinTags() string {

@@ -213,11 +213,11 @@ func TestFieldInfo_IsFragmentSpread(t *testing.T) {
 		want want
 	}{
 		{
-			name: "埋め込みフィールドでJSONタグが空の場合はフラグメントスプレッド",
+			name: "JSONタグが空でinline fragmentでない場合はフラグメントスプレッド",
 			args: args{
 				field: FieldInfo{
-					IsEmbedded: true,
-					JSONTag:    "",
+					JSONTag:          "",
+					IsInlineFragment: false,
 				},
 			},
 			want: want{
@@ -225,11 +225,11 @@ func TestFieldInfo_IsFragmentSpread(t *testing.T) {
 			},
 		},
 		{
-			name: "埋め込みフィールドでJSONタグが\"-\"の場合はフラグメントスプレッド",
+			name: "JSONタグが\"-\"でinline fragmentでない場合はフラグメントスプレッド",
 			args: args{
 				field: FieldInfo{
-					IsEmbedded: true,
-					JSONTag:    "-",
+					JSONTag:          "-",
+					IsInlineFragment: false,
 				},
 			},
 			want: want{
@@ -237,11 +237,10 @@ func TestFieldInfo_IsFragmentSpread(t *testing.T) {
 			},
 		},
 		{
-			name: "埋め込みフィールドでない場合はフラグメントスプレッドではない",
+			name: "JSONタグが指定されている場合はフラグメントスプレッドではない",
 			args: args{
 				field: FieldInfo{
-					IsEmbedded: false,
-					JSONTag:    "",
+					JSONTag: "test_field",
 				},
 			},
 			want: want{
@@ -249,11 +248,11 @@ func TestFieldInfo_IsFragmentSpread(t *testing.T) {
 			},
 		},
 		{
-			name: "埋め込みフィールドでもJSONタグが指定されている場合はフラグメントスプレッドではない",
+			name: "inline fragmentの場合はフラグメントスプレッドではない",
 			args: args{
 				field: FieldInfo{
-					IsEmbedded: true,
-					JSONTag:    "test_field",
+					JSONTag:          "-",
+					IsInlineFragment: true,
 				},
 			},
 			want: want{

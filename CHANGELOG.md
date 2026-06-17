@@ -66,7 +66,7 @@ generate:
 GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成規則を次のように変更しました。
 
 1. フラグメント（FragmentSpread）は常に独立した型として生成して利用します
-2. フラグメントは構造体に埋め込み（embedded）で配置します
+2. フラグメントは名前付きフィールドとして配置します（埋め込まない）。アクセスは `t.<フラグメント名>.<フィールド>`
 3. フラグメントは公開型として生成します
 4. フラグメントは常に non-optional（非ポインタ）です
 5. インラインフラグメントは独立した型を生成しません
@@ -80,8 +80,8 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 
 - 構造体タグから `graphql` タグを削除し、`json` タグのみを生成します
 - `json` タグに `omitempty` を付与しません（`EnableModelJsonOmitemptyTag` を無効化）。json/v2 では undefined の省略は `omitzero` が担うため `omitempty` は不要で、入力型・モデルおよび OperationVars の nullable フィールドはいずれも `omitzero` のみで揃えています。クエリレスポンス型はデコード専用（`omitzero` はマーシャル時にしか効かない）のため `omitzero` も付与しません
-- フラグメントの埋め込みとインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
-- フラグメントを non-optional の埋め込みにしたことで、Getter 関数の生成量を削減しました
+- フラグメント（名前付きフィールド）とインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
+- フラグメントは埋め込みではなく名前付きフィールドとして生成します。埋め込むと Go のフィールド昇格で複数フラグメントの同名フィールドが曖昧になり（`t.X` が ambiguous selector のコンパイルエラーになる）、利用者が読めなくなるためです。アクセスは常に `t.<フラグメント名>.<フィールド>` です
 - レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `generate.query.getters: true` を指定してください
 
 ```graphql
@@ -104,9 +104,9 @@ v1.0.0-alpha1 の生成コード:
 ```go
 type UserOperation_User struct {
 	User *struct {
-		UserFragment1 `json:"-"`
+		UserFragment1 UserFragment1 `json:"-"`
 	} `json:"-"`
-	UserFragment1 `json:"-"`
+	UserFragment1 UserFragment1 `json:"-"`
 }
 
 type UserFragment1 struct {

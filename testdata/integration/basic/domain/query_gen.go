@@ -146,6 +146,23 @@ type UserFragment1 struct {
 	Profile  UserFragment1_Profile "json:\"profile\""
 }
 
+func (t *UserFragment1) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	type plain UserFragment1
+	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
+		return err
+	}
+	switch t.Typename {
+	case "User":
+		if err := json.Unmarshal(data, &t.User); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (t *UserFragment1) GetUser() *struct {
 	Name string "json:\"name\""
 } {
@@ -390,9 +407,9 @@ func (t *UserOperation_Article) GetTitle() string {
 }
 
 type UserOperation_Article_Addresses struct {
-	AddressView          "json:\"-\""
-	PrivateAddressFields "json:\"-\""
-	Street               string "json:\"street\""
+	AddressView          AddressView          "json:\"-\""
+	PrivateAddressFields PrivateAddressFields "json:\"-\""
+	Street               string               "json:\"street\""
 }
 
 func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -583,8 +600,8 @@ func (t *UserOperation_Article_OptionalProfiles) GetTypename() string {
 }
 
 type UserOperation_Article_Profiles struct {
-	PrivateProfileFields "json:\"-\""
-	PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields "json:\"-\""
+	PublicProfileFields  PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_Article_Profiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -665,11 +682,11 @@ func (t *UserOperation_OptionalUser) GetName() string {
 
 type UserOperation_User struct {
 	User *struct {
-		UserFragment2 "json:\"-\""
-		Name          string "json:\"name\""
+		UserFragment2 UserFragment2 "json:\"-\""
+		Name          string        "json:\"name\""
 	} "json:\"-\""
-	UserFragment1    "json:\"-\""
-	UserFragment2    "json:\"-\""
+	UserFragment1    UserFragment1                       "json:\"-\""
+	UserFragment2    UserFragment2                       "json:\"-\""
 	Typename         string                              "json:\"__typename\""
 	Address          UserOperation_User_Address          "json:\"address\""
 	DefaultPic       string                              "json:\"defaultPic\""
@@ -698,12 +715,6 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	if err := json.Unmarshal(data, &t.UserFragment1); err != nil {
 		return err
 	}
-	switch t.UserFragment1.Typename {
-	case "User":
-		if err := json.Unmarshal(data, &t.UserFragment1.User); err != nil {
-			return err
-		}
-	}
 	if err := json.Unmarshal(data, &t.UserFragment2); err != nil {
 		return err
 	}
@@ -719,8 +730,8 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	return nil
 }
 func (t *UserOperation_User) GetUser() *struct {
-	UserFragment2 "json:\"-\""
-	Name          string "json:\"name\""
+	UserFragment2 UserFragment2 "json:\"-\""
+	Name          string        "json:\"name\""
 } {
 	if t == nil {
 		t = &UserOperation_User{}
@@ -825,9 +836,9 @@ func (t *UserOperation_User) GetSmallPic() string {
 }
 
 type UserOperation_User_Address struct {
-	AddressView          "json:\"-\""
-	PrivateAddressFields "json:\"-\""
-	Street               string "json:\"street\""
+	AddressView          AddressView          "json:\"-\""
+	PrivateAddressFields PrivateAddressFields "json:\"-\""
+	Street               string               "json:\"street\""
 }
 
 func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -932,8 +943,8 @@ func (t *UserOperation_User_OptionalAddress) GetStreet() string {
 }
 
 type UserOperation_User_OptionalProfile struct {
-	PrivateProfileFields "json:\"-\""
-	PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields "json:\"-\""
+	PublicProfileFields  PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_User_OptionalProfile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -963,8 +974,8 @@ func (t *UserOperation_User_OptionalProfile) GetPublicProfileFields() PublicProf
 }
 
 type UserOperation_User_Profile struct {
-	PrivateProfileFields "json:\"-\""
-	PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields "json:\"-\""
+	PublicProfileFields  PublicProfileFields  "json:\"-\""
 }
 
 func (t *UserOperation_User_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {

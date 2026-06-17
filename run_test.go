@@ -160,7 +160,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",
 						User: &struct {
-							domain.UserFragment2 `json:"-"`
+							UserFragment2 domain.UserFragment2 `json:"-"`
 
 							Name string "json:\"name\""
 						}{
