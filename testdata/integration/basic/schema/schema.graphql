@@ -17,6 +17,9 @@ type Query {
   optionalUser: User @goField(forceResolver: true)
   article(id: ID!): Article @goField(forceResolver: true)
   metadata(id: ID!): Metadata @goField(forceResolver: true)
+  # リスト型の変数 (スカラーリスト [ID!]! / Input オブジェクトリスト [FilterInput!]! / 入れ子リスト
+  # [[String!]]) が Vars 構造体でリスト構造を保ってエンコードされることを検証する (旧 listvars fixture)
+  filteredKeys(filters: [FilterInput!]!, ids: [ID!]!, matrix: [[String!]]): [String!]!
 }
 
 type Mutation {
@@ -37,6 +40,11 @@ input UpdateUserInput {
 input UserSettingsInput {
   theme: String!
   notifications: Boolean!
+}
+
+input FilterInput {
+  key: String!
+  value: String!
 }
 
 type UserSettings {

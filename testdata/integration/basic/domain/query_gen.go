@@ -18,6 +18,17 @@ func (t *Count) GetCount() int {
 	return t.Count
 }
 
+type FilteredKeys struct {
+	FilteredKeys []string "json:\"filteredKeys\""
+}
+
+func (t *FilteredKeys) GetFilteredKeys() []string {
+	if t == nil {
+		t = &FilteredKeys{}
+	}
+	return t.FilteredKeys
+}
+
 type PrivateAddressFields struct {
 	ID      string "json:\"id\""
 	Private bool   "json:\"private\""
@@ -1125,4 +1136,5 @@ func (t *UserOperation_User_Profile2) GetTypename() string {
 
 const UpdateUserDocument = `mutation UpdateUser($input: UpdateUserInput!) { updateUser(input: $input) { user { name settings { theme notifications } } } }`
 const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status, $includeEmail: Boolean!, $skipName: Boolean!) { user(id: $userId, status: $userStatus) { __typename name email emailIfIncluded: email @include(if: $includeEmail) nameIfNotSkipped: name @skip(if: $skipName) name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix profileGrid { __typename ... on PublicProfile { id status } ... on PrivateProfile { id age } } } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
+const FilteredKeysDocument = `query FilteredKeys($filters: [FilterInput!]!, $ids: [ID!]!, $matrix: [[String!]]) { filteredKeys(filters: $filters, ids: $ids, matrix: $matrix) }`
 const CountDocument = `subscription Count($target: Int!) { count(target: $target) }`

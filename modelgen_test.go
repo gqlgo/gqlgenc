@@ -13,8 +13,6 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
-	lvdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/domain"
-	lvquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/query"
 	mgdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/domain"
 	mgquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/query"
 )
@@ -94,31 +92,6 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 				}
 
 				assertBodyContains(t, captured, `"keyword":"go"`, `"status":"ACTIVE"`, `"size":10`, `"kind":"USER"`)
-			},
-		},
-		{
-			// リスト型のクエリ変数 (スカラーリスト [ID!]!、Input オブジェクトのリスト [FilterInput!]!) が
-			// Vars 構造体でリスト構造を保ち、配列としてエンコードされる。
-			name:     "リスト型の変数が構造を保ってエンコードされる",
-			dir:      "testdata/integration/listvars/",
-			response: `{"data":{"search":["a","b"]}}`,
-			check: func(t *testing.T, c *client.Client, captured *bytes.Buffer) {
-				t.Helper()
-
-				got, err := c.Post(t.Context(), lvquery.SearchOp, lvquery.SearchVars{
-					Filters: []lvdomain.FilterInput{{Key: "k", Value: "v"}},
-					Ids:     []string{"1", "2"},
-				})
-				if err != nil {
-					t.Fatalf("Post error = %v", err)
-				}
-
-				want := &lvdomain.Search{Search: []string{"a", "b"}}
-				if diff := cmp.Diff(want, got); diff != "" {
-					t.Errorf("response diff(-want +got): %s", diff)
-				}
-
-				assertBodyContains(t, captured, `"ids":["1","2"]`, `"filters":[{"key":"k","value":"v"}]`)
 			},
 		},
 	}

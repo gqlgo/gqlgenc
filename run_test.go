@@ -362,6 +362,24 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
 				}
 			}
+			// Query with list-type variables (旧 listvars: スカラーリスト [ID!]! / Input リスト
+			// [FilterInput!]! / 入れ子リスト [[String!]] が構造を保ってエンコードされ、実サーバが
+			// 受理することを検証する)
+			{
+				matrixRow := []string{"x", "y"}
+				filteredKeys, err := rawClient.Post(ctx, query.FilteredKeysOp, query.FilteredKeysVars{
+					Filters: []domain.FilterInput{{Key: "k", Value: "v"}},
+					Ids:     []string{"1", "2"},
+					Matrix:  graphql.OmittableOf(&[]*[]string{&matrixRow}),
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				// resolver は ids をそのまま返す
+				if diff := cmp.Diff(&domain.FilteredKeys{FilteredKeys: []string{"1", "2"}}, filteredKeys); diff != "" {
+					t.Errorf("filteredKeys mismatch (-want +got):\n%s", diff)
+				}
+			}
 			// Query via GET
 			{
 				size := 100

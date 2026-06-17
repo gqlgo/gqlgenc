@@ -138,6 +138,11 @@ func (r *queryResolver) Metadata(ctx context.Context, id string) (*domain.Metada
 	}, nil
 }
 
+// FilteredKeys is the resolver for the filteredKeys field. リスト型変数の往復検証用に ids をそのまま返す。
+func (r *queryResolver) FilteredKeys(ctx context.Context, filters []*domain.FilterInput, ids []string, matrix [][]string) ([]string, error) {
+	return ids, nil
+}
+
 // Count is the resolver for the count field.
 func (r *subscriptionResolver) Count(ctx context.Context, target int) (<-chan int, error) {
 	ch := make(chan int, target)

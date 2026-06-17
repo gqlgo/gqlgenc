@@ -47,6 +47,11 @@ type Comment struct {
 	Text string `json:"text"`
 }
 
+type FilterInput struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type Metadata struct {
 	ID         string         `json:"id"`
 	Data       *string        `json:"data,omitzero"`

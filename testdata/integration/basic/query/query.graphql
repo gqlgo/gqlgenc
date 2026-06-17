@@ -136,6 +136,10 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
   }
 }
 
+query FilteredKeys($filters: [FilterInput!]!, $ids: [ID!]!, $matrix: [[String!]]) {
+  filteredKeys(filters: $filters, ids: $ids, matrix: $matrix)
+}
+
 fragment UserFragment1 on User {
   __typename
   name

@@ -32,6 +32,17 @@ var UserOperationOp = client.Operation[client.Query, UserOperationVars, domain.U
 	Document: domain.UserOperationDocument,
 }
 
+type FilteredKeysVars struct {
+	Filters []domain.FilterInput            `json:"filters"`
+	Ids     []string                        `json:"ids"`
+	Matrix  graphql.Omittable[*[]*[]string] `json:"matrix,omitzero"`
+}
+
+var FilteredKeysOp = client.Operation[client.Query, FilteredKeysVars, domain.FilteredKeys]{
+	Name:     "FilteredKeys",
+	Document: domain.FilteredKeysDocument,
+}
+
 type CountVars struct {
 	Target int `json:"target"`
 }
