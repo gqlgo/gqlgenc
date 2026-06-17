@@ -598,7 +598,7 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 | JSON 処理 | `encoding/json/v2`（Go 1.27 以上 + `GOEXPERIMENT=jsonv2`） | `encoding/json`（v1） |
 | 実行 API | 型付き variables 構造体と `client.Operation[Kind, Vars, Res]` 値を生成し、ジェネリックな `Post` / `Get` / `Subscribe` メソッドで実行する。全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書ける | オペレーションごとに Go 関数（例: `GetUser(ctx, client, ...) (*getUserResponse, error)`）を生成し、variables は関数引数として渡す |
 | interface / union | Go interface を生成しない。インラインフラグメントを型条件名のポインタフィールド（無名構造体）として生成し、レスポンスの `__typename` でデコードする（`__typename` はクエリに無くても自動注入する） | GraphQL interface に対応する Go interface と具象型ごとの実装を生成し、共有フィールドには getter でアクセスする |
-| フラグメント | 常に公開の独立型として生成し、構造体に埋め込む | フラグメントごとに型を生成して埋め込む。`flatten` ディレクティブで中間型を省略できる |
+| フラグメント | 常に公開の独立型として生成し、名前付きフィールド（`json:"-"`）として保持する（埋め込みによる曖昧昇格を避けるため。`t.<フラグメント名>.<フィールド>` でアクセス） | フラグメントごとに型を生成して埋め込む。`flatten` ディレクティブで中間型を省略できる |
 | null / undefined の区別 | gqlgen の `graphql.Omittable[T]` と json/v2 の `omitzero` | `optional: value / pointer / generic` 設定と `@genqlient(pointer: true, omitempty: true)` ディレクティブ |
 | 生成のカスタマイズ | 設定より規約。オプションは最小限で、型のバインドは `bind`（type / package）/ `@goField` を利用する | `@genqlient` コメントディレクティブ（`pointer` / `alias` / `typename` / `flatten` / `struct` / `bind` / `for` など）と YAML オプション（`casing` / `context_type` / `client_getter` など）で細かく制御できる |
 | カスタムスカラー | `bind.type` バインド | `bindings` / `package_bindings` |
