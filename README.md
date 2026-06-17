@@ -19,16 +19,24 @@ gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から�
 
 ## 動作要件
 
-- Go 1.27 以上
-- ビルド・テスト時に環境変数 `GOEXPERIMENT=jsonv2` の設定が必要です（`encoding/json/v2` を使用するため）
+- Go 1.27 以上。Go 1.27 はまだ正式リリースされていないため、現状は開発版ツールチェーン（gotip）が必要です:
+
+```shell
+go install golang.org/dl/gotip@latest
+gotip download
+```
+
+- 環境変数 `GOEXPERIMENT=jsonv2` が必要です（`encoding/json/v2` を使用するため）。**gqlgenc 本体のインストール時だけでなく、生成コードを取り込むあなたのアプリのビルド・テスト時にも**設定してください
 
 ## インストール
 
 ```shell
-go get -tool github.com/Yamashou/gqlgenc/v3@latest
-# または
-go install github.com/Yamashou/gqlgenc/v3@latest
+GOEXPERIMENT=jsonv2 gotip install github.com/Yamashou/gqlgenc/v3@latest
+# go の tool 依存として追加する場合
+GOEXPERIMENT=jsonv2 gotip get -tool github.com/Yamashou/gqlgenc/v3@latest
 ```
+
+> gqlgenc 自身が `encoding/json/v2` を使うため、インストール時にも `GOEXPERIMENT=jsonv2` が必要です。Go 1.27 が正式リリースされたら `gotip` を `go` に置き換えられます。
 
 ## 使い方
 
@@ -96,8 +104,12 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/Yamashou/gqlgenc/v3/client"
+
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/example/myapp/query"
 )
@@ -109,7 +121,16 @@ func main() {
 
 	res, err := c.Post(ctx, query.GetUserOp, query.GetUserVars{ID: "user-1"})
 	if err != nil {
-		// エラー処理
+		// HTTP ステータス異常・GraphQL エラーは errors.As で型別に取り出せる
+		var httpErr *client.HTTPError
+		if errors.As(err, &httpErr) {
+			fmt.Println("http status:", httpErr.Code)
+		}
+		var gqlErrs gqlerror.List
+		if errors.As(err, &gqlErrs) {
+			fmt.Println("graphql errors:", gqlErrs)
+		}
+		// GraphQL エラー時も res に部分データが入っていることがある
 	}
 	_ = res
 }

@@ -141,6 +141,7 @@ type UserOperation_User_User struct {
 #### CLI の簡素化
 
 - urfave/cli への依存を削除しました。`generate` / `version` サブコマンドと `--configdir` フラグを廃止し、`gqlgenc` は設定ファイル（`.gqlgenc.yml`）のあるディレクトリで実行します（フラグは `-version` のみ）
+- `gqlgenc -h`（usage）でツールの概要・実行方法・フラグを表示します
 
 ### 新機能
 
