@@ -234,6 +234,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - モデルのフィールドを常にポインタにする gqlgen の `struct_fields_always_pointers: true`（gqlgen のデフォルト）には対応しません（gqlgenc は内部で `false` に固定します）
 - `json` タグの `omitempty` には対応しません（json/v2 では `omitzero` を使用します）
 - クエリレスポンスでの `graphql.Omittable` には対応しません
+- `schema.endpoint` の introspection は、型の list / non-null 入れ子が introspection クエリの `ofType` 深さ（7）を超える場合は取得できません（`schema.files` でローカルスキーマを指定してください）
 
 ### alpha リリース時点の残作業
 

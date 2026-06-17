@@ -79,6 +79,8 @@ generate:
     file: ./gen/client_gen.go
 ```
 
+> **注意（introspection の制限）:** `schema.endpoint` での introspection は、型の list / non-null 入れ子が introspection クエリの `ofType` 深さ（7）を超えると取得できずエラーになります（例: 深くネストしたリスト型）。その場合は `schema.files` でローカルスキーマを指定してください。
+
 ### 2. コードを生成する
 
 設定ファイルのあるディレクトリで実行します。
@@ -387,6 +389,7 @@ variables に `graphql.Upload`（`github.com/99designs/gqlgen/graphql`）が含�
 - HTTP ステータスが 2xx でも GraphQL レスポンスとしてパースできない場合はエラーになる
 - HTTP ステータスが異常（非2xx）のとき、`HTTPError.Message` にはレスポンスボディの先頭 1 KiB だけを埋め込み（巨大・機微なエラーページがエラー文字列やログを汚さないため）、全文は `HTTPError.Body` に保持する
 - デコードはレスポンスがスキーマの nullability に従うことを前提とする。スキーマが非 null としていたフィールドをサーバーが `null` で返すと、json/v2 がサイレントにゼロ値（空文字・0 など）へデコードし、`null` と「フィールド欠落」を区別しない。コード生成後にサーバー側スキーマが非 null→null へ変わるスキーマ drift はクライアントでは検知できない
+- interface / union のデコードは応答に `__typename` が含まれることを前提とする（クエリには生成時に自動付与する。前述「query_gen.go（querygen）」参照）。サーバーが `__typename` を返さないと、どのインラインフラグメントの枝にもマッチせず、該当フィールドはゼロ値（ポインタなら nil）のままになる（エラーにはならない）
 
 ### Subscription
 
