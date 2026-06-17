@@ -53,6 +53,7 @@ type ComplexityRoot struct {
 		OptionalRating       func(childComplexity int) int
 		OptionalStatuses     func(childComplexity int) int
 		OptionalTags         func(childComplexity int) int
+		ProfileGrid          func(childComplexity int) int
 		Profiles             func(childComplexity int) int
 		Rating               func(childComplexity int) int
 		Statuses             func(childComplexity int) int
@@ -251,6 +252,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Article.OptionalTags(childComplexity), true
+	case "Article.profileGrid":
+		if e.ComplexityRoot.Article.ProfileGrid == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Article.ProfileGrid(childComplexity), true
 	case "Article.profiles":
 		if e.ComplexityRoot.Article.Profiles == nil {
 			break
@@ -688,6 +695,8 @@ func (ec *executionContext) childFields_Article(ctx context.Context, field graph
 		return ec.fieldContext_Article_matrix(ctx, field)
 	case "optionalMatrix":
 		return ec.fieldContext_Article_optionalMatrix(ctx, field)
+	case "profileGrid":
+		return ec.fieldContext_Article_profileGrid(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
 }
@@ -1488,6 +1497,29 @@ func (ec *executionContext) _Article_optionalMatrix(ctx context.Context, field g
 }
 func (ec *executionContext) fieldContext_Article_optionalMatrix(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Article", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Article_profileGrid(ctx context.Context, field graphql.CollectedField, obj *domain.Article) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Article_profileGrid(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProfileGrid, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v [][]domain.Profile) graphql.Marshaler {
+			return ec.marshalNProfile2ᚕᚕgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐProfileᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Article_profileGrid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Article", field, false, false, errors.New("field of type Profile does not have child fields"))
 }
 
 func (ec *executionContext) _Comment_id(ctx context.Context, field graphql.CollectedField, obj *domain.Comment) (ret graphql.Marshaler) {
@@ -3829,6 +3861,11 @@ func (ec *executionContext) _Article(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "profileGrid":
+			out.Values[i] = ec._Article_profileGrid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5250,6 +5287,22 @@ func (ec *executionContext) marshalNProfile2ᚕgithubᚗcomᚋYamashouᚋgqlgenc
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
 		return ec.marshalNProfile2githubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐProfile(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProfile2ᚕᚕgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐProfileᚄ(ctx context.Context, sel ast.SelectionSet, v [][]domain.Profile) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNProfile2ᚕgithubᚗcomᚋYamashouᚋgqlgencᚋv3ᚋtestdataᚋintegrationᚋbasicᚋdomainᚐProfileᚄ(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {

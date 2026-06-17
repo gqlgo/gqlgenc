@@ -21,24 +21,25 @@ type Profile interface {
 }
 
 type Article struct {
-	ID                   string     `json:"id"`
-	Title                string     `json:"title"`
-	Tags                 []string   `json:"tags"`
-	OptionalTags         []string   `json:"optionalTags,omitzero"`
-	Comments             []*Comment `json:"comments"`
-	OptionalComments     []*Comment `json:"optionalComments,omitzero"`
-	Rating               float64    `json:"rating"`
-	OptionalRating       *float64   `json:"optionalRating,omitzero"`
-	NullableElementsList []*string  `json:"nullableElementsList"`
-	FullyNullableList    []*string  `json:"fullyNullableList,omitzero"`
-	Statuses             []Status   `json:"statuses"`
-	OptionalStatuses     []Status   `json:"optionalStatuses,omitzero"`
-	Addresses            []Address  `json:"addresses"`
-	OptionalAddresses    []Address  `json:"optionalAddresses,omitzero"`
-	Profiles             []Profile  `json:"profiles"`
-	OptionalProfiles     []Profile  `json:"optionalProfiles,omitzero"`
-	Matrix               [][]string `json:"matrix"`
-	OptionalMatrix       [][]string `json:"optionalMatrix,omitzero"`
+	ID                   string      `json:"id"`
+	Title                string      `json:"title"`
+	Tags                 []string    `json:"tags"`
+	OptionalTags         []string    `json:"optionalTags,omitzero"`
+	Comments             []*Comment  `json:"comments"`
+	OptionalComments     []*Comment  `json:"optionalComments,omitzero"`
+	Rating               float64     `json:"rating"`
+	OptionalRating       *float64    `json:"optionalRating,omitzero"`
+	NullableElementsList []*string   `json:"nullableElementsList"`
+	FullyNullableList    []*string   `json:"fullyNullableList,omitzero"`
+	Statuses             []Status    `json:"statuses"`
+	OptionalStatuses     []Status    `json:"optionalStatuses,omitzero"`
+	Addresses            []Address   `json:"addresses"`
+	OptionalAddresses    []Address   `json:"optionalAddresses,omitzero"`
+	Profiles             []Profile   `json:"profiles"`
+	OptionalProfiles     []Profile   `json:"optionalProfiles,omitzero"`
+	Matrix               [][]string  `json:"matrix"`
+	OptionalMatrix       [][]string  `json:"optionalMatrix,omitzero"`
+	ProfileGrid          [][]Profile `json:"profileGrid"`
 }
 
 type Comment struct {
@@ -51,6 +52,9 @@ type Metadata struct {
 	Data       *string        `json:"data,omitzero"`
 	Properties map[string]any `json:"properties,omitzero"`
 	Level      Level          `json:"level"`
+}
+
+type Mutation struct {
 }
 
 type PrivateAddress struct {
@@ -84,6 +88,12 @@ type PublicProfile struct {
 }
 
 func (PublicProfile) IsProfile() {}
+
+type Query struct {
+}
+
+type Subscription struct {
+}
 
 type UpdateUserInput struct {
 	ID       UserID                                `json:"id"`

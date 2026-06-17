@@ -290,6 +290,7 @@ type UserOperation_Article struct {
 	OptionalRating       *float64                                    "json:\"optionalRating\""
 	OptionalStatuses     *[]Status                                   "json:\"optionalStatuses\""
 	OptionalTags         *[]string                                   "json:\"optionalTags\""
+	ProfileGrid          [][]*UserOperation_Article_ProfileGrid      "json:\"profileGrid\""
 	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles\""
 	Rating               float64                                     "json:\"rating\""
 	Statuses             []Status                                    "json:\"statuses\""
@@ -374,6 +375,12 @@ func (t *UserOperation_Article) GetOptionalTags() *[]string {
 		t = &UserOperation_Article{}
 	}
 	return t.OptionalTags
+}
+func (t *UserOperation_Article) GetProfileGrid() [][]*UserOperation_Article_ProfileGrid {
+	if t == nil {
+		t = &UserOperation_Article{}
+	}
+	return t.ProfileGrid
 }
 func (t *UserOperation_Article) GetProfiles() []*UserOperation_Article_Profiles {
 	if t == nil {
@@ -595,6 +602,64 @@ func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() *struct {
 func (t *UserOperation_Article_OptionalProfiles) GetTypename() string {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
+	}
+	return t.Typename
+}
+
+type UserOperation_Article_ProfileGrid struct {
+	PrivateProfile *struct {
+		Age *int   "json:\"age\""
+		ID  string "json:\"id\""
+	} "json:\"-\""
+	PublicProfile *struct {
+		ID     string "json:\"id\""
+		Status Status "json:\"status\""
+	} "json:\"-\""
+	Typename string "json:\"__typename\""
+}
+
+func (t *UserOperation_Article_ProfileGrid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	type plain UserOperation_Article_ProfileGrid
+	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
+		return err
+	}
+	switch t.Typename {
+	case "PrivateProfile":
+		if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+			return err
+		}
+	case "PublicProfile":
+		if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (t *UserOperation_Article_ProfileGrid) GetPrivateProfile() *struct {
+	Age *int   "json:\"age\""
+	ID  string "json:\"id\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid{}
+	}
+	return t.PrivateProfile
+}
+func (t *UserOperation_Article_ProfileGrid) GetPublicProfile() *struct {
+	ID     string "json:\"id\""
+	Status Status "json:\"status\""
+} {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid{}
+	}
+	return t.PublicProfile
+}
+func (t *UserOperation_Article_ProfileGrid) GetTypename() string {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid{}
 	}
 	return t.Typename
 }
@@ -1059,5 +1124,5 @@ func (t *UserOperation_User_Profile2) GetTypename() string {
 }
 
 const UpdateUserDocument = `mutation UpdateUser($input: UpdateUserInput!) { updateUser(input: $input) { user { name settings { theme notifications } } } }`
-const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status, $includeEmail: Boolean!, $skipName: Boolean!) { user(id: $userId, status: $userStatus) { __typename name email emailIfIncluded: email @include(if: $includeEmail) nameIfNotSkipped: name @skip(if: $skipName) name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
+const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status, $includeEmail: Boolean!, $skipName: Boolean!) { user(id: $userId, status: $userStatus) { __typename name email emailIfIncluded: email @include(if: $includeEmail) nameIfNotSkipped: name @skip(if: $skipName) name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix profileGrid { __typename ... on PublicProfile { id status } ... on PrivateProfile { id age } } } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
 const CountDocument = `subscription Count($target: Int!) { count(target: $target) }`

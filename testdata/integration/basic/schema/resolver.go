@@ -115,6 +115,12 @@ func (r *queryResolver) Article(ctx context.Context, id string) (*domain.Article
 		OptionalMatrix: [][]string{
 			{"x", "y"},
 		},
+		ProfileGrid: [][]domain.Profile{
+			{
+				&domain.PublicProfile{ID: "grid1", Status: domain.StatusActive},
+				&domain.PrivateProfile{ID: "grid2", Age: func() *int { i := 7; return &i }()},
+			},
+		},
 	}, nil
 }
 

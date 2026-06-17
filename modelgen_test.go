@@ -17,8 +17,6 @@ import (
 	lvquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/query"
 	mgdomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/domain"
 	mgquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/modelgen/query"
-	nldomain "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/domain"
-	nlquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/nestedlist/query"
 )
 
 // Test_IntegrationTest_ModelGen は generate.model.file を指定した構成 (use case 2) を検証する。
@@ -121,46 +119,6 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 				}
 
 				assertBodyContains(t, captured, `"ids":["1","2"]`, `"filters":[{"key":"k","value":"v"}]`)
-			},
-		},
-		{
-			// 入れ子リストの union ([[Cell!]!]!) を inline fragment で選択した応答が [][]*GetGrid_Grid
-			// (要素は単一ポインタ) として生成され、__typename で判別デコードできる。ポインタをリスト段
-			// ごとに重ねると [][]**GetGrid_Grid になる回帰を防ぐ。
-			name:     "入れ子リストの union が単一ポインタで __typename 判別される",
-			dir:      "testdata/integration/nestedlist/",
-			response: `{"data":{"grid":[[{"__typename":"TextCell","text":"hi"},{"__typename":"NumberCell","number":5}]]}}`,
-			check: func(t *testing.T, c *client.Client, _ *bytes.Buffer) {
-				t.Helper()
-
-				got, err := c.Post(t.Context(), nlquery.GetGridOp, nlquery.GetGridVars{
-					Kind: nldomain.CellKindText,
-				})
-				if err != nil {
-					t.Fatalf("Post error = %v", err)
-				}
-
-				want := &nldomain.GetGrid{
-					Grid: [][]*nldomain.GetGrid_Grid{
-						{
-							{
-								TextCell: &struct {
-									Text string `json:"text"`
-								}{Text: "hi"},
-								Typename: "TextCell",
-							},
-							{
-								NumberCell: &struct {
-									Number int `json:"number"`
-								}{Number: 5},
-								Typename: "NumberCell",
-							},
-						},
-					},
-				}
-				if diff := cmp.Diff(want, got); diff != "" {
-					t.Errorf("response diff(-want +got): %s", diff)
-				}
 			},
 		},
 	}

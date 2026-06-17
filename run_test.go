@@ -145,6 +145,25 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 						OptionalMatrix: &[][]string{
 							{"x", "y"},
 						},
+						// 入れ子リストの union ([[Profile!]!]!) は [][]* 単一ポインタで生成され __typename で判別される
+						ProfileGrid: [][]*domain.UserOperation_Article_ProfileGrid{
+							{
+								{
+									PublicProfile: &struct {
+										ID     string        `json:"id"`
+										Status domain.Status `json:"status"`
+									}{ID: "grid1", Status: domain.StatusActive},
+									Typename: "PublicProfile",
+								},
+								{
+									PrivateProfile: &struct {
+										Age *int   `json:"age"`
+										ID  string `json:"id"`
+									}{Age: new(7), ID: "grid2"},
+									Typename: "PrivateProfile",
+								},
+							},
+						},
 					},
 					Metadata: &domain.UserOperation_Metadata{
 						ID:   "metadata-1",

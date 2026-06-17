@@ -117,6 +117,9 @@ type Article {
   optionalProfiles: [Profile!]
   matrix: [[String!]!]!
   optionalMatrix: [[String!]!]
+  # 入れ子リストの union ([[Profile!]!]!)。object/union 要素は [][]* の単一ポインタになり
+  # (リスト段ごとにポインタを重ねない)、__typename で判別デコードできることを検証する
+  profileGrid: [[Profile!]!]!
 }
 
 type Comment {

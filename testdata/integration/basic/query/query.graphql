@@ -116,6 +116,17 @@ query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId
     }
     matrix
     optionalMatrix
+    profileGrid {
+      __typename
+      ... on PublicProfile {
+        id
+        status
+      }
+      ... on PrivateProfile {
+        id
+        age
+      }
+    }
   }
   metadata(id: $metadataId) {
     id
