@@ -328,11 +328,13 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				userID := "1"
 				userStatus := domain.StatusActive
 				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
-					ArticleID:  "article-1",
-					MetadataID: "metadata-1",
-					Size:       graphql.OmittableOf[*int](&size),
-					UserID:     graphql.OmittableOf[*string](&userID),
-					UserStatus: graphql.OmittableOf[*domain.Status](&userStatus),
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					UserID:       graphql.OmittableOf[*string](&userID),
+					UserStatus:   graphql.OmittableOf[*domain.Status](&userStatus),
+					IncludeEmail: false,
+					SkipName:     true,
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
@@ -347,11 +349,13 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				userID := "1"
 				userStatus := domain.StatusActive
 				userOperation, err := rawClient.Get(ctx, query.UserOperationOp, query.UserOperationVars{
-					ArticleID:  "article-1",
-					MetadataID: "metadata-1",
-					Size:       graphql.OmittableOf[*int](&size),
-					UserID:     graphql.OmittableOf[*string](&userID),
-					UserStatus: graphql.OmittableOf[*domain.Status](&userStatus),
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					UserID:       graphql.OmittableOf[*string](&userID),
+					UserStatus:   graphql.OmittableOf[*domain.Status](&userStatus),
+					IncludeEmail: false,
+					SkipName:     true,
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
@@ -364,9 +368,11 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			{
 				size := 100
 				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
-					ArticleID:  "article-1",
-					MetadataID: "metadata-1",
-					Size:       graphql.OmittableOf[*int](&size),
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					IncludeEmail: false,
+					SkipName:     true,
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
@@ -376,6 +382,26 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				// ときだけ適用されるため、resolver が default の "John Doe" を返すことを確認する。
 				if userOperation.User.UserFragment2.Name != "John Doe" {
 					t.Errorf("expected user name to be 'John Doe', got '%s'", userOperation.User.UserFragment2.Name)
+				}
+			}
+
+			// @skip / @include を実サーバで評価する。include=true で emailIfIncluded、skip=false で
+			// nameIfNotSkipped がレスポンスに含まれ、ポインタに値が入る(欠落時の nil と区別できる)。
+			{
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					IncludeEmail: true,
+					SkipName:     false,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if userOperation.User.EmailIfIncluded == nil {
+					t.Error("emailIfIncluded should be non-nil when @include(if: true)")
+				}
+				if userOperation.User.NameIfNotSkipped == nil {
+					t.Error("nameIfNotSkipped should be non-nil when @skip(if: false)")
 				}
 			}
 

@@ -214,7 +214,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 
 - コード生成の内部を「GraphQL オペレーション解析」と「Go 型の構築」（codegen パッケージ）に分離し、テンプレートの行数を大幅に削減しました
 - 特定のクエリで発生していた複数の panic を修正しました（[gqlgo/gqlgenc#282](https://github.com/gqlgo/gqlgenc/issues/282)）
-- gqlgen で生成した実サーバーに対する統合テストを追加しました（フィールドの Name / Alias、Input の `graphql.Omittable`、union の `__typename` 判別、ネストしたフラグメント、フィールド引数のデフォルト値など）
+- gqlgen で生成した実サーバーに対する統合テストを追加しました（フィールドの Name / Alias、Input の `graphql.Omittable`、union の `__typename` 判別、ネストしたフラグメント、フィールド引数のデフォルト値、`@skip` / `@include` の present / absent など）
 - テストを testify からテーブル駆動テスト + go-cmp に移行しました
 - エラーを `%w` でラップし、原因を辿れるようにしました
 - golangci-lint v2（`.golangci.yml`）と GitHub Actions の CI を整備しました

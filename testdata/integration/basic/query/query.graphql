@@ -11,11 +11,13 @@ mutation UpdateUser($input: UpdateUserInput!) {
 }
 
 
-query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) {
+query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status, $includeEmail: Boolean!, $skipName: Boolean!) {
   user(id: $userId, status: $userStatus) {
     __typename
     name
     email
+    emailIfIncluded: email @include(if: $includeEmail)
+    nameIfNotSkipped: name @skip(if: $skipName)
     name2: name
     smallPic: profilePic(size: 50)
     largePic: profilePic(size: 500)

@@ -18,11 +18,13 @@ var UpdateUserOp = client.Operation[client.Mutation, UpdateUserVars, domain.Upda
 }
 
 type UserOperationVars struct {
-	ArticleID  string                            `json:"articleId"`
-	MetadataID string                            `json:"metadataId"`
-	Size       graphql.Omittable[*int]           `json:"size,omitzero"`
-	UserID     graphql.Omittable[*string]        `json:"userId,omitzero"`
-	UserStatus graphql.Omittable[*domain.Status] `json:"userStatus,omitzero"`
+	ArticleID    string                            `json:"articleId"`
+	MetadataID   string                            `json:"metadataId"`
+	Size         graphql.Omittable[*int]           `json:"size,omitzero"`
+	UserID       graphql.Omittable[*string]        `json:"userId,omitzero"`
+	UserStatus   graphql.Omittable[*domain.Status] `json:"userStatus,omitzero"`
+	IncludeEmail bool                              `json:"includeEmail"`
+	SkipName     bool                              `json:"skipName"`
 }
 
 var UserOperationOp = client.Operation[client.Query, UserOperationVars, domain.UserOperation]{

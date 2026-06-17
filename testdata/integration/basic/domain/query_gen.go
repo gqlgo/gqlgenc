@@ -668,20 +668,22 @@ type UserOperation_User struct {
 		UserFragment2 "json:\"-\""
 		Name          string "json:\"name\""
 	} "json:\"-\""
-	UserFragment1   "json:\"-\""
-	UserFragment2   "json:\"-\""
-	Typename        string                              "json:\"__typename\""
-	Address         UserOperation_User_Address          "json:\"address\""
-	DefaultPic      string                              "json:\"defaultPic\""
-	Email           Email                               "json:\"email\""
-	LargePic        string                              "json:\"largePic\""
-	Name            string                              "json:\"name\""
-	Name2           string                              "json:\"name2\""
-	OptionalAddress *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
-	OptionalProfile *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
-	Profile         UserOperation_User_Profile          "json:\"profile\""
-	Profile2        UserOperation_User_Profile2         "json:\"profile2\""
-	SmallPic        string                              "json:\"smallPic\""
+	UserFragment1    "json:\"-\""
+	UserFragment2    "json:\"-\""
+	Typename         string                              "json:\"__typename\""
+	Address          UserOperation_User_Address          "json:\"address\""
+	DefaultPic       string                              "json:\"defaultPic\""
+	Email            Email                               "json:\"email\""
+	EmailIfIncluded  *Email                              "json:\"emailIfIncluded\""
+	LargePic         string                              "json:\"largePic\""
+	Name             string                              "json:\"name\""
+	Name2            string                              "json:\"name2\""
+	NameIfNotSkipped *string                             "json:\"nameIfNotSkipped\""
+	OptionalAddress  *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
+	OptionalProfile  *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
+	Profile          UserOperation_User_Profile          "json:\"profile\""
+	Profile2         UserOperation_User_Profile2         "json:\"profile2\""
+	SmallPic         string                              "json:\"smallPic\""
 }
 
 func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -761,6 +763,12 @@ func (t *UserOperation_User) GetEmail() Email {
 	}
 	return t.Email
 }
+func (t *UserOperation_User) GetEmailIfIncluded() *Email {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.EmailIfIncluded
+}
 func (t *UserOperation_User) GetLargePic() string {
 	if t == nil {
 		t = &UserOperation_User{}
@@ -778,6 +786,12 @@ func (t *UserOperation_User) GetName2() string {
 		t = &UserOperation_User{}
 	}
 	return t.Name2
+}
+func (t *UserOperation_User) GetNameIfNotSkipped() *string {
+	if t == nil {
+		t = &UserOperation_User{}
+	}
+	return t.NameIfNotSkipped
 }
 func (t *UserOperation_User) GetOptionalAddress() *UserOperation_User_OptionalAddress {
 	if t == nil {
@@ -1034,5 +1048,5 @@ func (t *UserOperation_User_Profile2) GetTypename() string {
 }
 
 const UpdateUserDocument = `mutation UpdateUser($input: UpdateUserInput!) { updateUser(input: $input) { user { name settings { theme notifications } } } }`
-const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status) { user(id: $userId, status: $userStatus) { __typename name email name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
+const UserOperationDocument = `query UserOperation($articleId: ID!, $metadataId: ID!, $size: Int = 100, $userId: ID, $userStatus: Status, $includeEmail: Boolean!, $skipName: Boolean!) { user(id: $userId, status: $userStatus) { __typename name email emailIfIncluded: email @include(if: $includeEmail) nameIfNotSkipped: name @skip(if: $skipName) name2: name smallPic: profilePic(size: 50) largePic: profilePic(size: 500) defaultPic: profilePic(size: $size) profile { ...PublicProfileFields ...PrivateProfileFields } profile2: profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } optionalProfile { ...PublicProfileFields ...PrivateProfileFields } address { street ...PublicAddressFields ...PrivateAddressFields } optionalAddress { __typename street ... on PublicAddress { street public } ... on PrivateAddress { street private } } ...UserFragment1 ...UserFragment2 ... on User { name ...UserFragment2 } } optionalUser { name email } article(id: $articleId) { id title tags optionalTags comments { id text } optionalComments { id text } rating optionalRating nullableElementsList fullyNullableList statuses optionalStatuses addresses { street ...PublicAddressFields ...PrivateAddressFields } optionalAddresses { __typename street ... on PublicAddress { public } ... on PrivateAddress { private } } profiles { ...PublicProfileFields ...PrivateProfileFields } optionalProfiles { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } matrix optionalMatrix } metadata(id: $metadataId) { id data properties level } } fragment PublicProfileFields on PublicProfile { id status } fragment PrivateProfileFields on PrivateProfile { id age } fragment PublicAddressFields on PublicAddress { id street public } fragment PrivateAddressFields on PrivateAddress { id street private } fragment UserFragment1 on User { __typename name name ... on User { name } profile { __typename ... on PublicProfile { status } ... on PrivateProfile { age } } } fragment UserFragment2 on User { name }`
 const CountDocument = `subscription Count($target: Int!) { count(target: $target) }`
