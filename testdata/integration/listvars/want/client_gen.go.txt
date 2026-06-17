@@ -3,14 +3,15 @@
 package query
 
 import (
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/listvars/domain"
 )
 
 type SearchVars struct {
-	Filters []domain.FilterInput `json:"filters"`
-	Ids     []string             `json:"ids"`
-	Matrix  *[]*[]string         `json:"matrix"`
+	Filters []domain.FilterInput            `json:"filters"`
+	Ids     []string                        `json:"ids"`
+	Matrix  graphql.Omittable[*[]*[]string] `json:"matrix,omitzero"`
 }
 
 var SearchOp = client.Operation[client.Query, SearchVars, domain.Search]{

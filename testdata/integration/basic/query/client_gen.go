@@ -3,6 +3,7 @@
 package query
 
 import (
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 )
@@ -17,11 +18,11 @@ var UpdateUserOp = client.Operation[client.Mutation, UpdateUserVars, domain.Upda
 }
 
 type UserOperationVars struct {
-	ArticleID  string         `json:"articleId"`
-	MetadataID string         `json:"metadataId"`
-	Size       *int           `json:"size"`
-	UserID     *string        `json:"userId"`
-	UserStatus *domain.Status `json:"userStatus"`
+	ArticleID  string                            `json:"articleId"`
+	MetadataID string                            `json:"metadataId"`
+	Size       graphql.Omittable[*int]           `json:"size,omitzero"`
+	UserID     graphql.Omittable[*string]        `json:"userId,omitzero"`
+	UserStatus graphql.Omittable[*domain.Status] `json:"userStatus,omitzero"`
 }
 
 var UserOperationOp = client.Operation[client.Query, UserOperationVars, domain.UserOperation]{

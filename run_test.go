@@ -330,9 +330,9 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
-					Size:       &size,
-					UserID:     &userID,
-					UserStatus: &userStatus,
+					Size:       graphql.OmittableOf[*int](&size),
+					UserID:     graphql.OmittableOf[*string](&userID),
+					UserStatus: graphql.OmittableOf[*domain.Status](&userStatus),
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
@@ -349,9 +349,9 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				userOperation, err := rawClient.Get(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
-					Size:       &size,
-					UserID:     &userID,
-					UserStatus: &userStatus,
+					Size:       graphql.OmittableOf[*int](&size),
+					UserID:     graphql.OmittableOf[*string](&userID),
+					UserStatus: graphql.OmittableOf[*domain.Status](&userStatus),
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
@@ -366,14 +366,14 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 					ArticleID:  "article-1",
 					MetadataID: "metadata-1",
-					Size:       &size,
+					Size:       graphql.OmittableOf[*int](&size),
 				})
 				if err != nil {
 					t.Errorf("request failed: %v", err)
 				}
-				// When nil is passed, the resolver will use default value
-				// Note: In GraphQL, schema-level defaults only apply when variables are omitted,
-				// not when explicitly set to null. However, we verify the resolver behavior here.
+				// UserID / UserStatus を省略すると Omittable のゼロ値 = undefined になり、
+				// omitzero で variables から除外される。GraphQL の schema default は変数が省略された
+				// ときだけ適用されるため、resolver が default の "John Doe" を返すことを確認する。
 				if userOperation.User.UserFragment2.Name != "John Doe" {
 					t.Errorf("expected user name to be 'John Doe', got '%s'", userOperation.User.UserFragment2.Name)
 				}

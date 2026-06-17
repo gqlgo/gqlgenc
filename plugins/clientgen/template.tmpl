@@ -1,9 +1,10 @@
 {{ reserveImport "github.com/Yamashou/gqlgenc/v3/client" }}
+{{ reserveImport "github.com/99designs/gqlgen/graphql" }}
 
 {{range $operation := .Operations}}
 type {{ $operation.Name|go }}Vars struct {
 	{{- range $arg := $operation.Args }}
-	{{ $arg.Variable | go }} {{ $arg.Type | ref }} `json:"{{ $arg.Variable }}"`
+	{{ $arg.Variable | go }} {{ if $arg.Omittable }}graphql.Omittable[{{ $arg.Type | ref }}]{{ else }}{{ $arg.Type | ref }}{{ end }} `json:"{{ $arg.Variable }}{{ if $arg.Omittable }},omitzero{{ end }}"`
 	{{- end }}
 }
 

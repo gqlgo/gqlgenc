@@ -241,8 +241,8 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 
 ```go
 type UserOperationVars struct {
-	ArticleID string `json:"articleId"`
-	Size      *int   `json:"size"`
+	ArticleID string                  `json:"articleId"`
+	Size      graphql.Omittable[*int] `json:"size,omitzero"`
 }
 
 var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
@@ -254,13 +254,13 @@ var UserOperationOp = client.Operation[UserOperationVars, domain.UserOperation]{
 ```go
 res, err := c.Post(ctx, query.UserOperationOp, query.UserOperationVars{
 	ArticleID: "article-1",
-	Size:      &size,
+	Size:      graphql.OmittableOf[*int](&size),
 })
 ```
 
 ### variables の undefined / null / 値の指定（Omittable）
 
-nullable な input フィールドは、`graphql.Omittable[T]` 型で生成されます（gqlgenc が内部で常に有効化。json タグには `omitzero` が付きます）。これにより、生成時に挙動を固定することなく、**フィールドごと・呼び出しごとに undefined（省略）/ null / 値を実行時に使い分け**られます。
+nullable な input フィールドと nullable なオペレーション変数は、`graphql.Omittable[T]` 型で生成されます（gqlgenc が内部で常に有効化。json タグには `omitzero` が付きます）。これにより、生成時に挙動を固定することなく、**フィールド/変数ごと・呼び出しごとに undefined（省略）/ null / 値を実行時に使い分け**られます。
 
 ```go
 type UpdateUserInput struct {
@@ -285,8 +285,8 @@ Name: graphql.OmittableOf(&name),
 
 注意:
 
-- 効くのは **input オブジェクトの nullable フィールド**です。非 nullable（必須）フィールド（例 `id: ID!`）は省略できず常に送信されます。
-- **トップレベル変数**（`$size: Int` → `Vars.Size *int`）は `Omittable` ではなく素のポインタのため、`nil` は `null` として送信され省略はできません。
+- 同じ仕組みが **オペレーション変数**にも適用されます。nullable な変数（例 `$size: Int` → `Vars.Size graphql.Omittable[*int]`）も undefined（省略）/ null / 値を区別でき、省略するとスキーマのデフォルト（`$x: Int = 5` やフィールド引数の `= ...`）が適用されます。非 nullable（必須）変数（例 `$id: ID!` → `Vars.ID string`）は素の型で常に送信されます。
+- input オブジェクト・変数いずれも、非 nullable（必須）のもの（例 `id: ID!`）は省略できず常に送信されます。
 
 ## ランタイム（client パッケージ）
 

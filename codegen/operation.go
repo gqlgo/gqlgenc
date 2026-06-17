@@ -47,8 +47,9 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 	argumentTypes := make([]*OperationArgument, 0, len(variableDefinitions))
 	for _, v := range variableDefinitions {
 		argumentTypes = append(argumentTypes, &OperationArgument{
-			Variable: v.Variable,
-			Type:     scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
+			Variable:  v.Variable,
+			Type:      scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
+			Omittable: !v.Type.NonNull,
 		})
 	}
 
@@ -83,6 +84,10 @@ type Operation struct {
 type OperationArgument struct {
 	Type     gotypes.Type
 	Variable string
+	// Omittable is true when the variable is nullable. Nullable variables are
+	// generated as graphql.Omittable[T] so they can be omitted (undefined),
+	// matching input fields and letting schema defaults apply.
+	Omittable bool
 }
 
 func newOperation(operation *graphql.OperationDefinition, queryDocument *graphql.QueryDocument, args []*OperationArgument) *Operation {
