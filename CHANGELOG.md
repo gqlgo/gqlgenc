@@ -48,7 +48,7 @@ generate:
 
 - querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `generate.query.getters: true` のときのみ生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
-- `generate.client.file` を使う場合は `generate.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）
+- `generate.client.file` を使う場合は `generate.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）。`client.Operation` 値が参照するレスポンス型パッケージの import を明示的に予約するため、variables がそのパッケージの型を参照しないオペレーション（変数が組込スカラーのみ等）でも import 欠落でコンパイルできなくなる問題はありません
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
 - 生成後のファイルには goimports を適用します
 
@@ -74,6 +74,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 7. インラインフラグメントは型条件名のフィールドを持つポインタになり、レスポンスの `__typename` が型条件に一致した場合のみ値が入ります（一致しない場合は nil）。判別に `__typename` を使うため、クエリで `__typename` を選択してください
 8. クエリのレスポンス型は公開型として生成します（型名はアンダースコア区切り、例: `GetUser_User`）
 9. フィールドが optional（ポインタ）かどうかは GraphQL スキーマの NonNull 定義に従います。オブジェクト型のリスト要素は常にポインタです
+10. `@skip(if:)` / `@include(if:)` の付いたフィールドは、スキーマが非 null でもポインタ（nullable）で生成します。条件によりレスポンスから欠落し得るため、欠落を `nil` で表現できるようにするためで、`@skip` / `@include` はサーバーへ送るクエリに保持されます
 
 これに伴い、生成コードも次のように変わりました。
 

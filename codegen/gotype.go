@@ -78,11 +78,18 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		// @goFragment(type:) でフィールド選択を既存 Go 型にバインドする場合は、
 		// 選択セットを再帰せずバインド型をそのまま使う。
+		var typeKind TypeKind
+		var t gotypes.Type
 		if baseType, _, ok := g.boundGoType(sel.Directives); ok {
-			t := g.newObjectGoType(baseType, sel.Definition.Type)
-			return newField(Scalar, t, sel.Alias, tags)
+			typeKind, t = Scalar, g.newObjectGoType(baseType, sel.Definition.Type)
+		} else {
+			typeKind, t = g.newTypeKindAndGoType(parentTypeName, sel)
 		}
-		typeKind, t := g.newTypeKindAndGoType(parentTypeName, sel)
+		// @skip / @include 付きのフィールドはレスポンスから条件付きで欠落し得るため、
+		// 非null型でもポインタにして「欠落 = nil」を表現できるようにする。
+		if hasConditionalDirective(sel.Directives) {
+			t = pointerize(t)
+		}
 		return newField(typeKind, t, sel.Alias, tags)
 	case *graphql.FragmentSpread:
 		// @goFragment(type:) または autobind でフラグメントを既存 Go 型にバインドする
@@ -101,6 +108,20 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 	}
 	// 事前条件: selection は *Field/*FragmentSpread/*InlineFragment のいずれか。
 	panic("unexpected selection type")
+}
+
+// hasConditionalDirective は @skip / @include が付いているかを返す。これらはフィールドを
+// レスポンスから条件付きで欠落させ得る。
+func hasConditionalDirective(directives graphql.DirectiveList) bool {
+	return directives.ForName("skip") != nil || directives.ForName("include") != nil
+}
+
+// pointerize は型がポインタでなければポインタで包む (既にポインタならそのまま返す)。
+func pointerize(t gotypes.Type) gotypes.Type {
+	if _, ok := t.(*gotypes.Pointer); ok {
+		return t
+	}
+	return gotypes.NewPointer(t)
 }
 
 func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graphql.Field) (TypeKind, gotypes.Type) {

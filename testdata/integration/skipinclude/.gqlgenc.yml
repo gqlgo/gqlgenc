@@ -1,0 +1,13 @@
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  # @skip / @include 付きフィールドはレスポンスから欠落し得るため、非null型でもポインタで
+  # 生成され「欠落 = nil」で表現できることを担保する fixture。model は不要(組込スカラーのみ)。
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go

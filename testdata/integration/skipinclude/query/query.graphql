@@ -1,0 +1,8 @@
+query GetItem($withName: Boolean!, $skipDesc: Boolean!) {
+  item {
+    id
+    name @include(if: $withName)
+    description @skip(if: $skipDesc)
+    tags
+  }
+}
