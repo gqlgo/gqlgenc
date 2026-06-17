@@ -214,9 +214,9 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 func resolveModelType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) (gotypes.Type, error) {
 	bindings := models[typeName].Model
 	if len(bindings) == 0 {
-		// UC1 (gqlgen.model 未指定) で enum / input が autobind / @goModel のいずれにも
-		// 束縛されていないと到達する。panic ではなく原因と対処を示すエラーで失敗させる。
-		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting gqlgen.model, or bind it via autobind / @goModel", typeName)
+		// UC1 (generate.model.file 未指定) で enum / input が bind.type.packages / @goModel の
+		// いずれにも束縛されていないと到達する。panic ではなく原因と対処を示すエラーで失敗させる。
+		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel", typeName)
 	}
 
 	goType, err := binder.FindTypeFromName(bindings[0])
@@ -269,10 +269,10 @@ func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes
 	return goType, goTypeName(goType), true
 }
 
-// autobindFragment は gqlgen の autobind のクエリ版。gqlgenc.autobind に指定した
+// autobindFragment は gqlgen の autobind のクエリ版。bind.fragment.packages に指定した
 // パッケージに fragment 名と同名の型があれば、その Go 型とその非修飾名を返す。
 // @goFragment(type:) と違い、クエリに書かず YAML 設定だけでフラグメントを既存 Go 型に
-// バインドできる。戻り値は boundGoType と同じ（バインド先 Go 型、埋め込みフィールド名、
+// バインドできる。戻り値は boundGoType と同じ（バインド先 Go 型、フィールド名、
 // 見つかったか）。
 func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, string, bool) {
 	for _, pkgPath := range g.cfg.GQLGencConfig.FragmentAutobind {

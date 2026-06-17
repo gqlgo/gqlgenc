@@ -14,17 +14,7 @@ import (
 // エラーに変換し、仕様違反由来の panic (kind 不一致・型欠落) はそのまま再 panic する。
 var errIntrospectionTypeTooDeep = errors.New("type nested deeper than the introspection query's ofType depth (7); use a local schema (schema.files) instead of endpoint introspection for deeply nested list/non-null types")
 
-func SchemaFromIntrospection(url string, query Query) (doc *ast.SchemaDocument, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if e, ok := r.(error); ok && errors.Is(e, errIntrospectionTypeTooDeep) {
-				err = fmt.Errorf("introspection schema parse failed: %w", e)
-				return
-			}
-			panic(r)
-		}
-	}()
-
+func SchemaFromIntrospection(url string, query Query) (*ast.SchemaDocument, error) {
 	parser := parser{
 		sharedPosition: &ast.Position{Src: &ast.Source{
 			Name:    "remote",
@@ -37,7 +27,22 @@ func SchemaFromIntrospection(url string, query Query) (doc *ast.SchemaDocument, 
 		parser.sharedPosition.Src.Name = url
 	}
 
-	return parser.parseIntrospectionQuery(query), nil
+	var doc *ast.SchemaDocument
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if e, ok := r.(error); ok && errors.Is(e, errIntrospectionTypeTooDeep) {
+					err = fmt.Errorf("introspection schema parse failed: %w", e)
+					return
+				}
+				panic(r)
+			}
+		}()
+		doc = parser.parseIntrospectionQuery(query)
+	}()
+
+	return doc, err
 }
 
 type parser struct {

@@ -146,7 +146,7 @@ func TestResolveModelType(t *testing.T) {
 		want want
 	}{
 		{
-			// UC1 (gqlgen.model 未指定) で enum/input が未束縛のとき、panic ではなくエラーを返す
+			// UC1 (generate.model.file 未指定) で enum/input が未束縛のとき、panic ではなくエラーを返す
 			name: "束縛が無いGraphQL型はpanicせずエラーを返す",
 			args: args{
 				models:   gqlgenconfig.TypeMap{},

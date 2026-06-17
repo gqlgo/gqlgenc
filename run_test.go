@@ -258,7 +258,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			wantErrContains: `GetObject_Object map to the same Go field name "FooBar"`,
 		},
 		{
-			// UC1 (gqlgen.model 未指定) で enum を autobind/@goModel のいずれにも束縛せず
+			// UC1 (generate.model.file 未指定) で enum を autobind/@goModel のいずれにも束縛せず
 			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)。
 			// これはリーフ型を解決する CreateGoTypes (GoTypeGenerator) 側の経路。
 			name:            "unbound enum test - should fail with a clean error, not panic",

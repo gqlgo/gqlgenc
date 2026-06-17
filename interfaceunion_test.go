@@ -13,7 +13,7 @@ import (
 	ifuquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/interfaceunion/query"
 )
 
-// Test_IntegrationTest_ModelGen_InterfaceUnion は gqlgen.model を指定した構成 (use case 2) で
+// Test_IntegrationTest_ModelGen_InterfaceUnion は generate.model.file を指定した構成 (use case 2) で
 // スキーマが interface / union を含む場合を検証する。生成される model_gen.go は Input 型と
 // Enum 型のみで、interface (Node) / union (SearchResult) / object (User/Post) は除去される
 // (mutateHook の build.Interfaces=nil 経路)。inline fragment の応答型は querygen が生成し、

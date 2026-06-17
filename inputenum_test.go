@@ -17,7 +17,7 @@ import (
 	inputenumquery "github.com/Yamashou/gqlgenc/v3/testdata/integration/inputenum/query"
 )
 
-// Test_IntegrationTest_ModelGen は gqlgen.model を指定した構成 (use case 2) を検証する。
+// Test_IntegrationTest_ModelGen は generate.model.file を指定した構成 (use case 2) を検証する。
 // gqlgenc が model_gen.go を生成し、その出力 (Input 型・Enum 型) が実際にコンパイル・動作する
 // ことを確認する。実 gqlgen サーバとの往復 (スキーマ整合) は Test_IntegrationTest_NoModelGen が
 // 担保するため、ここでは固定レスポンスのモック RoundTripper で代替する。
