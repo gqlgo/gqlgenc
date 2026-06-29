@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/99designs/gqlgen/graphql"
+
 	"github.com/gqlgo/gqlgenc/clientv2"
 	generated "github.com/gqlgo/gqlgenc/generator/testdata/nullable_input_omittable/expected"
 )

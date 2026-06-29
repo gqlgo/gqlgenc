@@ -4,7 +4,6 @@ package gen
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/gqlgo/gqlgenc/clientv2"
 )
@@ -17,7 +16,7 @@ type Client struct {
 	Client *clientv2.Client
 }
 
-func NewClient(cli *http.Client, baseURL string, options *clientv2.Options, interceptors ...clientv2.RequestInterceptor) GithubGraphQLClient {
+func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Options, interceptors ...clientv2.RequestInterceptor) GithubGraphQLClient {
 	return &Client{Client: clientv2.NewClient(cli, baseURL, options, interceptors...)}
 }
 
@@ -33,14 +32,14 @@ func (t *GetUserProfileName_User_Profile) GetName() string {
 }
 
 type GetUserProfileName_User struct {
-	Profile GetUserProfileName_User_Profile "json:\"profile\" graphql:\"profile\""
+	Profile *GetUserProfileName_User_Profile "json:\"profile,omitempty\" graphql:\"profile\""
 }
 
 func (t *GetUserProfileName_User) GetProfile() *GetUserProfileName_User_Profile {
 	if t == nil {
 		t = &GetUserProfileName_User{}
 	}
-	return &t.Profile
+	return t.Profile
 }
 
 type GetUserProfileName struct {

@@ -105,7 +105,7 @@ func newDecoder(r io.Reader) *Decoder {
 // Decode decodes a single JSON value from d.tokenizer into v.
 func (d *Decoder) Decode(v any) error {
 	rv := reflect.ValueOf(v)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return fmt.Errorf("cannot decode into non-pointer %T", v)
 	}
 
@@ -165,7 +165,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				// If v is a nil pointer, check whether the key exists in the pointed-to
 				// type before initializing — preserves nil for non-matching union variants.
 				// When a __typename was seen, also require the fragment type to match.
-				if v.Kind() == reflect.Ptr && v.IsNil() && v.CanSet() {
+				if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() {
 					if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
 						if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() && d.shouldInitFragPtr(i) {
 							v.Set(reflect.New(elemType))
@@ -173,7 +173,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					}
 				}
 
-				if v.Kind() == reflect.Ptr {
+				if v.Kind() == reflect.Pointer {
 					v = v.Elem()
 				}
 
@@ -227,7 +227,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 
 			for i := range d.vs {
 				v := d.vs[i][len(d.vs[i])-1]
-				if v.Kind() == reflect.Ptr {
+				if v.Kind() == reflect.Pointer {
 					v = v.Elem()
 				}
 
@@ -256,7 +256,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					continue
 				}
 
-				if v.Kind() == reflect.Ptr || v.Kind() == reflect.Slice {
+				if v.Kind() == reflect.Pointer || v.Kind() == reflect.Slice {
 					// Set the pointer or slice to nil.
 					v.Set(reflect.Zero(v.Type()))
 				} else {
@@ -276,13 +276,13 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				}
 
 				// Initialize the pointer if it is nil
-				if v.Kind() == reflect.Ptr && v.IsNil() {
+				if v.Kind() == reflect.Pointer && v.IsNil() {
 					v.Set(reflect.New(v.Type().Elem()))
 				}
 
 				// Handle both pointer and non-pointer types
 				target := v
-				if v.Kind() == reflect.Ptr {
+				if v.Kind() == reflect.Pointer {
 					target = v.Elem()
 				}
 
@@ -325,7 +325,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					v := d.vs[i][len(d.vs[i])-1]
 					frontier[i] = v
 					// TODO: Do this recursively or not? Add a test case if needed.
-					if v.Kind() == reflect.Ptr && v.IsNil() {
+					if v.Kind() == reflect.Pointer && v.IsNil() {
 						v.Set(reflect.New(v.Type().Elem())) // v = new(T).
 					}
 				}
@@ -335,7 +335,7 @@ func (d *Decoder) decode() error { //nolint:maintidx
 					v := frontier[0]
 					frontier = frontier[1:]
 
-					if v.Kind() == reflect.Ptr {
+					if v.Kind() == reflect.Pointer {
 						v = v.Elem()
 					}
 
@@ -360,12 +360,12 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				for i := range d.vs {
 					v := d.vs[i][len(d.vs[i])-1]
 					// TODO: Confirm this is needed, write a test case.
-					// if v.Kind() == reflect.Ptr && v.IsNil() {
+					// if v.Kind() == reflect.Pointer && v.IsNil() {
 					//	v.Set(reflect.New(v.Type().Elem())) // v = new(T).
 					//}
 
 					// Reset slice to empty (in case it had non-zero initial value).
-					if v.Kind() == reflect.Ptr {
+					if v.Kind() == reflect.Pointer {
 						v = v.Elem()
 					}
 

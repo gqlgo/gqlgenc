@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vektah/gqlparser/v2"
-	"github.com/vektah/gqlparser/v2/ast"
 
 	"github.com/gqlgo/gqlgenc/querydocument"
+
+	"github.com/vektah/gqlparser/v2"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 const testSchema = `
@@ -146,5 +147,4 @@ func TestCollectTypesFromQueryDocuments(t *testing.T) {
 		require.True(t, usedTypes["TodoStatus"], "enum selected inside a fragment spread should be collected")
 		require.False(t, usedTypes["UnusedEnum"], "unreferenced enum should not be collected")
 	})
-
 }
