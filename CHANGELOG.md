@@ -4,6 +4,8 @@
 
 v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlgenc#281](https://github.com/gqlgo/gqlgenc/pull/281) を参照してください。
 
+v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してください。
+
 ### 動作要件
 
 - Go 1.27 以上が必要です。ビルド・テストには環境変数 `GOEXPERIMENT=jsonv2` の設定が必要です

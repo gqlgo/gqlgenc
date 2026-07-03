@@ -9,6 +9,8 @@ gqlgenc は、GraphQL スキーマとクエリ（オペレーション）から�
 - gqlgen ベース。モデル生成には gqlgen の modelgen プラグインをそのまま利用し、設定も gqlgen の形式を踏襲します
 - 生成コードとランタイムは `encoding/json/v2` / `encoding/json/jsontext` を使用します
 
+v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してください。
+
 ## v1 設計方針
 
 - シンプルな生成コード
