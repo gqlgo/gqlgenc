@@ -420,18 +420,10 @@ c3.Post(ctx, op, vars, withHeader(http.Header{"X-Request-Id": {requestID}}))
 v0 系にあった GraphQL リクエスト・レスポンスの Interceptor も、同じく `http.RoundTripper` で実現します。GraphQL リクエストは HTTP ボディの JSON（`{"query": ..., "variables": ..., "operationName": ...}`）、GraphQL レスポンスはレスポンスボディの JSON（`{"data": ..., "errors": ...}`）そのものなので、transport で両方を観察・加工できます。複数の処理を組み合わせたい場合は `withTransport` を重ねて包めば、v0 の Interceptor チェーン相当になります。
 
 ```go
-// v0 の Interceptor 相当を関数1つで書けるようにするヘルパー。
-// 上で定義した withTransport / roundTripperFunc を組み合わせる
-withInterceptor := func(intercept func(req *http.Request, next http.RoundTripper) (*http.Response, error)) client.Option {
-    return withTransport(func(base http.RoundTripper) http.RoundTripper {
-        return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-            return intercept(req, base)
-        })
-    })
-}
+// v0 の Interceptor 相当: GraphQL のリクエスト・レスポンス JSON を観察・加工する
+type loggingTransport struct{ base http.RoundTripper }
 
-// GraphQL のリクエスト・レスポンス JSON を観察・加工する例
-c4 := client.NewClient(endpoint, withInterceptor(func(req *http.Request, next http.RoundTripper) (*http.Response, error) {
+func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     req = req.Clone(req.Context()) // RoundTripper は元のリクエストを変更しない
 
     // リクエスト側: {"query": ..., "variables": ..., "operationName": ...}
@@ -446,7 +438,7 @@ c4 := client.NewClient(endpoint, withInterceptor(func(req *http.Request, next ht
         req.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
     }
 
-    resp, err := next.RoundTrip(req)
+    resp, err := t.base.RoundTrip(req)
     if err != nil {
         return nil, err
     }
@@ -460,6 +452,10 @@ c4 := client.NewClient(endpoint, withInterceptor(func(req *http.Request, next ht
     log.Printf("graphql response: %s", body)
     resp.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
     return resp, nil
+}
+
+c4 := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
+    return loggingTransport{base: base}
 }))
 ```
 
@@ -468,7 +464,7 @@ v0 の `RequestInterceptor`（`func(ctx, req, gqlInfo, res, next) error`）の�
 - `ctx` / `req` — `req`（と `req.Context()`）をそのまま使う
 - `gqlInfo`（パース済みの Query / Variables / OperationName）— transport が見るのはシリアライズ後の JSON ボディ。必要であればボディを `{"query": ..., "variables": ..., "operationName": ...}` としてデコードして参照する
 - `res`（デコード済みレスポンス）— デコードは transport の後段で行われるため、型付きの `res` は transport からは見えない。レスポンスを加工したい場合はレスポンスボディの JSON を書き換えれば、その後のデコード結果に反映される
-- `ChainInterceptor` — `withInterceptor`（や `withTransport`）を `NewClient` に複数渡すことで代替する。後に渡したものが外側（先に実行される側）になる
+- `ChainInterceptor` — `withTransport` で包んだ Option を `NewClient` に複数渡すことで代替する。後に渡したものが外側（先に実行される側）になる
 
 なお、自分で `Accept-Encoding: gzip` を設定している場合、transport が見るレスポンスボディは圧縮されたままです（gqlgenc が展開するのは transport の後段）。設定していなければ Go の `http.Transport` が透過的に展開するため、そのまま JSON として読めます。
 
