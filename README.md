@@ -420,6 +420,32 @@ c3.Post(ctx, op, vars, withHeader(http.Header{"X-Request-Id": {requestID}}))
 v0 系にあった GraphQL リクエスト・レスポンスの Interceptor も、同じく `http.RoundTripper` で実現します。GraphQL リクエストは HTTP ボディの JSON（`{"query": ..., "variables": ..., "operationName": ...}`）、GraphQL レスポンスはレスポンスボディの JSON（`{"data": ..., "errors": ...}`）そのものなので、transport で両方を観察・加工できます。複数の処理を組み合わせたい場合は `withTransport` を重ねて包めば、v0 の Interceptor チェーン相当になります。
 
 ```go
+// リクエストボディを読み取り、後段が再度読めるよう復元して返す。
+// ボディを観察・加工する transport で再利用できる
+func readRequestBody(req *http.Request) ([]byte, error) {
+    if req.Body == nil {
+        return nil, nil // Get で実行した場合はボディが無く、クエリは req.URL.RawQuery に載る
+    }
+    body, err := io.ReadAll(req.Body)
+    if err != nil {
+        return nil, err
+    }
+    req.Body.Close()
+    req.Body = io.NopCloser(bytes.NewReader(body))
+    return body, nil
+}
+
+// レスポンスボディを読み取り、後段が再度読めるよう復元して返す
+func readResponseBody(resp *http.Response) ([]byte, error) {
+    body, err := io.ReadAll(resp.Body)
+    resp.Body.Close()
+    if err != nil {
+        return nil, err
+    }
+    resp.Body = io.NopCloser(bytes.NewReader(body))
+    return body, nil
+}
+
 // v0 の Interceptor 相当: GraphQL のリクエスト・レスポンス JSON を観察・加工する
 type loggingTransport struct{ base http.RoundTripper }
 
@@ -427,16 +453,11 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     req = req.Clone(req.Context()) // RoundTripper は元のリクエストを変更しない
 
     // リクエスト側: {"query": ..., "variables": ..., "operationName": ...}
-    // Get で実行した場合はボディが無く、クエリは req.URL.RawQuery に載る
-    if req.Body != nil {
-        body, err := io.ReadAll(req.Body)
-        if err != nil {
-            return nil, err
-        }
-        req.Body.Close()
-        log.Printf("graphql request: %s", body)
-        req.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
+    reqBody, err := readRequestBody(req)
+    if err != nil {
+        return nil, err
     }
+    log.Printf("graphql request: %s", reqBody)
 
     resp, err := t.base.RoundTrip(req)
     if err != nil {
@@ -444,13 +465,11 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     }
 
     // レスポンス側: {"data": ..., "errors": ...}
-    body, err := io.ReadAll(resp.Body)
-    resp.Body.Close()
+    respBody, err := readResponseBody(resp)
     if err != nil {
         return nil, err
     }
-    log.Printf("graphql response: %s", body)
-    resp.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
+    log.Printf("graphql response: %s", respBody)
     return resp, nil
 }
 
