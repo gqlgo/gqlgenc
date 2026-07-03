@@ -27,6 +27,7 @@ v0.x からの全面的な書き直しです。変更の全体像は [gqlgo/gqlg
 - 既存 Go 型へのバインドは `bind.type.packages`（スキーマ型名）と `bind.fragment.packages`（フラグメント名）に分けます。個別バインドは `bind.type.named`、Federation は `schema.federation.version` です
 - nil 安全な Getter の生成は `generate.query.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
 - 設定ファイルに未知のフィールドがあるとエラーになります
+- v0 の `generate` 配下のオプションはセクション再編に伴いすべて廃止しました。`prefix` / `suffix` / `unamedPattern`（生成型名の命名カスタマイズ）、`client` / `clientInterfaceName`（クライアント生成のトグルと interface 名）、`clientV2`、`enableClientJsonOmitemptyTag` / `enableClientJsonOmitzeroTag`（JSON タグのトグル。v1 は `omitzero` 固定）、`onlyUsedModels`（v1 では既定動作。「モデル生成を Input 型と Enum 型に限定」参照）が対象です
 
 ```yaml
 schema:
@@ -48,6 +49,7 @@ generate:
 
 - querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `generate.query.getters: true` のときのみ生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
+- v0 の clientgen が生成していた、オペレーションごとのメソッド（例 `func (c *Client) GetUser(ctx, ...)`）を持つ `Client` 構造体と、`clientInterfaceName` で生成する interface は廃止しました。v1 は `client.Operation` 値を生成し、ランタイムのジェネリックメソッド `Post` / `Get` / `Subscribe` に渡して実行します（「型付きオペレーションと Client.Post」参照）
 - `generate.client.file` を使う場合は `generate.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）。`client.Operation` 値が参照するレスポンス型パッケージの import を明示的に予約するため、variables がそのパッケージの型を参照しないオペレーション（変数が組込スカラーのみ等）でも import 欠落でコンパイルできなくなる問題はありません
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
 - 生成後のファイルには goimports を適用します
@@ -55,9 +57,10 @@ generate:
 #### ランタイムを client パッケージに刷新（clientv2 廃止）
 
 - `NewClient(client HttpClient, baseURL string, options *Options, interceptors ...RequestInterceptor)` は `NewClient(endpoint string, options ...Option)` になりました
-- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。gqlgenc は `http.Client` の設定責務を持たず、HTTP のカスタマイズ（ヘッダー付与・認証・ロギング・テスト用 transport など）はすべてユーザに委ねます。`WithRoundTripper` / `WithHTTPClient` / `WithHTTPHeader` などのヘルパーは一切提供しません。`Option` は `func(*http.Client) *http.Client` 型なので、使用する `http.Client` を自由に組み立てて返せます（transport を包む Option は自前で書く。RoundTripper はリクエストごとに呼ばれるため動的トークンにも対応でき、`Post` / `Get` / `Subscribe` に渡せばその呼び出しだけに適用されます）
+- `RequestInterceptor` と `NewClientWithUnsafeRequestInterceptor` を廃止しました。gqlgenc は `http.Client` の設定責務を持たず、HTTP のカスタマイズ（ヘッダー付与・認証・ロギング・テスト用 transport など）はすべてユーザに委ねます。`WithRoundTripper` / `WithHTTPClient` / `WithHTTPHeader` などのヘルパーは一切提供しません。`Option` は `func(*http.Client) *http.Client` 型なので、使用する `http.Client` を自由に組み立てて返せます（transport を包む Option は自前で書く。RoundTripper はリクエストごとに呼ばれるため動的トークンにも対応でき、`Post` / `Get` / `Subscribe` に渡せばその呼び出しだけに適用されます）。v0 の Interceptor からの移行例と各引数の対応関係は README の「HTTP のカスタマイズ（ヘッダー・認証）」を参照してください
 - subscription は query / mutation とは別の `SubscriptionClient`（`NewSubscriptionClient`）に分離しました。`Subscribe` はこの型のメソッドで、`Client` には含まれません。WebSocket URL（`ws://` / `wss://`）を `NewSubscriptionClient` に直接渡します。これに伴い `WithWebSocketEndpoint` と http(s)→ws(s) の変換は廃止しました
 - `Options` 構造体（`ParseDataAlongWithErrors` など）を廃止しました
+- v0 の `GqlErrorList` 型と `HttpClient` interface を廃止しました。GraphQL エラーは gqlgen の `gqlerror.List` として `ErrorResponse.GqlErrors` に入り、`errors.As` で取り出せます
 - レスポンスボディは `data` と `errors` を1パスで読み取ります。HTTP エラーと GraphQL エラーは `NetworkError` / `GqlErrors` を持つエラーとして返ります。gzip 圧縮されたレスポンスにも対応しています
 - `data` が応答型と一致しなくても、同梱された GraphQL エラー（`errors`）をデコードエラーで握り潰さず優先して返します
 - HTTP ステータスが異常（非2xx）のとき、`HTTPError.Message` にはレスポンスボディの先頭 1 KiB のみを埋め込み、全文は新設の `HTTPError.Body` フィールドに保持します（巨大・機微なエラーページでエラー文字列やログが汚れるのを防ぐため）
@@ -150,7 +153,7 @@ type UserOperation_User_User struct {
 - リクエストの `Accept` ヘッダーで `application/graphql-response+json;charset=utf-8` と `application/json;charset=utf-8` を送信し、GraphQL over HTTP 仕様のレスポンス形式に対応しました
 - 従来の `application/json` 形式では、非 2xx のボディが GraphQL レスポンスである保証がないため、サーバーはバリデーションエラーなどでも常に 200 OK で返す必要がありました。`application/graphql-response+json` では、仕様準拠のサーバーがパース・バリデーションエラーに 400、認証エラーに 401 など適切な HTTP ステータスコードを返せます
 - エラーが HTTP ステータスコードで表現されることで、ロードバランサーや APM など GraphQL を知らない中間レイヤからエラー率を観測でき、リトライやキャッシュ制御もステータスコードベースで正しく動作します（エラーレスポンスが CDN に成功としてキャッシュされる事故も防げます）
-- 非 2xx かつ `Content-Type: application/graphql-response+json` のレスポンスは GraphQL サーバー自身が生成した正規のレスポンスであることが保証されるため、プロキシや LB が生成したエラーページと区別してボディを安全にパースできます。`ParseResponse` はステータスコードに関係なくボディのパースを試みるため、仕様準拠サーバーが 400 + `errors` を返した場合は `ErrorResponse` に `NetworkError` と `GqlErrors` の両方が入り、`errors.As` でそれぞれ取り出せます
+- 非 2xx かつ `Content-Type: application/graphql-response+json` のレスポンスは GraphQL サーバー自身が生成した正規のレスポンスであることが保証されるため、プロキシや LB が生成したエラーページと区別してボディを安全にパースできます。レスポンス解析はステータスコードに関係なくボディのパースを試みるため、仕様準拠サーバーが 400 + `errors` を返した場合は `ErrorResponse` に `NetworkError` と `GqlErrors` の両方が入り、`errors.As` でそれぞれ取り出せます
 - `Accept` に両形式を並べることはコンテントネゴシエーションとして機能し、新仕様対応サーバーは `application/graphql-response+json` で、旧来のサーバーは従来どおり `application/json` + 常時 200 で応答します。クライアントの解析処理はどちらの形式でも同じため、サーバー側の対応状況に関係なく動作します
 
 #### 型安全な UnmarshalJSONFrom の生成
@@ -168,8 +171,8 @@ type UserOperation_User_User struct {
 
 #### Subscription サポート
 
-- `(*Client).Subscribe[Vars, Res]` で subscription を実行できます。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を Go 1.27 の `iter.Seq2[*Res, error]` として逐次返します。`query`/`mutation` と同じ `client.Operation` 値を使えるため、clientgen 側に subscription 固有の生成は不要です（[gqlgo/gqlgenc#32](https://github.com/gqlgo/gqlgenc/issues/32)）
-- WebSocket エンドポイントは HTTP エンドポイントの `http(s)` を `ws(s)` に変換して導出します。`client.WithWebSocketEndpoint` で上書きできます
+- `NewSubscriptionClient(endpoint string, options ...Option)` で subscription 用のクライアントを生成し、`(*SubscriptionClient).Subscribe[Vars, Res]` で実行できます。endpoint には WebSocket URL（`ws://` / `wss://`）を直接渡します。[graphql-transport-ws](https://github.com/enisdenjo/graphql-ws) プロトコルで WebSocket 接続し、結果を Go 1.27 の `iter.Seq2[*Res, error]` として逐次返します（[gqlgo/gqlgenc#32](https://github.com/gqlgo/gqlgenc/issues/32)）
+- `query` / `mutation` と同じ `client.Operation` 値を使えるため、clientgen 側に subscription 固有の生成は不要です
 
 #### HTTP GET と操作種別の型制約
 
@@ -196,7 +199,11 @@ type UserOperation_User_User struct {
 - クエリのフラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、レスポンス型を生成せず指定した既存 Go 型にバインドします。型を共有したり、生成型にできないメソッドを持たせたい場合に使えます。`@goFragment` は gqlgenc が注入するクライアント側のコード生成専用ディレクティブで、サーバーへ送るクエリからは自動的に除去されます
 - `bind.fragment.packages` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにあれば、`@goFragment` を書かなくても自動でその既存型にバインドします（`bind.type.packages` のクエリ版）。マッチ対象はフラグメント名で、明示的な `@goFragment(type: ...)` が優先されます。サーバーモデル用の `bind.type.packages` とは独立した設定です
 
+#### エラーハンドリング
+
 - エラー型を `ErrorResponse` / `HTTPError` として公開し、`Unwrap` により `errors.As` で GraphQL エラー（`gqlerror.List`）や HTTP エラーを判別できます。GraphQL エラー時も `Client.Post` は部分データを返します。呼び出し単位の `Option` はそのリクエストにのみ適用され、クライアントを変異させません
+
+#### モデル生成の省略（サーバーモデル共有）
 
 - `generate.model.file` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `bind.type.packages` で参照する構成に対応します。`generate.model.file` と `generate.query.file` は少なくとも一方の指定が必須です
 
@@ -226,7 +233,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - インラインフラグメントのデコードで `__typename` を再パースせず、デコード済みの `Typename` フィールドから型名を読むように簡素化しました（`__typename` の自動注入で必ずフィールドが存在することを利用）。型名抽出のための JSON 再パースが1回減ります
 - クエリドキュメント定数（`<オペレーション名>Document`）をミニファイ（1行・最小空白）して生成するようにしました。リクエストごとに送信されるクエリ文字列のサイズを削減します。GraphQL は空白に意味がなく、文字列リテラルはエスケープされて正規化されるため、ミニファイしても意味は変わりません
 - Subscription（WebSocket）のテストを Go 1.27 の `testing/synctest` + `httptest.NewTestServer`（インメモリネットワーク）で書き換え、実ネットワーク接続と実時間待ちを排除して決定的にしました（間欠的な失敗を解消）
-- HTTP レスポンス解析（`ParseResponse`）を整理しました。gzip リーダーを `defer` で確実に閉じ、引数の `*http.Response` を破壊的に書き換えないようにし、正常レスポンス時の不要なエラー構造体のアロケーションを削減しました
+- HTTP レスポンス解析（`parseResponse`）を整理しました。gzip リーダーを `defer` で確実に閉じ、引数の `*http.Response` を破壊的に書き換えないようにし、正常レスポンス時の不要なエラー構造体のアロケーションを削減しました
 - ファイルアップロード（multipart）のリクエストボディを `io.Pipe` でストリーミング送信するようにし、ファイル本体をメモリに溜め込まないようにしました。あわせて各ファイルパートの `Content-Type` に `Upload.ContentType` を反映します（未指定時は `application/octet-stream`）
 - Subscription の graphql-transport-ws の取り扱いを堅牢にしました。サーバーが `complete` を送らずに WebSocket を正常クローズ（1000 / 1001）した場合をエラーではなく完了として扱い、ハンドシェイク中（`connection_ack` 待ち）に `ping` を受け取っても `pong` で応答して待ち続けます
 - オペレーション名の重複チェックが実際には検出していなかった不具合を修正しました。Go 名へ正規化すると衝突するオペレーション（例: `getUser` と `GetUser` がどちらも `GetUser`）を生成時にエラーにします（従来は生成は通り、生成コードのコンパイルエラーになっていました）
