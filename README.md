@@ -420,10 +420,18 @@ c3.Post(ctx, op, vars, withHeader(http.Header{"X-Request-Id": {requestID}}))
 v0 系にあった GraphQL リクエスト・レスポンスの Interceptor も、同じく `http.RoundTripper` で実現します。GraphQL リクエストは HTTP ボディの JSON（`{"query": ..., "variables": ..., "operationName": ...}`）、GraphQL レスポンスはレスポンスボディの JSON（`{"data": ..., "errors": ...}`）そのものなので、transport で両方を観察・加工できます。複数の処理を組み合わせたい場合は `withTransport` を重ねて包めば、v0 の Interceptor チェーン相当になります。
 
 ```go
-// v0 の Interceptor 相当: GraphQL のリクエスト・レスポンス JSON を観察・加工する
-type loggingTransport struct{ base http.RoundTripper }
+// v0 の Interceptor 相当を関数1つで書けるようにするヘルパー。
+// 上で定義した withTransport / roundTripperFunc を組み合わせる
+withInterceptor := func(intercept func(req *http.Request, next http.RoundTripper) (*http.Response, error)) client.Option {
+    return withTransport(func(base http.RoundTripper) http.RoundTripper {
+        return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+            return intercept(req, base)
+        })
+    })
+}
 
-func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+// GraphQL のリクエスト・レスポンス JSON を観察・加工する例
+c4 := client.NewClient(endpoint, withInterceptor(func(req *http.Request, next http.RoundTripper) (*http.Response, error) {
     req = req.Clone(req.Context()) // RoundTripper は元のリクエストを変更しない
 
     // リクエスト側: {"query": ..., "variables": ..., "operationName": ...}
@@ -438,7 +446,7 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
         req.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
     }
 
-    resp, err := t.base.RoundTrip(req)
+    resp, err := next.RoundTrip(req)
     if err != nil {
         return nil, err
     }
@@ -452,10 +460,6 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     log.Printf("graphql response: %s", body)
     resp.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
     return resp, nil
-}
-
-c4 := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
-    return loggingTransport{base: base}
 }))
 ```
 
