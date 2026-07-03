@@ -454,9 +454,13 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
     return resp, nil
 }
 
-c4 := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
+// 戻り値型を http.RoundTripper にしたコンストラクタを用意すると、
+// withTransport にそのまま渡せる
+func newLoggingTransport(base http.RoundTripper) http.RoundTripper {
     return loggingTransport{base: base}
-}))
+}
+
+c4 := client.NewClient(endpoint, withTransport(newLoggingTransport))
 ```
 
 v0 の `RequestInterceptor`（`func(ctx, req, gqlInfo, res, next) error`）の各引数との対応は次のとおりです。
