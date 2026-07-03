@@ -417,6 +417,50 @@ c3 := client.NewClient(endpoint, withHeader(http.Header{
 c3.Post(ctx, op, vars, withHeader(http.Header{"X-Request-Id": {requestID}}))
 ```
 
+v0 系にあった GraphQL リクエスト・レスポンスの Interceptor も、同じく `http.RoundTripper` で実現します。GraphQL リクエストは HTTP ボディの JSON（`{"query": ..., "variables": ..., "operationName": ...}`）、GraphQL レスポンスはレスポンスボディの JSON（`{"data": ..., "errors": ...}`）そのものなので、transport で両方を観察・加工できます。複数の処理を組み合わせたい場合は `withTransport` を重ねて包めば、v0 の Interceptor チェーン相当になります。
+
+```go
+// v0 の Interceptor 相当: GraphQL のリクエスト・レスポンス JSON を観察・加工する
+type loggingTransport struct{ base http.RoundTripper }
+
+func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    req = req.Clone(req.Context()) // RoundTripper は元のリクエストを変更しない
+
+    // リクエスト側: {"query": ..., "variables": ..., "operationName": ...}
+    // Get で実行した場合はボディが無く、クエリは req.URL.RawQuery に載る
+    if req.Body != nil {
+        body, err := io.ReadAll(req.Body)
+        if err != nil {
+            return nil, err
+        }
+        req.Body.Close()
+        log.Printf("graphql request: %s", body)
+        req.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
+    }
+
+    resp, err := t.base.RoundTrip(req)
+    if err != nil {
+        return nil, err
+    }
+
+    // レスポンス側: {"data": ..., "errors": ...}
+    body, err := io.ReadAll(resp.Body)
+    resp.Body.Close()
+    if err != nil {
+        return nil, err
+    }
+    log.Printf("graphql response: %s", body)
+    resp.Body = io.NopCloser(bytes.NewReader(body)) // 読んだ分を復元する
+    return resp, nil
+}
+
+c4 := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
+    return loggingTransport{base: base}
+}))
+```
+
+なお、自分で `Accept-Encoding: gzip` を設定している場合、transport が見るレスポンスボディは圧縮されたままです（gqlgenc が展開するのは transport の後段）。設定していなければ Go の `http.Transport` が透過的に展開するため、そのまま JSON として読めます。
+
 テストでは in-memory transport を返す `Option`（上の `withTransport` 等）で差し替えます。
 
 ### リクエスト仕様
