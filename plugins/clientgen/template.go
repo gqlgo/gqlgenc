@@ -26,6 +26,7 @@ func RenderTemplate(cfg *config.Config, operations []*codegen.Operation) error {
 		Data: map[string]any{
 			"QueryPackage":     cfg.GQLGencConfig.QueryGen.Pkg().Name(),
 			"QueryPackagePath": cfg.GQLGencConfig.QueryGen.Pkg().Path(),
+			"SamePackage":      cfg.GQLGencConfig.ClientGen.ImportPath() == cfg.GQLGencConfig.QueryGen.ImportPath(),
 			"Operations":       operations,
 		},
 		Funcs:    nil,

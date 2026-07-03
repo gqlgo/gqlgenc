@@ -1,6 +1,6 @@
 {{ reserveImport "github.com/Yamashou/gqlgenc/v3/client" }}
 {{ reserveImport "github.com/99designs/gqlgen/graphql" }}
-{{ reserveImport $.QueryPackagePath }}
+{{ if not .SamePackage }}{{ reserveImport $.QueryPackagePath }}{{ end }}
 
 {{range $operation := .Operations}}
 type {{ $operation.Name|go }}Vars struct {
@@ -9,9 +9,9 @@ type {{ $operation.Name|go }}Vars struct {
 	{{- end }}
 }
 
-var {{ $operation.Name|go }}Op = client.Operation[client.{{ $operation.Kind }}, {{ $operation.Name|go }}Vars, {{ $.QueryPackage }}.{{ $operation.Name|go }}]{
+var {{ $operation.Name|go }}Op = client.Operation[client.{{ $operation.Kind }}, {{ $operation.Name|go }}Vars, {{ if not $.SamePackage }}{{ $.QueryPackage }}.{{ end }}{{ $operation.Name|go }}]{
 	Name:     "{{ $operation.Name }}",
-	Document: {{ $.QueryPackage }}.{{ $operation.Name|go }}Document,
+	Document: {{ if not $.SamePackage }}{{ $.QueryPackage }}.{{ end }}{{ $operation.Name|go }}Document,
 }
 
 {{end}}

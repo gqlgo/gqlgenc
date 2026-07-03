@@ -23,6 +23,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
+	samepackagegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/samepackage/gen"
 )
 
 func Test_IntegrationTest_NoModelGen(t *testing.T) {
@@ -535,6 +536,31 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// query と client を同じディレクトリ(= 同一 Go パッケージ)へ出力すると、client_gen.go は
+// レスポンス型と Document 定数を自パッケージ名で修飾せずに参照する。修飾すると自パッケージへの
+// self-import になりコンパイルできない(v0 互換の1ディレクトリ構成が壊れる)ための回帰テスト。
+func Test_IntegrationTest_SamePackage(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/samepackage/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// 修飾なしで生成されることをファイル内容で検証する
+	compareFiles(t, "./want/client_gen.go.txt", "gen/client_gen.go")
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する
+	if samepackagegen.GetUserOp.Name != "GetUser" {
+		t.Errorf("GetUserOp.Name = %q, want %q", samepackagegen.GetUserOp.Name, "GetUser")
 	}
 }
 

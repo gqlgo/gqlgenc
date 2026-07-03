@@ -52,7 +52,7 @@ generate:
 - querygen: オペレーションごとのレスポンス型、`UnmarshalJSONFrom`（フラグメントを含む型のみ）、クエリドキュメント定数（`<オペレーション名>Document`）を生成します。nil 安全な Getter は `generate.query.getters: true` のときのみ生成します
 - clientgen: 型付き variables 構造体（`<オペレーション名>Vars`）と `client.Operation` 値（`<オペレーション名>Op`）を生成します
 - v0 の clientgen が生成していた、オペレーションごとのメソッド（例 `func (c *Client) GetUser(ctx, ...)`）を持つ `Client` 構造体と、`clientInterfaceName` で生成する interface は廃止しました。v1 は `client.Operation` 値を生成し、ランタイムのジェネリックメソッド `Post` / `Get` / `Subscribe` に渡して実行します（「型付きオペレーションと Client.Post」参照）
-- `generate.client.file` を使う場合は `generate.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）。`client.Operation` 値が参照するレスポンス型パッケージの import を明示的に予約するため、variables がそのパッケージの型を参照しないオペレーション（変数が組込スカラーのみ等）でも import 欠落でコンパイルできなくなる問題はありません
+- `generate.client.file` を使う場合は `generate.query.file` の指定が必須です。出力先は別パッケージにできます（例: レスポンス型は domain パッケージ、クライアントは query パッケージ）。`client.Operation` 値が参照するレスポンス型パッケージの import を明示的に予約するため、variables がそのパッケージの型を参照しないオペレーション（変数が組込スカラーのみ等）でも import 欠落でコンパイルできなくなる問題はありません。同じディレクトリ（同一パッケージ）への出力にも対応しており、その場合はレスポンス型・Document 定数をパッケージ名で修飾せず、query パッケージの import も予約しません
 - 旧 `clientgenv2` / `generator` / `parsequery` / `querydocument` パッケージは `plugins`（modelgen / querygen / clientgen）/ `codegen` / `queryparser` に再編しました
 - 生成後のファイルには goimports を適用します
 

@@ -210,6 +210,7 @@ generate:
 - `query.files` は必須
 - `generate.query.file` と `generate.model.file` の少なくとも一方の指定が必須（どちらも無いと生成するものがないためエラー）
 - `generate.client.file` を指定する場合は `generate.query.file` の指定が必須
+- `generate.query.file` と `generate.client.file` は同じディレクトリ（同一パッケージ）でも別ディレクトリでもよい。同一パッケージの場合、client_gen.go はレスポンス型・Document 定数をパッケージ名で修飾せずに参照する
 - クエリ全体でオペレーション名が重複しているとエラー
 
 ## 生成されるコード
