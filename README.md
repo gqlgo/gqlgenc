@@ -463,6 +463,13 @@ c4 := client.NewClient(endpoint, withInterceptor(func(req *http.Request, next ht
 }))
 ```
 
+v0 の `RequestInterceptor`（`func(ctx, req, gqlInfo, res, next) error`）の各引数との対応は次のとおりです。
+
+- `ctx` / `req` — `req`（と `req.Context()`）をそのまま使う
+- `gqlInfo`（パース済みの Query / Variables / OperationName）— transport が見るのはシリアライズ後の JSON ボディ。必要であればボディを `{"query": ..., "variables": ..., "operationName": ...}` としてデコードして参照する
+- `res`（デコード済みレスポンス）— デコードは transport の後段で行われるため、型付きの `res` は transport からは見えない。レスポンスを加工したい場合はレスポンスボディの JSON を書き換えれば、その後のデコード結果に反映される
+- `ChainInterceptor` — `withInterceptor`（や `withTransport`）を `NewClient` に複数渡すことで代替する。後に渡したものが外側（先に実行される側）になる
+
 なお、自分で `Accept-Encoding: gzip` を設定している場合、transport が見るレスポンスボディは圧縮されたままです（gqlgenc が展開するのは transport の後段）。設定していなければ Go の `http.Transport` が透過的に展開するため、そのまま JSON として読めます。
 
 テストでは in-memory transport を返す `Option`（上の `withTransport` 等）で差し替えます。
