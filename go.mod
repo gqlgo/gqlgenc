@@ -1,6 +1,7 @@
 module github.com/Yamashou/gqlgenc/v3
 
 go 1.27
+toolchain go1.27rc1
 
 require (
 	github.com/99designs/gqlgen v0.17.91

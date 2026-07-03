@@ -21,11 +21,11 @@ v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してくだ
 
 ## 動作要件
 
-- Go 1.27 以上。Go 1.27 はまだ正式リリースされていないため、現状は開発版ツールチェーン（gotip）が必要です:
+- Go 1.27 以上。Go 1.27 はまだ正式リリースされていないため、リリース候補版のツールチェーン（go1.27rc1）を使用します。go.mod に `toolchain go1.27rc1` を指定しているため、Go 1.21 以降の `go` コマンドであれば必要なツールチェーンは自動でダウンロードされます。手動でインストールする場合:
 
 ```shell
-go install golang.org/dl/gotip@latest
-gotip download
+go install golang.org/dl/go1.27rc1@latest
+go1.27rc1 download
 ```
 
 - 環境変数 `GOEXPERIMENT=jsonv2` が必要です（`encoding/json/v2` を使用するため）。**gqlgenc 本体のインストール時だけでなく、生成コードを取り込むあなたのアプリのビルド・テスト時にも**設定してください
@@ -33,12 +33,12 @@ gotip download
 ## インストール
 
 ```shell
-GOEXPERIMENT=jsonv2 gotip install github.com/Yamashou/gqlgenc/v3@latest
+GOEXPERIMENT=jsonv2 go install github.com/Yamashou/gqlgenc/v3@latest
 # go の tool 依存として追加する場合
-GOEXPERIMENT=jsonv2 gotip get -tool github.com/Yamashou/gqlgenc/v3@latest
+GOEXPERIMENT=jsonv2 go get -tool github.com/Yamashou/gqlgenc/v3@latest
 ```
 
-> gqlgenc 自身が `encoding/json/v2` を使うため、インストール時にも `GOEXPERIMENT=jsonv2` が必要です。Go 1.27 が正式リリースされたら `gotip` を `go` に置き換えられます。
+> gqlgenc 自身が `encoding/json/v2` を使うため、インストール時にも `GOEXPERIMENT=jsonv2` が必要です。ツールチェーンは gqlgenc の go.mod の `toolchain go1.27rc1` 指定により自動で解決されます。Go 1.27 が正式リリースされたら `toolchain` 指定は不要になります。
 
 ## 使い方
 
