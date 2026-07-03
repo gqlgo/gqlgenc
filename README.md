@@ -384,6 +384,33 @@ c2 := client.NewClient(endpoint, func(*http.Client) *http.Client {
 })
 ```
 
+API キーなどの固定ヘッダーを設定する場合も同様に、ヘッダーを付与する `http.RoundTripper` を書き、上の `withTransport` で包みます。
+
+```go
+// 固定の HTTP ヘッダーを付与する例
+type headerTransport struct {
+    base    http.RoundTripper
+    headers http.Header
+}
+
+func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    req = req.Clone(req.Context()) // RoundTripper は元のリクエストを変更しない
+    for key, values := range t.headers {
+        for _, value := range values {
+            req.Header.Add(key, value)
+        }
+    }
+    return t.base.RoundTrip(req)
+}
+
+c3 := client.NewClient(endpoint, withTransport(func(base http.RoundTripper) http.RoundTripper {
+    return headerTransport{base: base, headers: http.Header{
+        "X-Api-Key":         {"my-api-key"},
+        "X-Client-Version":  {"1.2.3"},
+    }}
+}))
+```
+
 テストでは in-memory transport を返す `Option`（上の `withTransport` 等）で差し替えます。
 
 ### リクエスト仕様
