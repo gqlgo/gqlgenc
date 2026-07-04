@@ -109,6 +109,10 @@ fragment UserFragment1 on User {
 v1.0.0-alpha1 の生成コード:
 
 ```go
+type UserOperation struct {
+	User UserOperation_User `json:"user"`
+}
+
 type UserOperation_User struct {
 	User          *UserOperation_User_User `json:"-"`
 	UserFragment1 UserFragment1            `json:"-"`
