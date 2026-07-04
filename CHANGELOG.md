@@ -246,6 +246,23 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - Subscription の graphql-transport-ws の取り扱いを堅牢にしました。サーバーが `complete` を送らずに WebSocket を正常クローズ（1000 / 1001）した場合をエラーではなく完了として扱い、ハンドシェイク中（`connection_ack` 待ち）に `ping` を受け取っても `pong` で応答して待ち続けます
 - オペレーション名の重複チェックが実際には検出していなかった不具合を修正しました。Go 名へ正規化すると衝突するオペレーション（例: `getUser` と `GetUser` がどちらも `GetUser`）を生成時にエラーにします（従来は生成は通り、生成コードのコンパイルエラーになっていました）
 
+### 性能
+
+#### コード生成速度は v0 と同等
+
+実プロダクト規模のスキーマ（大規模な GraphQL スキーマ + `bind.type.packages` による Go パッケージロードを含む E2E クライアント設定）で v0.33.0 と比較したところ、生成時間に有意差はありませんでした（Apple M2・ビルドキャッシュあり・各3回計測の中央値: v0 1.31秒 / v1 1.22秒）。生成時間の大半は両者共通の処理（スキーマの読み込み・gqlgen の `Init()`・autobind のための `go/packages` によるパッケージロード）が占めるため、querygen / clientgen への刷新は生成速度を変えません。
+
+#### union デコードのベンチマーク
+
+`decode_bench_test.go` の `BenchmarkDecodeUnion` が、生成された `UnmarshalJSONFrom` による union デコードを、同一 JSON を json/v2 のデフォルト 1-pass でフラット構造体にデコードする理論下限と比較します（Apple M2）。
+
+| ケース | n=100 | n=1000 |
+|---|---|---|
+| 生成された union（`UnmarshalJSONFrom`） | 74.7µs / 259 allocs | 864µs / 2512 allocs |
+| json/v2 フラット 1-pass（理論下限） | 27.9µs / 159 allocs | 269µs / 1512 allocs |
+
+生成された union デコードは、値をバッファして plain パスと一致したインラインフラグメントの枝で再トークナイズするため、理論下限の約2.7〜3.2倍のコストがかかります（一方でアロケーションのバイト数はフラットより少なくなります）。v0 ランタイム（encoding/json v1 + graphqljson）とのデコード速度の直接比較ベンチマークは未整備です。
+
 ### 未対応の機能
 
 - モデルのフィールドを常にポインタにする gqlgen の `struct_fields_always_pointers: true`（gqlgen のデフォルト）には対応しません（gqlgenc は内部で `false` に固定します）
