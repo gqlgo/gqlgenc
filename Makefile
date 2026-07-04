@@ -1,8 +1,5 @@
 MAKEFLAGS=--no-builtin-rules --no-builtin-variables --always-make
 
-# Enable jsonv2 experiment
-export GOEXPERIMENT=jsonv2
-
 fmt:
 	go tool golangci-lint fmt
 

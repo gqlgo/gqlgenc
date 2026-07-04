@@ -28,17 +28,15 @@ go install golang.org/dl/go1.27rc1@latest
 go1.27rc1 download
 ```
 
-- 環境変数 `GOEXPERIMENT=jsonv2` が必要です（`encoding/json/v2` を使用するため）。**gqlgenc 本体のインストール時だけでなく、生成コードを取り込むあなたのアプリのビルド・テスト時にも**設定してください
-
 ## インストール
 
 ```shell
-GOEXPERIMENT=jsonv2 go install github.com/Yamashou/gqlgenc/v3@latest
+go install github.com/Yamashou/gqlgenc/v3@latest
 # go の tool 依存として追加する場合
-GOEXPERIMENT=jsonv2 go get -tool github.com/Yamashou/gqlgenc/v3@latest
+go get -tool github.com/Yamashou/gqlgenc/v3@latest
 ```
 
-> gqlgenc 自身が `encoding/json/v2` を使うため、インストール時にも `GOEXPERIMENT=jsonv2` が必要です。ツールチェーンは gqlgenc の go.mod の `toolchain go1.27rc1` 指定により自動で解決されます。Go 1.27 が正式リリースされたら `toolchain` 指定は不要になります。
+> ツールチェーンは gqlgenc の go.mod の `toolchain go1.27rc1` 指定により自動で解決されます。Go 1.27 が正式リリースされたら `toolchain` 指定は不要になります。
 
 ## 使い方
 
@@ -693,8 +691,6 @@ make lint  # golangci-lint run
 make fmt   # golangci-lint fmt
 ```
 
-Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
-
 ## genqlient との比較
 
 [Khan/genqlient](https://github.com/Khan/genqlient) は gqlgenc と同じく Query First を採用した型安全な Go GraphQL クライアントジェネレータです。クエリをスキーマに対して検証して型付きのレスポンス型を生成する点、GraphQL エラーと HTTP エラーを `errors.As` で判別できる点、GraphQL エラー時にも部分データを返す点など、基本的な設計は共通しています。
@@ -705,7 +701,7 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 |---|---|---|
 | 基盤 | [gqlgen](https://github.com/99designs/gqlgen) ベース。modelgen・`graphql.Omittable`・Federation 対応をそのまま利用できる | 独自実装（gqlgen 非依存） |
 | スキーマの取得 | ローカル SDL またはイントロスペクション（`schema.endpoint`） | ローカル SDL のみ（イントロスペクションによる取得は[未対応](https://github.com/Khan/genqlient/issues/4)） |
-| JSON 処理 | `encoding/json/v2`（Go 1.27 以上 + `GOEXPERIMENT=jsonv2`） | `encoding/json`（v1） |
+| JSON 処理 | `encoding/json/v2`（Go 1.27 以上） | `encoding/json`（v1） |
 | 実行 API | 型付き variables 構造体と `client.Operation[Kind, Vars, Res]` 値を生成し、ジェネリックな `Post` / `Get` / `Subscribe` メソッドで実行する。全オペレーション横断のミドルウェアを `client.Operation` を受けるジェネリック関数として書ける | オペレーションごとに Go 関数（例: `GetUser(ctx, client, ...) (*getUserResponse, error)`）を生成し、variables は関数引数として渡す |
 | interface / union | Go interface を生成しない。インラインフラグメントを型条件名のポインタフィールド（`親型名_型条件` の名前付き型）として生成し、レスポンスの `__typename` でデコードする（`__typename` はクエリに無くても自動注入する） | GraphQL interface に対応する Go interface と具象型ごとの実装を生成し、共有フィールドには getter でアクセスする |
 | フラグメント | 常に公開の独立型として生成し、名前付きフィールド（`json:"-"`）として保持する（埋め込みによる曖昧昇格を避けるため。`t.<フラグメント名>.<フィールド>` でアクセス） | フラグメントごとに型を生成して埋め込む。`flatten` ディレクティブで中間型を省略できる |
@@ -727,7 +723,7 @@ Makefile が `GOEXPERIMENT=jsonv2` をエクスポートします。
 
 ### gqlgenc の弱み
 
-- **最先端の Go 機能への依存**: Go 1.27 と `GOEXPERIMENT=jsonv2`（json/v2 は experiment であり Go 1 互換保証の対象外）、generic methods を前提とする。安定版の Go で動かす必要があるプロダクション環境では採用ハードルが高い。genqlient は安定版の Go と `encoding/json`（v1）で動く
+- **最先端の Go 機能への依存**: Go 1.27（json/v2・generic methods）を前提とする。安定版の Go で動かす必要があるプロダクション環境では採用ハードルが高い。genqlient は安定版の Go と `encoding/json`（v1）で動く
 - **成熟度**: gqlgenc のこのブランチは pre-release（`v1.0.0-alpha1`）。genqlient は広く使われ安定している
 - **生成コードの制御の細かさ**: gqlgenc は「設定より規約」で、生成コードの形を細かく制御する手段は `bind`（type / package）/ `@goField` に限られる。genqlient は `@genqlient` ディレクティブ（`pointer` / `alias` / `flatten` / `struct` / `bind` / `for` / `typename`）でフィールド単位に nullability や中間型の省略などを制御できる
 - **gqlgen への依存**: サーバーが gqlgen でない（別言語・別フレームワークの）プロジェクトでは、gqlgen の設定形式・概念を理解する必要があり、依存が純粋なオーバーヘッドになる。genqlient は gqlgen 非依存で単体完結する

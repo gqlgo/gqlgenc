@@ -7,7 +7,7 @@
 //   - Inline fragments (__typename に基づく型条件付きフィールド)
 //   - ネストしたフィールド構造
 //
-// 生成されるコードは json/v2 (GOEXPERIMENT=jsonv2) を使用する。UnmarshalJSONFrom は
+// 生成されるコードは json/v2 を使用する。UnmarshalJSONFrom は
 // フラグメントを含む型にのみ生成され、通常フィールドはメソッドを持たない別名型を
 // 経由して json/v2 のデフォルトデコードに任せる。
 package querygen

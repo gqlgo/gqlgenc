@@ -15,7 +15,7 @@ encoding/json は汎用 JSON 向けの最低限のマッピングを行うライ
 
 ## encoding/json/jsontext の整理
 
-- 役割は「JSON 構文レイヤ」のストリーム処理。GOEXPERIMENT=jsonv2 を付けて初めてビルドされ、従来の encoding/json とは別にトークン／値のやり取りだけを担当します。
+- 役割は「JSON 構文レイヤ」のストリーム処理。Go 1.27 で標準ライブラリに追加され、従来の encoding/json とは別にトークン／値のやり取りだけを担当します。
 - 主役は Decoder / Encoder。Decoder.ReadToken と Decoder.ReadValue が状態遷移を維持しながらトークン列を検証します。オフセット (InputOffset) を取れるので、エラーメッセージに
   「バイト N」でと出せる仕組みです。
 - トークンは Token.Kind() が '{' や '"' など JSON 先頭文字の正規化結果を返し、値全体は Value（[]byte のラッパー）です。Value には Format/Canonicalize などの整形 API、
@@ -27,7 +27,7 @@ encoding/json は汎用 JSON 向けの最低限のマッピングを行うライ
 
 ## encoding/json/v2 の整理
 
-- こちらは「JSON セマンティックレイヤ」。同じく GOEXPERIMENT=jsonv2 前提で、Marshal/Unmarshal など従来 API と互換の関数群を提供しつつ、挙動は v1 から刷新されています。
+- こちらは「JSON セマンティックレイヤ」。同じく Go 1.27 で追加され、Marshal/Unmarshal など従来 API と互換の関数群を提供しつつ、挙動は v1 から刷新されています。
 - 重要ポイントは Options。DefaultOptionsV2() が安全寄りのデフォルトで、RejectUnknownMembers、MatchCaseInsensitiveNames、StringifyNumbers、FormatNilSliceAsNull などを組み合わ
   せて意味付けを切り換えます。jsontext.Options と合成できるので、構文レイヤとセマンティックレイヤを別々にカスタマイズ可能です。
 - Marshaler/Unmarshaler に加え、IO 直接版 (MarshalTo, UnmarshalFrom) や関数型 (MarshalFunc, UnmarshalFunc) も用意され、柔軟に差し込みができます。WithMarshalers/
