@@ -14,14 +14,10 @@ type Search struct {
 }
 
 type Search_Node struct {
-	Post *struct {
-		Title string "json:\"title\""
-	} "json:\"-\""
-	User *struct {
-		Name string "json:\"name\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
-	ID       string "json:\"id\""
+	Post     *Search_Node_Post "json:\"-\""
+	User     *Search_Node_User "json:\"-\""
+	Typename string            "json:\"__typename\""
+	ID       string            "json:\"id\""
 }
 
 func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -35,15 +31,25 @@ func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch t.Typename {
 	case "Post":
-		if err := json.Unmarshal(data, &t.Post); err != nil {
+		t.Post = &Search_Node_Post{}
+		if err := json.Unmarshal(data, t.Post); err != nil {
 			return err
 		}
 	case "User":
-		if err := json.Unmarshal(data, &t.User); err != nil {
+		t.User = &Search_Node_User{}
+		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+type Search_Node_Post struct {
+	Title string "json:\"title\""
+}
+
+type Search_Node_User struct {
+	Name string "json:\"name\""
 }
 
 type Search_SearchInput struct {
@@ -52,16 +58,9 @@ type Search_SearchInput struct {
 }
 
 type Search_SearchNodes struct {
-	Post *struct {
-		ID    string "json:\"id\""
-		Title string "json:\"title\""
-	} "json:\"-\""
-	User *struct {
-		ID   string   "json:\"id\""
-		Kind NodeKind "json:\"kind\""
-		Name string   "json:\"name\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
+	Post     *Search_SearchNodes_Post "json:\"-\""
+	User     *Search_SearchNodes_User "json:\"-\""
+	Typename string                   "json:\"__typename\""
 }
 
 func (t *Search_SearchNodes) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -75,15 +74,28 @@ func (t *Search_SearchNodes) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch t.Typename {
 	case "Post":
-		if err := json.Unmarshal(data, &t.Post); err != nil {
+		t.Post = &Search_SearchNodes_Post{}
+		if err := json.Unmarshal(data, t.Post); err != nil {
 			return err
 		}
 	case "User":
-		if err := json.Unmarshal(data, &t.User); err != nil {
+		t.User = &Search_SearchNodes_User{}
+		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+type Search_SearchNodes_Post struct {
+	ID    string "json:\"id\""
+	Title string "json:\"title\""
+}
+
+type Search_SearchNodes_User struct {
+	ID   string   "json:\"id\""
+	Kind NodeKind "json:\"kind\""
+	Name string   "json:\"name\""
 }
 
 const SearchDocument = `query Search($input: SearchInput!, $filter: SearchFilter!) { searchInput(input: $input) { total status } searchNodes(filter: $filter) { __typename ... on User { id name kind } ... on Post { id title } } node(id: "1") { __typename id ... on User { name } ... on Post { title } } }`

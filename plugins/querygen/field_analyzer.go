@@ -136,7 +136,14 @@ func (a *FieldAnalyzer) analyzeField(
 			info.PointerElemType = templates.CurrentImports.LookupType(elemType)
 		}
 
-		// inline fragment の構造体内には fragment spreads (json:"-") が含まれ得るため、
+		// 枝は名前付き型で生成され、フラグメントを含む場合は自前の UnmarshalJSONFrom を
+		// 持つ。その場合、親は割り当てとデコードだけ行えばよいため、fragment spread と
+		// 同様にサブフィールドは解析しない。
+		if named := unwrapToNamedStruct(field.Type()); named != nil && shouldGenerateUnmarshal(named) {
+			return info
+		}
+
+		// 匿名構造体の枝には fragment spreads (json:"-") が含まれ得るため、
 		// 親の UnmarshalJSONFrom で明示デコードできるようサブフィールドを解析する
 		if elemStruct := unwrapToStruct(field.Type()); elemStruct != nil {
 			info.SubFields = a.AnalyzeFields(elemStruct, shouldGenerateUnmarshal)

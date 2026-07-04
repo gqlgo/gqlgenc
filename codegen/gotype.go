@@ -59,7 +59,6 @@ func (g *GoTypeGenerator) setErr(err error) {
 	}
 }
 
-// When parentTypeName is empty, the parent is an inline fragment
 func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.SelectionSet) Fields {
 	fields := make(Fields, 0, len(selectionSet))
 	for _, selection := range selectionSet {
@@ -71,7 +70,6 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 	return fields
 }
 
-// When parentTypeName is empty, the parent is an inline fragment
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {
 	switch sel := selection.(type) {
 	case *graphql.Field:
@@ -101,10 +99,14 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		namedType := g.newGoNamedType(sel.Name, true, structType)
 		return newField(FragmentSpread, namedType, sel.Name, []string{jsonIgnoreTag})
 	case *graphql.InlineFragment:
-		structType := g.newFields("", sel.SelectionSet).goStructType()
-		pointerType := gotypes.NewPointer(structType)
-		tags := []string{jsonIgnoreTag}
-		return newField(InlineFragment, pointerType, sel.TypeCondition, tags)
+		// インラインフラグメントの枝も名前付き型で生成する。匿名構造体だと利用側が値を
+		// 構築するとき Go の型同一性ルールにより json タグまで一致するリテラルを書く必要が
+		// あり、テストや変換コードが書けないため。型名は 親型名_型条件 (例:
+		// UserOperation_User_User) とする。
+		typeName := fieldTypeName(parentTypeName, sel.TypeCondition)
+		structType := g.newFields(typeName, sel.SelectionSet).goStructType()
+		namedType := g.newGoNamedType(typeName, true, structType)
+		return newField(InlineFragment, gotypes.NewPointer(namedType), sel.TypeCondition, []string{jsonIgnoreTag})
 	}
 	// 事前条件: selection は *Field/*FragmentSpread/*InlineFragment のいずれか。
 	panic("unexpected selection type")
@@ -394,10 +396,6 @@ func (fs Fields) uniqueByName() Fields {
 // 衝突を検出する (例: foo_bar と fooBar はどちらも FooBar になる)。
 // 衝突はクエリ側で alias を付けることでしか解消できないため、エラーとして報告する。
 func (fs Fields) checkGoNameCollision(parentTypeName string) error {
-	if parentTypeName == "" {
-		parentTypeName = "inline fragment"
-	}
-
 	rawNamesByGoName := make(map[string][]string, len(fs))
 	for _, field := range fs {
 		goName := templates.ToGo(field.Name)

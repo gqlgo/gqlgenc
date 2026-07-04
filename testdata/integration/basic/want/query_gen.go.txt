@@ -149,9 +149,7 @@ func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
 }
 
 type UserFragment1 struct {
-	User *struct {
-		Name string "json:\"name\""
-	} "json:\"-\""
+	User     *UserFragment1_User   "json:\"-\""
 	Typename string                "json:\"__typename\""
 	Name     string                "json:\"name\""
 	Profile  UserFragment1_Profile "json:\"profile\""
@@ -168,15 +166,14 @@ func (t *UserFragment1) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch t.Typename {
 	case "User":
-		if err := json.Unmarshal(data, &t.User); err != nil {
+		t.User = &UserFragment1_User{}
+		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserFragment1) GetUser() *struct {
-	Name string "json:\"name\""
-} {
+func (t *UserFragment1) GetUser() *UserFragment1_User {
 	if t == nil {
 		t = &UserFragment1{}
 	}
@@ -202,13 +199,9 @@ func (t *UserFragment1) GetProfile() UserFragment1_Profile {
 }
 
 type UserFragment1_Profile struct {
-	PrivateProfile *struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile *struct {
-		Status Status "json:\"status\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
+	PrivateProfile *UserFragment1_Profile_PrivateProfile "json:\"-\""
+	PublicProfile  *UserFragment1_Profile_PublicProfile  "json:\"-\""
+	Typename       string                                "json:\"__typename\""
 }
 
 func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -222,27 +215,25 @@ func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch t.Typename {
 	case "PrivateProfile":
-		if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		t.PrivateProfile = &UserFragment1_Profile_PrivateProfile{}
+		if err := json.Unmarshal(data, t.PrivateProfile); err != nil {
 			return err
 		}
 	case "PublicProfile":
-		if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		t.PublicProfile = &UserFragment1_Profile_PublicProfile{}
+		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserFragment1_Profile) GetPrivateProfile() *struct {
-	Age *int "json:\"age\""
-} {
+func (t *UserFragment1_Profile) GetPrivateProfile() *UserFragment1_Profile_PrivateProfile {
 	if t == nil {
 		t = &UserFragment1_Profile{}
 	}
 	return t.PrivateProfile
 }
-func (t *UserFragment1_Profile) GetPublicProfile() *struct {
-	Status Status "json:\"status\""
-} {
+func (t *UserFragment1_Profile) GetPublicProfile() *UserFragment1_Profile_PublicProfile {
 	if t == nil {
 		t = &UserFragment1_Profile{}
 	}
@@ -253,6 +244,39 @@ func (t *UserFragment1_Profile) GetTypename() string {
 		t = &UserFragment1_Profile{}
 	}
 	return t.Typename
+}
+
+type UserFragment1_Profile_PrivateProfile struct {
+	Age *int "json:\"age\""
+}
+
+func (t *UserFragment1_Profile_PrivateProfile) GetAge() *int {
+	if t == nil {
+		t = &UserFragment1_Profile_PrivateProfile{}
+	}
+	return t.Age
+}
+
+type UserFragment1_Profile_PublicProfile struct {
+	Status Status "json:\"status\""
+}
+
+func (t *UserFragment1_Profile_PublicProfile) GetStatus() Status {
+	if t == nil {
+		t = &UserFragment1_Profile_PublicProfile{}
+	}
+	return t.Status
+}
+
+type UserFragment1_User struct {
+	Name string "json:\"name\""
+}
+
+func (t *UserFragment1_User) GetName() string {
+	if t == nil {
+		t = &UserFragment1_User{}
+	}
+	return t.Name
 }
 
 type UserOperation struct {
@@ -485,14 +509,10 @@ func (t *UserOperation_Article_Comments) GetText() string {
 }
 
 type UserOperation_Article_OptionalAddresses struct {
-	PrivateAddress *struct {
-		Private bool "json:\"private\""
-	} "json:\"-\""
-	PublicAddress *struct {
-		Public bool "json:\"public\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
-	Street   string "json:\"street\""
+	PrivateAddress *UserOperation_Article_OptionalAddresses_PrivateAddress "json:\"-\""
+	PublicAddress  *UserOperation_Article_OptionalAddresses_PublicAddress  "json:\"-\""
+	Typename       string                                                  "json:\"__typename\""
+	Street         string                                                  "json:\"street\""
 }
 
 func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -506,27 +526,25 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontex
 	}
 	switch t.Typename {
 	case "PrivateAddress":
-		if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+		t.PrivateAddress = &UserOperation_Article_OptionalAddresses_PrivateAddress{}
+		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
-		if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+		t.PublicAddress = &UserOperation_Article_OptionalAddresses_PublicAddress{}
+		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *struct {
-	Private bool "json:\"private\""
-} {
+func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *UserOperation_Article_OptionalAddresses_PrivateAddress {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
 	}
 	return t.PrivateAddress
 }
-func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() *struct {
-	Public bool "json:\"public\""
-} {
+func (t *UserOperation_Article_OptionalAddresses) GetPublicAddress() *UserOperation_Article_OptionalAddresses_PublicAddress {
 	if t == nil {
 		t = &UserOperation_Article_OptionalAddresses{}
 	}
@@ -543,6 +561,28 @@ func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
 		t = &UserOperation_Article_OptionalAddresses{}
 	}
 	return t.Street
+}
+
+type UserOperation_Article_OptionalAddresses_PrivateAddress struct {
+	Private bool "json:\"private\""
+}
+
+func (t *UserOperation_Article_OptionalAddresses_PrivateAddress) GetPrivate() bool {
+	if t == nil {
+		t = &UserOperation_Article_OptionalAddresses_PrivateAddress{}
+	}
+	return t.Private
+}
+
+type UserOperation_Article_OptionalAddresses_PublicAddress struct {
+	Public bool "json:\"public\""
+}
+
+func (t *UserOperation_Article_OptionalAddresses_PublicAddress) GetPublic() bool {
+	if t == nil {
+		t = &UserOperation_Article_OptionalAddresses_PublicAddress{}
+	}
+	return t.Public
 }
 
 type UserOperation_Article_OptionalComments struct {
@@ -564,13 +604,9 @@ func (t *UserOperation_Article_OptionalComments) GetText() string {
 }
 
 type UserOperation_Article_OptionalProfiles struct {
-	PrivateProfile *struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile *struct {
-		Status Status "json:\"status\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
+	PrivateProfile *UserOperation_Article_OptionalProfiles_PrivateProfile "json:\"-\""
+	PublicProfile  *UserOperation_Article_OptionalProfiles_PublicProfile  "json:\"-\""
+	Typename       string                                                 "json:\"__typename\""
 }
 
 func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -584,27 +620,25 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext
 	}
 	switch t.Typename {
 	case "PrivateProfile":
-		if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		t.PrivateProfile = &UserOperation_Article_OptionalProfiles_PrivateProfile{}
+		if err := json.Unmarshal(data, t.PrivateProfile); err != nil {
 			return err
 		}
 	case "PublicProfile":
-		if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		t.PublicProfile = &UserOperation_Article_OptionalProfiles_PublicProfile{}
+		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() *struct {
-	Age *int "json:\"age\""
-} {
+func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() *UserOperation_Article_OptionalProfiles_PrivateProfile {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
 	}
 	return t.PrivateProfile
 }
-func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() *struct {
-	Status Status "json:\"status\""
-} {
+func (t *UserOperation_Article_OptionalProfiles) GetPublicProfile() *UserOperation_Article_OptionalProfiles_PublicProfile {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
 	}
@@ -617,16 +651,32 @@ func (t *UserOperation_Article_OptionalProfiles) GetTypename() string {
 	return t.Typename
 }
 
+type UserOperation_Article_OptionalProfiles_PrivateProfile struct {
+	Age *int "json:\"age\""
+}
+
+func (t *UserOperation_Article_OptionalProfiles_PrivateProfile) GetAge() *int {
+	if t == nil {
+		t = &UserOperation_Article_OptionalProfiles_PrivateProfile{}
+	}
+	return t.Age
+}
+
+type UserOperation_Article_OptionalProfiles_PublicProfile struct {
+	Status Status "json:\"status\""
+}
+
+func (t *UserOperation_Article_OptionalProfiles_PublicProfile) GetStatus() Status {
+	if t == nil {
+		t = &UserOperation_Article_OptionalProfiles_PublicProfile{}
+	}
+	return t.Status
+}
+
 type UserOperation_Article_ProfileGrid struct {
-	PrivateProfile *struct {
-		Age *int   "json:\"age\""
-		ID  string "json:\"id\""
-	} "json:\"-\""
-	PublicProfile *struct {
-		ID     string "json:\"id\""
-		Status Status "json:\"status\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
+	PrivateProfile *UserOperation_Article_ProfileGrid_PrivateProfile "json:\"-\""
+	PublicProfile  *UserOperation_Article_ProfileGrid_PublicProfile  "json:\"-\""
+	Typename       string                                            "json:\"__typename\""
 }
 
 func (t *UserOperation_Article_ProfileGrid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -640,29 +690,25 @@ func (t *UserOperation_Article_ProfileGrid) UnmarshalJSONFrom(dec *jsontext.Deco
 	}
 	switch t.Typename {
 	case "PrivateProfile":
-		if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		t.PrivateProfile = &UserOperation_Article_ProfileGrid_PrivateProfile{}
+		if err := json.Unmarshal(data, t.PrivateProfile); err != nil {
 			return err
 		}
 	case "PublicProfile":
-		if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		t.PublicProfile = &UserOperation_Article_ProfileGrid_PublicProfile{}
+		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_Article_ProfileGrid) GetPrivateProfile() *struct {
-	Age *int   "json:\"age\""
-	ID  string "json:\"id\""
-} {
+func (t *UserOperation_Article_ProfileGrid) GetPrivateProfile() *UserOperation_Article_ProfileGrid_PrivateProfile {
 	if t == nil {
 		t = &UserOperation_Article_ProfileGrid{}
 	}
 	return t.PrivateProfile
 }
-func (t *UserOperation_Article_ProfileGrid) GetPublicProfile() *struct {
-	ID     string "json:\"id\""
-	Status Status "json:\"status\""
-} {
+func (t *UserOperation_Article_ProfileGrid) GetPublicProfile() *UserOperation_Article_ProfileGrid_PublicProfile {
 	if t == nil {
 		t = &UserOperation_Article_ProfileGrid{}
 	}
@@ -673,6 +719,42 @@ func (t *UserOperation_Article_ProfileGrid) GetTypename() string {
 		t = &UserOperation_Article_ProfileGrid{}
 	}
 	return t.Typename
+}
+
+type UserOperation_Article_ProfileGrid_PrivateProfile struct {
+	Age *int   "json:\"age\""
+	ID  string "json:\"id\""
+}
+
+func (t *UserOperation_Article_ProfileGrid_PrivateProfile) GetAge() *int {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid_PrivateProfile{}
+	}
+	return t.Age
+}
+func (t *UserOperation_Article_ProfileGrid_PrivateProfile) GetID() string {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid_PrivateProfile{}
+	}
+	return t.ID
+}
+
+type UserOperation_Article_ProfileGrid_PublicProfile struct {
+	ID     string "json:\"id\""
+	Status Status "json:\"status\""
+}
+
+func (t *UserOperation_Article_ProfileGrid_PublicProfile) GetID() string {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid_PublicProfile{}
+	}
+	return t.ID
+}
+func (t *UserOperation_Article_ProfileGrid_PublicProfile) GetStatus() Status {
+	if t == nil {
+		t = &UserOperation_Article_ProfileGrid_PublicProfile{}
+	}
+	return t.Status
 }
 
 type UserOperation_Article_Profiles struct {
@@ -757,10 +839,7 @@ func (t *UserOperation_OptionalUser) GetName() string {
 }
 
 type UserOperation_User struct {
-	User *struct {
-		UserFragment2 UserFragment2 "json:\"-\""
-		Name          string        "json:\"name\""
-	} "json:\"-\""
+	User             *UserOperation_User_User            "json:\"-\""
 	UserFragment1    UserFragment1                       "json:\"-\""
 	UserFragment2    UserFragment2                       "json:\"-\""
 	Typename         string                              "json:\"__typename\""
@@ -796,19 +875,14 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	switch t.Typename {
 	case "User":
-		if err := json.Unmarshal(data, &t.User); err != nil {
-			return err
-		}
-		if err := json.Unmarshal(data, &t.User.UserFragment2); err != nil {
+		t.User = &UserOperation_User_User{}
+		if err := json.Unmarshal(data, t.User); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_User) GetUser() *struct {
-	UserFragment2 UserFragment2 "json:\"-\""
-	Name          string        "json:\"name\""
-} {
+func (t *UserOperation_User) GetUser() *UserOperation_User_User {
 	if t == nil {
 		t = &UserOperation_User{}
 	}
@@ -954,16 +1028,10 @@ func (t *UserOperation_User_Address) GetStreet() string {
 }
 
 type UserOperation_User_OptionalAddress struct {
-	PrivateAddress *struct {
-		Private bool   "json:\"private\""
-		Street  string "json:\"street\""
-	} "json:\"-\""
-	PublicAddress *struct {
-		Public bool   "json:\"public\""
-		Street string "json:\"street\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
-	Street   string "json:\"street\""
+	PrivateAddress *UserOperation_User_OptionalAddress_PrivateAddress "json:\"-\""
+	PublicAddress  *UserOperation_User_OptionalAddress_PublicAddress  "json:\"-\""
+	Typename       string                                             "json:\"__typename\""
+	Street         string                                             "json:\"street\""
 }
 
 func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -977,29 +1045,25 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Dec
 	}
 	switch t.Typename {
 	case "PrivateAddress":
-		if err := json.Unmarshal(data, &t.PrivateAddress); err != nil {
+		t.PrivateAddress = &UserOperation_User_OptionalAddress_PrivateAddress{}
+		if err := json.Unmarshal(data, t.PrivateAddress); err != nil {
 			return err
 		}
 	case "PublicAddress":
-		if err := json.Unmarshal(data, &t.PublicAddress); err != nil {
+		t.PublicAddress = &UserOperation_User_OptionalAddress_PublicAddress{}
+		if err := json.Unmarshal(data, t.PublicAddress); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *struct {
-	Private bool   "json:\"private\""
-	Street  string "json:\"street\""
-} {
+func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *UserOperation_User_OptionalAddress_PrivateAddress {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
 	}
 	return t.PrivateAddress
 }
-func (t *UserOperation_User_OptionalAddress) GetPublicAddress() *struct {
-	Public bool   "json:\"public\""
-	Street string "json:\"street\""
-} {
+func (t *UserOperation_User_OptionalAddress) GetPublicAddress() *UserOperation_User_OptionalAddress_PublicAddress {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
 	}
@@ -1014,6 +1078,42 @@ func (t *UserOperation_User_OptionalAddress) GetTypename() string {
 func (t *UserOperation_User_OptionalAddress) GetStreet() string {
 	if t == nil {
 		t = &UserOperation_User_OptionalAddress{}
+	}
+	return t.Street
+}
+
+type UserOperation_User_OptionalAddress_PrivateAddress struct {
+	Private bool   "json:\"private\""
+	Street  string "json:\"street\""
+}
+
+func (t *UserOperation_User_OptionalAddress_PrivateAddress) GetPrivate() bool {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress_PrivateAddress{}
+	}
+	return t.Private
+}
+func (t *UserOperation_User_OptionalAddress_PrivateAddress) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress_PrivateAddress{}
+	}
+	return t.Street
+}
+
+type UserOperation_User_OptionalAddress_PublicAddress struct {
+	Public bool   "json:\"public\""
+	Street string "json:\"street\""
+}
+
+func (t *UserOperation_User_OptionalAddress_PublicAddress) GetPublic() bool {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress_PublicAddress{}
+	}
+	return t.Public
+}
+func (t *UserOperation_User_OptionalAddress_PublicAddress) GetStreet() string {
+	if t == nil {
+		t = &UserOperation_User_OptionalAddress_PublicAddress{}
 	}
 	return t.Street
 }
@@ -1081,13 +1181,9 @@ func (t *UserOperation_User_Profile) GetPublicProfileFields() PublicProfileField
 }
 
 type UserOperation_User_Profile2 struct {
-	PrivateProfile *struct {
-		Age *int "json:\"age\""
-	} "json:\"-\""
-	PublicProfile *struct {
-		Status Status "json:\"status\""
-	} "json:\"-\""
-	Typename string "json:\"__typename\""
+	PrivateProfile *UserOperation_User_Profile2_PrivateProfile "json:\"-\""
+	PublicProfile  *UserOperation_User_Profile2_PublicProfile  "json:\"-\""
+	Typename       string                                      "json:\"__typename\""
 }
 
 func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1101,27 +1197,25 @@ func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) e
 	}
 	switch t.Typename {
 	case "PrivateProfile":
-		if err := json.Unmarshal(data, &t.PrivateProfile); err != nil {
+		t.PrivateProfile = &UserOperation_User_Profile2_PrivateProfile{}
+		if err := json.Unmarshal(data, t.PrivateProfile); err != nil {
 			return err
 		}
 	case "PublicProfile":
-		if err := json.Unmarshal(data, &t.PublicProfile); err != nil {
+		t.PublicProfile = &UserOperation_User_Profile2_PublicProfile{}
+		if err := json.Unmarshal(data, t.PublicProfile); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (t *UserOperation_User_Profile2) GetPrivateProfile() *struct {
-	Age *int "json:\"age\""
-} {
+func (t *UserOperation_User_Profile2) GetPrivateProfile() *UserOperation_User_Profile2_PrivateProfile {
 	if t == nil {
 		t = &UserOperation_User_Profile2{}
 	}
 	return t.PrivateProfile
 }
-func (t *UserOperation_User_Profile2) GetPublicProfile() *struct {
-	Status Status "json:\"status\""
-} {
+func (t *UserOperation_User_Profile2) GetPublicProfile() *UserOperation_User_Profile2_PublicProfile {
 	if t == nil {
 		t = &UserOperation_User_Profile2{}
 	}
@@ -1132,6 +1226,60 @@ func (t *UserOperation_User_Profile2) GetTypename() string {
 		t = &UserOperation_User_Profile2{}
 	}
 	return t.Typename
+}
+
+type UserOperation_User_Profile2_PrivateProfile struct {
+	Age *int "json:\"age\""
+}
+
+func (t *UserOperation_User_Profile2_PrivateProfile) GetAge() *int {
+	if t == nil {
+		t = &UserOperation_User_Profile2_PrivateProfile{}
+	}
+	return t.Age
+}
+
+type UserOperation_User_Profile2_PublicProfile struct {
+	Status Status "json:\"status\""
+}
+
+func (t *UserOperation_User_Profile2_PublicProfile) GetStatus() Status {
+	if t == nil {
+		t = &UserOperation_User_Profile2_PublicProfile{}
+	}
+	return t.Status
+}
+
+type UserOperation_User_User struct {
+	UserFragment2 UserFragment2 "json:\"-\""
+	Name          string        "json:\"name\""
+}
+
+func (t *UserOperation_User_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	type plain UserOperation_User_User
+	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &t.UserFragment2); err != nil {
+		return err
+	}
+	return nil
+}
+func (t *UserOperation_User_User) GetUserFragment2() UserFragment2 {
+	if t == nil {
+		t = &UserOperation_User_User{}
+	}
+	return t.UserFragment2
+}
+func (t *UserOperation_User_User) GetName() string {
+	if t == nil {
+		t = &UserOperation_User_User{}
+	}
+	return t.Name
 }
 
 const UpdateUserDocument = `mutation UpdateUser($input: UpdateUserInput!) { updateUser(input: $input) { user { name settings { theme notifications } } } }`

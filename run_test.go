@@ -104,11 +104,9 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 						},
 						OptionalAddresses: &[]*domain.UserOperation_Article_OptionalAddresses{
 							{
-								Street: "Optional St",
-								PublicAddress: &struct {
-									Public bool "json:\"public\""
-								}{Public: false},
-								Typename: "PublicAddress",
+								Street:        "Optional St",
+								PublicAddress: &domain.UserOperation_Article_OptionalAddresses_PublicAddress{Public: false},
+								Typename:      "PublicAddress",
 							},
 						},
 						Profiles: []*domain.UserOperation_Article_Profiles{
@@ -133,10 +131,8 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 						},
 						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
 							{
-								PublicProfile: &struct {
-									Status domain.Status "json:\"status\""
-								}{Status: domain.StatusInactive},
-								Typename: "PublicProfile",
+								PublicProfile: &domain.UserOperation_Article_OptionalProfiles_PublicProfile{Status: domain.StatusInactive},
+								Typename:      "PublicProfile",
 							},
 						},
 						Matrix: [][]string{
@@ -150,18 +146,12 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 						ProfileGrid: [][]*domain.UserOperation_Article_ProfileGrid{
 							{
 								{
-									PublicProfile: &struct {
-										ID     string        `json:"id"`
-										Status domain.Status `json:"status"`
-									}{ID: "grid1", Status: domain.StatusActive},
-									Typename: "PublicProfile",
+									PublicProfile: &domain.UserOperation_Article_ProfileGrid_PublicProfile{ID: "grid1", Status: domain.StatusActive},
+									Typename:      "PublicProfile",
 								},
 								{
-									PrivateProfile: &struct {
-										Age *int   `json:"age"`
-										ID  string `json:"id"`
-									}{Age: new(7), ID: "grid2"},
-									Typename: "PrivateProfile",
+									PrivateProfile: &domain.UserOperation_Article_ProfileGrid_PrivateProfile{Age: new(7), ID: "grid2"},
+									Typename:       "PrivateProfile",
 								},
 							},
 						},
@@ -179,26 +169,18 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 					},
 					User: domain.UserOperation_User{
 						Email: "john.doe@example.com",
-						User: &struct {
-							UserFragment2 domain.UserFragment2 `json:"-"`
-
-							Name string "json:\"name\""
-						}{
+						User: &domain.UserOperation_User_User{
 							UserFragment2: domain.UserFragment2{Name: "John Doe"},
 							Name:          "John Doe",
 						},
 						UserFragment1: domain.UserFragment1{
-							User: &struct {
-								Name string "json:\"name\""
-							}{
+							User: &domain.UserFragment1_User{
 								Name: "John Doe",
 							},
 							Typename: "User",
 							Name:     "John Doe",
 							Profile: domain.UserFragment1_Profile{
-								PrivateProfile: &struct {
-									Age *int "json:\"age\""
-								}{
+								PrivateProfile: &domain.UserFragment1_Profile_PrivateProfile{
 									Age: func() *int { i := 30; return &i }(),
 								},
 								Typename: "PrivateProfile",
@@ -232,9 +214,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 							},
 						},
 						Profile2: domain.UserOperation_User_Profile2{
-							PrivateProfile: &struct {
-								Age *int "json:\"age\""
-							}{
+							PrivateProfile: &domain.UserOperation_User_Profile2_PrivateProfile{
 								Age: func() *int { i := 30; return &i }(),
 							},
 							Typename: "PrivateProfile",
@@ -250,10 +230,7 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 						},
 						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
 							Street: "456 Elm St",
-							PublicAddress: &struct {
-								Public bool   "json:\"public\""
-								Street string "json:\"street\""
-							}{
+							PublicAddress: &domain.UserOperation_User_OptionalAddress_PublicAddress{
 								Street: "456 Elm St",
 							},
 							Typename: "PublicAddress",

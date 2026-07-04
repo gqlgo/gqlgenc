@@ -76,8 +76,8 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 2. フラグメントは名前付きフィールドとして配置します（埋め込まない）。アクセスは `t.<フラグメント名>.<フィールド>`
 3. フラグメントは公開型として生成します
 4. フラグメントは常に non-optional（非ポインタ）です
-5. インラインフラグメントは独立した型を生成しません
-6. インラインフラグメントは無名構造体として生成します
+5. インラインフラグメントも独立した名前付き型として生成します。型名は `親型名_型条件`（例: `UserOperation_User_User`）です
+6. インラインフラグメントの型は公開型です。名前付き型のため、利用側は json タグを書かずに値を構築できます（匿名構造体では Go の型同一性ルールによりタグまで一致するリテラルが必要でした）
 7. インラインフラグメントは型条件名のフィールドを持つポインタになり、レスポンスの `__typename` が型条件に一致した場合のみ値が入ります（一致しない場合は nil）。判別に `__typename` を使うため、クエリで `__typename` を選択してください
 8. クエリのレスポンス型は公開型として生成します（型名はアンダースコア区切り、例: `GetUser_User`）
 9. フィールドが optional（ポインタ）かどうかは GraphQL スキーマの NonNull 定義に従います。オブジェクト型のリスト要素は常にポインタです
@@ -110,9 +110,11 @@ v1.0.0-alpha1 の生成コード:
 
 ```go
 type UserOperation_User struct {
-	User *struct {
-		UserFragment1 UserFragment1 `json:"-"`
-	} `json:"-"`
+	User          *UserOperation_User_User `json:"-"`
+	UserFragment1 UserFragment1            `json:"-"`
+}
+
+type UserOperation_User_User struct {
 	UserFragment1 UserFragment1 `json:"-"`
 }
 

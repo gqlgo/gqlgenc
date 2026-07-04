@@ -227,7 +227,7 @@ GraphQL エラー時も部分データが `res` に入ります。
 移行時に影響が出る主な点は次のとおりです。
 
 - フラグメントは埋め込みから名前付きフィールドになりました。アクセスが `t.Name` から `t.UserFragment1.Name` のように変わります
-- インラインフラグメントは型条件名のフィールドを持つポインタになり、`__typename` が一致した場合のみ非 nil です。利用側は nil チェックが必要です
+- インラインフラグメントは `親型名_型条件` の名前付き型（例: `UserOperation_User_User`）へのポインタフィールドになり、`__typename` が一致した場合のみ非 nil です。利用側は nil チェックが必要です
 - レスポンス型は常に公開型です（アンダースコア区切りの型名）
 - nil セーフ getter は既定で生成されません。必要なら `generate.query.getters: true` を指定してください
 - 構造体タグから `graphql` タグが消え、`json` タグのみになりました
@@ -253,9 +253,11 @@ v1.0.0-alpha1 の生成コード:
 
 ```go
 type UserOperation_User struct {
-	User *struct {
-		UserFragment1 UserFragment1 `json:"-"`
-	} `json:"-"`
+	User          *UserOperation_User_User `json:"-"`
+	UserFragment1 UserFragment1            `json:"-"`
+}
+
+type UserOperation_User_User struct {
 	UserFragment1 UserFragment1 `json:"-"`
 }
 

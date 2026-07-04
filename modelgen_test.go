@@ -64,25 +64,16 @@ func Test_IntegrationTest_ModelGen(t *testing.T) {
 					},
 					SearchNodes: []*mgdomain.Search_SearchNodes{
 						{
-							User: &struct {
-								ID   string            `json:"id"`
-								Kind mgdomain.NodeKind `json:"kind"`
-								Name string            `json:"name"`
-							}{ID: "u1", Kind: mgdomain.NodeKindUser, Name: "Alice"},
+							User:     &mgdomain.Search_SearchNodes_User{ID: "u1", Kind: mgdomain.NodeKindUser, Name: "Alice"},
 							Typename: "User",
 						},
 						{
-							Post: &struct {
-								ID    string `json:"id"`
-								Title string `json:"title"`
-							}{ID: "p1", Title: "Hello"},
+							Post:     &mgdomain.Search_SearchNodes_Post{ID: "p1", Title: "Hello"},
 							Typename: "Post",
 						},
 					},
 					Node: &mgdomain.Search_Node{
-						User: &struct {
-							Name string `json:"name"`
-						}{Name: "Alice"},
+						User:     &mgdomain.Search_Node_User{Name: "Alice"},
 						Typename: "User",
 						ID:       "u1",
 					},
