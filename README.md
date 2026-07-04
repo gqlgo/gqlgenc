@@ -245,7 +245,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
 - レスポンス型: セレクションセットの構造に対応したネスト構造体。各フィールドに json タグが付く。`generate.query.getters: true` を指定した場合のみ、各フィールドに nil レシーバ安全な getter メソッドも生成する（デフォルトは生成せず、フィールドへ直接アクセスする）。getter は query_gen.go に生成される全型（オペレーション応答型・生成フラグメント型）に一律で適用される
 - フラグメント対応:
   - フラグメントスプレッドは `json:"-"` 付きの名前付きフィールド（型名と同名）として表現し、UnmarshalJSONFrom 内で同じ JSON データから直接デコードする。**埋め込みフィールドにはしない**（理由は後述の「フラグメントスプレッドを埋め込まない理由」）。アクセスは常に `t.<フラグメント名>.<フィールド>`
-  - インラインフラグメント（`... on Type`）は `__typename` の値を見て対応するフィールドにデコードする。`__typename` がクエリに無くても、インラインフラグメントを含む選択セットには生成時に `__typename` を自動で追加するため、interface / union のデコードが常に動作する
+  - インラインフラグメント（`... on Type`）の枝は `親型名_型条件` の名前付き公開型（例: `UserOperation_User_User`）として生成され、`__typename` の値を見て対応するフィールドにデコードされる。名前付き型のため、利用側は json タグを書かずに値を構築できる。`__typename` がクエリに無くても、インラインフラグメントを含む選択セットには生成時に `__typename` を自動で追加するため、interface / union のデコードが常に動作する
   - フラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goFragment(type: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goFragment` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
   - `bind.fragment.packages` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにある場合、`@goFragment` を書かなくても自動でその既存型にバインドする（`bind.type.packages` のクエリ版。マッチ対象はフラグメント名）。明示的な `@goFragment(type: ...)` が付いている場合はそちらが優先される
 - `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
@@ -833,11 +833,11 @@ var GetUserOp = client.Operation[client.Query, GetUserVars, domain.GetUser]{
 
 ```go
 // query_gen.go: クエリ文字列は定数、レスポンス型はアンダースコア区切りの命名
-const GetUserDocument = `query GetUser ($id: ID!) { user(id: $id) { name email } }`
+const GetUserDocument = `query GetUser($id: ID!) { user(id: $id) { name email } }`
 
 type GetUser_User struct {
-	Name  string `json:"name,omitzero"`
-	Email string `json:"email,omitzero"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 // getter は nil セーフ

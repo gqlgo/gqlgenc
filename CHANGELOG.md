@@ -8,7 +8,7 @@ v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してくだ
 
 ### 動作要件
 
-- Go 1.27 以上が必要です。ビルド・テストには環境変数 `GOEXPERIMENT=jsonv2` の設定が必要です
+- Go 1.27 以上が必要です。Go 1.27 正式リリースまでは go.mod の `toolchain go1.27rc1` 指定により、Go 1.21 以降の `go` コマンドでツールチェーンが自動解決されます。ビルド・テストには環境変数 `GOEXPERIMENT=jsonv2` の設定が必要です
 - モジュールパスを `github.com/Yamashou/gqlgenc` から `github.com/Yamashou/gqlgenc/v3` に変更しました
 
 ### 破壊的変更
