@@ -15,10 +15,12 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "gqlgenc は GraphQL スキーマとクエリから型安全な Go クライアントを生成します。")
 		fmt.Fprintln(os.Stderr, "カレントディレクトリ（見つからなければ親を順に遡って）見つかる .gqlgenc.yml を読み、設定どおりにコードを生成します。")
+		fmt.Fprintln(os.Stderr, "設定ファイルを引数で指定した場合、設定内の相対パスは各設定ファイルのディレクトリを基準に解決します。")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage:")
-		fmt.Fprintln(os.Stderr, "  gqlgenc            設定ファイルのあるディレクトリで実行し、コードを生成する")
-		fmt.Fprintln(os.Stderr, "  gqlgenc -version   バージョンを表示する")
+		fmt.Fprintln(os.Stderr, "  gqlgenc                     設定ファイルのあるディレクトリで実行し、コードを生成する")
+		fmt.Fprintln(os.Stderr, "  gqlgenc <設定ファイル>...    指定した設定ファイルを順に処理する (パッケージ情報のロードを共有するため複数プロセスより高速)")
+		fmt.Fprintln(os.Stderr, "  gqlgenc -version            バージョンを表示する")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Flags:")
 		flag.PrintDefaults()
@@ -33,7 +35,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	if err := run(ctx); err != nil {
+	if err := run(ctx, flag.Args()...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

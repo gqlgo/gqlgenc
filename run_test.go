@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -539,6 +540,39 @@ func Test_IntegrationTest_SamePackage(t *testing.T) {
 	if samepackagegen.GetUserOp.Name != "GetUser" {
 		t.Errorf("GetUserOp.Name = %q, want %q", samepackagegen.GetUserOp.Name, "GetUser")
 	}
+}
+
+// 複数の設定ファイルを1回の run で順に処理できることを検証する。gqlgen のパッケージ
+// キャッシュ (go list + 型検査の結果) を config 間で共有するため、生成物が単独実行時と
+// 同一であることを want ファイルとの比較で確認する。
+func Test_IntegrationTest_MultipleConfigs(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	// run は設定ファイルのディレクトリへ chdir するため、テスト終了時に元へ戻す
+	t.Chdir(".")
+
+	basicDir, err := filepath.Abs("testdata/integration/basic")
+	if err != nil {
+		t.Fatalf("failed to resolve basic dir: %v", err)
+	}
+	samePackageDir, err := filepath.Abs("testdata/integration/samepackage")
+	if err != nil {
+		t.Fatalf("failed to resolve samepackage dir: %v", err)
+	}
+
+	if err := run(t.Context(),
+		filepath.Join(basicDir, ".gqlgenc.yml"),
+		filepath.Join(samePackageDir, ".gqlgenc.yml"),
+	); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, filepath.Join(basicDir, "want/query_gen.go.txt"), filepath.Join(basicDir, "domain/query_gen.go"))
+	compareFiles(t, filepath.Join(samePackageDir, "want/client_gen.go.txt"), filepath.Join(samePackageDir, "gen/client_gen.go"))
 }
 
 func compareFiles(t *testing.T, wantFile, generatedFile string) {

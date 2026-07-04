@@ -151,7 +151,7 @@ type UserOperation_User_User struct {
 
 #### CLI の簡素化
 
-- urfave/cli への依存を削除しました。`generate` / `version` サブコマンドと `--configdir` フラグを廃止し、`gqlgenc` は設定ファイル（`.gqlgenc.yml`）のあるディレクトリで実行します（フラグは `-version` のみ）
+- urfave/cli への依存を削除しました。`generate` / `version` サブコマンドと `--configdir` フラグを廃止し、`gqlgenc` は設定ファイル（`.gqlgenc.yml`）のあるディレクトリで実行するか、設定ファイルのパスを引数で指定します（フラグは `-version` のみ）
 - `gqlgenc -h`（usage）でツールの概要・実行方法・フラグを表示します
 
 ### 新機能
@@ -214,6 +214,12 @@ type UserOperation_User_User struct {
 #### モデル生成の省略（サーバーモデル共有）
 
 - `generate.model.file` を省略するとモデル生成をスキップできます。サーバー側で gqlgen が生成したモデルを `bind.type.packages` で参照する構成に対応します。`generate.model.file` と `generate.query.file` は少なくとも一方の指定が必須です
+
+#### 複数設定ファイルの一括処理
+
+- `gqlgenc <設定ファイル>...` と引数で複数の設定ファイルを指定すると、1プロセスで順に処理します。gqlgen のパッケージ情報のロード（`go list` と型検査）を設定間で共有するため、設定ごとに `gqlgenc` を起動するより高速です
+- 引数で設定ファイルを指定した場合、設定内の相対パスは各設定ファイルのあるディレクトリを基準に解決します
+- 処理は指定した順に行われます。ある設定の生成物を別の設定が `bind.type.packages` で参照する場合は、生成する側を先に指定してください
 
 ### 解決済みの issue
 

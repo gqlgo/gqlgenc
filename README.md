@@ -42,7 +42,7 @@ go get -tool github.com/Yamashou/gqlgenc/v3@latest
 
 ### 1. 設定ファイルを書く
 
-カレントディレクトリ（見つからない場合は親ディレクトリを順に遡る）の `.gqlgenc.yml` / `gqlgenc.yml` / `.gqlgenc.yaml` / `gqlgenc.yaml` を読み込みます。
+カレントディレクトリ（見つからない場合は親ディレクトリを順に遡る）の `.gqlgenc.yml` / `gqlgenc.yml` / `.gqlgenc.yaml` / `gqlgenc.yaml` を読み込みます。設定ファイルのパスを引数で指定することもでき、複数指定すると1プロセスで順に処理します（後述）。
 
 ローカルのスキーマファイルから生成する例:
 
@@ -96,6 +96,17 @@ generate:
 ```shell
 gqlgenc
 ```
+
+設定ファイルのパスを引数で指定することもできます。複数指定すると1プロセスで順に処理します。
+
+```shell
+gqlgenc ./service-a/.gqlgenc.yml ./service-b/.gqlgenc.yml
+```
+
+複数の設定を処理するときは、gqlgen のパッケージ情報のロード（`go list` と型検査。`bind.type.packages` などで使われ、生成時間の大半を占める）を設定間で共有するため、設定ごとに `gqlgenc` を起動するより高速です。次の点に注意してください。
+
+- 設定内の相対パス（`schema.files` / `query.files` / `generate.*.file` など）は、各設定ファイルのあるディレクトリを基準に解決します
+- 処理は指定した順に行われます。ある設定の生成物（例: `generate.model.file`）を別の設定が `bind.type.packages` で参照する場合は、生成する側を先に指定してください
 
 ### 3. 生成されたクライアントを使う
 
