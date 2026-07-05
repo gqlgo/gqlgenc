@@ -243,6 +243,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - gqlgen で生成した実サーバーに対する統合テストを追加しました（フィールドの Name / Alias、Input の `graphql.Omittable`、union の `__typename` 判別、ネストしたフラグメント、フィールド引数のデフォルト値、`@skip` / `@include` の present / absent など）
 - テストを testify からテーブル駆動テスト + go-cmp に移行しました
 - ローカルスキーマの読み込みで gqlgen の `LoadSchema()` を経由せず `gqlparser` を直接呼ぶようにしました。gqlgen の `LoadSchema()` はパッケージキャッシュを無条件に作り直してプリロード用の `go list` を起動するため、複数設定ファイルの一括処理で設定ごとに無駄なサブプロセスが発生していました（`schema.endpoint` 経路と同じ扱いに統一）
+- 生成ファイルが import するパッケージ（`encoding/json/jsontext` / `encoding/json/v2` / `client` パッケージ / `bind` で指定されたパッケージ）の名前解決を、生成前に1回の `go list` へまとめて先読みするようにしました。従来はテンプレート描画中に参照パッケージごとに `go list` サブプロセスが起動していました
 - エラーを `%w` でラップし、原因を辿れるようにしました
 - golangci-lint v2（`.golangci.yml`）と GitHub Actions の CI を整備しました
 - インラインフラグメントのデコードで `__typename` を再パースせず、デコード済みの `Typename` フィールドから型名を読むように簡素化しました（`__typename` の自動注入で必ずフィールドが存在することを利用）。型名抽出のための JSON 再パースが1回減ります

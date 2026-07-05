@@ -11,6 +11,8 @@ import (
 )
 
 func GenerateCode(cfg *config.Config) error {
+	warmPackageNames(cfg)
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// gqlgen Plugin
 
@@ -57,4 +59,26 @@ func GenerateCode(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// warmPackageNames は生成ファイルが import するパッケージの名前解決を1回の
+// go list にまとめて先読みする。テンプレート描画中に templates が個別に解決すると
+// 参照パッケージごとに go list サブプロセスが起動する。autobind などでロード済みの
+// パッケージはキャッシュから名前を写すだけでサブプロセスを起動しないため、生成の
+// 書き込みで Evict される前のこの時点で行う。
+func warmPackageNames(cfg *config.Config) {
+	// querygen / clientgen のテンプレートが常に import する静的パッケージ
+	staticPaths := []string{
+		"encoding/json/jsontext",
+		"encoding/json/v2",
+		"github.com/Yamashou/gqlgenc/v3/client",
+	}
+	referencedPaths := cfg.GQLGenConfig.Models.ReferencedPackages()
+
+	paths := make([]string, 0, len(staticPaths)+len(cfg.GQLGenConfig.AutoBind)+len(cfg.GQLGencConfig.FragmentAutobind)+len(referencedPaths))
+	paths = append(paths, staticPaths...)
+	paths = append(paths, cfg.GQLGenConfig.AutoBind...)
+	paths = append(paths, cfg.GQLGencConfig.FragmentAutobind...)
+	paths = append(paths, referencedPaths...)
+	cfg.GQLGenConfig.Packages.LoadAllNames(paths...)
 }
