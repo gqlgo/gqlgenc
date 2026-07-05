@@ -16,6 +16,7 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/queryparser"
 
+	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
@@ -238,16 +239,21 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 	// Load schema
 	switch {
 	case c.GQLGenConfig.SchemaFilename != nil:
-		// gqlgen の LoadSchema は Packages が非 nil だとキャッシュを作り直すため、
-		// 複数 config を1プロセスで処理するときに注入した共有キャッシュを退避して復元する。
-		// 生成で書き換わったパッケージは templates.Render が Evict するため復元しても安全。
-		sharedPackages := c.GQLGenConfig.Packages
-		if err := c.GQLGenConfig.LoadSchema(); err != nil {
+		// gqlgen の LoadSchema は使わない。Packages キャッシュを無条件に作り直し、
+		// その場でプリロード用の go list が走るため、複数 config 間で共有している
+		// キャッシュが config ごとに使い捨てられてしまう。本質的な処理は
+		// gqlparser.LoadSchema と Query 型の補完だけなので、ここで直接行う
+		// (endpoint 経路が Schema を直接セットするのと同じ扱い)。検証は後段の
+		// Init() が行う。
+		schema, err := gqlparser.LoadSchema(c.GQLGenConfig.Sources...)
+		if err != nil {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
-		if sharedPackages != nil {
-			c.GQLGenConfig.Packages = sharedPackages
+		if schema.Query == nil {
+			schema.Query = &ast.Definition{Kind: ast.Object, Name: "Query"}
+			schema.Types["Query"] = schema.Query
 		}
+		c.GQLGenConfig.Schema = schema
 	case c.GQLGencConfig.Endpoint != nil:
 		// リモート(endpoint)のスキーマ取得は注入された loadRemoteSchema に委ねる。
 		// これにより config パッケージは client / introspection に依存しない。
