@@ -75,9 +75,9 @@ func warmPackageNames(cfg *config.Config) {
 	}
 	referencedPaths := cfg.GQLGenConfig.Models.ReferencedPackages()
 
-	paths := make([]string, 0, len(staticPaths)+len(cfg.GQLGenConfig.AutoBind)+len(cfg.GQLGencConfig.FragmentAutobind)+len(referencedPaths))
+	paths := make([]string, 0, len(staticPaths)+len(cfg.GQLGencConfig.TypeAutobind)+len(cfg.GQLGencConfig.FragmentAutobind)+len(referencedPaths))
 	paths = append(paths, staticPaths...)
-	paths = append(paths, cfg.GQLGenConfig.AutoBind...)
+	paths = append(paths, cfg.GQLGencConfig.TypeAutobind...)
 	paths = append(paths, cfg.GQLGencConfig.FragmentAutobind...)
 	paths = append(paths, referencedPaths...)
 	cfg.GQLGenConfig.Packages.LoadAllNames(paths...)

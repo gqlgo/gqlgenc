@@ -6,9 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
+	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	graphql "github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/formatter"
@@ -16,14 +15,14 @@ import (
 
 type OperationGenerator struct {
 	cfg    *config.Config
-	binder *gqlgenconfig.Binder
+	binder *typebind.Binder
 	err    error
 }
 
 func NewOperationGenerator(cfg *config.Config) *OperationGenerator {
 	return &OperationGenerator{
 		cfg:    cfg,
-		binder: cfg.GQLGenConfig.NewBinder(),
+		binder: cfg.GQLGencConfig.TypeBinder,
 	}
 }
 

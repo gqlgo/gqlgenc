@@ -14,6 +14,7 @@ import (
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin/federation"
 
+	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 	"github.com/Yamashou/gqlgenc/v3/queryparser"
 
 	"github.com/vektah/gqlparser/v2"
@@ -153,12 +154,12 @@ func LoadConfig(configFilename string) (*Config, error) {
 			Endpoint:         fc.Schema.Endpoint,
 			Query:            fc.Query.Files,
 			FragmentAutobind: fc.Bind.Fragment.Packages,
+			TypeAutobind:     fc.Bind.Type.Packages,
 			GenerateGetters:  fc.Generate.Query.Getters,
 		},
 		GQLGenConfig: &gqlgenconfig.Config{
 			SchemaFilename: gqlgenconfig.StringList(fc.Schema.Files),
 			Model:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
-			AutoBind:       fc.Bind.Type.Packages,
 			Models:         fc.Bind.Type.Named,
 			Federation:     gqlgenconfig.PackageConfig{Version: federationVersion},
 			// v3 が常に使う設定を固定する (gqlgen の生 config はユーザに露出しない)。
@@ -292,6 +293,26 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		return fmt.Errorf("generating core failed: %w", err)
 	}
 
+	// autobind は gqlgen (ソース型検査を伴う重いロード) ではなく、export data のみを
+	// 読む自前の軽量 binder で行う。codegen の型解決もこの binder を使う。
+	// gqlgen が Init でロード済みのパッケージ (graphql / introspection / named 束縛先) は
+	// fallback で再利用し、二重ロードを避ける。
+	if c.GQLGencConfig.TypeBinder == nil {
+		c.GQLGencConfig.TypeBinder = typebind.New()
+	}
+	c.GQLGencConfig.TypeBinder.SetFallback(c.GQLGenConfig.Packages.LoadWithTypes)
+
+	// autobind 対象と fragment 束縛先を1回の go list にまとめてロードする
+	bindPaths := make([]string, 0, len(c.GQLGencConfig.TypeAutobind)+len(c.GQLGencConfig.FragmentAutobind))
+	bindPaths = append(bindPaths, c.GQLGencConfig.TypeAutobind...)
+	bindPaths = append(bindPaths, c.GQLGencConfig.FragmentAutobind...)
+	if err := c.GQLGencConfig.TypeBinder.Load(bindPaths...); err != nil {
+		return fmt.Errorf("load bound packages failed: %w", err)
+	}
+	if err := c.GQLGencConfig.TypeBinder.Autobind(c.GQLGenConfig.Schema, c.GQLGenConfig.Models, c.GQLGencConfig.TypeAutobind); err != nil {
+		return fmt.Errorf("autobind failed: %w", err)
+	}
+
 	// model を生成しない場合は modelgen が動かないため、custom scalar の既定を補う。
 	if !c.GQLGenConfig.Model.IsDefined() {
 		bindDefaultScalars(c.GQLGenConfig.Schema, c.GQLGenConfig.Models)
@@ -330,6 +351,8 @@ type GQLGencConfig struct {
 	Endpoint                *EndPointConfig
 	Query                   []string
 	FragmentAutobind        []string
+	TypeAutobind            []string
+	TypeBinder              *typebind.Binder
 	GenerateGetters         bool
 	QueryDocument           *ast.QueryDocument
 	OperationQueryDocuments []*ast.QueryDocument

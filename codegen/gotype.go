@@ -13,13 +13,14 @@ import (
 	"github.com/99designs/gqlgen/codegen/templates"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
+	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	graphql "github.com/vektah/gqlparser/v2/ast"
 )
 
 type GoTypeGenerator struct {
 	cfg    *config.Config
-	binder *gqlgenconfig.Binder
+	binder *typebind.Binder
 	types  map[string]gotypes.Type
 	err    error
 }
@@ -27,7 +28,7 @@ type GoTypeGenerator struct {
 func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
 	return &GoTypeGenerator{
 		cfg:    cfg,
-		binder: cfg.GQLGenConfig.NewBinder(),
+		binder: cfg.GQLGencConfig.TypeBinder,
 		types:  map[string]gotypes.Type{},
 	}
 }
@@ -148,7 +149,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 // を、リスト構造を保ったまま Go 型へ変換する。リストは要素型のスライスにし、nullable なリストは
 // ポインタで包む。最内の名前付き型はモデルマップから解決し、最初の解決エラーを setErr に渡す。
 // GoTypeGenerator (リーフ) と OperationGenerator (変数) の双方が使う共有関数。
-func scalarGoType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, t *graphql.Type, setErr func(error)) gotypes.Type {
+func scalarGoType(binder *typebind.Binder, models gqlgenconfig.TypeMap, t *graphql.Type, setErr func(error)) gotypes.Type {
 	// Base case: named type (e.g., String, Int, Status)
 	if t.NamedType != "" {
 		goType, err := resolveModelType(binder, models, t.NamedType, t.NonNull)
@@ -213,7 +214,7 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 
 // resolveModelType は GraphQL 型名に束縛された Go 型を gqlgen の model マップから解決する。
 // nullable な場合はポインタで包む。codegen 内の型解決はこの関数に集約する。
-func resolveModelType(binder *gqlgenconfig.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) (gotypes.Type, error) {
+func resolveModelType(binder *typebind.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) (gotypes.Type, error) {
 	bindings := models[typeName].Model
 	if len(bindings) == 0 {
 		// UC1 (generate.model.file 未指定) で enum / input が bind.type.packages / @goModel の

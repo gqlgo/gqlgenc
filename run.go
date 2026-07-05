@@ -66,6 +66,7 @@ func generate(ctx context.Context, configFile string, prevCfg *config.Config) (*
 	// 生成で書き換わったパッケージは templates.Render が Evict するため共有しても安全。
 	if prevCfg != nil {
 		cfg.GQLGenConfig.Packages = prevCfg.GQLGenConfig.Packages
+		cfg.GQLGencConfig.TypeBinder = prevCfg.GQLGencConfig.TypeBinder
 	}
 
 	// introspection.LoadRemoteSchema を注入する。endpoint 指定時のリモート取得は
@@ -80,6 +81,17 @@ func generate(ctx context.Context, configFile string, prevCfg *config.Config) (*
 
 	if err := plugins.GenerateCode(cfg); err != nil {
 		return nil, fmt.Errorf("failed to generate code: %w", err)
+	}
+
+	// 生成したパッケージを軽量 binder のキャッシュから外す。後続の config が
+	// 同じパッケージを束縛する場合に、生成後の状態で再ロードさせる。
+	for _, filename := range []string{cfg.GQLGenConfig.Model.Filename, cfg.GQLGencConfig.QueryGen.Filename, cfg.GQLGencConfig.ClientGen.Filename} {
+		if filename == "" {
+			continue
+		}
+		if dir, err := filepath.Abs(filepath.Dir(filename)); err == nil {
+			cfg.GQLGencConfig.TypeBinder.EvictDir(dir)
+		}
 	}
 
 	return cfg, nil

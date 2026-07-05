@@ -8,6 +8,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 )
 
 func TestFieldTypeName(t *testing.T) {
@@ -129,7 +131,7 @@ func TestResolveModelType(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		binder   *gqlgenconfig.Binder
+		binder   *typebind.Binder
 		models   gqlgenconfig.TypeMap
 		typeName string
 		nonNull  bool
@@ -177,7 +179,7 @@ func TestResolveModelType(t *testing.T) {
 			// pkgs を参照せず失敗するため、最小構成の binder (nil pkgs) でも安全に到達する。
 			name: "束縛先のGo型を解決できないときはエラーを返す",
 			args: args{
-				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				binder:   typebind.New(),
 				models:   gqlgenconfig.TypeMap{"Status": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"NoPackageSeparator"}}},
 				typeName: "Status",
 				nonNull:  true,
@@ -192,7 +194,7 @@ func TestResolveModelType(t *testing.T) {
 			// map[string]any は FindType の特殊扱いで pkgs を参照せず解決できる。
 			name: "束縛が解決できるときはその型を返す",
 			args: args{
-				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				binder:   typebind.New(),
 				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
 				typeName: "Meta",
 				nonNull:  true,
@@ -205,7 +207,7 @@ func TestResolveModelType(t *testing.T) {
 			// nullable のときは解決した型をポインタで包む。
 			name: "nullableのときは解決した型をポインタで包む",
 			args: args{
-				binder:   (&gqlgenconfig.Config{}).NewBinder(),
+				binder:   typebind.New(),
 				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
 				typeName: "Meta",
 				nonNull:  false,
