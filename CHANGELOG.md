@@ -244,7 +244,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - テストを testify からテーブル駆動テスト + go-cmp に移行しました
 - ローカルスキーマの読み込みで gqlgen の `LoadSchema()` を経由せず `gqlparser` を直接呼ぶようにしました。gqlgen の `LoadSchema()` はパッケージキャッシュを無条件に作り直してプリロード用の `go list` を起動するため、複数設定ファイルの一括処理で設定ごとに無駄なサブプロセスが発生していました（`schema.endpoint` 経路と同じ扱いに統一）
 - 生成ファイルが import するパッケージ（`encoding/json/jsontext` / `encoding/json/v2` / `client` パッケージ / `bind` で指定されたパッケージ）の名前解決を、生成前に1回の `go list` へまとめて先読みするようにしました。従来はテンプレート描画中に参照パッケージごとに `go list` サブプロセスが起動していました
-- autobind（`bind.type.packages` / `bind.fragment.packages`）と codegen の型解決を、gqlgen の binder ではなく自前の軽量ローダ（`internal/typebind`）で行うようにしました。gqlgen の binder は束縛先パッケージをソースの構文解析・型検査込みでロードしますが、gqlgenc に必要なのは「import パス + 型名 → Go 型」の解決だけなので、コンパイル済みの export data から型情報のみを読みます。大規模なモデルパッケージを束縛する構成ほど効果が大きく、1000ファイル規模の束縛先での実測では生成時間が約28%短縮されました（束縛先が小さい場合は `go list` 1回分の固定費が上回ることがあります）
+- autobind（`bind.type.packages` / `bind.fragment.packages`）と codegen の型解決を、gqlgen の binder ではなく自前の軽量ローダ（`internal/typebind`）で行うようにしました。gqlgen の binder は束縛先パッケージをソースの構文解析・型検査込みでロードしますが、gqlgenc に必要なのは「import パス + 型名 → Go 型」の解決だけなので、コンパイル済みの export data から型情報のみを読みます。大規模なモデルパッケージを束縛する構成ほど効果が大きく、1000ファイル規模の束縛先での実測では生成時間が約28%短縮されました（束縛先が小さい場合は `go list` 1回分の固定費が上回ることがあります）。model 出力先パッケージを `bind.type.packages` にも指定する自己参照レイアウト（生成型を同パッケージの手書きコードが参照する構成）では、modelgen の書き込み後にこのローダのキャッシュを破棄し、codegen が生成後の状態で型解決できるようにしています
 - 束縛先パッケージのロードと gqlgen の初期化（graphql / introspection パッケージのロード）を並行実行するようにしました。どちらも `go list` サブプロセスの待ちが支配的で互いに独立しているため、直列実行の合計時間が長い方の時間まで短縮されます（1000ファイル規模の束縛先での実測で生成時間が約20%短縮）
 - エラーを `%w` でラップし、原因を辿れるようにしました
 - golangci-lint v2（`.golangci.yml`）と GitHub Actions の CI を整備しました

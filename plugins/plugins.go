@@ -22,6 +22,13 @@ func GenerateCode(cfg *config.Config) error {
 		if err := modelGen.MutateConfig(cfg.GQLGenConfig); err != nil {
 			return fmt.Errorf("%s failed: %w", modelGen.Name(), err)
 		}
+		// model_gen.go の書き込みで model パッケージの内容が変わるため、TypeBinder の
+		// キャッシュから外す。model 出力先を bind.type.packages にも指定する構成
+		// (生成型を同パッケージの手書きコードが参照する等) では、autobind 時にロードした
+		// model 生成前の壊れた状態のキャッシュを codegen の型解決が見てしまう。
+		// gqlgen 側の Packages キャッシュは modelgen 内部の ReloadAllPackages() で
+		// 再ロード済みのため、次のロードは fallback 経由で生成後の状態を取得する。
+		cfg.GQLGencConfig.TypeBinder.Evict(cfg.GQLGenConfig.Model.ImportPath())
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

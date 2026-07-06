@@ -25,6 +25,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
 	samepackagegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/samepackage/gen"
+	selfbindgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/selfbind/gen"
 )
 
 func Test_IntegrationTest_NoModelGen(t *testing.T) {
@@ -539,6 +540,30 @@ func Test_IntegrationTest_SamePackage(t *testing.T) {
 	// コンパイル可能であることも担保する
 	if samepackagegen.GetUserOp.Name != "GetUser" {
 		t.Errorf("GetUserOp.Name = %q, want %q", samepackagegen.GetUserOp.Name, "GetUser")
+	}
+}
+
+// model 出力先パッケージを bind.type.packages にも指定し、手書きコード (gen/helper.go) が
+// 生成型を参照する自己参照レイアウトの回帰テスト。再生成の開始時に model_gen.go が削除される
+// ため、autobind は「手書きコードが未定義の型を参照する壊れたパッケージ」をロードする。
+// modelgen が model_gen.go を書いた後に TypeBinder のキャッシュを evict しないと、codegen の
+// 型解決が生成前の状態を見て unable to find type で失敗する。
+func Test_IntegrationTest_SelfBind(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/selfbind/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する
+	if got := selfbindgen.DefaultCode(); got != selfbindgen.DiscountErrorCodeActive {
+		t.Errorf("DefaultCode() = %q, want %q", got, selfbindgen.DiscountErrorCodeActive)
 	}
 }
 

@@ -40,6 +40,20 @@ func (b *Binder) SetFallback(fallback func(importPath string) *packages.Package)
 	b.fallback = fallback
 }
 
+// Evict は importPath のパッケージをキャッシュから外す。EvictDir と違い、
+// ロード失敗の負キャッシュ (nil エントリ) も外せる。生成でファイルが書き換わった
+// パッケージを、同一 config 内の後続処理が生成後の状態で再ロードするために使う。
+func (b *Binder) Evict(importPath string) {
+	pkg, ok := b.pkgs[importPath]
+	if !ok {
+		return
+	}
+	delete(b.pkgs, importPath)
+	if pkg != nil && pkg.Dir != "" {
+		delete(b.dirToPath, pkg.Dir)
+	}
+}
+
 // EvictDir は dir のパッケージをキャッシュから外す。生成でファイルが書き換わった
 // パッケージを、後続の config が束縛するときに生成後の状態で再ロードさせるため。
 func (b *Binder) EvictDir(dir string) {
