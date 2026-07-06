@@ -60,10 +60,13 @@ func (g *CodeGenerator) Generate(t types.Type) (string, error) {
 	// Generate type declaration
 	buf.WriteString(g.formatTypeDecl(typeName, st))
 
-	// Generate UnmarshalJSONFrom only when fragments require custom decoding
+	// Generate UnmarshalJSONFrom only when fragments require custom decoding.
+	// MarshalJSONTo is always generated as its symmetric pair so that
+	// marshal -> unmarshal round-trips do not silently drop fragment fields.
 	if g.shouldGenerateUnmarshal(named) && g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
 		statements := g.unmarshalBuilder.BuildUnmarshalMethod(typeName, fields)
 		buf.WriteString(g.formatUnmarshalMethod(typeName, statements))
+		buf.WriteString(g.formatMarshalMethod(typeName, fields))
 	}
 
 	// Generate getters only when enabled
@@ -309,6 +312,36 @@ func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement)
 	}
 
 	// Closing
+	buf.WriteString("}\n")
+
+	return buf.String()
+}
+
+// formatMarshalMethod は MarshalJSONTo メソッドを文字列にフォーマットする。
+//
+// フラグメントのフィールドは json:"-" のためデフォルトマーシャルでは出力されない。
+// UnmarshalJSONFrom と対称になるよう、通常フィールド (plain 型経由)・フラグメント
+// スプレッド・値の入ったインラインフラグメントを1つの JSON オブジェクトへマージして
+// 出力する。これによりレスポンス型を JSON へ永続化して復元するラウンドトリップが
+// 成立する。出力のキー順は json/v2 の map エンコード順 (ソート済み) になる。
+func (g *CodeGenerator) formatMarshalMethod(typeName string, fields []FieldInfo) string {
+	regularFields, fragmentSpreads, inlineFragments := g.unmarshalBuilder.separateFieldTypesList(fields)
+
+	var buf strings.Builder
+
+	fmt.Fprintf(&buf, "func (t *%s) MarshalJSONTo(enc *jsontext.Encoder) error {\n", typeName)
+	buf.WriteString("merged := map[string]jsontext.Value{}\n")
+	if hasDecodableField(regularFields) {
+		fmt.Fprintf(&buf, "type plain %s\n", typeName)
+		buf.WriteString("if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {\nreturn err\n}\n")
+	}
+	for _, field := range fragmentSpreads {
+		fmt.Fprintf(&buf, "if err := client.MergeJSONObject(merged, &t.%s); err != nil {\nreturn err\n}\n", field.Name)
+	}
+	for _, frag := range inlineFragments {
+		fmt.Fprintf(&buf, "if t.%s != nil {\nif err := client.MergeJSONObject(merged, t.%s); err != nil {\nreturn err\n}\n}\n", frag.Field.Name, frag.Field.Name)
+	}
+	buf.WriteString("return json.MarshalEncode(enc, merged)\n")
 	buf.WriteString("}\n")
 
 	return buf.String()

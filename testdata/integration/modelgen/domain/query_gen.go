@@ -5,6 +5,8 @@ package domain
 import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+
+	"github.com/Yamashou/gqlgenc/v3/client"
 )
 
 type Search struct {
@@ -42,6 +44,24 @@ func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		}
 	}
 	return nil
+}
+func (t *Search_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain Search_Node
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.Post != nil {
+		if err := client.MergeJSONObject(merged, t.Post); err != nil {
+			return err
+		}
+	}
+	if t.User != nil {
+		if err := client.MergeJSONObject(merged, t.User); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 
 type Search_Node_Post struct {
@@ -85,6 +105,24 @@ func (t *Search_SearchNodes) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		}
 	}
 	return nil
+}
+func (t *Search_SearchNodes) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain Search_SearchNodes
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.Post != nil {
+		if err := client.MergeJSONObject(merged, t.Post); err != nil {
+			return err
+		}
+	}
+	if t.User != nil {
+		if err := client.MergeJSONObject(merged, t.User); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 
 type Search_SearchNodes_Post struct {

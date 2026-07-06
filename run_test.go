@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	json "encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -358,6 +359,23 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 				// resolver は ids をそのまま返す
 				if diff := cmp.Diff(&domain.FilteredKeys{FilteredKeys: []string{"1", "2"}}, filteredKeys); diff != "" {
 					t.Errorf("filteredKeys mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Marshal / Unmarshal round-trip (フラグメントを含むレスポンス型の JSON 永続化)
+			// フラグメントフィールドは json:"-" のため、生成される MarshalJSONTo が
+			// フラグメントの中身を同一オブジェクトへ平坦化して出力しないと、永続化 →
+			// 復元でフラグメント部分がサイレントに欠損する。
+			{
+				data, err := json.Marshal(tt.want.userOperation)
+				if err != nil {
+					t.Errorf("marshal round-trip failed: %v", err)
+				}
+				var restored domain.UserOperation
+				if err := json.Unmarshal(data, &restored); err != nil {
+					t.Errorf("unmarshal round-trip failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, &restored); diff != "" {
+					t.Errorf("round-trip mismatch (-want +got):\n%s", diff)
 				}
 			}
 			// Query via GET

@@ -86,7 +86,7 @@ GraphQL クエリと Go 型の対応に一貫性を持たせるため、生成�
 これに伴い、生成コードも次のように変わりました。
 
 - 構造体タグから `graphql` タグを削除し、`json` タグのみを生成します
-- `json` タグに `omitempty` を付与しません（`EnableModelJsonOmitemptyTag` を無効化）。json/v2 では undefined の省略は `omitzero` が担うため `omitempty` は不要で、入力型・モデルおよび OperationVars の nullable フィールドはいずれも `omitzero` のみで揃えています。クエリレスポンス型はデコード専用（`omitzero` はマーシャル時にしか効かない）のため `omitzero` も付与しません
+- `json` タグに `omitempty` を付与しません（`EnableModelJsonOmitemptyTag` を無効化）。json/v2 では undefined の省略は `omitzero` が担うため `omitempty` は不要で、入力型・モデルおよび OperationVars の nullable フィールドはいずれも `omitzero` のみで揃えています。クエリレスポンス型には `omitzero` も付与しません（フラグメントを含む型の再マーシャルは、生成される `MarshalJSONTo` がゼロ値省略込みで行います。「フラグメントを含む型の MarshalJSONTo 生成」参照）
 - フラグメント（名前付きフィールド）とインラインフラグメントのフィールドには `json:"-"` を付与し、生成される `UnmarshalJSONFrom` が同じ JSON データからデコードします
 - フラグメントは埋め込みではなく名前付きフィールドとして生成します。埋め込むと Go のフィールド昇格で複数フラグメントの同名フィールドが曖昧になり（`t.X` が ambiguous selector のコンパイルエラーになる）、利用者が読めなくなるためです。アクセスは常に `t.<フラグメント名>.<フィールド>` です
 - レスポンス型の nil セーフ getter は既定で生成しなくなりました。getter は interface 満足には使われず、正常系ではフィールド直接アクセスと等価なため、生成量削減を優先して既定 false にしています。従来どおり getter が必要な場合は `generate.query.getters: true` を指定してください
@@ -172,6 +172,13 @@ type UserOperation_User_User struct {
 - json/v2 のデフォルトデコードへの移行により、旧 graphqljson が `scalar Map`（`map[string]any`）などの自由形式スカラーをデコードできなかった問題（[gqlgo/gqlgenc#76](https://github.com/gqlgo/gqlgenc/issues/76)）は解決済みです
 - `foo_bar` と `fooBar` のように異なるフィールドが同じ Go フィールド名に変換される場合、壊れたコードを生成する代わりに、クエリでの alias 付与を促す明確なエラーを返します（[gqlgo/gqlgenc#108](https://github.com/gqlgo/gqlgenc/issues/108)）
 - gqlgen の `@goModel` / `@goEnum` ディレクティブで int ベースの Go enum にバインドする場合（[gqlgo/gqlgenc#229](https://github.com/gqlgo/gqlgenc/issues/229)）、バインド先の型が `json.Marshaler` / `json.Unmarshaler` を実装していれば動作します。GraphQL enum のワイヤー表現は名前の文字列のため、名前と値のマッピングは型側の実装が必要です（実装例: testdata の `domain.Level`）
+
+#### フラグメントを含む型の MarshalJSONTo 生成（JSON 永続化のラウンドトリップ）
+
+- `UnmarshalJSONFrom` を生成する型（フラグメントを含む型）には、対称の `MarshalJSONTo`（json/v2 の `MarshalerTo`）も生成します。フラグメントのフィールドは `json:"-"` のためデフォルトマーシャルでは出力されませんが、`MarshalJSONTo` が通常フィールド・フラグメントスプレッド・値の入ったインラインフラグメントを1つの JSON オブジェクトへ平坦化して出力するため、レスポンス型を json/v2 で JSON 化して保存し、後で復元するラウンドトリップ（タスクキューのペイロード等への永続化）が成立します
+- 重複するキーは GraphQL のセレクションマージに合わせて解決します（オブジェクトは再帰マージ、同じ長さの配列は要素ごとにマージ。ランタイムの `client.MergeJSONObject` を使用）
+- ゼロ値のフィールドは出力から省略します。レスポンスに含まれなかったフィールド（union / interface メンバー向けフラグメントの非共有フィールド等）はデコード後ゼロ値になっており、そのまま再出力すると復元側の enum バリデーション等で失敗するためです。出力は「復元すると同じ Go 値になる JSON」であり、サーバーのレスポンスそのものの再現ではありません
+- エンコード・デコードとも json/v2 のインターフェースのため、永続化の Marshal / Unmarshal には `encoding/json/v2` を使ってください（v1 の `encoding/json` は `MarshalJSONTo` / `UnmarshalJSONFrom` を呼びません）
 
 #### 型付きオペレーションと Client.Post
 

@@ -258,6 +258,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
   - フラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goFragment(type: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goFragment` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
   - `bind.fragment.packages` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにある場合、`@goFragment` を書かなくても自動でその既存型にバインドする（`bind.type.packages` のクエリ版。マッチ対象はフラグメント名）。明示的な `@goFragment(type: ...)` が付いている場合はそちらが優先される
 - `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
+- `MarshalJSONTo`（json/v2 の `MarshalerTo`）を `UnmarshalJSONFrom` と対で生成する。フラグメントのフィールド（`json:"-"`）を含めて1つの JSON オブジェクトへ平坦化して出力するため、レスポンス型を json/v2 で JSON 化して保存・復元するラウンドトリップが成立する。ゼロ値のフィールドは省略されるため、出力は「復元すると同じ Go 値になる JSON」であり、サーバーレスポンスそのものの再現ではない。v1 の `encoding/json` は `MarshalJSONTo` を呼ばないため、永続化には `encoding/json/v2` を使うこと
 - クエリドキュメント定数（`<オペレーション名>Document`）
 - `@skip(if:)` / `@include(if:)` の付いたフィールドは、スキーマが非 null でもポインタ（nullable）で生成する。これらは条件によってレスポンスから欠落し得るため、欠落を `nil` で表現できるようにするため。`@skip` / `@include` 自体はサーバーへ送るクエリにそのまま保持される
 
@@ -278,13 +279,13 @@ type OptionalProfile struct {
 
 ### omitzero タグの付与（input / model / query）
 
-`omitzero` json タグは、`model_gen.go`（gqlgen modelgen）の **nullable フィールド**に付与されます（input 型・object 型の両方。gqlgenc が内部で常に有効化しています）。`omitzero` はマーシャル（送信）時にしか効かないため、デコード専用の `query_gen.go` のレスポンス型には付与しません。
+`omitzero` json タグは、`model_gen.go`（gqlgen modelgen）の **nullable フィールド**に付与されます（input 型・object 型の両方。gqlgenc が内部で常に有効化しています）。`query_gen.go` のレスポンス型には付与しません（フラグメントを含む型の再マーシャルは、生成される `MarshalJSONTo` がゼロ値省略込みで行います）。
 
 | 対象 | `omitzero` | 理由 |
 |---|---|---|
 | **input model**（`model_gen.go` の input 型の nullable フィールド） | 付く | variables として送信されるため意味がある（未設定なら省略 = undefined） |
 | **model**（`model_gen.go` の object/出力型の nullable フィールド） | 付く | gqlgen 標準の挙動。クライアントはレスポンスを query のレスポンス型へデコードするため、出力モデル自体はマーシャルされず実質的な影響は小さい |
-| **query**（`query_gen.go` のレスポンス型） | 付かない | レスポンス型はデコード専用で、`omitzero` はマーシャル時にしか効かないため不要 |
+| **query**（`query_gen.go` のレスポンス型） | 付かない | 再マーシャルは生成される `MarshalJSONTo` がゼロ値省略込みで行うためタグは不要 |
 
 `omitzero` の付与に加え、input の nullable フィールドが `graphql.Omittable[T]` になること（未設定（undefined）/ 明示的な null / 値 を区別できる3状態。後述の「variables の undefined / null / 値の指定」参照）も、いずれも gqlgenc が内部で常に有効化しているため設定は不要です。
 

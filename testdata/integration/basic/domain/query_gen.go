@@ -5,6 +5,8 @@ package domain
 import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+
+	"github.com/Yamashou/gqlgenc/v3/client"
 )
 
 type Count struct {
@@ -173,6 +175,19 @@ func (t *UserFragment1) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	return nil
 }
+func (t *UserFragment1) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserFragment1
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.User != nil {
+		if err := client.MergeJSONObject(merged, t.User); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
+}
 func (t *UserFragment1) GetUser() *UserFragment1_User {
 	if t == nil {
 		t = &UserFragment1{}
@@ -226,6 +241,24 @@ func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		}
 	}
 	return nil
+}
+func (t *UserFragment1_Profile) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserFragment1_Profile
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateProfile); err != nil {
+			return err
+		}
+	}
+	if t.PublicProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PublicProfile); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserFragment1_Profile) GetPrivateProfile() *UserFragment1_Profile_PrivateProfile {
 	if t == nil {
@@ -471,6 +504,20 @@ func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decode
 	}
 	return nil
 }
+func (t *UserOperation_Article_Addresses) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_Article_Addresses
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.AddressView); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.PrivateAddressFields); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
+}
 func (t *UserOperation_Article_Addresses) GetAddressView() AddressView {
 	if t == nil {
 		t = &UserOperation_Article_Addresses{}
@@ -537,6 +584,24 @@ func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontex
 		}
 	}
 	return nil
+}
+func (t *UserOperation_Article_OptionalAddresses) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_Article_OptionalAddresses
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateAddress != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateAddress); err != nil {
+			return err
+		}
+	}
+	if t.PublicAddress != nil {
+		if err := client.MergeJSONObject(merged, t.PublicAddress); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_Article_OptionalAddresses) GetPrivateAddress() *UserOperation_Article_OptionalAddresses_PrivateAddress {
 	if t == nil {
@@ -632,6 +697,24 @@ func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext
 	}
 	return nil
 }
+func (t *UserOperation_Article_OptionalProfiles) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_Article_OptionalProfiles
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateProfile); err != nil {
+			return err
+		}
+	}
+	if t.PublicProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PublicProfile); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
+}
 func (t *UserOperation_Article_OptionalProfiles) GetPrivateProfile() *UserOperation_Article_OptionalProfiles_PrivateProfile {
 	if t == nil {
 		t = &UserOperation_Article_OptionalProfiles{}
@@ -701,6 +784,24 @@ func (t *UserOperation_Article_ProfileGrid) UnmarshalJSONFrom(dec *jsontext.Deco
 		}
 	}
 	return nil
+}
+func (t *UserOperation_Article_ProfileGrid) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_Article_ProfileGrid
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateProfile); err != nil {
+			return err
+		}
+	}
+	if t.PublicProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PublicProfile); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_Article_ProfileGrid) GetPrivateProfile() *UserOperation_Article_ProfileGrid_PrivateProfile {
 	if t == nil {
@@ -774,6 +875,16 @@ func (t *UserOperation_Article_Profiles) UnmarshalJSONFrom(dec *jsontext.Decoder
 		return err
 	}
 	return nil
+}
+func (t *UserOperation_Article_Profiles) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	if err := client.MergeJSONObject(merged, &t.PrivateProfileFields); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.PublicProfileFields); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_Article_Profiles) GetPrivateProfileFields() PrivateProfileFields {
 	if t == nil {
@@ -881,6 +992,25 @@ func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		}
 	}
 	return nil
+}
+func (t *UserOperation_User) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_User
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.UserFragment1); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.UserFragment2); err != nil {
+		return err
+	}
+	if t.User != nil {
+		if err := client.MergeJSONObject(merged, t.User); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_User) GetUser() *UserOperation_User_User {
 	if t == nil {
@@ -1008,6 +1138,20 @@ func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) er
 	}
 	return nil
 }
+func (t *UserOperation_User_Address) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_User_Address
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.AddressView); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.PrivateAddressFields); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
+}
 func (t *UserOperation_User_Address) GetAddressView() AddressView {
 	if t == nil {
 		t = &UserOperation_User_Address{}
@@ -1056,6 +1200,24 @@ func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Dec
 		}
 	}
 	return nil
+}
+func (t *UserOperation_User_OptionalAddress) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_User_OptionalAddress
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateAddress != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateAddress); err != nil {
+			return err
+		}
+	}
+	if t.PublicAddress != nil {
+		if err := client.MergeJSONObject(merged, t.PublicAddress); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_User_OptionalAddress) GetPrivateAddress() *UserOperation_User_OptionalAddress_PrivateAddress {
 	if t == nil {
@@ -1136,6 +1298,16 @@ func (t *UserOperation_User_OptionalProfile) UnmarshalJSONFrom(dec *jsontext.Dec
 	}
 	return nil
 }
+func (t *UserOperation_User_OptionalProfile) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	if err := client.MergeJSONObject(merged, &t.PrivateProfileFields); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.PublicProfileFields); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
+}
 func (t *UserOperation_User_OptionalProfile) GetPrivateProfileFields() PrivateProfileFields {
 	if t == nil {
 		t = &UserOperation_User_OptionalProfile{}
@@ -1166,6 +1338,16 @@ func (t *UserOperation_User_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) er
 		return err
 	}
 	return nil
+}
+func (t *UserOperation_User_Profile) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	if err := client.MergeJSONObject(merged, &t.PrivateProfileFields); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.PublicProfileFields); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_User_Profile) GetPrivateProfileFields() PrivateProfileFields {
 	if t == nil {
@@ -1208,6 +1390,24 @@ func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) e
 		}
 	}
 	return nil
+}
+func (t *UserOperation_User_Profile2) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_User_Profile2
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.PrivateProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PrivateProfile); err != nil {
+			return err
+		}
+	}
+	if t.PublicProfile != nil {
+		if err := client.MergeJSONObject(merged, t.PublicProfile); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_User_Profile2) GetPrivateProfile() *UserOperation_User_Profile2_PrivateProfile {
 	if t == nil {
@@ -1268,6 +1468,17 @@ func (t *UserOperation_User_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error
 		return err
 	}
 	return nil
+}
+func (t *UserOperation_User_User) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain UserOperation_User_User
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if err := client.MergeJSONObject(merged, &t.UserFragment2); err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, merged)
 }
 func (t *UserOperation_User_User) GetUserFragment2() UserFragment2 {
 	if t == nil {
