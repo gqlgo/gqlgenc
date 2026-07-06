@@ -289,10 +289,6 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		c.GQLGenConfig.StructTag = "json"
 	}
 
-	if err := c.GQLGenConfig.Init(); err != nil {
-		return fmt.Errorf("generating core failed: %w", err)
-	}
-
 	// autobind は gqlgen (ソース型検査を伴う重いロード) ではなく、export data のみを
 	// 読む自前の軽量 binder で行う。codegen の型解決もこの binder を使う。
 	// gqlgen が Init でロード済みのパッケージ (graphql / introspection / named 束縛先) は
@@ -300,15 +296,29 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 	if c.GQLGencConfig.TypeBinder == nil {
 		c.GQLGencConfig.TypeBinder = typebind.New()
 	}
-	c.GQLGencConfig.TypeBinder.SetFallback(c.GQLGenConfig.Packages.LoadWithTypes)
 
-	// autobind 対象と fragment 束縛先を1回の go list にまとめてロードする
+	// 束縛先のロードと gqlgen の Init() はどちらも go list サブプロセスの待ちが支配的で、
+	// 互いに独立している (TypeBinder は自前の map のみ、Init は gqlgen の Packages のみに
+	// 触れる) ため並行実行する。fallback の設定と Autobind は両方の完了後に行う。
 	bindPaths := make([]string, 0, len(c.GQLGencConfig.TypeAutobind)+len(c.GQLGencConfig.FragmentAutobind))
 	bindPaths = append(bindPaths, c.GQLGencConfig.TypeAutobind...)
 	bindPaths = append(bindPaths, c.GQLGencConfig.FragmentAutobind...)
-	if err := c.GQLGencConfig.TypeBinder.Load(bindPaths...); err != nil {
+	loadErrCh := make(chan error, 1)
+	go func() {
+		loadErrCh <- c.GQLGencConfig.TypeBinder.Load(bindPaths...)
+	}()
+
+	initErr := c.GQLGenConfig.Init()
+
+	if err := <-loadErrCh; err != nil {
 		return fmt.Errorf("load bound packages failed: %w", err)
 	}
+	if initErr != nil {
+		return fmt.Errorf("generating core failed: %w", initErr)
+	}
+
+	c.GQLGencConfig.TypeBinder.SetFallback(c.GQLGenConfig.Packages.LoadWithTypes)
+
 	if err := c.GQLGencConfig.TypeBinder.Autobind(c.GQLGenConfig.Schema, c.GQLGenConfig.Models, c.GQLGencConfig.TypeAutobind); err != nil {
 		return fmt.Errorf("autobind failed: %w", err)
 	}
