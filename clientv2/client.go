@@ -90,6 +90,7 @@ type Client struct {
 	CustomDo                   RequestInterceptorFunc
 	ParseDataWhenErrors        bool
 	IsUnsafeRequestInterceptor bool
+	EncodeNilSliceAsEmptyArray bool
 }
 
 // Request represents an outgoing GraphQL request
@@ -111,6 +112,7 @@ func NewClient(client HttpClient, baseURL string, options *Options, interceptors
 
 	if options != nil {
 		c.ParseDataWhenErrors = options.ParseDataAlongWithErrors
+		c.EncodeNilSliceAsEmptyArray = options.EncodeNilSliceAsEmptyArray
 	}
 
 	return c
@@ -128,6 +130,7 @@ func NewClientWithUnsafeRequestInterceptor(client HttpClient, baseURL string, op
 
 	if options != nil {
 		c.ParseDataWhenErrors = options.ParseDataAlongWithErrors
+		c.EncodeNilSliceAsEmptyArray = options.EncodeNilSliceAsEmptyArray
 	}
 
 	return c
@@ -138,6 +141,11 @@ type Options struct {
 	// ParseDataAlongWithErrors is a flag that indicates whether the client should try to parse and return the data along with error
 	// when error appeared. So in the end you'll get list of gql errors and data.
 	ParseDataAlongWithErrors bool
+	// EncodeNilSliceAsEmptyArray is a flag that indicates whether the client should encode nil slices
+	// in request variables as [] instead of null. This restores the encoding behavior prior to
+	// https://github.com/gqlgo/gqlgenc/pull/265, which is useful when a server schema declares
+	// non-null list inputs (e.g. [Item!]!) that reject null.
+	EncodeNilSliceAsEmptyArray bool
 }
 
 // GqlErrorList is the struct of a standard graphql error response
@@ -232,7 +240,7 @@ func (c *Client) Post(ctx context.Context, operationName, query string, respData
 
 		headers = append(headers, header{key: "Content-Type", value: contentType})
 	} else {
-		requestBody, err := MarshalJSON(ctx, r)
+		requestBody, err := c.marshalJSON(r)
 		if err != nil {
 			return fmt.Errorf("encode: %w", err)
 		}
@@ -478,8 +486,18 @@ func MarshalJSON(_ context.Context, v any) ([]byte, error) {
 	return encoder.Encode(reflect.ValueOf(v))
 }
 
+// marshalJSON encodes a request body honoring the client's encoder options.
+func (c *Client) marshalJSON(v any) ([]byte, error) {
+	encoder := &Encoder{NilSliceAsEmptyArray: c.EncodeNilSliceAsEmptyArray}
+	return encoder.Encode(reflect.ValueOf(v))
+}
+
 // Encoder is a struct for encoding GraphQL requests to JSON
-type Encoder struct{}
+type Encoder struct {
+	// NilSliceAsEmptyArray encodes nil slices as [] instead of null.
+	// See Options.EncodeNilSliceAsEmptyArray for details.
+	NilSliceAsEmptyArray bool
+}
 
 // fieldInfo holds field information of a struct
 type fieldInfo struct {
@@ -493,6 +511,10 @@ type fieldInfo struct {
 // Encode encodes any value to JSON
 func (e *Encoder) Encode(v reflect.Value) ([]byte, error) {
 	if !v.IsValid() || isNil(v) {
+		if e.NilSliceAsEmptyArray && v.IsValid() && v.Kind() == reflect.Slice {
+			return []byte("[]"), nil
+		}
+
 		return []byte("null"), nil
 	}
 
@@ -774,6 +796,10 @@ func (e *Encoder) encodeMap(v reflect.Value) ([]byte, error) {
 // encodeSlice encodes a slice value
 func (e *Encoder) encodeSlice(v reflect.Value) ([]byte, error) {
 	if v.IsNil() {
+		if e.NilSliceAsEmptyArray {
+			return []byte("[]"), nil
+		}
+
 		return []byte("null"), nil
 	}
 
