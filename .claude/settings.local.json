@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(go test:*)",
+      "Bash(go doc:*)",
+      "Bash(mv:*)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(go build:*)",
+      "Bash(find:*)",
+      "Bash(GOEXPERIMENT=jsonv2 go doc:*)",
+      "WebFetch(domain:spec.graphql.org)",
+      "WebFetch(domain:gqlgen.com)",
+      "WebFetch(domain:pkg.go.dev)",
+      "WebSearch",
+      "Bash(wc:*)",
+      "Bash(GOEXPERIMENT=jsonv2 go test:*)"
+    ],
+    "deny": []
+  }
+}

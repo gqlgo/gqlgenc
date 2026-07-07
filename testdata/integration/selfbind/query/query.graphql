@@ -1,0 +1,6 @@
+query GetDiscount($code: DiscountErrorCode!) {
+  discount(code: $code) {
+    id
+    code
+  }
+}

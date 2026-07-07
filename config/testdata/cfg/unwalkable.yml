@@ -1,6 +1,13 @@
 schema:
-- not_walkable/**/*.graphql
-model:
-  filename: models_gen.go
-client:
-  filename: ./gen/client.go
+  files:
+    - not_walkable/**/*.graphql
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  model:
+    file: models_gen.go
+  query:
+    file: ./gen/query.go
+  client:
+    file: ./gen/client.go

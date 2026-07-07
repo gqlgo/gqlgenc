@@ -1,3 +1,0 @@
-query GetNumber($number: Number!) {
-  enumToNum(number: $number)
-}

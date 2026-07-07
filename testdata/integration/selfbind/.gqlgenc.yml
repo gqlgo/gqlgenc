@@ -1,0 +1,22 @@
+# model 出力先パッケージを bind.type.packages にも指定し、同パッケージの手書きコード
+# (gen/helper.go) が生成型を参照する自己参照レイアウトの fixture。
+# 再生成時は model_gen.go が削除された壊れた状態で autobind のロードが走るため、
+# modelgen 後に TypeBinder のキャッシュを evict しないと codegen の型解決が
+# 「unable to find type」で失敗する (その回帰テスト)。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+bind:
+  type:
+    packages:
+      - github.com/Yamashou/gqlgenc/v3/testdata/integration/selfbind/gen
+generate:
+  model:
+    file: ./gen/model_gen.go
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

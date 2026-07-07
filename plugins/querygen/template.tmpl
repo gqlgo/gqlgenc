@@ -1,0 +1,16 @@
+{{- if needsJSONImport }}
+import (
+    "encoding/json/jsontext"
+    json "encoding/json/v2"
+
+    "github.com/Yamashou/gqlgenc/v3/client"
+)
+
+{{- end}}
+{{- range $goType:= .GoTypes }}
+{{ genCode $goType }}
+{{- end}}
+
+{{- range $operation := .Operations}}
+const {{ $operation.Name|go }}Document = `{{ $operation.Document }}`
+{{- end}}

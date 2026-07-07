@@ -1,0 +1,11 @@
+query GetTodos {
+  todos {
+    id
+    text
+    done
+    user {
+      id
+      name
+    }
+  }
+}

@@ -1,0 +1,143 @@
+directive @goField(forceResolver: Boolean, name: String, omittable: Boolean, type: String) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+directive @goModel(model: String, models: [String!]) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+directive @goEnum(value: String) on ENUM_VALUE
+
+scalar JSON
+scalar Email
+scalar Map
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Query {
+  user(id: ID = "default-user-id", status: Status = ACTIVE): User! @goField(forceResolver: true)
+  optionalUser: User @goField(forceResolver: true)
+  article(id: ID!): Article @goField(forceResolver: true)
+  metadata(id: ID!): Metadata @goField(forceResolver: true)
+  # リスト型の変数 (スカラーリスト [ID!]! / Input オブジェクトリスト [FilterInput!]! / 入れ子リスト
+  # [[String!]]) が Vars 構造体でリスト構造を保ってエンコードされることを検証する (旧 listvars fixture)
+  filteredKeys(filters: [FilterInput!]!, ids: [ID!]!, matrix: [[String!]]): [String!]!
+}
+
+type Mutation {
+  updateUser(input: UpdateUserInput) :UpdateUserPayload!
+}
+
+type Subscription {
+  count(target: Int!): Int!
+}
+
+input UpdateUserInput {
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
+  name: String
+  settings: UserSettingsInput
+  tags: [String!]
+}
+
+input UserSettingsInput {
+  theme: String!
+  notifications: Boolean!
+}
+
+input FilterInput {
+  key: String!
+  value: String!
+}
+
+type UserSettings {
+  theme: String!
+  notifications: Boolean!
+}
+
+type UpdateUserPayload {
+  user: User! @goField(type: "*github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.User")
+}
+
+type User {
+  id: ID! @goField(type: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.UserID")
+  name: String!
+  email: Email!
+  settings: UserSettings
+  profile: Profile! @goField(forceResolver: true)
+  optionalProfile: Profile @goField(forceResolver: true)
+  address: Address! @goField(forceResolver: true)
+  optionalAddress: Address @goField(forceResolver: true)
+  profilePic(size: Int!): String! @goField(forceResolver: true)
+}
+
+union Profile = PublicProfile | PrivateProfile
+
+type PublicProfile {
+  id: ID!
+  status: Status!
+}
+
+type PrivateProfile {
+  id: ID!
+  age: Int
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum Level @goModel(model: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Level") {
+  LOW @goEnum(value: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.LevelLow")
+  HIGH @goEnum(value: "github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.LevelHigh")
+}
+
+interface Address {
+  street: String!
+}
+
+type PublicAddress implements Address {
+  id: ID!
+  street: String!
+  public: Boolean!
+}
+
+type PrivateAddress implements Address {
+  id: ID!
+  street: String!
+  private: Boolean!
+}
+
+type Article {
+  id: ID!
+  title: String!
+  tags: [String!]!
+  optionalTags: [String!]
+  comments: [Comment!]!
+  optionalComments: [Comment!]
+  rating: Float!
+  optionalRating: Float
+  nullableElementsList: [String]!
+  fullyNullableList: [String]
+  statuses: [Status!]!
+  optionalStatuses: [Status!]
+  addresses: [Address!]!
+  optionalAddresses: [Address!]
+  profiles: [Profile!]!
+  optionalProfiles: [Profile!]
+  matrix: [[String!]!]!
+  optionalMatrix: [[String!]!]
+  # 入れ子リストの union ([[Profile!]!]!)。object/union 要素は [][]* の単一ポインタになり
+  # (リスト段ごとにポインタを重ねない)、__typename で判別デコードできることを検証する
+  profileGrid: [[Profile!]!]!
+}
+
+type Comment {
+  id: ID!
+  text: String!
+}
+
+type Metadata {
+  id: ID!
+  data: JSON
+  properties: Map
+  level: Level!
+}

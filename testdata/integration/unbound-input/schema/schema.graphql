@@ -1,0 +1,11 @@
+schema {
+  query: Query
+}
+
+type Query {
+  ok(filter: SearchFilter!): Boolean!
+}
+
+input SearchFilter {
+  keyword: String!
+}

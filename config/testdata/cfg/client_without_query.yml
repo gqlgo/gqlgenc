@@ -1,0 +1,11 @@
+schema:
+  files:
+    - testdata/cfg/glob/**/*.graphql
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  model:
+    file: ./gen/models_gen.go
+  client:
+    file: ./gen/client.go

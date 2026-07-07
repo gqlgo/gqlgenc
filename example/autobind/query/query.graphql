@@ -1,7 +1,0 @@
-query GetUserProfileName {
-    user {
-        profile {
-            name
-        }
-    }
-}

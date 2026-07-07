@@ -1,0 +1,17 @@
+schema {
+  query: Query
+}
+
+type Query {
+  discount(code: DiscountErrorCode!): Discount!
+}
+
+type Discount {
+  id: ID!
+  code: DiscountErrorCode!
+}
+
+enum DiscountErrorCode {
+  ACTIVE
+  EXPIRED
+}

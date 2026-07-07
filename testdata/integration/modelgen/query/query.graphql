@@ -1,0 +1,26 @@
+query Search($input: SearchInput!, $filter: SearchFilter!) {
+  searchInput(input: $input) {
+    total
+    status
+  }
+  searchNodes(filter: $filter) {
+    ... on User {
+      id
+      name
+      kind
+    }
+    ... on Post {
+      id
+      title
+    }
+  }
+  node(id: "1") {
+    id
+    ... on User {
+      name
+    }
+    ... on Post {
+      title
+    }
+  }
+}

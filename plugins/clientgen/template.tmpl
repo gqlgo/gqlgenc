@@ -1,0 +1,17 @@
+{{ reserveImport "github.com/Yamashou/gqlgenc/v3/client" }}
+{{ reserveImport "github.com/99designs/gqlgen/graphql" }}
+{{ if not .SamePackage }}{{ reserveImport $.QueryPackagePath }}{{ end }}
+
+{{range $operation := .Operations}}
+type {{ $operation.Name|go }}Vars struct {
+	{{- range $arg := $operation.Args }}
+	{{ $arg.Variable | go }} {{ if $arg.Omittable }}graphql.Omittable[{{ $arg.Type | ref }}]{{ else }}{{ $arg.Type | ref }}{{ end }} `json:"{{ $arg.Variable }}{{ if $arg.Omittable }},omitzero{{ end }}"`
+	{{- end }}
+}
+
+var {{ $operation.Name|go }}Op = client.Operation[client.{{ $operation.Kind }}, {{ $operation.Name|go }}Vars, {{ if not $.SamePackage }}{{ $.QueryPackage }}.{{ end }}{{ $operation.Name|go }}]{
+	Name:     "{{ $operation.Name }}",
+	Document: {{ if not $.SamePackage }}{{ $.QueryPackage }}.{{ end }}{{ $operation.Name|go }}Document,
+}
+
+{{end}}

@@ -1,0 +1,98 @@
+{
+  "__schema": {
+    "queryType": { "name": "Query" },
+    "mutationType": { "name": "Mutation" },
+    "subscriptionType": { "name": "Subscription" },
+    "types": [
+      {
+        "kind": "OBJECT",
+        "name": "Query",
+        "fields": [
+          { "name": "search", "type": { "kind": "UNION", "name": "SearchResult", "ofType": null }, "args": [], "isDeprecated": false },
+          { "name": "status", "type": { "kind": "ENUM", "name": "Status", "ofType": null }, "args": [], "isDeprecated": false },
+          { "name": "old", "type": { "kind": "SCALAR", "name": "String", "ofType": null }, "args": [], "isDeprecated": true, "deprecationReason": "use new" },
+          {
+            "name": "tags",
+            "type": { "kind": "LIST", "name": null, "ofType": { "kind": "NON_NULL", "name": null, "ofType": { "kind": "SCALAR", "name": "String", "ofType": null } } },
+            "args": [
+              { "name": "limit", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "10" }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "variants",
+            "type": { "kind": "SCALAR", "name": "String", "ofType": null },
+            "args": [
+              { "name": "s",   "type": { "kind": "SCALAR", "name": "String",   "ofType": null }, "defaultValue": "\"hello\"" },
+              { "name": "b",   "type": { "kind": "SCALAR", "name": "Boolean",  "ofType": null }, "defaultValue": "true" },
+              { "name": "fl",  "type": { "kind": "SCALAR", "name": "Float",    "ofType": null }, "defaultValue": "1.5" },
+              { "name": "st",  "type": { "kind": "ENUM",   "name": "Status",   "ofType": null }, "defaultValue": "ACTIVE" },
+              { "name": "dt",  "type": { "kind": "SCALAR", "name": "DateTime", "ofType": null }, "defaultValue": "\"2020-01-01\"" },
+              { "name": "inp", "type": { "kind": "INPUT_OBJECT", "name": "CreateInput", "ofType": null }, "defaultValue": "{}" }
+            ],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Mutation",
+        "fields": [
+          { "name": "noop", "type": { "kind": "SCALAR", "name": "Boolean", "ofType": null }, "args": [], "isDeprecated": false }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Subscription",
+        "fields": [
+          { "name": "tick", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "args": [], "isDeprecated": false }
+        ],
+        "interfaces": []
+      },
+      { "kind": "INTERFACE", "name": "Node", "fields": [ { "name": "id", "type": { "kind": "SCALAR", "name": "ID", "ofType": null }, "args": [], "isDeprecated": false } ], "interfaces": [] },
+      { "kind": "OBJECT", "name": "User", "fields": [ { "name": "id", "type": { "kind": "SCALAR", "name": "ID", "ofType": null }, "args": [], "isDeprecated": false } ], "interfaces": [ { "kind": "INTERFACE", "name": "Node", "ofType": null } ] },
+      { "kind": "OBJECT", "name": "Post", "fields": [ { "name": "title", "type": { "kind": "SCALAR", "name": "String", "ofType": null }, "args": [], "isDeprecated": false } ], "interfaces": [] },
+      {
+        "kind": "UNION",
+        "name": "SearchResult",
+        "possibleTypes": [
+          { "kind": "OBJECT", "name": "User", "ofType": null },
+          { "kind": "OBJECT", "name": "Post", "ofType": null }
+        ]
+      },
+      {
+        "kind": "ENUM",
+        "name": "Status",
+        "enumValues": [
+          { "name": "ACTIVE", "isDeprecated": false },
+          { "name": "INACTIVE", "isDeprecated": true, "deprecationReason": "gone" }
+        ]
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "CreateInput",
+        "inputFields": [
+          { "name": "name", "type": { "kind": "NON_NULL", "name": null, "ofType": { "kind": "SCALAR", "name": "String", "ofType": null } }, "defaultValue": null },
+          { "name": "count", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": null }
+        ]
+      },
+      { "kind": "SCALAR", "name": "DateTime" },
+      { "kind": "SCALAR", "name": "String" },
+      { "kind": "SCALAR", "name": "Int" },
+      { "kind": "SCALAR", "name": "Float" },
+      { "kind": "SCALAR", "name": "Boolean" },
+      { "kind": "SCALAR", "name": "ID" }
+    ],
+    "directives": [
+      {
+        "name": "myDirective",
+        "locations": ["FIELD"],
+        "args": [
+          { "name": "level", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "1" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,308 +1,443 @@
 package config
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/99designs/gqlgen/codegen/config"
-	"github.com/Yamashou/gqlgenc/clientv2"
-	"github.com/Yamashou/gqlgenc/introspection"
 	"github.com/goccy/go-yaml"
+
+	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
+	"github.com/99designs/gqlgen/plugin/federation"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
+	"github.com/Yamashou/gqlgenc/v3/queryparser"
+
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
-	"github.com/vektah/gqlparser/v2/validator"
 )
 
-// Config extends the gqlgen basic config
-// and represents the config file
+// errNoSchemaSource is returned when neither a local schema nor a remote
+// endpoint is configured.
+var errNoSchemaSource = errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+
+// Config is gqlgenc's internal configuration: the gqlgenc-specific settings plus
+// the gqlgen config they drive. It is built from the on-disk fileConfig by
+// LoadConfig; the YAML file no longer maps onto it directly.
 type Config struct {
-	SchemaFilename StringList           `yaml:"schema,omitempty"`
-	Model          config.PackageConfig `yaml:"model,omitempty"`
-	AutoBind       []string             `yaml:"autobind"`
-	Client         config.PackageConfig `yaml:"client,omitempty"`
-	Federation     config.PackageConfig `yaml:"federation,omitempty"`
-	Models         config.TypeMap       `yaml:"models,omitempty"`
-	Endpoint       *EndPointConfig      `yaml:"endpoint,omitempty"`
-	Generate       *GenerateConfig      `yaml:"generate,omitempty"`
-
-	Query []string `yaml:"query"`
-
-	// gqlgen config struct
-	GQLConfig *config.Config `yaml:"-"`
+	GQLGencConfig *GQLGencConfig
+	GQLGenConfig  *gqlgenconfig.Config
 }
 
-var cfgFilenames = []string{".gqlgenc.yml", "gqlgenc.yml", "gqlgenc.yaml"}
-
-// StringList is a simple array of strings
-type StringList []string
-
-// Has checks if the strings array has a give value
-func (a StringList) Has(file string) bool {
-	return slices.Contains(a, file)
+// fileConfig is the on-disk .gqlgenc.yml schema. gqlgenc owns this schema and
+// translates it into Config; the raw gqlgen config is not exposed. The gqlgen
+// settings that v3 always requires (json/v2 tags, etc.) are fixed internally.
+type fileConfig struct {
+	Schema   schemaConfig   `yaml:"schema"`
+	Query    queryConfig    `yaml:"query"`
+	Bind     bindConfig     `yaml:"bind,omitempty"`
+	Generate generateConfig `yaml:"generate"`
 }
 
-// LoadConfigFromDefaultLocations looks for a config file in the specified directory, and all parent directories
-// walking up the tree. The closest config file will be returned.
-func LoadConfigFromDefaultLocations(dir string) (*Config, error) {
-	cfgFile, err := findCfg(dir)
-	if err != nil {
-		return nil, fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s: %w", dir, err)
-	}
-
-	return LoadConfig(cfgFile)
+// schemaConfig is the schema source: local files or a remote endpoint (exactly
+// one), plus the Apollo Federation setting that shapes how the schema parses.
+type schemaConfig struct {
+	Files      []string          `yaml:"files,omitempty"`
+	Endpoint   *EndPointConfig   `yaml:"endpoint,omitempty"`
+	Federation *federationConfig `yaml:"federation,omitempty"`
 }
 
-// EndPointConfig are the allowed options for the 'endpoint' config
-type EndPointConfig struct {
-	URL     string            `yaml:"url"`
-	Headers map[string]string `yaml:"headers,omitempty"`
+// federationConfig enables Apollo Federation schema directives of the given version.
+type federationConfig struct {
+	Version int `yaml:"version"`
 }
 
-// findCfg searches for the config file in this directory and all parents up the tree
-// looking for the closest match
-func findCfg(path string) (string, error) {
-	var err error
-	var dir string
-	if path == "." {
-		dir, err = os.Getwd()
-	} else {
-		dir = path
-		_, err = os.Stat(dir)
-	}
-	if err != nil {
-		return "", fmt.Errorf("unable to get directory \"%s\" to findCfg: %w", dir, err)
-	}
-
-	cfg := findCfgInDir(dir)
-
-	for cfg == "" && dir != filepath.Dir(dir) {
-		dir = filepath.Dir(dir)
-		cfg = findCfgInDir(dir)
-	}
-
-	if cfg == "" {
-		return "", os.ErrNotExist
-	}
-
-	return cfg, nil
+// queryConfig is the query source files.
+type queryConfig struct {
+	Files []string `yaml:"files,omitempty"`
 }
 
-func findCfgInDir(dir string) string {
-	for _, cfgName := range cfgFilenames {
-		path := filepath.Join(dir, cfgName)
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-
-	return ""
+// bindConfig binds GraphQL names to existing Go types: type binds schema types,
+// fragment binds query fragments. Bindings affect all generation (models and
+// query response types), so they are kept separate from the generation outputs.
+type bindConfig struct {
+	Type     typeBindConfig     `yaml:"type,omitempty"`
+	Fragment fragmentBindConfig `yaml:"fragment,omitempty"`
 }
 
-var path2regex = strings.NewReplacer(
-	`.`, `\.`,
-	`*`, `.+`,
-	`\`, `[\\/]`,
-	`/`, `[\\/]`,
-)
+// typeBindConfig binds schema types: packages binds type names to same-named Go
+// types in the listed packages, named binds individual GraphQL types to Go types.
+type typeBindConfig struct {
+	Packages []string             `yaml:"packages,omitempty"`
+	Named    gqlgenconfig.TypeMap `yaml:"named,omitempty"`
+}
 
-// LoadConfig loads and parses the config gqlgenc config
-func LoadConfig(filename string) (*Config, error) {
-	var cfg Config
-	b, err := os.ReadFile(filename)
+// fragmentBindConfig binds fragment names to same-named Go types in the listed packages.
+type fragmentBindConfig struct {
+	Packages []string `yaml:"packages,omitempty"`
+}
+
+// generateConfig lists the files to generate. model is optional: when set the
+// query's input and enum types are generated, when omitted they are shared via
+// bind.type.packages. The package of each file is inferred from its directory.
+type generateConfig struct {
+	Model  generateModelConfig  `yaml:"model,omitempty"`
+	Query  generateQueryConfig  `yaml:"query,omitempty"`
+	Client generateClientConfig `yaml:"client,omitempty"`
+}
+
+// generateModelConfig is the generated input/enum model output. onlyUsed
+// (default true) restricts generation to the input/enum types the queries
+// actually use; set false to generate every input/enum type in the schema.
+type generateModelConfig struct {
+	File     string `yaml:"file,omitempty"`
+	OnlyUsed *bool  `yaml:"onlyUsed,omitempty"`
+}
+
+// generateQueryConfig is the generated query_gen.go output: the response types
+// (file) and the getter toggle (which applies to all types generated into the
+// file, fragment types included).
+type generateQueryConfig struct {
+	File    string `yaml:"file,omitempty"`
+	Getters bool   `yaml:"getters,omitempty"`
+}
+
+// generateClientConfig is the generated typed client output.
+type generateClientConfig struct {
+	File string `yaml:"file,omitempty"`
+}
+
+// LoadConfig reads, parses and validates a .gqlgenc.yml file and translates it
+// into the internal Config (gqlgenc settings + the gqlgen config they drive).
+func LoadConfig(configFilename string) (*Config, error) {
+	configContent, err := os.ReadFile(configFilename)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read config: %w", err)
 	}
 
-	confContent := []byte(os.ExpandEnv(string(b)))
-
-	decoder := yaml.NewDecoder(bytes.NewReader(confContent), yaml.DisallowUnknownField())
-	if err := decoder.Decode(&cfg); err != nil {
+	var fc fileConfig
+	yamlDecoder := yaml.NewDecoder(strings.NewReader(os.ExpandEnv(string(configContent))), yaml.DisallowUnknownField())
+	if err := yamlDecoder.Decode(&fc); err != nil {
 		return nil, fmt.Errorf("unable to parse config: %w", err)
 	}
 
-	if cfg.SchemaFilename != nil && cfg.Endpoint != nil {
-		return nil, fmt.Errorf("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+	// validation
+	hasFiles := len(fc.Schema.Files) > 0
+	hasEndpoint := fc.Schema.Endpoint != nil
+	if hasFiles && hasEndpoint {
+		return nil, errors.New("'schema.files' and 'schema.endpoint' both specified. Use files to load from local files, use endpoint to load from a remote server (using introspection)")
+	}
+	if !hasFiles && !hasEndpoint {
+		return nil, errNoSchemaSource
+	}
+	if len(fc.Query.Files) == 0 {
+		return nil, errors.New("'query.files' is required")
+	}
+	if fc.Generate.Query.File == "" && fc.Generate.Model.File == "" {
+		return nil, errors.New("neither 'generate.query.file' nor 'generate.model.file' specified, at least one generation target is required")
+	}
+	if fc.Generate.Client.File != "" && fc.Generate.Query.File == "" {
+		return nil, errors.New("'generate.client.file' is set, 'generate.query.file' must be set")
 	}
 
-	if cfg.SchemaFilename == nil && cfg.Endpoint == nil {
-		return nil, fmt.Errorf("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+	var federationVersion int
+	if fc.Schema.Federation != nil {
+		federationVersion = fc.Schema.Federation.Version
 	}
 
-	// https://github.com/99designs/gqlgen/blob/3a31a752df764738b1f6e99408df3b169d514784/codegen/config/config.go#L120
-	files := StringList{}
-	for _, f := range cfg.SchemaFilename {
-		var matches []string
+	// translate fileConfig into the internal Config
+	c := Config{
+		GQLGencConfig: &GQLGencConfig{
+			QueryGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Query.File},
+			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Generate.Client.File},
+			Endpoint:         fc.Schema.Endpoint,
+			Query:            fc.Query.Files,
+			FragmentAutobind: fc.Bind.Fragment.Packages,
+			TypeAutobind:     fc.Bind.Type.Packages,
+			GenerateGetters:  fc.Generate.Query.Getters,
+			ModelOnlyUsed:    fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,
+		},
+		GQLGenConfig: &gqlgenconfig.Config{
+			SchemaFilename: gqlgenconfig.StringList(fc.Schema.Files),
+			Model:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
+			Models:         fc.Bind.Type.Named,
+			Federation:     gqlgenconfig.PackageConfig{Version: federationVersion},
+			// v3 が常に使う設定を固定する (gqlgen の生 config はユーザに露出しない)。
+			// json/v2 では omitzero が undefined の省略を担うため omitempty は不要。明示的に無効化して
+			// model の nullable フィールドのタグを OperationVars と同じ omitzero のみに揃える。
+			StructTag:                   "json",
+			StructFieldsAlwaysPointers:  false,
+			NullableInputOmittable:      true,
+			EnableModelJsonOmitzeroTag:  new(true),
+			EnableModelJsonOmitemptyTag: new(false),
+		},
+	}
 
-		// for ** we want to override default globbing patterns and walk all
-		// subdirectories to match schema files.
-		if strings.Contains(f, "**") {
-			pathParts := strings.SplitN(f, "**", 2)
-			rest := strings.TrimPrefix(strings.TrimPrefix(pathParts[1], `\`), `/`)
-			// turn the rest of the glob into a regex, anchored only at the end because ** allows
-			// for any number of dirs in between and walk will let us match against the full path name
-			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
-
-			if err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if globRe.MatchString(strings.TrimPrefix(path, pathParts[0])) {
-					matches = append(matches, path)
-				}
-
-				return nil
-			}); err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
-			}
-		} else {
-			matches, err = filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to glob schema filename %s: %w", f, err)
-			}
+	// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
+	if c.GQLGenConfig.Model.IsDefined() {
+		if err := c.GQLGenConfig.Model.Check(); err != nil {
+			return nil, fmt.Errorf("generate.model.file: %w", err)
 		}
-
-		for _, m := range matches {
-			if !files.Has(m) {
-				files = append(files, m)
-			}
-		}
 	}
 
-	if len(files) > 0 {
-		cfg.SchemaFilename = files
+	// Fill gqlgen config fields
+	schemaFilename, err := schemaFilenames(c.GQLGenConfig.SchemaFilename)
+	if err != nil {
+		return nil, err
+	}
+	c.GQLGenConfig.SchemaFilename = schemaFilename
+
+	sources, err := schemaFileSources(c.GQLGenConfig.SchemaFilename)
+	if err != nil {
+		return nil, err
 	}
 
-	models := make(config.TypeMap)
-	if cfg.Models != nil {
-		models = cfg.Models
-	}
-
-	sources := []*ast.Source{}
-
-	for _, filename := range cfg.SchemaFilename {
-		filename = filepath.ToSlash(filename)
-		var err error
-		var schemaRaw []byte
-		schemaRaw, err = os.ReadFile(filename)
+	if c.GQLGenConfig.Federation.Version != 0 {
+		fedPlugin, err := federation.New(c.GQLGenConfig.Federation.Version, c.GQLGenConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to open schema: %w", err)
+			return nil, fmt.Errorf("failed to create federation plugin: %w", err)
 		}
 
-		sources = append(sources, &ast.Source{Name: filename, Input: string(schemaRaw)})
+		federationSources, err := fedPlugin.InjectSourcesEarly()
+		if err != nil {
+			return nil, fmt.Errorf("failed to inject federation directives: %w", err)
+		}
+
+		sources = append(sources, federationSources...)
 	}
 
-	structFieldsAlwaysPointers := true
-	enableClientJsonOmitemptyTag := true
-	enableModelJsonOmitzeroTag := false
-	if cfg.Generate == nil {
-		cfg.Generate = &GenerateConfig{
-			StructFieldsAlwaysPointers:   &structFieldsAlwaysPointers,
-			EnableClientJsonOmitemptyTag: &enableClientJsonOmitemptyTag,
-			EnableClientJsonOmitzeroTag:  &enableModelJsonOmitzeroTag,
+	c.GQLGenConfig.Sources = sources
+
+	// gqlgen must be followings parameters
+	// クライアント生成では使用しないため固定のダミーファイル名を設定する
+	const unusedGenFilename = "generated.go"
+	c.GQLGenConfig.Directives = make(map[string]gqlgenconfig.DirectiveConfig)
+	c.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: unusedGenFilename}
+	c.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: unusedGenFilename}
+	c.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: unusedGenFilename}
+
+	// gqlgenc validation
+	if c.GQLGencConfig.QueryGen.IsDefined() {
+		if err := c.GQLGencConfig.QueryGen.Check(); err != nil {
+			return nil, fmt.Errorf("generate.query.file: %w", err)
 		}
 	}
-	if cfg.Generate.StructFieldsAlwaysPointers == nil {
-		cfg.Generate.StructFieldsAlwaysPointers = &structFieldsAlwaysPointers
-	}
-	if cfg.Generate.EnableClientJsonOmitemptyTag == nil {
-		cfg.Generate.EnableClientJsonOmitemptyTag = &enableClientJsonOmitemptyTag
-	}
-	if cfg.Generate.EnableClientJsonOmitzeroTag == nil {
-		cfg.Generate.EnableClientJsonOmitzeroTag = &enableModelJsonOmitzeroTag
+	if c.GQLGencConfig.ClientGen.IsDefined() {
+		if err := c.GQLGencConfig.ClientGen.Check(); err != nil {
+			return nil, fmt.Errorf("generate.client.file: %w", err)
+		}
 	}
 
-	cfg.GQLConfig = &config.Config{
-		Model:    cfg.Model,
-		Models:   models,
-		AutoBind: cfg.AutoBind,
-		// TODO: gqlgen must be set exec but client not used
-		Exec:                           config.ExecConfig{Filename: "generated.go"},
-		Directives:                     map[string]config.DirectiveConfig{},
-		Sources:                        sources,
-		StructFieldsAlwaysPointers:     *cfg.Generate.StructFieldsAlwaysPointers,
-		ReturnPointersInUnmarshalInput: false,
-		ResolversAlwaysReturnPointers:  true,
-		NullableInputOmittable:         cfg.Generate.NullableInputOmittable,
-		EnableModelJsonOmitemptyTag:    cfg.Generate.EnableClientJsonOmitemptyTag,
-		EnableModelJsonOmitzeroTag:     cfg.Generate.EnableClientJsonOmitzeroTag,
-	}
-
-	if err := cfg.Client.Check(); err != nil {
-		return nil, fmt.Errorf("config.exec: %w", err)
-	}
-
-	return &cfg, nil
+	return &c, nil
 }
 
-// LoadSchema load and parses the schema from a local file or a remote server
-func (c *Config) LoadSchema(ctx context.Context) error {
-	var schema *ast.Schema
-	if c.SchemaFilename != nil {
-		s, err := c.loadLocalSchema()
+// RemoteSchemaLoader fetches an AST schema from a GraphQL endpoint via
+// introspection. Injecting it lets LoadSchema load a remote schema while
+// keeping the config package free of the client dependency.
+type RemoteSchemaLoader func(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error)
+
+func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLoader) error {
+	// Load schema
+	switch {
+	case c.GQLGenConfig.SchemaFilename != nil:
+		// gqlgen の LoadSchema は使わない。Packages キャッシュを無条件に作り直し、
+		// その場でプリロード用の go list が走るため、複数 config 間で共有している
+		// キャッシュが config ごとに使い捨てられてしまう。本質的な処理は
+		// gqlparser.LoadSchema と Query 型の補完だけなので、ここで直接行う
+		// (endpoint 経路が Schema を直接セットするのと同じ扱い)。検証は後段の
+		// Init() が行う。
+		schema, err := gqlparser.LoadSchema(c.GQLGenConfig.Sources...)
 		if err != nil {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
-
-		schema = s
-	} else {
-		s, err := c.loadRemoteSchema(ctx)
+		if schema.Query == nil {
+			schema.Query = &ast.Definition{Kind: ast.Object, Name: "Query"}
+			schema.Types["Query"] = schema.Query
+		}
+		c.GQLGenConfig.Schema = schema
+	case c.GQLGencConfig.Endpoint != nil:
+		// リモート(endpoint)のスキーマ取得は注入された loadRemoteSchema に委ねる。
+		// これにより config パッケージは client / introspection に依存しない。
+		schema, err := loadRemoteSchema(ctx, c.GQLGencConfig.Endpoint.URL, http.Header(c.GQLGencConfig.Endpoint.Headers))
 		if err != nil {
-			return fmt.Errorf("load remote schema failed: %w", err)
+			return fmt.Errorf("introspect schema failed: %w", err)
 		}
-
-		schema = s
+		c.GQLGenConfig.Schema = schema
+	default:
+		return errNoSchemaSource
 	}
 
-	if schema.Query == nil {
-		schema.Query = &ast.Definition{
-			Kind: ast.Object,
-			Name: "Query",
-		}
-		schema.Types["Query"] = schema.Query
+	// delete exist gen file
+	if c.GQLGenConfig.Model.IsDefined() {
+		// model gen file must be removed before cfg.PrepareSchema()
+		_ = os.Remove(c.GQLGenConfig.Model.Filename)
 	}
 
-	c.GQLConfig.Schema = schema
+	if c.GQLGencConfig.QueryGen.IsDefined() {
+		_ = os.Remove(c.GQLGencConfig.QueryGen.Filename)
+	}
+
+	if c.GQLGencConfig.ClientGen.IsDefined() {
+		_ = os.Remove(c.GQLGencConfig.ClientGen.Filename)
+	}
+
+	// gqlgen.Config.Init() に必要なフィールドを初期化
+	if c.GQLGenConfig.Models == nil {
+		c.GQLGenConfig.Models = make(gqlgenconfig.TypeMap)
+	}
+	if c.GQLGenConfig.StructTag == "" {
+		c.GQLGenConfig.StructTag = "json"
+	}
+
+	// autobind は gqlgen (ソース型検査を伴う重いロード) ではなく、export data のみを
+	// 読む自前の軽量 binder で行う。codegen の型解決もこの binder を使う。
+	// gqlgen が Init でロード済みのパッケージ (graphql / introspection / named 束縛先) は
+	// fallback で再利用し、二重ロードを避ける。
+	if c.GQLGencConfig.TypeBinder == nil {
+		c.GQLGencConfig.TypeBinder = typebind.New()
+	}
+
+	// 束縛先のロードと gqlgen の Init() はどちらも go list サブプロセスの待ちが支配的で、
+	// 互いに独立している (TypeBinder は自前の map のみ、Init は gqlgen の Packages のみに
+	// 触れる) ため並行実行する。fallback の設定と Autobind は両方の完了後に行う。
+	bindPaths := make([]string, 0, len(c.GQLGencConfig.TypeAutobind)+len(c.GQLGencConfig.FragmentAutobind))
+	bindPaths = append(bindPaths, c.GQLGencConfig.TypeAutobind...)
+	bindPaths = append(bindPaths, c.GQLGencConfig.FragmentAutobind...)
+	loadErrCh := make(chan error, 1)
+	go func() {
+		loadErrCh <- c.GQLGencConfig.TypeBinder.Load(bindPaths...)
+	}()
+
+	initErr := c.GQLGenConfig.Init()
+
+	if err := <-loadErrCh; err != nil {
+		return fmt.Errorf("load bound packages failed: %w", err)
+	}
+	if initErr != nil {
+		return fmt.Errorf("generating core failed: %w", initErr)
+	}
+
+	c.GQLGencConfig.TypeBinder.SetFallback(c.GQLGenConfig.Packages.LoadWithTypes)
+
+	if err := c.GQLGencConfig.TypeBinder.Autobind(c.GQLGenConfig.Schema, c.GQLGenConfig.Models, c.GQLGencConfig.TypeAutobind); err != nil {
+		return fmt.Errorf("autobind failed: %w", err)
+	}
+
+	// model を生成しない場合は modelgen が動かないため、custom scalar の既定を補う。
+	if !c.GQLGenConfig.Model.IsDefined() {
+		bindDefaultScalars(c.GQLGenConfig.Schema, c.GQLGenConfig.Models)
+	}
+
+	// sort Implements to ensure a deterministic output
+	for _, implements := range c.GQLGenConfig.Schema.Implements {
+		slices.SortFunc(implements, func(a, b *ast.Definition) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+	}
 
 	return nil
 }
 
-func (c *Config) loadRemoteSchema(ctx context.Context) (*ast.Schema, error) {
-	addHeaderInterceptor := func(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res any, next clientv2.RequestInterceptorFunc) error {
-		for key, value := range c.Endpoint.Headers {
-			req.Header.Set(key, value)
+// bindDefaultScalars は、まだモデルが束縛されていない schema の custom scalar を
+// graphql.String に束縛する。これは gqlgen modelgen が非 user-defined scalar に与える既定
+// (plugin/modelgen の b.Scalars 束縛) と揃えたもので、modelgen が動かない (model を生成しない)
+// 構成でも同じ既定を適用するために使う。
+//
+// autobind / models: / built-in で既に束縛済みの scalar は UserDefined のため対象外で、
+// 対応する型がある場合はその型へのバインドが優先される。
+func bindDefaultScalars(schema *ast.Schema, models gqlgenconfig.TypeMap) {
+	for _, t := range schema.Types {
+		if t.Kind == ast.Scalar && !models.UserDefined(t.Name) {
+			models.Add(t.Name, "github.com/99designs/gqlgen/graphql.String")
 		}
-
-		return next(ctx, req, gqlInfo, res)
 	}
-
-	gqlclient := clientv2.NewClient(http.DefaultClient, c.Endpoint.URL, nil, addHeaderInterceptor)
-
-	var res introspection.Query
-	if err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil); err != nil {
-		return nil, fmt.Errorf("introspection query failed: %w", err)
-	}
-
-	schema, err := validator.ValidateSchemaDocument(introspection.ParseIntrospectionQuery(c.Endpoint.URL, res))
-	if err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-
-	return schema, nil
 }
 
-func (c *Config) loadLocalSchema() (*ast.Schema, error) {
-	schema, err := gqlparser.LoadSchema(c.GQLConfig.Sources...)
+// GQLGencConfig holds gqlgenc's settings, built by LoadConfig from the on-disk
+// fileConfig. It is no longer parsed from YAML directly.
+type GQLGencConfig struct {
+	QueryGen         gqlgenconfig.PackageConfig
+	ClientGen        gqlgenconfig.PackageConfig
+	Endpoint         *EndPointConfig
+	Query            []string
+	FragmentAutobind []string
+	TypeAutobind     []string
+	TypeBinder       *typebind.Binder
+	GenerateGetters  bool
+	// ModelOnlyUsed はクエリで使われている Input / Enum 型だけを生成するか (デフォルト true)。
+	// false のときはスキーマの全 Input / Enum 型を生成する。
+	ModelOnlyUsed           bool
+	QueryDocument           *ast.QueryDocument
+	OperationQueryDocuments []*ast.QueryDocument
+}
+
+func (c *GQLGencConfig) LoadQuery(schema *ast.Schema) error {
+	querySources, err := queryparser.LoadQuerySources(c.Query)
 	if err != nil {
-		return nil, fmt.Errorf("loadLocalSchema: %w", err)
+		return fmt.Errorf("load query sources failed: %w", err)
 	}
 
-	return schema, nil
+	queryDocument, err := queryparser.QueryDocument(schema, querySources)
+	if err != nil {
+		return fmt.Errorf("build query document failed: %w", err)
+	}
+
+	operationQueryDocuments, err := queryparser.OperationQueryDocuments(schema, queryDocument.Operations)
+	if err != nil {
+		return fmt.Errorf("build operation documents failed: %w", err)
+	}
+
+	c.QueryDocument = queryDocument
+	c.OperationQueryDocuments = operationQueryDocuments
+
+	return nil
+}
+
+// EndPointConfig are the allowed options for the 'endpoint' config.
+type EndPointConfig struct {
+	Headers Header `yaml:"headers,omitempty"`
+	URL     string `yaml:"url"`
+}
+
+// Header は HTTP ヘッダーの YAML 表現。値には文字列と文字列リストの両方を指定できる。
+//
+//	headers:
+//	  Authorization: "Bearer token"
+//	  Accept: ["application/json", "text/plain"]
+type Header http.Header
+
+// UnmarshalYAML は文字列スカラーと文字列リストの両方をヘッダー値として受け付ける。
+func (h *Header) UnmarshalYAML(unmarshal func(any) error) error {
+	var raw map[string]any
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	result := make(Header, len(raw))
+	for key, value := range raw {
+		switch v := value.(type) {
+		case string:
+			result[key] = []string{v}
+		case []any:
+			values := make([]string, 0, len(v))
+			for _, item := range v {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("header %q: values must be strings, got %T", key, item)
+				}
+				values = append(values, s)
+			}
+			result[key] = values
+		default:
+			return fmt.Errorf("header %q: value must be a string or a list of strings, got %T", key, value)
+		}
+	}
+
+	*h = result
+
+	return nil
 }
