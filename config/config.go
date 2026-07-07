@@ -90,9 +90,12 @@ type generateConfig struct {
 	Client generateClientConfig `yaml:"client,omitempty"`
 }
 
-// generateModelConfig is the generated input/enum model output.
+// generateModelConfig is the generated input/enum model output. onlyUsed
+// (default true) restricts generation to the input/enum types the queries
+// actually use; set false to generate every input/enum type in the schema.
 type generateModelConfig struct {
-	File string `yaml:"file,omitempty"`
+	File     string `yaml:"file,omitempty"`
+	OnlyUsed *bool  `yaml:"onlyUsed,omitempty"`
 }
 
 // generateQueryConfig is the generated query_gen.go output: the response types
@@ -156,6 +159,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 			FragmentAutobind: fc.Bind.Fragment.Packages,
 			TypeAutobind:     fc.Bind.Type.Packages,
 			GenerateGetters:  fc.Generate.Query.Getters,
+			ModelOnlyUsed:    fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,
 		},
 		GQLGenConfig: &gqlgenconfig.Config{
 			SchemaFilename: gqlgenconfig.StringList(fc.Schema.Files),
@@ -356,14 +360,17 @@ func bindDefaultScalars(schema *ast.Schema, models gqlgenconfig.TypeMap) {
 // GQLGencConfig holds gqlgenc's settings, built by LoadConfig from the on-disk
 // fileConfig. It is no longer parsed from YAML directly.
 type GQLGencConfig struct {
-	QueryGen                gqlgenconfig.PackageConfig
-	ClientGen               gqlgenconfig.PackageConfig
-	Endpoint                *EndPointConfig
-	Query                   []string
-	FragmentAutobind        []string
-	TypeAutobind            []string
-	TypeBinder              *typebind.Binder
-	GenerateGetters         bool
+	QueryGen         gqlgenconfig.PackageConfig
+	ClientGen        gqlgenconfig.PackageConfig
+	Endpoint         *EndPointConfig
+	Query            []string
+	FragmentAutobind []string
+	TypeAutobind     []string
+	TypeBinder       *typebind.Binder
+	GenerateGetters  bool
+	// ModelOnlyUsed はクエリで使われている Input / Enum 型だけを生成するか (デフォルト true)。
+	// false のときはスキーマの全 Input / Enum 型を生成する。
+	ModelOnlyUsed           bool
 	QueryDocument           *ast.QueryDocument
 	OperationQueryDocuments []*ast.QueryDocument
 }

@@ -29,7 +29,7 @@ v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してくだ
 - 既存 Go 型へのバインドは `bind.type.packages`（スキーマ型名）と `bind.fragment.packages`（フラグメント名）に分けます。個別バインドは `bind.type.named`、Federation は `schema.federation.version` です
 - nil 安全な Getter の生成は `generate.query.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
 - 設定ファイルに未知のフィールドがあるとエラーになります
-- v0 の `generate` 配下のオプションはセクション再編に伴いすべて廃止しました。`prefix` / `suffix` / `unamedPattern`（生成型名の命名カスタマイズ）、`client` / `clientInterfaceName`（クライアント生成のトグルと interface 名）、`clientV2`、`enableClientJsonOmitemptyTag` / `enableClientJsonOmitzeroTag`（JSON タグのトグル。v1 は `omitzero` 固定）、`onlyUsedModels`（v1 では既定動作。「モデル生成を Input 型と Enum 型に限定」参照）が対象です
+- v0 の `generate` 配下のオプションはセクション再編に伴いすべて廃止しました。`prefix` / `suffix` / `unamedPattern`（生成型名の命名カスタマイズ）、`client` / `clientInterfaceName`（クライアント生成のトグルと interface 名）、`clientV2`、`enableClientJsonOmitemptyTag` / `enableClientJsonOmitzeroTag`（JSON タグのトグル。v1 は `omitzero` 固定）、`onlyUsedModels`（v1 では `generate.model.onlyUsed` としてデフォルト有効。「モデル生成を Input 型と Enum 型に限定」参照）が対象です
 
 ```yaml
 schema:
@@ -146,7 +146,7 @@ type UserOperation_User_User struct {
 
 #### モデル生成を Input 型と Enum 型に限定
 
-- `generate.model.file` を指定した場合、modelgen は **クエリで使われている Input 型と Enum 型だけ** を生成します。Object / Interface / Union 型は生成しません。クライアントはレスポンスを querygen が生成する専用型へデコードし、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルは不要です。使用判定は変数定義の Input 型（ネストした Input を再帰的に辿る）とセレクションセットの Enum 型から行います。v0 でオプトインだった `onlyUsedModels` 相当で、Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます
+- `generate.model.file` を指定した場合、modelgen は **クエリで使われている Input 型と Enum 型だけ** を生成します。Object / Interface / Union 型は生成しません。クライアントはレスポンスを querygen が生成する専用型へデコードし、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルは不要です。使用判定は変数定義の Input 型（ネストした Input を再帰的に辿る）とセレクションセットの Enum 型から行います。v0 でオプトインだった `onlyUsedModels` 相当で、Enum 型のフィルタリングは [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) 相当の変更を含みます。使用フィルタは `generate.model.onlyUsed`（デフォルト `true`）で無効化でき、`false` を指定するとスキーマの全 Input / Enum 型を生成します
 - client と server で同じ model パッケージを共有する場合は、`generate.model.file` を指定せず modelgen を動かさないでください（model_gen.go は server 側の gqlgen が生成し、gqlgenc は autobind で参照します）。共有しない場合は `generate.model.file` を指定して Input / Enum を生成します
 
 #### CLI の簡素化

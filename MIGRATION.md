@@ -103,7 +103,7 @@ generate:
 - `enableClientJsonOmitemptyTag` / `enableClientJsonOmitzeroTag`（JSON タグのトグル。v1 は `omitzero` 固定）
 - `structFieldsAlwaysPointers`
 - `nullableInputOmittable`
-- `onlyUsedModels`（v1 では既定動作）
+- `onlyUsedModels`（v1 では `generate.model.onlyUsed` に改名。デフォルト `true` で、`false` を指定するとスキーマの全 Input / Enum 型を生成する）
 
 json/v2 タグや `graphql.Omittable`・`omitzero` など v1 が常に必要とする gqlgen 設定は内部で固定されます（`nullable_input_omittable` / `enable_model_json_omitzero_tag` / `struct_fields_always_pointers` などのトグルは廃止）。
 

@@ -136,6 +136,43 @@ func TestLoadConfig(t *testing.T) {
 						QueryGen:        config.PackageConfig{Package: "gen"},
 						ClientGen:       config.PackageConfig{Package: "gen"},
 						GenerateGetters: true,
+						ModelOnlyUsed:   true,
+					},
+					GQLGenConfig: &config.Config{
+						SchemaFilename: config.StringList{
+							"testdata/cfg/glob/bar/bar with spaces.graphql",
+							"testdata/cfg/glob/foo/foo.graphql",
+						},
+						Exec: config.ExecConfig{
+							Filename: "generated.go",
+						},
+						Model: config.PackageConfig{Package: "gen"},
+						Resolver: config.ResolverConfig{
+							Filename: "generated.go",
+						},
+						StructTag:                   "json",
+						NullableInputOmittable:      true,
+						EnableModelJsonOmitzeroTag:  new(true),
+						EnableModelJsonOmitemptyTag: new(false),
+						Directives:                  map[string]config.DirectiveConfig{},
+					},
+				},
+			},
+		},
+		{
+			// デフォルトは true (クエリで使われる Input / Enum のみ生成)。false を指定すると
+			// スキーマの全 Input / Enum 型を生成する
+			name: "generate.model.onlyUsed に false を指定した設定を正しく読み込めることを確認する",
+			args: args{
+				file: "testdata/cfg/model_only_used_false.yml",
+			},
+			want: want{
+				config: &Config{
+					GQLGencConfig: &GQLGencConfig{
+						Query:         []string{"./queries/*.graphql"},
+						QueryGen:      config.PackageConfig{Package: "gen"},
+						ClientGen:     config.PackageConfig{Package: "gen"},
+						ModelOnlyUsed: false,
 					},
 					GQLGenConfig: &config.Config{
 						SchemaFilename: config.StringList{

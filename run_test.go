@@ -585,6 +585,24 @@ func Test_IntegrationTest_SelfBind(t *testing.T) {
 	}
 }
 
+// generate.model.onlyUsed: false のとき、クエリで使われていない Input / Enum 型
+// (UnusedFilter / UnusedKind) も含めてスキーマの全 Input / Enum 型が生成されることを
+// 検証する。デフォルト (true) の使用フィルタは modelgen fixture が担保している。
+func Test_IntegrationTest_ModelOnlyUsedFalse(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/onlyused/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, "./want/model_gen.go.txt", "gen/model_gen.go")
+}
+
 // 複数の設定ファイルを1回の run で順に処理できることを検証する。gqlgen のパッケージ
 // キャッシュ (go list + 型検査の結果) を config 間で共有するため、生成物が単独実行時と
 // 同一であることを want ファイルとの比較で確認する。

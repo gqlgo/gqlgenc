@@ -1,0 +1,17 @@
+# generate.model.onlyUsed: false の fixture。デフォルト (true) ではクエリで使われる
+# Input / Enum 型だけが生成されるが、false ではスキーマの全 Input / Enum 型
+# (UnusedFilter / UnusedKind を含む) が生成されることを検証する。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  model:
+    file: ./gen/model_gen.go
+    onlyUsed: false
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

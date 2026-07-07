@@ -1,0 +1,28 @@
+schema {
+  query: Query
+}
+
+type Query {
+  search(filter: UsedFilter!, kind: UsedKind!): String!
+}
+
+# クエリの変数で使われる Input / Enum
+input UsedFilter {
+  keyword: String!
+}
+
+enum UsedKind {
+  FOO
+  BAR
+}
+
+# どのクエリからも参照されない Input / Enum。onlyUsed: false のときだけ生成される
+input UnusedFilter {
+  keyword: String!
+  kind: UnusedKind!
+}
+
+enum UnusedKind {
+  BAZ
+  QUX
+}

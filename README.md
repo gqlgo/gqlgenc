@@ -202,6 +202,9 @@ generate:
   # （サーバー側 gqlgen で生成したモデルを bind.type.packages で共有する場合）
   model:
     file: ./gen/models_gen.go
+    # bool（デフォルト: true）クエリで使われている Input / Enum 型だけを生成する。
+    # false にするとスキーマの全 Input / Enum 型を生成する
+    onlyUsed: true
   # レスポンス型・UnmarshalJSON・クエリドキュメント定数
   query:
     file: ./gen/query_gen.go
