@@ -1874,3 +1874,143 @@ func Test_isZeroValue(t *testing.T) {
 		})
 	}
 }
+
+func TestEncoderNilSliceAsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	type input struct {
+		Items    []string  `json:"items"`
+		Optional []string  `json:"optional,omitempty"`
+		Ptr      *[]string `json:"ptr"`
+	}
+
+	tests := []struct {
+		name                 string
+		nilSliceAsEmptyArray bool
+		v                    any
+		want                 string
+	}{
+		{
+			name:                 "nil slice encodes as null by default",
+			nilSliceAsEmptyArray: false,
+			v:                    []string(nil),
+			want:                 `null`,
+		},
+		{
+			name:                 "nil slice encodes as empty array when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    []string(nil),
+			want:                 `[]`,
+		},
+		{
+			name:                 "empty slice encodes as empty array regardless of the flag",
+			nilSliceAsEmptyArray: false,
+			v:                    []string{},
+			want:                 `[]`,
+		},
+		{
+			name:                 "nil slice struct field encodes as null by default",
+			nilSliceAsEmptyArray: false,
+			v:                    input{},
+			want:                 `{"items":null,"ptr":null}`,
+		},
+		{
+			name:                 "nil slice struct field encodes as empty array when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    input{},
+			want:                 `{"items":[],"ptr":null}`,
+		},
+		{
+			name:                 "omitempty still skips nil slice fields when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    input{Items: []string{"a"}},
+			want:                 `{"items":["a"],"ptr":null}`,
+		},
+		{
+			name:                 "nested nil slices encode as empty arrays when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    [][]int{nil, {1}},
+			want:                 `[[],[1]]`,
+		},
+		{
+			name:                 "nil map value slice encodes as empty array when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    map[string][]int{"a": nil},
+			want:                 `{"a":[]}`,
+		},
+		{
+			name:                 "nil pointer to slice encodes as null even when enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    (*[]string)(nil),
+			want:                 `null`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			encoder := &Encoder{NilSliceAsEmptyArray: tt.nilSliceAsEmptyArray}
+
+			got, err := encoder.Encode(reflect.ValueOf(tt.v))
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(got))
+		})
+	}
+}
+
+type captureHTTPClient struct {
+	body []byte
+}
+
+func (c *captureHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	c.body = body
+
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(validData)),
+		Header:     http.Header{},
+	}, nil
+}
+
+func (c *captureHTTPClient) Post(_, _ string, _ io.Reader) (*http.Response, error) {
+	return nil, errors.New("unexpected call")
+}
+
+func TestClientPostEncodeNilSliceAsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		options *Options
+		want    string
+	}{
+		{
+			name:    "nil slice variable is sent as null by default",
+			options: nil,
+			want:    `{"query":"mutation { noop }","variables":{"ids":null},"operationName":"Noop"}`,
+		},
+		{
+			name:    "nil slice variable is sent as empty array when the option is enabled",
+			options: &Options{EncodeNilSliceAsEmptyArray: true},
+			want:    `{"query":"mutation { noop }","variables":{"ids":[]},"operationName":"Noop"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			httpClient := &captureHTTPClient{}
+			client := NewClient(httpClient, "https://example.com/graphql", tt.options)
+
+			res := &fakeRes{}
+			err := client.Post(context.Background(), "Noop", "mutation { noop }", res, map[string]any{"ids": []string(nil)})
+			require.NoError(t, err)
+			require.JSONEq(t, tt.want, string(httpClient.body))
+		})
+	}
+}
