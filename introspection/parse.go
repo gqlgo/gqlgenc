@@ -154,10 +154,7 @@ func (p parser) parseInputObjectFields(typeValue *FullType) ast.FieldList {
 func (p parser) parseObjectTypeDefinition(typeValue *FullType) *ast.Definition {
 	fieldList := p.parseObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeValue.Interfaces))
-	for _, intf := range typeValue.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
+	interfaces := interfaceNames(typeValue)
 
 	enums := make(ast.EnumValueList, 0, len(typeValue.EnumValues))
 	for _, enum := range typeValue.EnumValues {
@@ -184,10 +181,7 @@ func (p parser) parseObjectTypeDefinition(typeValue *FullType) *ast.Definition {
 func (p parser) parseInterfaceTypeDefinition(typeValue *FullType) *ast.Definition {
 	fieldList := p.parseObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeValue.Interfaces))
-	for _, intf := range typeValue.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
+	interfaces := interfaceNames(typeValue)
 
 	return &ast.Definition{
 		Kind:        ast.Interface,
@@ -203,10 +197,7 @@ func (p parser) parseInterfaceTypeDefinition(typeValue *FullType) *ast.Definitio
 func (p parser) parseInputObjectTypeDefinition(typeValue *FullType) *ast.Definition {
 	fieldList := p.parseInputObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeValue.Interfaces))
-	for _, intf := range typeValue.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
+	interfaces := interfaceNames(typeValue)
 
 	return &ast.Definition{
 		Kind:        ast.InputObject,
@@ -422,6 +413,16 @@ func builtInEnum(fullType *FullType) bool {
 	name := pointerString(fullType.Name)
 
 	return strings.HasPrefix(name, "__")
+}
+
+// interfaceNames collects the names of the interfaces the type implements
+func interfaceNames(fullType *FullType) []string {
+	interfaces := make([]string, 0, len(fullType.Interfaces))
+	for _, intf := range fullType.Interfaces {
+		interfaces = append(interfaces, pointerString(intf.Name))
+	}
+
+	return interfaces
 }
 
 func builtInObject(fullType *FullType) bool {
