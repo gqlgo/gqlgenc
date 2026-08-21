@@ -3,7 +3,7 @@ package clientgenv2
 import (
 	"fmt"
 	"go/types"
-	"sort"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/cases"
@@ -86,8 +86,8 @@ func (rs ResponseFieldList) MapByName() map[string]*ResponseField {
 }
 
 func (rs ResponseFieldList) SortByName() ResponseFieldList {
-	sort.Slice(rs, func(i, j int) bool {
-		return rs[i].Name < rs[j].Name
+	slices.SortFunc(rs, func(a, b *ResponseField) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	return rs

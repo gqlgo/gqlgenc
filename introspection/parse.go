@@ -43,8 +43,8 @@ func (p parser) parseIntrospectionQuery(query Query) *ast.SchemaDocument {
 
 	p.deprecatedDirectiveDefinition = doc.Directives.ForName("deprecated")
 
-	for _, typeVale := range p.typeMap {
-		doc.Definitions = append(doc.Definitions, p.parseTypeSystemDefinition(typeVale))
+	for _, typeValue := range p.typeMap {
+		doc.Definitions = append(doc.Definitions, p.parseTypeSystemDefinition(typeValue))
 	}
 
 	return &doc
@@ -110,9 +110,9 @@ func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.Dir
 	}
 }
 
-func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
-	fieldList := make(ast.FieldList, 0, len(typeVale.Fields))
-	for _, field := range typeVale.Fields {
+func (p parser) parseObjectFields(typeValue *FullType) ast.FieldList {
+	fieldList := make(ast.FieldList, 0, len(typeValue.Fields))
+	for _, field := range typeValue.Fields {
 		typ := p.getType(&field.Type)
 
 		args := make(ast.ArgumentDefinitionList, 0, len(field.Args))
@@ -135,9 +135,9 @@ func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 	return fieldList
 }
 
-func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
-	fieldList := make(ast.FieldList, 0, len(typeVale.InputFields))
-	for _, field := range typeVale.InputFields {
+func (p parser) parseInputObjectFields(typeValue *FullType) ast.FieldList {
+	fieldList := make(ast.FieldList, 0, len(typeValue.InputFields))
+	for _, field := range typeValue.InputFields {
 		typ := p.getType(&field.Type)
 		fieldDefinition := &ast.FieldDefinition{
 			Description: pointerString(field.Description),
@@ -151,16 +151,16 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 	return fieldList
 }
 
-func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
+func (p parser) parseObjectTypeDefinition(typeValue *FullType) *ast.Definition {
+	fieldList := p.parseObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
+	interfaces := make([]string, 0, len(typeValue.Interfaces))
+	for _, intf := range typeValue.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
 	}
 
-	enums := make(ast.EnumValueList, 0, len(typeVale.EnumValues))
-	for _, enum := range typeVale.EnumValues {
+	enums := make(ast.EnumValueList, 0, len(typeValue.EnumValues))
+	for _, enum := range typeValue.EnumValues {
 		enumValue := &ast.EnumValueDefinition{
 			Description: pointerString(enum.Description),
 			Name:        enum.Name,
@@ -171,28 +171,28 @@ func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
 
 	return &ast.Definition{
 		Kind:        ast.Object,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		Interfaces:  interfaces,
 		Fields:      fieldList,
 		EnumValues:  enums,
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInObject(typeVale),
+		BuiltIn:     builtInObject(typeValue),
 	}
 }
 
-func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
+func (p parser) parseInterfaceTypeDefinition(typeValue *FullType) *ast.Definition {
+	fieldList := p.parseObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
+	interfaces := make([]string, 0, len(typeValue.Interfaces))
+	for _, intf := range typeValue.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
 	}
 
 	return &ast.Definition{
 		Kind:        ast.Interface,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		Interfaces:  interfaces,
 		Fields:      fieldList,
 		Position:    p.sharedPosition,
@@ -200,18 +200,18 @@ func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition
 	}
 }
 
-func (p parser) parseInputObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseInputObjectFields(typeVale)
+func (p parser) parseInputObjectTypeDefinition(typeValue *FullType) *ast.Definition {
+	fieldList := p.parseInputObjectFields(typeValue)
 
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
+	interfaces := make([]string, 0, len(typeValue.Interfaces))
+	for _, intf := range typeValue.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
 	}
 
 	return &ast.Definition{
 		Kind:        ast.InputObject,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		Interfaces:  interfaces,
 		Fields:      fieldList,
 		Position:    p.sharedPosition,
@@ -219,25 +219,25 @@ func (p parser) parseInputObjectTypeDefinition(typeVale *FullType) *ast.Definiti
 	}
 }
 
-func (p parser) parseUnionTypeDefinition(typeVale *FullType) *ast.Definition {
-	unions := make([]string, 0, len(typeVale.PossibleTypes))
-	for _, unionValue := range typeVale.PossibleTypes {
+func (p parser) parseUnionTypeDefinition(typeValue *FullType) *ast.Definition {
+	unions := make([]string, 0, len(typeValue.PossibleTypes))
+	for _, unionValue := range typeValue.PossibleTypes {
 		unions = append(unions, *unionValue.Name)
 	}
 
 	return &ast.Definition{
 		Kind:        ast.Union,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		Types:       unions,
 		Position:    p.sharedPosition,
 		BuiltIn:     false,
 	}
 }
 
-func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
-	enums := make(ast.EnumValueList, 0, len(typeVale.EnumValues))
-	for _, enum := range typeVale.EnumValues {
+func (p parser) parseEnumTypeDefinition(typeValue *FullType) *ast.Definition {
+	enums := make(ast.EnumValueList, 0, len(typeValue.EnumValues))
+	for _, enum := range typeValue.EnumValues {
 		enumValue := &ast.EnumValueDefinition{
 			Description: pointerString(enum.Description),
 			Name:        enum.Name,
@@ -248,43 +248,43 @@ func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
 
 	return &ast.Definition{
 		Kind:        ast.Enum,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		EnumValues:  enums,
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInEnum(typeVale),
+		BuiltIn:     builtInEnum(typeValue),
 	}
 }
 
-func (p parser) parseScalarTypeExtension(typeVale *FullType) *ast.Definition {
+func (p parser) parseScalarTypeExtension(typeValue *FullType) *ast.Definition {
 	return &ast.Definition{
 		Kind:        ast.Scalar,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
+		Description: pointerString(typeValue.Description),
+		Name:        pointerString(typeValue.Name),
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInScalar(typeVale),
+		BuiltIn:     builtInScalar(typeValue),
 	}
 }
 
-func (p parser) parseTypeSystemDefinition(typeVale *FullType) *ast.Definition {
-	switch typeVale.Kind {
+func (p parser) parseTypeSystemDefinition(typeValue *FullType) *ast.Definition {
+	switch typeValue.Kind {
 	case TypeKindScalar:
-		return p.parseScalarTypeExtension(typeVale)
+		return p.parseScalarTypeExtension(typeValue)
 	case TypeKindInterface:
-		return p.parseInterfaceTypeDefinition(typeVale)
+		return p.parseInterfaceTypeDefinition(typeValue)
 	case TypeKindEnum:
-		return p.parseEnumTypeDefinition(typeVale)
+		return p.parseEnumTypeDefinition(typeValue)
 	case TypeKindUnion:
-		return p.parseUnionTypeDefinition(typeVale)
+		return p.parseUnionTypeDefinition(typeValue)
 	case TypeKindObject:
-		return p.parseObjectTypeDefinition(typeVale)
+		return p.parseObjectTypeDefinition(typeValue)
 	case TypeKindInputObject:
-		return p.parseInputObjectTypeDefinition(typeVale)
+		return p.parseInputObjectTypeDefinition(typeValue)
 	case TypeKindList, TypeKindNonNull:
-		panic(fmt.Sprintf("not match Kind: %s", typeVale.Kind))
+		panic(fmt.Sprintf("not match Kind: %s", typeValue.Kind))
 	}
 
-	panic(fmt.Sprintf("not match Kind: %s", typeVale.Kind))
+	panic(fmt.Sprintf("not match Kind: %s", typeValue.Kind))
 }
 
 func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {

@@ -65,9 +65,7 @@ func (g *GenGettersGenerator) GenFunc() func(name string, p types.Type) string {
 
 		var buf bytes.Buffer
 
-		for i := range it.NumFields() {
-			field := it.Field(i)
-
+		for field := range it.Fields() {
 			returns := g.returnTypeName(field.Type(), false)
 
 			buf.WriteString("func (t *" + name + ") Get" + field.Name() + "() " + returns + "{\n")
@@ -143,8 +141,8 @@ func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName
 // writeStructLiteral writes field assignments for a struct literal, delegating
 // each field to writeFieldAssignment.
 func (g *GenGettersGenerator) writeStructLiteral(buf *bytes.Buffer, targetStruct *types.Struct, sourceExpr string) {
-	for i := range targetStruct.NumFields() {
-		g.writeFieldAssignment(buf, targetStruct.Field(i), sourceExpr)
+	for field := range targetStruct.Fields() {
+		g.writeFieldAssignment(buf, field, sourceExpr)
 	}
 }
 

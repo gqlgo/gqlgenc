@@ -424,8 +424,7 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	// some servers return a graphql error with a non OK http code, try anyway to parse the body
 	err := c.unmarshal(body, result)
 	if err != nil {
-		var gqlErr *GqlErrorList
-		if errors.As(err, &gqlErr) {
+		if gqlErr, ok := errors.AsType[*GqlErrorList](err); ok {
 			errResponse.GqlErrors = &gqlErr.Errors
 		} else if !isOKCode {
 			return err
