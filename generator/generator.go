@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 	"syscall"
 
 	"github.com/99designs/gqlgen/api"
@@ -16,6 +17,8 @@ import (
 	"github.com/gqlgo/gqlgenc/config"
 	"github.com/gqlgo/gqlgenc/parsequery"
 	"github.com/gqlgo/gqlgenc/querydocument"
+
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.ModelBuild) *modelgen.ModelBuild {
@@ -90,7 +93,7 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 
 	// sort Implements to ensure a deterministic output
 	for _, v := range cfg.GQLConfig.Schema.Implements {
-		sort.Slice(v, func(i, j int) bool { return v[i].Name < v[j].Name })
+		slices.SortFunc(v, func(a, b *ast.Definition) int { return strings.Compare(a.Name, b.Name) })
 	}
 
 	querySources, err := parsequery.LoadQuerySources(cfg.Query)
