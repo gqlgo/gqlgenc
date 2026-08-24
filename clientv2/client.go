@@ -802,21 +802,16 @@ func (e *Encoder) encodeSlice(v reflect.Value) ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	result := make([]json.RawMessage, v.Len())
-	for i := range v.Len() {
-		encodedValue, err := e.Encode(v.Index(i))
-		if err != nil {
-			return nil, err
-		}
-
-		result[i] = encodedValue
-	}
-
-	return json.Marshal(result)
+	return e.encodeElements(v)
 }
 
 // encodeArray encodes an array value
 func (e *Encoder) encodeArray(v reflect.Value) ([]byte, error) {
+	return e.encodeElements(v)
+}
+
+// encodeElements encodes each element of an indexable value as a JSON array
+func (e *Encoder) encodeElements(v reflect.Value) ([]byte, error) {
 	result := make([]json.RawMessage, v.Len())
 	for i := range v.Len() {
 		encodedValue, err := e.Encode(v.Index(i))
