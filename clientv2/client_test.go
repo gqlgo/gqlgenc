@@ -1691,6 +1691,55 @@ func TestEncoder_encodeStruct(t *testing.T) {
 	}
 }
 
+func TestEncoder_encodeFloat(t *testing.T) {
+	tests := []struct {
+		name  string
+		input any
+		want  string
+	}{
+		{
+			name:  "whole number float encoded without decimal point",
+			input: float64(1),
+			want:  "1",
+		},
+		{
+			name:  "negative whole number float encoded without decimal point",
+			input: float64(-1),
+			want:  "-1",
+		},
+		{
+			name:  "zero encoded as 0",
+			input: float64(0),
+			want:  "0",
+		},
+		{
+			name:  "fractional value keeps decimal point",
+			input: float64(1.5),
+			want:  "1.5",
+		},
+		{
+			name:  "float32 value does not gain spurious precision from float64 conversion",
+			input: float32(0.1),
+			want:  "0.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			encoder := &Encoder{}
+
+			got, err := encoder.encodeFloat(reflect.ValueOf(tt.input))
+			if err != nil {
+				t.Fatalf("encodeFloat() error = %v", err)
+			}
+
+			if string(got) != tt.want {
+				t.Errorf("encodeFloat() = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_isEmptyValue(t *testing.T) {
 	str := "test"
 

@@ -634,7 +634,12 @@ func (e *Encoder) encodeUint(v reflect.Value) ([]byte, error) {
 
 // encodeFloat encodes a floating-point value
 func (e *Encoder) encodeFloat(v reflect.Value) ([]byte, error) {
-	return fmt.Appendf(nil, "%f", v.Float()), nil
+	bitSize := 64
+	if v.Kind() == reflect.Float32 {
+		bitSize = 32
+	}
+
+	return strconv.AppendFloat(nil, v.Float(), 'g', -1, bitSize), nil
 }
 
 // encodeString encodes a string value
