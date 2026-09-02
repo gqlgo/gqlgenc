@@ -51,8 +51,7 @@ func (p parser) parseIntrospectionQuery(query Query) *ast.SchemaDocument {
 }
 
 func (p parser) parseSchemaDefinition(query Query, typeMap map[string]*FullType) *ast.SchemaDefinition {
-	def := ast.SchemaDefinition{}
-	def.Position = p.sharedPosition
+	def := ast.SchemaDefinition{Position: p.sharedPosition}
 
 	if query.Schema.QueryType.Name != nil {
 		def.OperationTypes = append(def.OperationTypes,
