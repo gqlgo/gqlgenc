@@ -1,0 +1,7 @@
+[settings]
+# Pin download URLs and checksums in mise.lock so every contributor installs the same binaries.
+lockfile = true
+
+[tools]
+# Keep in sync with the golangci-lint version in .github/workflows/go.yml.
+golangci-lint = "2.13.2"

@@ -138,6 +138,18 @@ func main() {
 }
 ```
 
+## Development
+
+Tool versions are managed with [mise](https://mise.jdx.dev/) and pinned in `.mise.toml` / `mise.lock`.
+Activate mise in your shell (`mise activate`, see the [getting started guide](https://mise.jdx.dev/getting-started.html)) or prefix commands with `mise exec --` so the pinned binaries are on `PATH`.
+
+```shell script
+mise install
+make fmt
+make lint
+make test
+```
+
 ## Documents
 
 - [How to configure gqlgen using gqlgen.yml](https://gqlgen.com/config/)

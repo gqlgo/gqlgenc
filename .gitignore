@@ -12,3 +12,7 @@ coverage.out
 # Actual files output by the end-to-end tests
 generator/testdata/**/actual
 gqlgenc
+
+# mise local overrides, see https://mise.jdx.dev/configuration.html
+.mise.local.toml
+mise.local.toml
