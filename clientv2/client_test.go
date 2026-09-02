@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/99designs/gqlgen/graphql"

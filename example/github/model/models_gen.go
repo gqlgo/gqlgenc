@@ -57,7 +57,7 @@ func (e *ActorType) UnmarshalGQL(v any) error {
 }
 
 func (e ActorType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Audit Log connections can be ordered.
@@ -98,7 +98,7 @@ func (e *AuditLogOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e AuditLogOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents an annotation's information level.
@@ -145,7 +145,7 @@ func (e *CheckAnnotationLevel) UnmarshalGQL(v any) error {
 }
 
 func (e CheckAnnotationLevel) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a check suite or run conclusion.
@@ -210,7 +210,7 @@ func (e *CheckConclusionState) UnmarshalGQL(v any) error {
 }
 
 func (e CheckConclusionState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a check run in a status rollup.
@@ -290,7 +290,7 @@ func (e *CheckRunState) UnmarshalGQL(v any) error {
 }
 
 func (e CheckRunState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible types of check runs.
@@ -334,7 +334,7 @@ func (e *CheckRunType) UnmarshalGQL(v any) error {
 }
 
 func (e CheckRunType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a check suite or run status.
@@ -390,7 +390,7 @@ func (e *CheckStatusState) UnmarshalGQL(v any) error {
 }
 
 func (e CheckStatusState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Collaborators affiliation level with a subject.
@@ -437,7 +437,7 @@ func (e *CollaboratorAffiliation) UnmarshalGQL(v any) error {
 }
 
 func (e CollaboratorAffiliation) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // A comment author association with repository.
@@ -499,7 +499,7 @@ func (e *CommentAuthorAssociation) UnmarshalGQL(v any) error {
 }
 
 func (e CommentAuthorAssociation) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible errors that will prevent a user from updating a comment.
@@ -558,7 +558,7 @@ func (e *CommentCannotUpdateReason) UnmarshalGQL(v any) error {
 }
 
 func (e CommentCannotUpdateReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which commit contribution connections can be ordered.
@@ -602,7 +602,7 @@ func (e *CommitContributionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e CommitContributionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The status of a git comparison between two refs.
@@ -652,7 +652,7 @@ func (e *ComparisonStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ComparisonStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Varying levels of contributions from none to many.
@@ -705,7 +705,7 @@ func (e *ContributionLevel) UnmarshalGQL(v any) error {
 }
 
 func (e ContributionLevel) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible base permissions for repositories.
@@ -755,7 +755,7 @@ func (e *DefaultRepositoryPermissionField) UnmarshalGQL(v any) error {
 }
 
 func (e DefaultRepositoryPermissionField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible ecosystems of a dependency graph package.
@@ -826,7 +826,7 @@ func (e *DependencyGraphEcosystem) UnmarshalGQL(v any) error {
 }
 
 func (e DependencyGraphEcosystem) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which deployment connections can be ordered.
@@ -867,7 +867,7 @@ func (e *DeploymentOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible protection rule types.
@@ -914,7 +914,7 @@ func (e *DeploymentProtectionRuleType) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentProtectionRuleType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a deployment review.
@@ -958,7 +958,7 @@ func (e *DeploymentReviewState) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentReviewState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states in which a deployment can be.
@@ -1029,7 +1029,7 @@ func (e *DeploymentState) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a deployment status.
@@ -1091,7 +1091,7 @@ func (e *DeploymentStatusState) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentStatusState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible sides of a diff.
@@ -1135,7 +1135,7 @@ func (e *DiffSide) UnmarshalGQL(v any) error {
 }
 
 func (e DiffSide) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible reasons for closing a discussion.
@@ -1182,7 +1182,7 @@ func (e *DiscussionCloseReason) UnmarshalGQL(v any) error {
 }
 
 func (e DiscussionCloseReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which discussion connections can be ordered.
@@ -1226,7 +1226,7 @@ func (e *DiscussionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e DiscussionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which discussion poll option connections can be ordered.
@@ -1270,7 +1270,7 @@ func (e *DiscussionPollOptionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e DiscussionPollOptionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a discussion.
@@ -1314,7 +1314,7 @@ func (e *DiscussionState) UnmarshalGQL(v any) error {
 }
 
 func (e DiscussionState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible state reasons of a discussion.
@@ -1364,7 +1364,7 @@ func (e *DiscussionStateReason) UnmarshalGQL(v any) error {
 }
 
 func (e DiscussionStateReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible reasons that a Dependabot alert was dismissed.
@@ -1417,7 +1417,7 @@ func (e *DismissReason) UnmarshalGQL(v any) error {
 }
 
 func (e DismissReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which enterprise administrator invitation connections can be ordered.
@@ -1458,7 +1458,7 @@ func (e *EnterpriseAdministratorInvitationOrderField) UnmarshalGQL(v any) error 
 }
 
 func (e EnterpriseAdministratorInvitationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible administrator roles in an enterprise account.
@@ -1505,7 +1505,7 @@ func (e *EnterpriseAdministratorRole) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseAdministratorRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the enterprise allow private repository forking policy value.
@@ -1561,7 +1561,7 @@ func (e *EnterpriseAllowPrivateRepositoryForkingPolicyValue) UnmarshalGQL(v any)
 }
 
 func (e EnterpriseAllowPrivateRepositoryForkingPolicyValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the enterprise base repository permission setting.
@@ -1614,7 +1614,7 @@ func (e *EnterpriseDefaultRepositoryPermissionSettingValue) UnmarshalGQL(v any) 
 }
 
 func (e EnterpriseDefaultRepositoryPermissionSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for an enabled/no policy enterprise setting.
@@ -1658,7 +1658,7 @@ func (e *EnterpriseDisallowedMethodsSettingValue) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseDisallowedMethodsSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for an enabled/disabled enterprise setting.
@@ -1705,7 +1705,7 @@ func (e *EnterpriseEnabledDisabledSettingValue) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseEnabledDisabledSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for an enabled/no policy enterprise setting.
@@ -1749,7 +1749,7 @@ func (e *EnterpriseEnabledSettingValue) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseEnabledSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which enterprise member invitation connections can be ordered.
@@ -1790,7 +1790,7 @@ func (e *EnterpriseMemberInvitationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseMemberInvitationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which enterprise member connections can be ordered.
@@ -1834,7 +1834,7 @@ func (e *EnterpriseMemberOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseMemberOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the enterprise members can create repositories setting.
@@ -1887,7 +1887,7 @@ func (e *EnterpriseMembersCanCreateRepositoriesSettingValue) UnmarshalGQL(v any)
 }
 
 func (e EnterpriseMembersCanCreateRepositoriesSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the members can make purchases setting.
@@ -1931,7 +1931,7 @@ func (e *EnterpriseMembersCanMakePurchasesSettingValue) UnmarshalGQL(v any) erro
 }
 
 func (e EnterpriseMembersCanMakePurchasesSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values we have for filtering Platform::Objects::User#enterprises.
@@ -1981,7 +1981,7 @@ func (e *EnterpriseMembershipType) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseMembershipType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which enterprise connections can be ordered.
@@ -2022,7 +2022,7 @@ func (e *EnterpriseOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Enterprise Server installation connections can be ordered.
@@ -2069,7 +2069,7 @@ func (e *EnterpriseServerInstallationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseServerInstallationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Enterprise Server user account email connections can be ordered.
@@ -2110,7 +2110,7 @@ func (e *EnterpriseServerUserAccountEmailOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseServerUserAccountEmailOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Enterprise Server user account connections can be ordered.
@@ -2154,7 +2154,7 @@ func (e *EnterpriseServerUserAccountOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseServerUserAccountOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Enterprise Server user accounts upload connections can be ordered.
@@ -2195,7 +2195,7 @@ func (e *EnterpriseServerUserAccountsUploadOrderField) UnmarshalGQL(v any) error
 }
 
 func (e EnterpriseServerUserAccountsUploadOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Synchronization state of the Enterprise Server user accounts upload
@@ -2242,7 +2242,7 @@ func (e *EnterpriseServerUserAccountsUploadSyncState) UnmarshalGQL(v any) error 
 }
 
 func (e EnterpriseServerUserAccountsUploadSyncState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible roles for enterprise membership.
@@ -2289,7 +2289,7 @@ func (e *EnterpriseUserAccountMembershipRole) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseUserAccountMembershipRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible GitHub Enterprise deployments where this user can exist.
@@ -2333,7 +2333,7 @@ func (e *EnterpriseUserDeployment) UnmarshalGQL(v any) error {
 }
 
 func (e EnterpriseUserDeployment) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which environments connections can be ordered
@@ -2374,7 +2374,7 @@ func (e *EnvironmentOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EnvironmentOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which environments connections can be ordered
@@ -2421,7 +2421,7 @@ func (e *EnvironmentPinnedFilterField) UnmarshalGQL(v any) error {
 }
 
 func (e EnvironmentPinnedFilterField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible viewed states of a file .
@@ -2468,7 +2468,7 @@ func (e *FileViewedState) UnmarshalGQL(v any) error {
 }
 
 func (e FileViewedState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible funding platforms for repository funding links.
@@ -2545,7 +2545,7 @@ func (e *FundingPlatform) UnmarshalGQL(v any) error {
 }
 
 func (e FundingPlatform) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which gist connections can be ordered.
@@ -2592,7 +2592,7 @@ func (e *GistOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e GistOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a Gist
@@ -2639,7 +2639,7 @@ func (e *GistPrivacy) UnmarshalGQL(v any) error {
 }
 
 func (e GistPrivacy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The state of a Git signature.
@@ -2728,7 +2728,7 @@ func (e *GitSignatureState) UnmarshalGQL(v any) error {
 }
 
 func (e GitSignatureState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states in which authentication can be configured with an identity provider.
@@ -2775,7 +2775,7 @@ func (e *IdentityProviderConfigurationState) UnmarshalGQL(v any) error {
 }
 
 func (e IdentityProviderConfigurationState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the IP allow list enabled setting.
@@ -2819,7 +2819,7 @@ func (e *IPAllowListEnabledSettingValue) UnmarshalGQL(v any) error {
 }
 
 func (e IPAllowListEnabledSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which IP allow list entry connections can be ordered.
@@ -2863,7 +2863,7 @@ func (e *IPAllowListEntryOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e IPAllowListEntryOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the IP allow list configuration for installed GitHub Apps setting.
@@ -2907,7 +2907,7 @@ func (e *IPAllowListForInstalledAppsEnabledSettingValue) UnmarshalGQL(v any) err
 }
 
 func (e IPAllowListForInstalledAppsEnabledSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible state reasons of a closed issue.
@@ -2954,7 +2954,7 @@ func (e *IssueClosedStateReason) UnmarshalGQL(v any) error {
 }
 
 func (e IssueClosedStateReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which issue comment connections can be ordered.
@@ -2995,7 +2995,7 @@ func (e *IssueCommentOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e IssueCommentOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which issue connections can be ordered.
@@ -3042,7 +3042,7 @@ func (e *IssueOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e IssueOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of an issue.
@@ -3086,7 +3086,7 @@ func (e *IssueState) UnmarshalGQL(v any) error {
 }
 
 func (e IssueState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible state reasons of an issue.
@@ -3136,7 +3136,7 @@ func (e *IssueStateReason) UnmarshalGQL(v any) error {
 }
 
 func (e IssueStateReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible item types found in a timeline.
@@ -3288,7 +3288,7 @@ func (e *IssueTimelineItemsItemType) UnmarshalGQL(v any) error {
 }
 
 func (e IssueTimelineItemsItemType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible color for an issue type
@@ -3350,7 +3350,7 @@ func (e *IssueTypeColor) UnmarshalGQL(v any) error {
 }
 
 func (e IssueTypeColor) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which issue type connections can be ordered.
@@ -3394,7 +3394,7 @@ func (e *IssueTypeOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e IssueTypeOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which label connections can be ordered.
@@ -3438,7 +3438,7 @@ func (e *LabelOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e LabelOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which language connections can be ordered.
@@ -3479,7 +3479,7 @@ func (e *LanguageOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e LanguageOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible reasons that an issue or pull request was locked.
@@ -3529,7 +3529,7 @@ func (e *LockReason) UnmarshalGQL(v any) error {
 }
 
 func (e LockReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which mannequins can be ordered.
@@ -3573,7 +3573,7 @@ func (e *MannequinOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e MannequinOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible default commit messages for merges.
@@ -3620,7 +3620,7 @@ func (e *MergeCommitMessage) UnmarshalGQL(v any) error {
 }
 
 func (e MergeCommitMessage) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible default commit titles for merges.
@@ -3664,7 +3664,7 @@ func (e *MergeCommitTitle) UnmarshalGQL(v any) error {
 }
 
 func (e MergeCommitTitle) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a merge queue entry.
@@ -3717,7 +3717,7 @@ func (e *MergeQueueEntryState) UnmarshalGQL(v any) error {
 }
 
 func (e MergeQueueEntryState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // When set to ALLGREEN, the merge commit created by merge queue for each PR in the group must pass all required checks to merge. When set to HEADGREEN, only the commit at the head of the merge group, i.e. the commit containing changes from all of the PRs in the group, must pass its required checks to merge.
@@ -3761,7 +3761,7 @@ func (e *MergeQueueGroupingStrategy) UnmarshalGQL(v any) error {
 }
 
 func (e MergeQueueGroupingStrategy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Method to use when merging changes from queued pull requests.
@@ -3808,7 +3808,7 @@ func (e *MergeQueueMergeMethod) UnmarshalGQL(v any) error {
 }
 
 func (e MergeQueueMergeMethod) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible merging strategies for a merge queue.
@@ -3852,7 +3852,7 @@ func (e *MergeQueueMergingStrategy) UnmarshalGQL(v any) error {
 }
 
 func (e MergeQueueMergingStrategy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Detailed status information about a pull request merge.
@@ -3914,7 +3914,7 @@ func (e *MergeStateStatus) UnmarshalGQL(v any) error {
 }
 
 func (e MergeStateStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Whether or not a PullRequest can be merged.
@@ -3961,7 +3961,7 @@ func (e *MergeableState) UnmarshalGQL(v any) error {
 }
 
 func (e MergeableState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents the different GitHub Enterprise Importer (GEI) migration sources.
@@ -4008,7 +4008,7 @@ func (e *MigrationSourceType) UnmarshalGQL(v any) error {
 }
 
 func (e MigrationSourceType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The GitHub Enterprise Importer (GEI) migration state.
@@ -4067,7 +4067,7 @@ func (e *MigrationState) UnmarshalGQL(v any) error {
 }
 
 func (e MigrationState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which milestone connections can be ordered.
@@ -4117,7 +4117,7 @@ func (e *MilestoneOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e MilestoneOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a milestone.
@@ -4161,7 +4161,7 @@ func (e *MilestoneState) UnmarshalGQL(v any) error {
 }
 
 func (e MilestoneState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the notification restriction setting.
@@ -4205,7 +4205,7 @@ func (e *NotificationRestrictionSettingValue) UnmarshalGQL(v any) error {
 }
 
 func (e NotificationRestrictionSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The OIDC identity provider type
@@ -4246,7 +4246,7 @@ func (e *OIDCProviderType) UnmarshalGQL(v any) error {
 }
 
 func (e OIDCProviderType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The state of an OAuth application when it was created.
@@ -4293,7 +4293,7 @@ func (e *OauthApplicationCreateAuditEntryState) UnmarshalGQL(v any) error {
 }
 
 func (e OauthApplicationCreateAuditEntryState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The corresponding operation type for the action
@@ -4352,7 +4352,7 @@ func (e *OperationType) UnmarshalGQL(v any) error {
 }
 
 func (e OperationType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Possible directions in which to order a list of items when provided an `orderBy` argument.
@@ -4396,7 +4396,7 @@ func (e *OrderDirection) UnmarshalGQL(v any) error {
 }
 
 func (e OrderDirection) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The permissions available to members on an Organization.
@@ -4440,7 +4440,7 @@ func (e *OrgAddMemberAuditEntryPermission) UnmarshalGQL(v any) error {
 }
 
 func (e OrgAddMemberAuditEntryPermission) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The billing plans available for organizations.
@@ -4493,7 +4493,7 @@ func (e *OrgCreateAuditEntryBillingPlan) UnmarshalGQL(v any) error {
 }
 
 func (e OrgCreateAuditEntryBillingPlan) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which enterprise owners can be ordered.
@@ -4534,7 +4534,7 @@ func (e *OrgEnterpriseOwnerOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e OrgEnterpriseOwnerOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The reason a billing manager was removed from an Organization.
@@ -4581,7 +4581,7 @@ func (e *OrgRemoveBillingManagerAuditEntryReason) UnmarshalGQL(v any) error {
 }
 
 func (e OrgRemoveBillingManagerAuditEntryReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The type of membership a user has with an Organization.
@@ -4637,7 +4637,7 @@ func (e *OrgRemoveMemberAuditEntryMembershipType) UnmarshalGQL(v any) error {
 }
 
 func (e OrgRemoveMemberAuditEntryMembershipType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The reason a member was removed from an Organization.
@@ -4690,7 +4690,7 @@ func (e *OrgRemoveMemberAuditEntryReason) UnmarshalGQL(v any) error {
 }
 
 func (e OrgRemoveMemberAuditEntryReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The type of membership a user has with an Organization.
@@ -4737,7 +4737,7 @@ func (e *OrgRemoveOutsideCollaboratorAuditEntryMembershipType) UnmarshalGQL(v an
 }
 
 func (e OrgRemoveOutsideCollaboratorAuditEntryMembershipType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The reason an outside collaborator was removed from an Organization.
@@ -4781,7 +4781,7 @@ func (e *OrgRemoveOutsideCollaboratorAuditEntryReason) UnmarshalGQL(v any) error
 }
 
 func (e OrgRemoveOutsideCollaboratorAuditEntryReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The default permission a repository can have in an Organization.
@@ -4831,7 +4831,7 @@ func (e *OrgUpdateDefaultRepositoryPermissionAuditEntryPermission) UnmarshalGQL(
 }
 
 func (e OrgUpdateDefaultRepositoryPermissionAuditEntryPermission) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The permissions available to members on an Organization.
@@ -4875,7 +4875,7 @@ func (e *OrgUpdateMemberAuditEntryPermission) UnmarshalGQL(v any) error {
 }
 
 func (e OrgUpdateMemberAuditEntryPermission) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The permissions available for repository creation on an Organization.
@@ -4937,7 +4937,7 @@ func (e *OrgUpdateMemberRepositoryCreationPermissionAuditEntryVisibility) Unmars
 }
 
 func (e OrgUpdateMemberRepositoryCreationPermissionAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible organization invitation roles.
@@ -4987,7 +4987,7 @@ func (e *OrganizationInvitationRole) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationInvitationRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible organization invitation sources.
@@ -5034,7 +5034,7 @@ func (e *OrganizationInvitationSource) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationInvitationSource) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible organization invitation types.
@@ -5078,7 +5078,7 @@ func (e *OrganizationInvitationType) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationInvitationType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible roles within an organization for its members.
@@ -5122,7 +5122,7 @@ func (e *OrganizationMemberRole) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationMemberRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible values for the members can create repositories setting on an organization.
@@ -5172,7 +5172,7 @@ func (e *OrganizationMembersCanCreateRepositoriesSettingValue) UnmarshalGQL(v an
 }
 
 func (e OrganizationMembersCanCreateRepositoriesSettingValue) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The Octoshift Organization migration state.
@@ -5240,7 +5240,7 @@ func (e *OrganizationMigrationState) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationMigrationState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which organization connections can be ordered.
@@ -5284,7 +5284,7 @@ func (e *OrganizationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which package file connections can be ordered.
@@ -5325,7 +5325,7 @@ func (e *PackageFileOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PackageFileOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which package connections can be ordered.
@@ -5366,7 +5366,7 @@ func (e *PackageOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PackageOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible types of a package.
@@ -5425,7 +5425,7 @@ func (e *PackageType) UnmarshalGQL(v any) error {
 }
 
 func (e PackageType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which package version connections can be ordered.
@@ -5466,7 +5466,7 @@ func (e *PackageVersionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PackageVersionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible types of patch statuses.
@@ -5522,7 +5522,7 @@ func (e *PatchStatus) UnmarshalGQL(v any) error {
 }
 
 func (e PatchStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents items that can be pinned to a profile page or dashboard.
@@ -5584,7 +5584,7 @@ func (e *PinnableItemType) UnmarshalGQL(v any) error {
 }
 
 func (e PinnableItemType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Preconfigured gradients that may be used to style discussions pinned within a repository.
@@ -5637,7 +5637,7 @@ func (e *PinnedDiscussionGradient) UnmarshalGQL(v any) error {
 }
 
 func (e PinnedDiscussionGradient) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Preconfigured background patterns that may be used to style discussions pinned within a repository.
@@ -5693,7 +5693,7 @@ func (e *PinnedDiscussionPattern) UnmarshalGQL(v any) error {
 }
 
 func (e PinnedDiscussionPattern) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which pinned environments connections can be ordered
@@ -5734,7 +5734,7 @@ func (e *PinnedEnvironmentOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PinnedEnvironmentOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible archived states of a project card.
@@ -5778,7 +5778,7 @@ func (e *ProjectCardArchivedState) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectCardArchivedState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Various content states of a ProjectCard
@@ -5825,7 +5825,7 @@ func (e *ProjectCardState) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectCardState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The semantic purpose of the column - todo, in progress, or done.
@@ -5872,7 +5872,7 @@ func (e *ProjectColumnPurpose) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectColumnPurpose) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project connections can be ordered.
@@ -5919,7 +5919,7 @@ func (e *ProjectOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // State of the project; either 'open' or 'closed'
@@ -5963,7 +5963,7 @@ func (e *ProjectState) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // GitHub-provided templates for Projects
@@ -6013,7 +6013,7 @@ func (e *ProjectTemplate) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectTemplate) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The type of a project field.
@@ -6066,7 +6066,7 @@ func (e *ProjectV2CustomFieldType) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2CustomFieldType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project v2 field connections can be ordered.
@@ -6113,7 +6113,7 @@ func (e *ProjectV2FieldOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2FieldOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The type of a project field.
@@ -6202,7 +6202,7 @@ func (e *ProjectV2FieldType) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2FieldType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project v2 item field value connections can be ordered.
@@ -6243,7 +6243,7 @@ func (e *ProjectV2ItemFieldValueOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2ItemFieldValueOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project v2 item connections can be ordered.
@@ -6284,7 +6284,7 @@ func (e *ProjectV2ItemOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2ItemOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The type of a project item.
@@ -6334,7 +6334,7 @@ func (e *ProjectV2ItemType) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2ItemType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which projects can be ordered.
@@ -6384,7 +6384,7 @@ func (e *ProjectV2OrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2OrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible roles of a collaborator on a project.
@@ -6431,7 +6431,7 @@ func (e *ProjectV2PermissionLevel) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2PermissionLevel) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible roles of a collaborator on a project.
@@ -6481,7 +6481,7 @@ func (e *ProjectV2Roles) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2Roles) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The display color of a single-select field option.
@@ -6543,7 +6543,7 @@ func (e *ProjectV2SingleSelectFieldOptionColor) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2SingleSelectFieldOptionColor) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a project v2.
@@ -6587,7 +6587,7 @@ func (e *ProjectV2State) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2State) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project v2 status updates can be ordered.
@@ -6628,7 +6628,7 @@ func (e *ProjectV2StatusUpdateOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2StatusUpdateOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible statuses of a project v2.
@@ -6681,7 +6681,7 @@ func (e *ProjectV2StatusUpdateStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2StatusUpdateStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The layout of a project v2 view.
@@ -6728,7 +6728,7 @@ func (e *ProjectV2ViewLayout) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2ViewLayout) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project v2 view connections can be ordered.
@@ -6775,7 +6775,7 @@ func (e *ProjectV2ViewOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2ViewOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which project workflows can be ordered.
@@ -6825,7 +6825,7 @@ func (e *ProjectV2WorkflowsOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProjectV2WorkflowsOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Array of allowed merge methods. Allowed values include `merge`, `squash`, and `rebase`. At least one option must be enabled.
@@ -6872,7 +6872,7 @@ func (e *PullRequestAllowedMergeMethods) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestAllowedMergeMethods) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible methods for updating a pull request's head branch with the base branch.
@@ -6916,7 +6916,7 @@ func (e *PullRequestBranchUpdateMethod) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestBranchUpdateMethod) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents available types of methods to use when merging a pull request.
@@ -6963,7 +6963,7 @@ func (e *PullRequestMergeMethod) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestMergeMethod) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which pull_requests connections can be ordered.
@@ -7007,7 +7007,7 @@ func (e *PullRequestOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a pull request review comment.
@@ -7051,7 +7051,7 @@ func (e *PullRequestReviewCommentState) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestReviewCommentState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The review status of a pull request.
@@ -7098,7 +7098,7 @@ func (e *PullRequestReviewDecision) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestReviewDecision) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible events to perform on a pull request review.
@@ -7148,7 +7148,7 @@ func (e *PullRequestReviewEvent) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestReviewEvent) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a pull request review.
@@ -7201,7 +7201,7 @@ func (e *PullRequestReviewState) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestReviewState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible subject types of a pull request review comment.
@@ -7245,7 +7245,7 @@ func (e *PullRequestReviewThreadSubjectType) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestReviewThreadSubjectType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a pull request.
@@ -7292,7 +7292,7 @@ func (e *PullRequestState) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible item types found in a timeline.
@@ -7525,7 +7525,7 @@ func (e *PullRequestTimelineItemsItemType) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestTimelineItemsItemType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible target states when updating a pull request.
@@ -7569,7 +7569,7 @@ func (e *PullRequestUpdateState) UnmarshalGQL(v any) error {
 }
 
 func (e PullRequestUpdateState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Emojis that can be attached to Issues, Pull Requests and Comments.
@@ -7631,7 +7631,7 @@ func (e *ReactionContent) UnmarshalGQL(v any) error {
 }
 
 func (e ReactionContent) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // A list of fields that reactions can be ordered by.
@@ -7672,7 +7672,7 @@ func (e *ReactionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ReactionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which ref connections can be ordered.
@@ -7716,7 +7716,7 @@ func (e *RefOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RefOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which release connections can be ordered.
@@ -7760,7 +7760,7 @@ func (e *ReleaseOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ReleaseOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -7807,7 +7807,7 @@ func (e *RepoAccessAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoAccessAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -7854,7 +7854,7 @@ func (e *RepoAddMemberAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoAddMemberAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -7901,7 +7901,7 @@ func (e *RepoArchivedAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoArchivedAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The merge options available for pull requests to this repository.
@@ -7948,7 +7948,7 @@ func (e *RepoChangeMergeSettingAuditEntryMergeType) UnmarshalGQL(v any) error {
 }
 
 func (e RepoChangeMergeSettingAuditEntryMergeType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -7995,7 +7995,7 @@ func (e *RepoCreateAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoCreateAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -8042,7 +8042,7 @@ func (e *RepoDestroyAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoDestroyAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -8089,7 +8089,7 @@ func (e *RepoRemoveMemberAuditEntryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepoRemoveMemberAuditEntryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The reasons a piece of content can be reported or minimized.
@@ -8145,7 +8145,7 @@ func (e *ReportedContentClassifiers) UnmarshalGQL(v any) error {
 }
 
 func (e ReportedContentClassifiers) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The affiliation of a user to a repository
@@ -8192,7 +8192,7 @@ func (e *RepositoryAffiliation) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryAffiliation) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The reason a repository is listed as 'contributed'.
@@ -8245,7 +8245,7 @@ func (e *RepositoryContributionType) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryContributionType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // A repository interaction limit.
@@ -8295,7 +8295,7 @@ func (e *RepositoryInteractionLimit) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryInteractionLimit) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The length for a repository interaction limit to be enabled for.
@@ -8348,7 +8348,7 @@ func (e *RepositoryInteractionLimitExpiry) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryInteractionLimitExpiry) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Indicates where an interaction limit is configured.
@@ -8395,7 +8395,7 @@ func (e *RepositoryInteractionLimitOrigin) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryInteractionLimitOrigin) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which repository invitation connections can be ordered.
@@ -8436,7 +8436,7 @@ func (e *RepositoryInvitationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryInvitationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible reasons a given repository could be in a locked state.
@@ -8492,7 +8492,7 @@ func (e *RepositoryLockReason) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryLockReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Possible directions in which to order a list of repository migrations when provided an `orderBy` argument.
@@ -8536,7 +8536,7 @@ func (e *RepositoryMigrationOrderDirection) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryMigrationOrderDirection) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which repository migrations can be ordered.
@@ -8577,7 +8577,7 @@ func (e *RepositoryMigrationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryMigrationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which repository connections can be ordered.
@@ -8630,7 +8630,7 @@ func (e *RepositoryOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The access level to a repository
@@ -8683,7 +8683,7 @@ func (e *RepositoryPermission) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryPermission) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a repository
@@ -8727,7 +8727,7 @@ func (e *RepositoryPrivacy) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryPrivacy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which repository rule connections can be ordered.
@@ -8774,7 +8774,7 @@ func (e *RepositoryRuleOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryRuleOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The rule types supported in rulesets
@@ -8902,7 +8902,7 @@ func (e *RepositoryRuleType) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryRuleType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The bypass mode for a specific actor on a ruleset.
@@ -8946,7 +8946,7 @@ func (e *RepositoryRulesetBypassActorBypassMode) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryRulesetBypassActorBypassMode) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The targets supported for rulesets.
@@ -8996,7 +8996,7 @@ func (e *RepositoryRulesetTarget) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryRulesetTarget) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The repository's visibility level.
@@ -9043,7 +9043,7 @@ func (e *RepositoryVisibility) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryVisibility) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible relationships of an alert's dependency.
@@ -9090,7 +9090,7 @@ func (e *RepositoryVulnerabilityAlertDependencyRelationship) UnmarshalGQL(v any)
 }
 
 func (e RepositoryVulnerabilityAlertDependencyRelationship) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible scopes of an alert's dependency.
@@ -9134,7 +9134,7 @@ func (e *RepositoryVulnerabilityAlertDependencyScope) UnmarshalGQL(v any) error 
 }
 
 func (e RepositoryVulnerabilityAlertDependencyScope) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of an alert
@@ -9184,7 +9184,7 @@ func (e *RepositoryVulnerabilityAlertState) UnmarshalGQL(v any) error {
 }
 
 func (e RepositoryVulnerabilityAlertState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states that can be requested when creating a check run.
@@ -9237,7 +9237,7 @@ func (e *RequestableCheckStatusState) UnmarshalGQL(v any) error {
 }
 
 func (e RequestableCheckStatusState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Possible roles a user may have in relation to an organization.
@@ -9284,7 +9284,7 @@ func (e *RoleInOrganization) UnmarshalGQL(v any) error {
 }
 
 func (e RoleInOrganization) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The level of enforcement for a rule or ruleset.
@@ -9331,7 +9331,7 @@ func (e *RuleEnforcement) UnmarshalGQL(v any) error {
 }
 
 func (e RuleEnforcement) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible digest algorithms used to sign SAML requests for an identity provider.
@@ -9381,7 +9381,7 @@ func (e *SamlDigestAlgorithm) UnmarshalGQL(v any) error {
 }
 
 func (e SamlDigestAlgorithm) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible signature algorithms used to sign SAML requests for a Identity Provider.
@@ -9431,7 +9431,7 @@ func (e *SamlSignatureAlgorithm) UnmarshalGQL(v any) error {
 }
 
 func (e SamlSignatureAlgorithm) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which saved reply connections can be ordered.
@@ -9472,7 +9472,7 @@ func (e *SavedReplyOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SavedReplyOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents the individual results of a search.
@@ -9525,7 +9525,7 @@ func (e *SearchType) UnmarshalGQL(v any) error {
 }
 
 func (e SearchType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Classification of the advisory.
@@ -9569,7 +9569,7 @@ func (e *SecurityAdvisoryClassification) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityAdvisoryClassification) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible ecosystems of a security vulnerability's package.
@@ -9643,7 +9643,7 @@ func (e *SecurityAdvisoryEcosystem) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityAdvisoryEcosystem) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Identifier formats available for advisories.
@@ -9687,7 +9687,7 @@ func (e *SecurityAdvisoryIdentifierType) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityAdvisoryIdentifierType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which security advisory connections can be ordered.
@@ -9737,7 +9737,7 @@ func (e *SecurityAdvisoryOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityAdvisoryOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Severity of the vulnerability.
@@ -9787,7 +9787,7 @@ func (e *SecurityAdvisorySeverity) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityAdvisorySeverity) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which security vulnerability connections can be ordered.
@@ -9828,7 +9828,7 @@ func (e *SecurityVulnerabilityOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SecurityVulnerabilityOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Software or company that hosts social media accounts.
@@ -9902,7 +9902,7 @@ func (e *SocialAccountProvider) UnmarshalGQL(v any) error {
 }
 
 func (e SocialAccountProvider) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which sponsor and lifetime value connections can be ordered.
@@ -9949,7 +9949,7 @@ func (e *SponsorAndLifetimeValueOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorAndLifetimeValueOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which sponsor connections can be ordered.
@@ -9993,7 +9993,7 @@ func (e *SponsorOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which sponsorable connections can be ordered.
@@ -10034,7 +10034,7 @@ func (e *SponsorableOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorableOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible actions that GitHub Sponsors activities can represent.
@@ -10090,7 +10090,7 @@ func (e *SponsorsActivityAction) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsActivityAction) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which GitHub Sponsors activity connections can be ordered.
@@ -10131,7 +10131,7 @@ func (e *SponsorsActivityOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsActivityOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible time periods for which Sponsors activities can be requested.
@@ -10181,7 +10181,7 @@ func (e *SponsorsActivityPeriod) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsActivityPeriod) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Represents countries or regions for billing and residence for a GitHub Sponsors profile.
@@ -10957,7 +10957,7 @@ func (e *SponsorsCountryOrRegionCode) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsCountryOrRegionCode) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The different kinds of goals a GitHub Sponsors member can have.
@@ -11001,7 +11001,7 @@ func (e *SponsorsGoalKind) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsGoalKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The different kinds of records that can be featured on a GitHub Sponsors profile page.
@@ -11045,7 +11045,7 @@ func (e *SponsorsListingFeaturedItemFeatureableType) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsListingFeaturedItemFeatureableType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which Sponsors tiers connections can be ordered.
@@ -11089,7 +11089,7 @@ func (e *SponsorsTierOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorsTierOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which sponsorship update connections can be ordered.
@@ -11130,7 +11130,7 @@ func (e *SponsorshipNewsletterOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorshipNewsletterOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which sponsorship connections can be ordered.
@@ -11171,7 +11171,7 @@ func (e *SponsorshipOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorshipOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // How payment was made for funding a GitHub Sponsors sponsorship.
@@ -11215,7 +11215,7 @@ func (e *SponsorshipPaymentSource) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorshipPaymentSource) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The privacy of a sponsorship
@@ -11259,7 +11259,7 @@ func (e *SponsorshipPrivacy) UnmarshalGQL(v any) error {
 }
 
 func (e SponsorshipPrivacy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible default commit messages for squash merges.
@@ -11306,7 +11306,7 @@ func (e *SquashMergeCommitMessage) UnmarshalGQL(v any) error {
 }
 
 func (e SquashMergeCommitMessage) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible default commit titles for squash merges.
@@ -11350,7 +11350,7 @@ func (e *SquashMergeCommitTitle) UnmarshalGQL(v any) error {
 }
 
 func (e SquashMergeCommitTitle) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which star connections can be ordered.
@@ -11391,7 +11391,7 @@ func (e *StarOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e StarOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible commit status states.
@@ -11444,7 +11444,7 @@ func (e *StatusState) UnmarshalGQL(v any) error {
 }
 
 func (e StatusState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a subscription.
@@ -11491,7 +11491,7 @@ func (e *SubscriptionState) UnmarshalGQL(v any) error {
 }
 
 func (e SubscriptionState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which team discussion comment connections can be ordered.
@@ -11532,7 +11532,7 @@ func (e *TeamDiscussionCommentOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e TeamDiscussionCommentOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which team discussion connections can be ordered.
@@ -11573,7 +11573,7 @@ func (e *TeamDiscussionOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e TeamDiscussionOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which team member connections can be ordered.
@@ -11617,7 +11617,7 @@ func (e *TeamMemberOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e TeamMemberOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible team member roles; either 'maintainer' or 'member'.
@@ -11661,7 +11661,7 @@ func (e *TeamMemberRole) UnmarshalGQL(v any) error {
 }
 
 func (e TeamMemberRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Defines which types of team members are included in the returned list. Can be one of IMMEDIATE, CHILD_TEAM or ALL.
@@ -11708,7 +11708,7 @@ func (e *TeamMembershipType) UnmarshalGQL(v any) error {
 }
 
 func (e TeamMembershipType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible team notification values.
@@ -11752,7 +11752,7 @@ func (e *TeamNotificationSetting) UnmarshalGQL(v any) error {
 }
 
 func (e TeamNotificationSetting) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which team connections can be ordered.
@@ -11793,7 +11793,7 @@ func (e *TeamOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e TeamOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible team privacy values.
@@ -11837,7 +11837,7 @@ func (e *TeamPrivacy) UnmarshalGQL(v any) error {
 }
 
 func (e TeamPrivacy) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which team repository connections can be ordered.
@@ -11893,7 +11893,7 @@ func (e *TeamRepositoryOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e TeamRepositoryOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible team review assignment algorithms
@@ -11937,7 +11937,7 @@ func (e *TeamReviewAssignmentAlgorithm) UnmarshalGQL(v any) error {
 }
 
 func (e TeamReviewAssignmentAlgorithm) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The role of a user on a team.
@@ -11981,7 +11981,7 @@ func (e *TeamRole) UnmarshalGQL(v any) error {
 }
 
 func (e TeamRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a thread subscription form action
@@ -12028,7 +12028,7 @@ func (e *ThreadSubscriptionFormAction) UnmarshalGQL(v any) error {
 }
 
 func (e ThreadSubscriptionFormAction) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a subscription.
@@ -12093,7 +12093,7 @@ func (e *ThreadSubscriptionState) UnmarshalGQL(v any) error {
 }
 
 func (e ThreadSubscriptionState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Reason that the suggested topic is declined.
@@ -12143,7 +12143,7 @@ func (e *TopicSuggestionDeclineReason) UnmarshalGQL(v any) error {
 }
 
 func (e TopicSuggestionDeclineReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states of a tracked issue.
@@ -12187,7 +12187,7 @@ func (e *TrackedIssueStates) UnmarshalGQL(v any) error {
 }
 
 func (e TrackedIssueStates) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Filters by whether or not 2FA is enabled and if the method configured is considered secure or insecure.
@@ -12234,7 +12234,7 @@ func (e *TwoFactorCredentialSecurityType) UnmarshalGQL(v any) error {
 }
 
 func (e TwoFactorCredentialSecurityType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible durations that a user can be blocked for.
@@ -12287,7 +12287,7 @@ func (e *UserBlockDuration) UnmarshalGQL(v any) error {
 }
 
 func (e UserBlockDuration) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which user status connections can be ordered.
@@ -12328,7 +12328,7 @@ func (e *UserStatusOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e UserStatusOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Whether a user being viewed contains public or private information.
@@ -12372,7 +12372,7 @@ func (e *UserViewType) UnmarshalGQL(v any) error {
 }
 
 func (e UserViewType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which verifiable domain connections can be ordered.
@@ -12416,7 +12416,7 @@ func (e *VerifiableDomainOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e VerifiableDomainOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Properties by which workflow run connections can be ordered.
@@ -12457,7 +12457,7 @@ func (e *WorkflowRunOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e WorkflowRunOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // The possible states for a workflow.
@@ -12510,5 +12510,5 @@ func (e *WorkflowState) UnmarshalGQL(v any) error {
 }
 
 func (e WorkflowState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
