@@ -11,6 +11,7 @@ linters:
     - errname # No need to restrict error variable names, so ignoring
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
     - forbidigo
     - funlen
     - gochecknoglobals
@@ -21,6 +22,7 @@ linters:
     - gocyclo
     - godot
     - godox
+    - gomodguard # Deprecated since golangci-lint v2.12.0; gomodguard_v2 is enabled by default: all
     - gosec
     - interfacebloat # Lint to specify the upper limit of interface, disabled as unnecessary
     - ireturn # Returning interfaces results in errors, but it's not a problem, so ignoring
@@ -100,6 +102,7 @@ formatters:
   enable:
     - gci
     - gofmt
+    - gofumpt
     - goimports
   settings:
     gofmt:
@@ -108,6 +111,9 @@ formatters:
           replacement: 'any'
         - pattern: 'a[b:len(a)]'
           replacement: 'a[b:]'
+    gofumpt:
+      extra:
+        group-params: true
     gci:
       sections:
         - standard

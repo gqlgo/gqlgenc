@@ -871,7 +871,7 @@ func (e *ActivityAction) UnmarshalGQL(v any) error {
 }
 
 func (e ActivityAction) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ActivityOrderField string
@@ -910,7 +910,7 @@ func (e *ActivityOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ActivityOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type CastOrderField string
@@ -951,7 +951,7 @@ func (e *CastOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e CastOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type CharacterOrderField string
@@ -992,7 +992,7 @@ func (e *CharacterOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e CharacterOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type EpisodeOrderField string
@@ -1033,7 +1033,7 @@ func (e *EpisodeOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e EpisodeOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Media of anime
@@ -1081,7 +1081,7 @@ func (e *Media) UnmarshalGQL(v any) error {
 }
 
 func (e Media) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type OrderDirection string
@@ -1122,7 +1122,7 @@ func (e *OrderDirection) UnmarshalGQL(v any) error {
 }
 
 func (e OrderDirection) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type OrganizationOrderField string
@@ -1163,7 +1163,7 @@ func (e *OrganizationOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e OrganizationOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type PersonOrderField string
@@ -1204,7 +1204,7 @@ func (e *PersonOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e PersonOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ProgramOrderField string
@@ -1243,7 +1243,7 @@ func (e *ProgramOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ProgramOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ProgramState string
@@ -1284,7 +1284,7 @@ func (e *ProgramState) UnmarshalGQL(v any) error {
 }
 
 func (e ProgramState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type RatingState string
@@ -1329,7 +1329,7 @@ func (e *RatingState) UnmarshalGQL(v any) error {
 }
 
 func (e RatingState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type RecordOrderField string
@@ -1370,7 +1370,7 @@ func (e *RecordOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e RecordOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ReviewOrderField string
@@ -1411,7 +1411,7 @@ func (e *ReviewOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e ReviewOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 // Season name
@@ -1457,7 +1457,7 @@ func (e *SeasonName) UnmarshalGQL(v any) error {
 }
 
 func (e SeasonName) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type SeriesWorkOrderField string
@@ -1496,7 +1496,7 @@ func (e *SeriesWorkOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e SeriesWorkOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type StaffOrderField string
@@ -1537,7 +1537,7 @@ func (e *StaffOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e StaffOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type StatusState string
@@ -1586,7 +1586,7 @@ func (e *StatusState) UnmarshalGQL(v any) error {
 }
 
 func (e StatusState) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type WorkOrderField string
@@ -1629,5 +1629,5 @@ func (e *WorkOrderField) UnmarshalGQL(v any) error {
 }
 
 func (e WorkOrderField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }

@@ -56,7 +56,7 @@ func (e *SortOrder) UnmarshalGQL(v any) error {
 }
 
 func (e SortOrder) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SortOrder) UnmarshalJSON(b []byte) error {
@@ -111,7 +111,7 @@ func (e *TodoStatus) UnmarshalGQL(v any) error {
 }
 
 func (e TodoStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TodoStatus) UnmarshalJSON(b []byte) error {
