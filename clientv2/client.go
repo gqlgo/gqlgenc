@@ -536,6 +536,10 @@ func (e *Encoder) Encode(v reflect.Value) ([]byte, error) {
 
 	t := v.Type()
 
+	if t == jsonNumberType {
+		return e.encodeJSONNumber(v)
+	}
+
 	switch t.Kind() {
 	case reflect.Pointer:
 		return e.encodePtr(v)
@@ -645,6 +649,21 @@ func (e *Encoder) encodeString(v reflect.Value) ([]byte, error) {
 	}
 
 	return stringValue, nil
+}
+
+var jsonNumberType = reflect.TypeFor[json.Number]()
+
+// encodeJSONNumber encodes a json.Number value as a JSON number.
+// json.Number does not implement json.Marshaler and its kind is reflect.String,
+// so it has to be handled before the ordinary string encoding.
+// Validation and the empty-string fallback to 0 are delegated to encoding/json.
+func (e *Encoder) encodeJSONNumber(v reflect.Value) ([]byte, error) {
+	numberValue, err := json.Marshal(json.Number(v.String()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode json.Number: %w", err)
+	}
+
+	return numberValue, nil
 }
 
 // trimQuotes removes double quotes from the beginning and end of a string
