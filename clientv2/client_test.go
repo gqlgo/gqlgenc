@@ -2063,3 +2063,105 @@ func TestClientPostEncodeNilSliceAsEmptyArray(t *testing.T) {
 		})
 	}
 }
+
+func TestMarshalJSONNumber(t *testing.T) {
+	t.Parallel()
+
+	type PriceInput struct {
+		Price json.Number `json:"price"`
+	}
+
+	type OptionalPriceInput struct {
+		Price json.Number `json:"price,omitempty"`
+	}
+
+	type PointerPriceInput struct {
+		Price *json.Number `json:"price"`
+	}
+
+	fractionalPrice := json.Number("1100.55")
+
+	tests := []struct {
+		name    string
+		v       any
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "integer json.Number",
+			v:    PriceInput{Price: json.Number("1100")},
+			want: []byte(`{"price":1100}`),
+		},
+		{
+			name: "fractional json.Number",
+			v:    PriceInput{Price: json.Number("1100.55")},
+			want: []byte(`{"price":1100.55}`),
+		},
+		{
+			name: "negative exponent json.Number",
+			v:    PriceInput{Price: json.Number("-1.5e3")},
+			want: []byte(`{"price":-1.5e3}`),
+		},
+		{
+			name: "top-level json.Number",
+			v:    json.Number("42"),
+			want: []byte(`42`),
+		},
+		{
+			name: "json.Number nested in map",
+			v:    map[string]any{"input": map[string]any{"price": json.Number("1100.55")}},
+			want: []byte(`{"input":{"price":1100.55}}`),
+		},
+		{
+			name: "json.Number nested in slice",
+			v:    []json.Number{json.Number("1"), json.Number("2.5")},
+			want: []byte(`[1,2.5]`),
+		},
+		{
+			name: "pointer to json.Number",
+			v:    PointerPriceInput{Price: &fractionalPrice},
+			want: []byte(`{"price":1100.55}`),
+		},
+		{
+			name: "nil pointer to json.Number",
+			v:    PointerPriceInput{},
+			want: []byte(`{"price":null}`),
+		},
+		{
+			name: "empty json.Number is encoded as 0 like encoding/json",
+			v:    PriceInput{},
+			want: []byte(`{"price":0}`),
+		},
+		{
+			name: "empty json.Number is omitted with omitempty",
+			v:    OptionalPriceInput{},
+			want: []byte(`{}`),
+		},
+		{
+			name:    "invalid json.Number returns an error",
+			v:       PriceInput{Price: json.Number("abc")},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MarshalJSON(context.Background(), tt.v)
+			stdlibGot, stdlibErr := json.Marshal(tt.v)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Error(t, stdlibErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, string(tt.want), string(got))
+
+			// clientv2.MarshalJSON must agree with encoding/json on json.Number handling.
+			require.NoError(t, stdlibErr)
+			require.Equal(t, string(stdlibGot), string(got))
+		})
+	}
+}
