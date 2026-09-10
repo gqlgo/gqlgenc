@@ -106,7 +106,7 @@ func (e *Encoder) Encode(v reflect.Value) ([]byte, error) {
 func (e *Encoder) encode(ctx context.Context, v any) ([]byte, error) {
 	return jsonv2.Marshal(v, jsonv2.JoinOptions(
 		jsonv1.DefaultOptionsV1(),
-		jsonv2.WithMarshalers(gqlMarshalers(ctx)),
+		jsonv2.WithMarshalers(gqlMarshalers(ctx, e.NilSliceAsEmptyArray)),
 		jsonv2.FormatNilSliceAsNull(!e.NilSliceAsEmptyArray),
 	))
 }
@@ -115,6 +115,7 @@ func (e *Encoder) encode(ctx context.Context, v any) ([]byte, error) {
 //
 // Arguments:
 //   - ctx: passed to MarshalGQLContext
+//   - nilSliceAsEmptyArray: when true, a nil slice implementing either interface is encoded with its method instead of as null
 //
 // Returns:
 //   - *jsonv2.Marshalers: marshalers for graphql.ContextMarshaler and graphql.Marshaler, in that order of precedence
@@ -123,12 +124,13 @@ func (e *Encoder) encode(ctx context.Context, v any) ([]byte, error) {
 //   - none
 //
 // Postconditions:
-//   - nil pointers implementing either interface are encoded as null without calling the method
+//   - nil values implementing either interface (nil pointers, and nil slices, maps and interfaces reached through the
+//     pointer that encoding/json/v2 passes for addressable values) are encoded as null without calling the method
 //   - the bytes written by MarshalGQLContext or MarshalGQL are validated as a single JSON value
-func gqlMarshalers(ctx context.Context) *jsonv2.Marshalers {
+func gqlMarshalers(ctx context.Context, nilSliceAsEmptyArray bool) *jsonv2.Marshalers {
 	return jsonv2.JoinMarshalers(
 		jsonv2.MarshalToFunc(func(enc *jsontext.Encoder, m graphql.ContextMarshaler) error {
-			if isNil(reflect.ValueOf(m)) {
+			if isNilMarshaler(reflect.ValueOf(m), nilSliceAsEmptyArray) {
 				return enc.WriteToken(jsontext.Null)
 			}
 
@@ -142,7 +144,7 @@ func gqlMarshalers(ctx context.Context) *jsonv2.Marshalers {
 			return enc.WriteValue(buf.Bytes())
 		}),
 		jsonv2.MarshalToFunc(func(enc *jsontext.Encoder, m graphql.Marshaler) error {
-			if isNil(reflect.ValueOf(m)) {
+			if isNilMarshaler(reflect.ValueOf(m), nilSliceAsEmptyArray) {
 				return enc.WriteToken(jsontext.Null)
 			}
 
@@ -152,6 +154,42 @@ func gqlMarshalers(ctx context.Context) *jsonv2.Marshalers {
 			return enc.WriteValue(buf.Bytes())
 		}),
 	)
+}
+
+// isNilMarshaler reports whether the receiver passed to a gqlgen marshaler hook holds a nil value that must be
+// encoded as null instead of calling its marshal method.
+//
+// encoding/json/v2 hands addressable values to interface marshalers as *T even when T itself implements the
+// interface, so a nil named slice such as `type IDs []string` arrives as a non-nil *IDs. Looking through that
+// pointer keeps every nil value encoded as null, as the reflect-based encoder before v0.40.0 did.
+//
+// Arguments:
+//   - v: the marshaler receiver as passed by encoding/json/v2
+//   - nilSliceAsEmptyArray: when true, a nil slice is reported as non-nil so that its marshal method produces the array
+//
+// Returns:
+//   - bool: true if v is a nil pointer, or a pointer to (or a value of) a nil map, interface, chan, func, or slice
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a nil slice is reported as nil only when nilSliceAsEmptyArray is false
+//   - values of other kinds, including invalid values, are reported as non-nil
+func isNilMarshaler(v reflect.Value, nilSliceAsEmptyArray bool) bool {
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return true
+		}
+
+		v = v.Elem()
+	}
+
+	if v.Kind() == reflect.Slice && nilSliceAsEmptyArray {
+		return false
+	}
+
+	return isNil(v)
 }
 
 // isNil reports whether v holds a nil value of a nillable kind.
