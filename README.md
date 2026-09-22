@@ -92,8 +92,39 @@ or if you want to specify a different directory where .gqlgenc.yml file resides
 (e.g. in this example the directory is *schemas*):
 
 ```shell script
-gqlgenc generate --configdir schemas
+gqlgenc -c schemas
 ```
+
+`-c` is the shorthand of `--configdir`. The config file is searched in the
+directory and then in its parents, and gqlgenc changes into its directory
+before reading it, so every relative path in a config (`schema`, `query`,
+`model.filename`, `client.filename`, relative import paths in `autobind` and
+`models`) is relative to the config file. Up to v0.40.x they were relative to
+the directory gqlgenc was started in.
+
+#### Several configs in one process
+
+`-c` can be repeated. The configs are generated in the given order in one
+process, and the packages named in `autobind` and `models` are loaded and
+type checked once for the whole run instead of once per config:
+
+```shell script
+gqlgenc -c clients/orders -c clients/products -c clients/customers
+```
+
+- The configs are processed one after another. To use more cores, run one
+  process per group of configs, for example with `xargs -P`.
+- The configs must belong to the same Go module, because the cache is keyed
+  by import path.
+- A package named in `autobind` or `models` must not import the output of
+  another config of the same run; only the output packages themselves are
+  dropped from the cache when they are rewritten.
+- Errors are reported as `<configdir>: <error>`.
+- Put configs of one schema in one process. gqlgen keeps the Go names it has
+  chosen for GraphQL names for the whole process, so with different schemas a
+  GraphQL name whose Go name is already taken (`Foo_Bar` after `FooBar`) gets
+  a suffix (`FooBar0`) that a separate run would not add.
+- A config may bind the output of an earlier config in the same run.
 
 ### With gqlgen
 

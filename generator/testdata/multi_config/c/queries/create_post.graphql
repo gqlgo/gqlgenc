@@ -1,0 +1,13 @@
+mutation CreatePost($input: CreatePostInput!) {
+  createPost(input: $input) {
+    id
+    title
+    author {
+      role
+    }
+  }
+}
+
+query ListComments($filter: CommentFilter) {
+  comments(filter: $filter)
+}

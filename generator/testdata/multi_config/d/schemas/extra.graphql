@@ -1,0 +1,7 @@
+input TagFilter {
+  name: String
+}
+
+extend type Query {
+  tags(filter: TagFilter): [String!]!
+}

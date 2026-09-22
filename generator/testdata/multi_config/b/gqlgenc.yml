@@ -1,0 +1,16 @@
+model:
+  filename: ./actual/models_gen.go
+  package: generated
+client:
+  filename: ./actual/client.go
+  package: generated
+schema:
+  - ../schemas/*.graphql
+query:
+  - ./queries/*.graphql
+# The relative import path is replaced with the full one before gqlgen sees
+# it, so the models package is still shared with the other configs.
+autobind:
+  - ../models
+generate:
+  clientV2: true

@@ -1,0 +1,13 @@
+query ListPosts($filter: PostFilter) {
+  posts(filter: $filter) {
+    id
+    title
+    author {
+      id
+      name
+      address {
+        city
+      }
+    }
+  }
+}

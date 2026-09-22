@@ -1,0 +1,21 @@
+# Binds the models that config b generated.
+# Its own schema adds TagFilter so that it still generates a model of its own.
+# The package name differs from b's on purpose: the getters of the generated
+# client qualify types by package name, not by import path.
+model:
+  filename: ./actual/models_gen.go
+  package: dgenerated
+client:
+  filename: ./actual/client.go
+  package: dgenerated
+schema:
+  - ../schemas/*.graphql
+  - ./schemas/*.graphql
+query:
+  - ./queries/*.graphql
+autobind:
+  - github.com/gqlgo/gqlgenc/generator/testdata/multi_config/models
+  - github.com/gqlgo/gqlgenc/generator/testdata/multi_config/b/actual
+generate:
+  clientV2: true
+  onlyUsedModels: true
