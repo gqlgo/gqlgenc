@@ -197,10 +197,6 @@ type FormField struct {
 	Value any
 }
 
-type header struct {
-	key, value string
-}
-
 // Post support send multipart form with files https://gqlgen.com/reference/file-upload/ https://github.com/jaydenseric/graphql-multipart-request-spec
 func (c *Client) Post(ctx context.Context, operationName, query string, respData any, vars map[string]any, interceptors ...RequestInterceptor) error {
 	multipartFilesGroups, mapping, vars := parseMultipartFiles(vars)
@@ -212,11 +208,52 @@ func (c *Client) Post(ctx context.Context, operationName, query string, respData
 	}
 
 	gqlInfo := NewGQLRequestInfo(r)
-	body := new(bytes.Buffer)
 
-	var headers []header
+	body, headers, err := c.requestBody(ctx, r, multipartFilesGroups, mapping)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, body)
+	if err != nil {
+		return fmt.Errorf("create request struct failed: %w", err)
+	}
+
+	maps.Copy(req.Header, headers)
+
+	do := c.do
+	// if custom do is set, use it instead of the default one
+	if c.CustomDo != nil {
+		do = c.CustomDo
+	}
+
+	return c.chainInterceptors(interceptors)(ctx, req, gqlInfo, respData, do)
+}
+
+// requestBody encodes the request as a multipart form when files are attached, otherwise as JSON.
+//
+// Arguments:
+//   - ctx: passed to the encoder
+//   - r: the request to send
+//   - multipartFilesGroups: the files extracted from the variables
+//   - mapping: the multipart map field, from file index to variable path
+//
+// Returns:
+//   - io.Reader: the encoded body
+//   - http.Header: the headers describing the body
+//   - error: non-nil if the request cannot be encoded
+//
+// Preconditions:
+//   - r.Variables no longer contains the files listed in multipartFilesGroups
+//
+// Postconditions:
+//   - none
+func (c *Client) requestBody(ctx context.Context, r *Request, multipartFilesGroups []MultipartFilesGroup, mapping map[string][]string) (io.Reader, http.Header, error) {
+	headers := http.Header{}
 
 	if len(multipartFilesGroups) > 0 {
+		body := new(bytes.Buffer)
+
 		contentType, err := c.prepareMultipartFormBody(
 			ctx,
 			body,
@@ -233,42 +270,45 @@ func (c *Client) Post(ctx context.Context, operationName, query string, respData
 			multipartFilesGroups,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to prepare form body: %w", err)
+			return nil, nil, fmt.Errorf("failed to prepare form body: %w", err)
 		}
 
-		headers = append(headers, header{key: "Content-Type", value: contentType})
-	} else {
-		requestBody, err := c.marshalJSON(ctx, r)
-		if err != nil {
-			return fmt.Errorf("encode: %w", err)
-		}
+		headers.Set("Content-Type", contentType)
 
-		body = bytes.NewBuffer(requestBody)
-
-		headers = append(headers, header{key: "Content-Type", value: "application/json; charset=utf-8"})
-		headers = append(headers, header{key: "Accept", value: "application/json; charset=utf-8"})
+		return body, headers, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, body)
+	requestBody, err := c.marshalJSON(ctx, r)
 	if err != nil {
-		return fmt.Errorf("create request struct failed: %w", err)
+		return nil, nil, fmt.Errorf("encode: %w", err)
 	}
 
-	for _, h := range headers {
-		req.Header.Set(h.key, h.value)
-	}
+	headers.Set("Content-Type", "application/json; charset=utf-8")
+	headers.Set("Accept", "application/json; charset=utf-8")
 
-	f := ChainInterceptor(append([]RequestInterceptor{c.RequestInterceptor}, interceptors...)...)
+	return bytes.NewBuffer(requestBody), headers, nil
+}
+
+// chainInterceptors combines the client interceptor with the per-request interceptors.
+//
+// Arguments:
+//   - interceptors: the interceptors passed to Post, run after the client interceptor
+//
+// Returns:
+//   - RequestInterceptor: the combined interceptor
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the unsafe chain is used when c.IsUnsafeRequestInterceptor is set
+func (c *Client) chainInterceptors(interceptors []RequestInterceptor) RequestInterceptor {
+	all := append([]RequestInterceptor{c.RequestInterceptor}, interceptors...)
 	if c.IsUnsafeRequestInterceptor {
-		f = UnsafeChainInterceptor(append([]RequestInterceptor{c.RequestInterceptor}, interceptors...)...)
+		return UnsafeChainInterceptor(all...)
 	}
 
-	// if custom do is set, use it instead of the default one
-	if c.CustomDo != nil {
-		return f(ctx, req, gqlInfo, respData, c.CustomDo)
-	}
-
-	return f(ctx, req, gqlInfo, respData, c.do)
+	return ChainInterceptor(all...)
 }
 
 func parseMultipartFiles(
@@ -284,43 +324,35 @@ func parseMultipartFiles(
 		i                    = 0
 	)
 
+	// addSingleUpload replaces the variable k with null and registers its file.
+	addSingleUpload := func(k string, upload graphql.Upload) {
+		iStr := strconv.Itoa(i)
+		vars[k] = nil
+		mapping[iStr] = []string{fmt.Sprintf("variables.%s", k)}
+
+		multipartFilesGroups = append(multipartFilesGroups, MultipartFilesGroup{
+			Files: []MultipartFile{
+				{
+					Index: i,
+					File:  upload,
+				},
+			},
+		})
+
+		i++
+	}
+
 	for k, v := range vars {
 		switch item := v.(type) {
 		case graphql.Upload:
-			iStr := strconv.Itoa(i)
-			vars[k] = nil
-			mapping[iStr] = []string{fmt.Sprintf("variables.%s", k)}
-
-			multipartFilesGroups = append(multipartFilesGroups, MultipartFilesGroup{
-				Files: []MultipartFile{
-					{
-						Index: i,
-						File:  item,
-					},
-				},
-			})
-
-			i++
+			addSingleUpload(k, item)
 		case *graphql.Upload:
 			// continue if it is empty
 			if item == nil {
 				continue
 			}
 
-			iStr := strconv.Itoa(i)
-			vars[k] = nil
-			mapping[iStr] = []string{fmt.Sprintf("variables.%s", k)}
-
-			multipartFilesGroups = append(multipartFilesGroups, MultipartFilesGroup{
-				Files: []MultipartFile{
-					{
-						Index: i,
-						File:  *item,
-					},
-				},
-			})
-
-			i++
+			addSingleUpload(k, *item)
 		case []*graphql.Upload:
 			// Placeholders for the files; nil elements stay null in the operations body.
 			placeholders := make([]any, len(item))
@@ -425,8 +457,8 @@ func (c *Client) do(_ context.Context, req *http.Request, _ *GQLRequestInfo, res
 func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	errResponse := &ErrorResponse{}
 
-	isOKCode := httpCode < 200 || 299 < httpCode
-	if isOKCode {
+	isErrorStatus := httpCode < 200 || 299 < httpCode
+	if isErrorStatus {
 		errResponse.NetworkError = &HTTPError{
 			Code:    httpCode,
 			Message: fmt.Sprintf("Response body %s", string(body)),
@@ -438,7 +470,7 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	if err != nil {
 		if gqlErr, ok := errors.AsType[*GqlErrorList](err); ok {
 			errResponse.GqlErrors = &gqlErr.Errors
-		} else if !isOKCode {
+		} else if !isErrorStatus {
 			return err
 		}
 	}
@@ -464,19 +496,24 @@ func (c *Client) unmarshal(data []byte, res any) error {
 		return fmt.Errorf("failed to decode data %s: %w", string(data), err)
 	}
 
+	// gqlErrors is the standard GraphQL error list of the response, or nil.
+	var gqlErrors error
+
 	if len(resp.Errors) > 0 {
 		// try to parse standard graphql error
-		err = &GqlErrorList{}
+		gqlErrorList := &GqlErrorList{}
 
-		e := json.Unmarshal(data, err)
-		if e != nil {
-			return fmt.Errorf("faild to parse graphql errors. Response content %s - %w", string(data), e)
+		err = json.Unmarshal(data, gqlErrorList)
+		if err != nil {
+			return fmt.Errorf("faild to parse graphql errors. Response content %s - %w", string(data), err)
 		}
 
 		// if ParseDataWhenErrors is true, try to parse data as well
 		if !c.ParseDataWhenErrors {
-			return err
+			return gqlErrorList
 		}
+
+		gqlErrors = gqlErrorList
 	}
 
 	errData := graphqljson.UnmarshalData(resp.Data, res)
@@ -484,12 +521,12 @@ func (c *Client) unmarshal(data []byte, res any) error {
 		// With ParseDataWhenErrors, data may be partial or null when the response
 		// carries GraphQL errors, so report those errors instead of the decode
 		// failure. Without GraphQL errors the decode failure is the only error.
-		if c.ParseDataWhenErrors && err != nil {
-			return err
+		if c.ParseDataWhenErrors && gqlErrors != nil {
+			return gqlErrors
 		}
 
 		return fmt.Errorf("failed to decode data into response %s: %w", string(data), errData)
 	}
 
-	return err
+	return gqlErrors
 }
