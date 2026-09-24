@@ -246,200 +246,28 @@ func NewLayerTypeName(base, thisField string) string {
 	return fmt.Sprintf("%s_%s", cases.Title(language.Und, cases.NoLower).String(base), thisField)
 }
 
+// NewResponseField converts one selection into the field of the generated response struct.
+//
+// Arguments:
+//   - selection: an *ast.Field, *ast.FragmentSpread, or *ast.InlineFragment
+//   - typeName: the name of the struct the field belongs to; nested struct names are derived from it
+//
+// Returns:
+//   - *ResponseField: the field, with its Go type and the fields of its own selection set
+//
+// Preconditions:
+//   - selection is one of the three selection kinds; anything else is a bug and panics
+//
+// Postconditions:
+//   - struct types needed by the field are appended to r.StructSources
 func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName string) *ResponseField {
-	var isOptional bool
-
 	switch selection := selection.(type) {
 	case *ast.Field:
-		typeName = NewLayerTypeName(typeName, templates.ToGo(selection.Alias))
-		fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, typeName)
-
-		isOptional = !selection.Definition.Type.NonNull
-
-		var baseType types.Type
-
-		switch {
-		case fieldsResponseFields.IsBasicType():
-			baseType = r.Type(selection.Definition.Type.Name())
-		case fieldsResponseFields.IsFragment():
-			// 子フィールドがFragmentの場合はこのFragmentがフィールドの型になる
-			// if a child field is fragment, this field type became fragment.
-			baseType = fieldsResponseFields[0].Type
-		case fieldsResponseFields.IsStructType():
-			// 子フィールドにFragmentがある場合は、現在のフィールドとマージする
-			// if there is a fragment in child fields, merge it with the current field
-			generator := NewStructGenerator(fieldsResponseFields)
-
-			// restruct struct sources
-			r.StructSources = generator.MergedStructSources(r.StructSources)
-
-			// append current struct
-			structType := generator.GetCurrentResponseFieldList().StructType()
-			r.StructSources = append(r.StructSources, &StructSource{
-				Name: typeName,
-				Type: structType,
-			})
-			baseType = types.NewNamed(
-				types.NewTypeName(0, r.client.Pkg(), typeName, nil),
-				structType,
-				nil,
-			)
-		default:
-			// ここにきたらバグ
-			// here is bug
-			panic("not match type")
-		}
-
-		// GraphQLの定義がオプショナルのはtypeのポインタ型が返り、配列の定義場合はポインタのスライスの型になって返ってきます
-		// return pointer type then optional type or slice pointer then slice type of definition in GraphQL.
-		typ := r.binder.CopyModifiersFromAst(selection.Definition.Type, baseType)
-
-		// json tag
-		jsonTag := fmt.Sprintf(`json:"%s`, selection.Alias)
-
-		if isOptional {
-			if r.generateConfig.EnableClientJsonOmitemptyTag != nil && *r.generateConfig.EnableClientJsonOmitemptyTag {
-				jsonTag += `,omitempty`
-			}
-
-			if r.generateConfig.EnableClientJsonOmitzeroTag != nil && *r.generateConfig.EnableClientJsonOmitzeroTag {
-				jsonTag += `,omitzero`
-			}
-		}
-
-		jsonTag += `"`
-
-		// graphql tag
-		tags := []string{
-			jsonTag,
-			fmt.Sprintf(`graphql:"%s"`, selection.Alias),
-		}
-
-		return &ResponseField{
-			Name:           selection.Alias,
-			Type:           typ,
-			Tags:           tags,
-			ResponseFields: fieldsResponseFields,
-		}
-
+		return r.newFieldResponseField(selection, typeName)
 	case *ast.FragmentSpread:
-		// この構造体はテンプレート側で使われることはなく、ast.FieldでFragment判定するために使用する
-		fieldsResponseFields := r.NewResponseFields(selection.Definition.SelectionSet, NewLayerTypeName(typeName, templates.ToGo(selection.Name)))
-		baseType := types.NewNamed(
-			types.NewTypeName(0, r.client.Pkg(), templates.ToGo(selection.Name), nil),
-			fieldsResponseFields.StructType(),
-			nil,
-		)
-
-		var typ types.Type = baseType
-		if r.cfg.StructFieldsAlwaysPointers {
-			typ = types.NewPointer(baseType)
-		}
-
-		return &ResponseField{
-			Name:             selection.Name,
-			Type:             typ,
-			IsFragmentSpread: true,
-			ResponseFields:   fieldsResponseFields,
-		}
-
+		return r.newFragmentSpreadResponseField(selection, typeName)
 	case *ast.InlineFragment:
-		// InlineFragmentは子要素をそのままstructとしてもつので、ここで、構造体の型を作成します
-		// InlineFragment has child elements, so create a struct type here
-		name := NewLayerTypeName(typeName, templates.ToGo(selection.TypeCondition))
-		fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, name)
-
-		// if single fields that is also a fragment spread, reuse that fragment
-		if len(fieldsResponseFields) == 1 && fieldsResponseFields[0].IsFragmentSpread {
-			baseType := types.NewNamed(
-				types.NewTypeName(0, r.client.Pkg(), templates.ToGo(fieldsResponseFields[0].Name), nil),
-				fieldsResponseFields.StructType(),
-				nil,
-			)
-
-			var typ types.Type = baseType
-			if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
-				typ = types.NewPointer(baseType)
-			}
-
-			return &ResponseField{
-				Name:           selection.TypeCondition,
-				Type:           typ,
-				Tags:           []string{fmt.Sprintf(`graphql:"... on %s"`, selection.TypeCondition)},
-				ResponseFields: fieldsResponseFields,
-			}
-		}
-
-		hasFragmentSpread := r.hasFragmentSpread(fieldsResponseFields)
-		fragmentFields := r.collectFragmentFields(fieldsResponseFields)
-
-		// フラグメントスプレッドがある場合
-		// if there is a fragment spread
-		if hasFragmentSpread {
-			// フラグメントからの全フィールドを集めます
-			// collect all fields from fragment
-			allFields := make(ResponseFieldList, 0)
-
-			for _, field := range fieldsResponseFields {
-				if !field.IsFragmentSpread {
-					allFields = append(allFields, field)
-				}
-			}
-			// フラグメントのフィールドを追加
-			// append fragment fields
-			allFields = append(allFields, fragmentFields...)
-
-			// 構造体を生成
-			// generate struct
-			structType := allFields.StructType()
-			r.StructSources = append(r.StructSources, &StructSource{
-				Name: name,
-				Type: structType,
-			})
-			baseTyp := types.NewNamed(
-				types.NewTypeName(0, r.client.Pkg(), name, nil),
-				structType,
-				nil,
-			)
-
-			var typ types.Type = baseTyp
-			if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
-				typ = types.NewPointer(baseTyp)
-			}
-
-			return &ResponseField{
-				Name:             selection.TypeCondition,
-				Type:             typ,
-				IsInlineFragment: true,
-				Tags:             []string{fmt.Sprintf(`graphql:"... on %s"`, selection.TypeCondition)},
-				ResponseFields:   allFields.SortByName(),
-			}
-		}
-		// フラグメントスプレッドがない場合
-		// if there is no fragment spread
-		structType := fieldsResponseFields.StructType()
-		r.StructSources = append(r.StructSources, &StructSource{
-			Name: name,
-			Type: structType,
-		})
-		baseTyp := types.NewNamed(
-			types.NewTypeName(0, r.client.Pkg(), name, nil),
-			structType,
-			nil,
-		)
-
-		var typ types.Type = baseTyp
-		if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
-			typ = types.NewPointer(baseTyp)
-		}
-
-		return &ResponseField{
-			Name:             selection.TypeCondition,
-			Type:             typ,
-			IsInlineFragment: true,
-			Tags:             []string{fmt.Sprintf(`graphql:"... on %s"`, selection.TypeCondition)},
-			ResponseFields:   fieldsResponseFields.SortByName(),
-		}
+		return r.newInlineFragmentResponseField(selection, typeName)
 	}
 
 	panic("unexpected selection type")
@@ -467,19 +295,264 @@ func (r *SourceGenerator) Type(typeName string) types.Type {
 	return goType
 }
 
-func (r *SourceGenerator) expandFragmentFields(responseFields ResponseFieldList) ResponseFieldList {
-	result := make(ResponseFieldList, 0, len(responseFields))
-	for _, field := range responseFields {
-		if field.IsFragmentSpread {
-			for _, fragmentField := range field.ResponseFields {
-				result = append(result, fragmentField)
-			}
-		} else {
-			result = append(result, field)
+// newFieldResponseField builds the response field for a plain field selection.
+//
+// Arguments:
+//   - selection: the field selection
+//   - typeName: the name of the enclosing struct
+//
+// Returns:
+//   - *ResponseField: the field with json and graphql tags
+//
+// Preconditions:
+//   - selection.Definition is resolved
+//
+// Postconditions:
+//   - a struct type is appended to r.StructSources when the field has an object selection set
+func (r *SourceGenerator) newFieldResponseField(selection *ast.Field, typeName string) *ResponseField {
+	typeName = NewLayerTypeName(typeName, templates.ToGo(selection.Alias))
+	fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, typeName)
+
+	baseType := r.fieldBaseType(selection, typeName, fieldsResponseFields)
+
+	// return pointer type then optional type or slice pointer then slice type of definition in GraphQL.
+	typ := r.binder.CopyModifiersFromAst(selection.Definition.Type, baseType)
+
+	isOptional := !selection.Definition.Type.NonNull
+
+	return &ResponseField{
+		Name:           selection.Alias,
+		Type:           typ,
+		Tags:           r.fieldTags(selection.Alias, isOptional),
+		ResponseFields: fieldsResponseFields,
+	}
+}
+
+// fieldBaseType resolves the Go type of a field before GraphQL modifiers are applied.
+//
+// Arguments:
+//   - selection: the field selection
+//   - typeName: the name to use for a generated struct type
+//   - fieldsResponseFields: the fields of the selection set of the field
+//
+// Returns:
+//   - types.Type: the bound scalar or enum type, the fragment type, or a generated struct type
+//
+// Preconditions:
+//   - fieldsResponseFields is a basic type, a single fragment, or a struct; anything else is a bug and panics
+//
+// Postconditions:
+//   - for a struct, the merged struct sources and the new struct are recorded in r.StructSources
+func (r *SourceGenerator) fieldBaseType(selection *ast.Field, typeName string, fieldsResponseFields ResponseFieldList) types.Type {
+	switch {
+	case fieldsResponseFields.IsBasicType():
+		return r.Type(selection.Definition.Type.Name())
+	case fieldsResponseFields.IsFragment():
+		// if a child field is fragment, this field type became fragment.
+		return fieldsResponseFields[0].Type
+	case fieldsResponseFields.IsStructType():
+		// if there is a fragment in child fields, merge it with the current field
+		generator := NewStructGenerator(fieldsResponseFields)
+
+		// restruct struct sources
+		r.StructSources = generator.MergedStructSources(r.StructSources)
+
+		// append current struct
+		structType := generator.GetCurrentResponseFieldList().StructType()
+		r.StructSources = append(r.StructSources, &StructSource{
+			Name: typeName,
+			Type: structType,
+		})
+
+		return types.NewNamed(
+			types.NewTypeName(0, r.client.Pkg(), typeName, nil),
+			structType,
+			nil,
+		)
+	default:
+		// here is bug
+		panic("not match type")
+	}
+}
+
+// fieldTags builds the struct tags of a plain field.
+//
+// Arguments:
+//   - alias: the response key of the field
+//   - isOptional: whether the field is nullable in GraphQL
+//
+// Returns:
+//   - []string: the json tag, with omitempty and omitzero when configured for optional fields, and the graphql tag
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (r *SourceGenerator) fieldTags(alias string, isOptional bool) []string {
+	jsonTag := fmt.Sprintf(`json:"%s`, alias)
+
+	if isOptional {
+		if r.generateConfig.EnableClientJsonOmitemptyTag != nil && *r.generateConfig.EnableClientJsonOmitemptyTag {
+			jsonTag += `,omitempty`
+		}
+
+		if r.generateConfig.EnableClientJsonOmitzeroTag != nil && *r.generateConfig.EnableClientJsonOmitzeroTag {
+			jsonTag += `,omitzero`
 		}
 	}
 
-	return result
+	jsonTag += `"`
+
+	return []string{
+		jsonTag,
+		fmt.Sprintf(`graphql:"%s"`, alias),
+	}
+}
+
+// newFragmentSpreadResponseField builds the response field for a fragment spread.
+//
+// Arguments:
+//   - selection: the fragment spread
+//   - typeName: the name of the enclosing struct
+//
+// Returns:
+//   - *ResponseField: a field marked IsFragmentSpread; it is not rendered by the template but
+//     lets the parent detect and merge the fragment
+//
+// Preconditions:
+//   - selection.Definition is resolved
+//
+// Postconditions:
+//   - none
+func (r *SourceGenerator) newFragmentSpreadResponseField(selection *ast.FragmentSpread, typeName string) *ResponseField {
+	fieldsResponseFields := r.NewResponseFields(selection.Definition.SelectionSet, NewLayerTypeName(typeName, templates.ToGo(selection.Name)))
+	baseType := types.NewNamed(
+		types.NewTypeName(0, r.client.Pkg(), templates.ToGo(selection.Name), nil),
+		fieldsResponseFields.StructType(),
+		nil,
+	)
+
+	var typ types.Type = baseType
+	if r.cfg.StructFieldsAlwaysPointers {
+		typ = types.NewPointer(baseType)
+	}
+
+	return &ResponseField{
+		Name:             selection.Name,
+		Type:             typ,
+		IsFragmentSpread: true,
+		ResponseFields:   fieldsResponseFields,
+	}
+}
+
+// newInlineFragmentResponseField builds the response field for an inline fragment.
+//
+// Arguments:
+//   - selection: the inline fragment
+//   - typeName: the name of the enclosing struct
+//
+// Returns:
+//   - *ResponseField: a field tagged with "... on TypeCondition" whose type is the fragment struct
+//
+// Preconditions:
+//   - selection.TypeCondition is set
+//
+// Postconditions:
+//   - a struct type named after the type condition is appended to r.StructSources, unless the
+//     selection set is a single fragment spread, whose type is reused instead
+func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFragment, typeName string) *ResponseField {
+	// InlineFragment has child elements, so create a struct type here
+	name := NewLayerTypeName(typeName, templates.ToGo(selection.TypeCondition))
+	fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, name)
+
+	// if single fields that is also a fragment spread, reuse that fragment
+	if len(fieldsResponseFields) == 1 && fieldsResponseFields[0].IsFragmentSpread {
+		baseType := types.NewNamed(
+			types.NewTypeName(0, r.client.Pkg(), templates.ToGo(fieldsResponseFields[0].Name), nil),
+			fieldsResponseFields.StructType(),
+			nil,
+		)
+
+		return &ResponseField{
+			Name:           selection.TypeCondition,
+			Type:           r.inlineFragmentType(baseType),
+			Tags:           inlineFragmentTags(selection.TypeCondition),
+			ResponseFields: fieldsResponseFields,
+		}
+	}
+
+	fields := fieldsResponseFields
+	if r.hasFragmentSpread(fieldsResponseFields) {
+		// collect all fields from fragment: the own fields first, then the fields of the spreads
+		fields = make(ResponseFieldList, 0, len(fieldsResponseFields))
+
+		for _, field := range fieldsResponseFields {
+			if !field.IsFragmentSpread {
+				fields = append(fields, field)
+			}
+		}
+
+		fields = append(fields, r.collectFragmentFields(fieldsResponseFields)...)
+	}
+
+	// generate struct
+	structType := fields.StructType()
+	r.StructSources = append(r.StructSources, &StructSource{
+		Name: name,
+		Type: structType,
+	})
+	baseType := types.NewNamed(
+		types.NewTypeName(0, r.client.Pkg(), name, nil),
+		structType,
+		nil,
+	)
+
+	return &ResponseField{
+		Name:             selection.TypeCondition,
+		Type:             r.inlineFragmentType(baseType),
+		IsInlineFragment: true,
+		Tags:             inlineFragmentTags(selection.TypeCondition),
+		ResponseFields:   fields.SortByName(),
+	}
+}
+
+// inlineFragmentType applies the inlineFragmentAlwaysPointers option to a fragment struct type.
+//
+// Arguments:
+//   - baseType: the fragment struct type
+//
+// Returns:
+//   - types.Type: a pointer to baseType when the option is enabled, otherwise baseType
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (r *SourceGenerator) inlineFragmentType(baseType types.Type) types.Type {
+	if r.generateConfig.InlineFragmentAlwaysPointers != nil && *r.generateConfig.InlineFragmentAlwaysPointers {
+		return types.NewPointer(baseType)
+	}
+
+	return baseType
+}
+
+// inlineFragmentTags builds the struct tags of an inline fragment field.
+//
+// Arguments:
+//   - typeCondition: the type the fragment applies to
+//
+// Returns:
+//   - []string: the graphql tag "... on <typeCondition>"
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func inlineFragmentTags(typeCondition string) []string {
+	return []string{fmt.Sprintf(`graphql:"... on %s"`, typeCondition)}
 }
 
 func (r *SourceGenerator) hasFragmentSpread(fields ResponseFieldList) bool {
