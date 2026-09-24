@@ -81,16 +81,38 @@ type Decoder struct {
 	// The reason there's more than one stack is because we might be unmarshaling
 	// a single JSON value into multiple GraphQL fragments or embedded structs, so
 	// we keep track of them all.
-	vs [][]reflect.Value
-
-	// vsFragTypes is parallel to vs: for stacks created from "... on TypeName"
-	// inline fragments, this holds "TypeName"; otherwise "".
-	vsFragTypes []string
+	stacks []valueStack
 
 	// typenameByDepth maps object nesting depth (count of open '{' in parseState)
 	// to the __typename value seen at that depth. Used to discriminate which
 	// inline fragment pointer to initialize when multiple variants share a field name.
 	typenameByDepth map[int]string
+}
+
+// valueStack is one stack of values to unmarshal into.
+type valueStack struct {
+	values []reflect.Value
+
+	// fragType is "TypeName" for stacks created from "... on TypeName" inline
+	// fragments, otherwise "".
+	fragType string
+}
+
+// top returns the value on top of the stack, where the next JSON value goes.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - reflect.Value: the last pushed value
+//
+// Preconditions:
+//   - the stack is not empty
+//
+// Postconditions:
+//   - the stack is unchanged
+func (s valueStack) top() reflect.Value {
+	return s.values[len(s.values)-1]
 }
 
 func newDecoder(r io.Reader) *Decoder {
@@ -110,8 +132,7 @@ func (d *Decoder) Decode(v any) error {
 		return fmt.Errorf("cannot decode into non-pointer %T", v)
 	}
 
-	d.vs = [][]reflect.Value{{rv.Elem()}}
-	d.vsFragTypes = []string{""}
+	d.stacks = []valueStack{{values: []reflect.Value{rv.Elem()}}}
 
 	err := d.decode()
 	if err != nil {
@@ -121,16 +142,26 @@ func (d *Decoder) Decode(v any) error {
 	return nil
 }
 
-// decode decodes a single JSON value from d.tokenizer into d.vs.
-func (d *Decoder) decode() error { //nolint:maintidx
-	// The loop invariant is that the top of each d.vs stack
+// decode decodes a single JSON value from d.tokenizer into d.stacks.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil if the input ends early, is not valid JSON, or does not fit the target types
+//
+// Preconditions:
+//   - d.stacks holds one stack per target value
+//
+// Postconditions:
+//   - every stack has been consumed once the top-level value is decoded
+func (d *Decoder) decode() error {
+	// The loop invariant is that the top of each stack
 	// is where we try to unmarshal the next JSON value we see.
-	for len(d.vs) > 0 {
-		tok, err := d.jsonDecoder.Token()
-		if err == io.EOF {
-			return errors.New("unexpected end of JSON input")
-		} else if err != nil {
-			return fmt.Errorf(": %w", err)
+	for len(d.stacks) > 0 {
+		tok, err := d.readToken()
+		if err != nil {
+			return err
 		}
 
 		switch {
@@ -141,258 +172,31 @@ func (d *Decoder) decode() error { //nolint:maintidx
 				return errors.New("unexpected non-key in JSON input")
 			}
 
-			// The last matching one is the one considered
-			var matchingFieldValue *reflect.Value
-
-			// If this key is __typename, eagerly read its value so we can use it
-			// to discriminate which inline fragment pointers to initialize below.
-			// This must happen before the nil-pointer init loop.
-			var (
-				earlyReadTok json.Token
-				earlyRead    bool
-			)
-
-			if key == "__typename" {
-				earlyRead = true
-
-				earlyReadTok, err = d.jsonDecoder.Token()
-				if err == io.EOF {
-					return errors.New("unexpected end of JSON input")
-				} else if err != nil {
-					return fmt.Errorf(": %w", err)
-				}
-
-				if s, ok := earlyReadTok.(string); ok {
-					d.typenameByDepth[d.objectDepth()] = s
-				}
-			}
-
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				// If v is a nil pointer, check whether the key exists in the pointed-to
-				// type before initializing — preserves nil for non-matching union variants.
-				// When a __typename was seen, also require the fragment type to match.
-				if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() {
-					if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
-						if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() && d.shouldInitFragPtr(i) {
-							v.Set(reflect.New(elemType))
-						}
-					}
-				}
-
-				if v.Kind() == reflect.Pointer {
-					v = v.Elem()
-				}
-
-				var f reflect.Value
-				if v.Kind() == reflect.Struct {
-					f = fieldByGraphQLName(v, key)
-					if f.IsValid() {
-						matchingFieldValue = &f
-					}
-				}
-
-				d.vs[i] = append(d.vs[i], f)
-			}
-
-			if matchingFieldValue == nil {
-				return fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.vs))
-			}
-
-			// We've just consumed the current token, which was the key.
-			// Read the next token, which should be the value.
-			// If it's of json.RawMessage or map type, decode the value.
-			// Skip reading if we already eagerly read the value above (for __typename).
-			// A null __typename yields a nil token, so track the read with a flag.
-			if earlyRead {
-				tok = earlyReadTok
-			} else {
-				switch matchingFieldValue.Type() {
-				case reflect.TypeFor[json.RawMessage]():
-					var data json.RawMessage
-
-					err = d.jsonDecoder.Decode(&data)
-					tok = data
-				case reflect.TypeFor[map[string]any]():
-					var data map[string]any
-
-					err = d.jsonDecoder.Decode(&data)
-					tok = data
-				default:
-					tok, err = d.jsonDecoder.Token()
-				}
-			}
-
-			if err == io.EOF {
-				return errors.New("unexpected end of JSON input")
-			} else if err != nil {
-				return fmt.Errorf(": %w", err)
+			tok, err = d.decodeObjectKey(key)
+			if err != nil {
+				return err
 			}
 
 		// Are we inside an array and seeing next value (rather than end of array)?
 		case d.state() == '[' && tok != json.Delim(']'):
-			someSliceExist := false
-
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				if v.Kind() == reflect.Pointer {
-					v = v.Elem()
-				}
-
-				var f reflect.Value
-
-				if v.Kind() == reflect.Slice {
-					v.Set(reflect.Append(v, reflect.Zero(v.Type().Elem()))) // v = append(v, T).
-					f = v.Index(v.Len() - 1)
-					someSliceExist = true
-				}
-
-				d.vs[i] = append(d.vs[i], f)
-			}
-
-			if !someSliceExist {
-				return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal", len(d.vs))
+			err = d.pushArrayElement()
+			if err != nil {
+				return err
 			}
 		}
 
 		switch tok := tok.(type) {
 		case nil: // Handle null values correctly.
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				if !v.CanSet() {
-					// If v is not settable, skip the operation to prevent panicking.
-					continue
-				}
-
-				if v.Kind() == reflect.Pointer || v.Kind() == reflect.Slice {
-					// Set the pointer or slice to nil.
-					v.Set(reflect.Zero(v.Type()))
-				} else {
-					// For other types that cannot directly handle nil, continue to use default zero values.
-					v.Set(reflect.Zero(v.Type()))
-				}
-			}
-
-			d.popAllVs()
-
-			continue
+			d.assignNull()
 		case string, json.Number, bool, json.RawMessage, map[string]any:
-			for i := range d.vs {
-				v := d.vs[i][len(d.vs[i])-1]
-				if !v.IsValid() {
-					continue
-				}
-
-				// Initialize the pointer if it is nil
-				if v.Kind() == reflect.Pointer && v.IsNil() {
-					v.Set(reflect.New(v.Type().Elem()))
-				}
-
-				// Handle both pointer and non-pointer types
-				target := v
-				if v.Kind() == reflect.Pointer {
-					target = v.Elem()
-				}
-
-				// Check if the type of target (or its address) implements graphql.Unmarshaler
-				var (
-					unmarshaler graphql.Unmarshaler
-					ok          bool
-				)
-
-				if target.CanAddr() {
-					unmarshaler, ok = target.Addr().Interface().(graphql.Unmarshaler)
-				} else if target.CanInterface() {
-					unmarshaler, ok = target.Interface().(graphql.Unmarshaler)
-				}
-
-				if ok {
-					err := unmarshaler.UnmarshalGQL(tok)
-					if err != nil {
-						return fmt.Errorf("unmarshal gql error: %w", err)
-					}
-				} else {
-					// Use the standard unmarshal method for non-custom types
-					err := unmarshalValue(tok, target)
-					if err != nil {
-						return fmt.Errorf(": %w", err)
-					}
-				}
+			err = d.assignScalar(tok)
+			if err != nil {
+				return err
 			}
-
-			d.popAllVs()
-
 		case json.Delim:
-			switch tok {
-			case '{':
-				// Start of object.
-				d.pushState(tok)
-
-				frontier := make([]reflect.Value, len(d.vs)) // Places to look for GraphQL fragments/embedded structs.
-				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					frontier[i] = v
-					// TODO: Do this recursively or not? Add a test case if needed.
-					if v.Kind() == reflect.Pointer && v.IsNil() {
-						v.Set(reflect.New(v.Type().Elem())) // v = new(T).
-					}
-				}
-				// Find GraphQL fragments/embedded structs recursively, adding to frontier
-				// as new ones are discovered and exploring them further.
-				for len(frontier) > 0 {
-					v := frontier[0]
-					frontier = frontier[1:]
-
-					if v.Kind() == reflect.Pointer {
-						v = v.Elem()
-					}
-
-					if v.Kind() != reflect.Struct {
-						continue
-					}
-
-					for i := range v.NumField() {
-						field := v.Type().Field(i)
-						if isGraphQLFragment(field) || field.Anonymous {
-							// Add GraphQL fragment or embedded struct.
-							d.vs = append(d.vs, []reflect.Value{v.Field(i)})
-							d.vsFragTypes = append(d.vsFragTypes, inlineFragmentType(field))
-							frontier = append(frontier, v.Field(i))
-						}
-					}
-				}
-			case '[':
-				// Start of array.
-				d.pushState(tok)
-
-				for i := range d.vs {
-					v := d.vs[i][len(d.vs[i])-1]
-					// TODO: Confirm this is needed, write a test case.
-					// if v.Kind() == reflect.Pointer && v.IsNil() {
-					//	v.Set(reflect.New(v.Type().Elem())) // v = new(T).
-					//}
-
-					// Reset slice to empty (in case it had non-zero initial value).
-					if v.Kind() == reflect.Pointer {
-						v = v.Elem()
-					}
-
-					if v.Kind() != reflect.Slice {
-						continue
-					}
-
-					v.Set(reflect.MakeSlice(v.Type(), 0, 0)) // v = make(T, 0, 0).
-				}
-			case '}', ']':
-				// End of object or array.
-				if tok == '}' {
-					delete(d.typenameByDepth, d.objectDepth())
-				}
-
-				d.popAllVs()
-				d.popState()
-			default:
-				return errors.New("unexpected delimiter in JSON input")
+			err = d.handleDelim(tok)
+			if err != nil {
+				return err
 			}
 		default:
 			return errors.New("unexpected token in JSON input")
@@ -400,6 +204,452 @@ func (d *Decoder) decode() error { //nolint:maintidx
 	}
 
 	return nil
+}
+
+// readToken reads the next JSON token.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - json.Token: the token read
+//   - error: non-nil if the input ends or is malformed
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - io.EOF is reported as an unexpected end of input
+func (d *Decoder) readToken() (json.Token, error) {
+	tok, err := d.jsonDecoder.Token()
+	if err != nil {
+		return nil, wrapReadError(err)
+	}
+
+	return tok, nil
+}
+
+// wrapReadError converts a tokenizer error into a decoding error.
+//
+// Arguments:
+//   - err: the error returned by the JSON decoder, or nil
+//
+// Returns:
+//   - error: nil for nil, an "unexpected end of JSON input" error for io.EOF, otherwise err wrapped
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - errors other than io.EOF can be unwrapped to err
+func wrapReadError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, io.EOF) {
+		return errors.New("unexpected end of JSON input")
+	}
+
+	return fmt.Errorf(": %w", err)
+}
+
+// decodeObjectKey pushes the struct field matching key onto every stack and
+// reads the token of the key's value.
+//
+// Arguments:
+//   - key: the object key just read
+//
+// Returns:
+//   - json.Token: the value of the key; a whole value for json.RawMessage and map[string]any fields
+//   - error: non-nil if no stack has a matching field or the value cannot be read
+//
+// Preconditions:
+//   - d.state() is '{'
+//
+// Postconditions:
+//   - every stack has one more entry: the matching field, or an invalid value
+//   - a __typename value is recorded for the current object depth before the fields are pushed
+func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
+	// If this key is __typename, eagerly read its value so we can use it
+	// to discriminate which inline fragment pointers to initialize below.
+	// This must happen before the nil-pointer init loop.
+	// A null __typename yields a nil token, so track the read with a flag.
+	var (
+		earlyReadTok json.Token
+		earlyRead    bool
+	)
+
+	if key == "__typename" {
+		tok, err := d.readToken()
+		if err != nil {
+			return nil, err
+		}
+
+		earlyReadTok, earlyRead = tok, true
+
+		if s, ok := tok.(string); ok {
+			d.typenameByDepth[d.objectDepth()] = s
+		}
+	}
+
+	matchingFieldValue := d.pushField(key)
+	if matchingFieldValue == nil {
+		return nil, fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.stacks))
+	}
+
+	if earlyRead {
+		return earlyReadTok, nil
+	}
+
+	return d.readValue(*matchingFieldValue)
+}
+
+// pushField pushes the field named key of the struct on top of every stack.
+//
+// Arguments:
+//   - key: the GraphQL name of the field
+//
+// Returns:
+//   - *reflect.Value: the last stack's matching field, or nil if no stack has one
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - stacks without a matching field get an invalid value pushed instead
+//   - a nil pointer to a struct that has the field is allocated first, unless a
+//     __typename rules out the inline fragment
+func (d *Decoder) pushField(key string) *reflect.Value {
+	// The last matching one is the one considered
+	var matchingFieldValue *reflect.Value
+
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		// If v is a nil pointer, check whether the key exists in the pointed-to
+		// type before initializing — preserves nil for non-matching union variants.
+		// When a __typename was seen, also require the fragment type to match.
+		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() {
+			if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
+				if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() && d.shouldInitFragPtr(i) {
+					v.Set(reflect.New(elemType))
+				}
+			}
+		}
+
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+
+		var f reflect.Value
+		if v.Kind() == reflect.Struct {
+			f = fieldByGraphQLName(v, key)
+			if f.IsValid() {
+				matchingFieldValue = &f
+			}
+		}
+
+		d.stacks[i].values = append(d.stacks[i].values, f)
+	}
+
+	return matchingFieldValue
+}
+
+// readValue reads the JSON value for field.
+//
+// Arguments:
+//   - field: the field the value will be stored in
+//
+// Returns:
+//   - json.Token: the whole value for json.RawMessage and map[string]any fields, otherwise the next token
+//   - error: non-nil if the input ends or is malformed
+//
+// Preconditions:
+//   - the tokenizer is positioned at the value
+//
+// Postconditions:
+//   - none
+func (d *Decoder) readValue(field reflect.Value) (json.Token, error) {
+	switch field.Type() {
+	case reflect.TypeFor[json.RawMessage]():
+		var data json.RawMessage
+
+		err := d.jsonDecoder.Decode(&data)
+		if err != nil {
+			return nil, wrapReadError(err)
+		}
+
+		return data, nil
+	case reflect.TypeFor[map[string]any]():
+		var data map[string]any
+
+		err := d.jsonDecoder.Decode(&data)
+		if err != nil {
+			return nil, wrapReadError(err)
+		}
+
+		return data, nil
+	default:
+		return d.readToken()
+	}
+}
+
+// pushArrayElement appends a zero element to the slice on top of every stack and pushes it.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil if no stack has a slice on top
+//
+// Preconditions:
+//   - d.state() is '['
+//
+// Postconditions:
+//   - stacks without a slice on top get an invalid value pushed instead
+func (d *Decoder) pushArrayElement() error {
+	someSliceExist := false
+
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+
+		var f reflect.Value
+
+		if v.Kind() == reflect.Slice {
+			v.Set(reflect.Append(v, reflect.Zero(v.Type().Elem()))) // v = append(v, T).
+			f = v.Index(v.Len() - 1)
+			someSliceExist = true
+		}
+
+		d.stacks[i].values = append(d.stacks[i].values, f)
+	}
+
+	if !someSliceExist {
+		return fmt.Errorf("slice doesn't exist in any of %v places to unmarshal", len(d.stacks))
+	}
+
+	return nil
+}
+
+// assignNull stores a JSON null: the value on top of every stack is reset and popped.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - settable values on top of the stacks are set to their zero value; nil for pointers and slices
+//   - every stack is popped
+func (d *Decoder) assignNull() {
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		if !v.CanSet() {
+			// If v is not settable, skip the operation to prevent panicking.
+			continue
+		}
+
+		// Pointers and slices become nil; other kinds keep their zero value.
+		v.Set(reflect.Zero(v.Type()))
+	}
+
+	d.popAllVs()
+}
+
+// assignScalar stores a scalar JSON value into the value on top of every stack and pops it.
+//
+// Arguments:
+//   - tok: a string, json.Number, bool, json.RawMessage, or map[string]any
+//
+// Returns:
+//   - error: non-nil if a value rejects tok
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - nil pointers on top of the stacks are allocated before assignment
+//   - values implementing graphql.Unmarshaler receive tok through UnmarshalGQL
+//   - every stack is popped
+func (d *Decoder) assignScalar(tok json.Token) error {
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		if !v.IsValid() {
+			continue
+		}
+
+		// Initialize the pointer if it is nil
+		if v.Kind() == reflect.Pointer && v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+
+		// Handle both pointer and non-pointer types
+		target := v
+		if v.Kind() == reflect.Pointer {
+			target = v.Elem()
+		}
+
+		// Check if the type of target (or its address) implements graphql.Unmarshaler
+		var (
+			unmarshaler graphql.Unmarshaler
+			ok          bool
+		)
+
+		if target.CanAddr() {
+			unmarshaler, ok = target.Addr().Interface().(graphql.Unmarshaler)
+		} else if target.CanInterface() {
+			unmarshaler, ok = target.Interface().(graphql.Unmarshaler)
+		}
+
+		if ok {
+			err := unmarshaler.UnmarshalGQL(tok)
+			if err != nil {
+				return fmt.Errorf("unmarshal gql error: %w", err)
+			}
+		} else {
+			// Use the standard unmarshal method for non-custom types
+			err := unmarshalValue(tok, target)
+			if err != nil {
+				return fmt.Errorf(": %w", err)
+			}
+		}
+	}
+
+	d.popAllVs()
+
+	return nil
+}
+
+// handleDelim opens or closes an object or array.
+//
+// Arguments:
+//   - tok: the delimiter just read
+//
+// Returns:
+//   - error: non-nil for a delimiter other than {, }, [, or ]
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the parse state and the stacks reflect the opened or closed value
+func (d *Decoder) handleDelim(tok json.Delim) error {
+	switch tok {
+	case '{':
+		d.openObject()
+	case '[':
+		d.openArray()
+	case '}', ']':
+		// End of object or array.
+		if tok == '}' {
+			delete(d.typenameByDepth, d.objectDepth())
+		}
+
+		d.popAllVs()
+		d.popState()
+	default:
+		return errors.New("unexpected delimiter in JSON input")
+	}
+
+	return nil
+}
+
+// openObject starts an object.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - the tokenizer just returned '{'
+//
+// Postconditions:
+//   - nil pointers on top of the stacks are allocated
+//   - a stack is added for every GraphQL fragment or embedded struct reachable
+//     from the values on top of the stacks
+func (d *Decoder) openObject() {
+	d.pushState('{')
+
+	frontier := make([]reflect.Value, len(d.stacks)) // Places to look for GraphQL fragments/embedded structs.
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		frontier[i] = v
+		// TODO: Do this recursively or not? Add a test case if needed.
+		if v.Kind() == reflect.Pointer && v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem())) // v = new(T).
+		}
+	}
+	// Find GraphQL fragments/embedded structs recursively, adding to frontier
+	// as new ones are discovered and exploring them further.
+	for len(frontier) > 0 {
+		v := frontier[0]
+		frontier = frontier[1:]
+
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+
+		if v.Kind() != reflect.Struct {
+			continue
+		}
+
+		for i := range v.NumField() {
+			field := v.Type().Field(i)
+			if isGraphQLFragment(field) || field.Anonymous {
+				// Add GraphQL fragment or embedded struct.
+				d.stacks = append(d.stacks, valueStack{
+					values:   []reflect.Value{v.Field(i)},
+					fragType: inlineFragmentType(field),
+				})
+				frontier = append(frontier, v.Field(i))
+			}
+		}
+	}
+}
+
+// openArray starts an array.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - the tokenizer just returned '['
+//
+// Postconditions:
+//   - slices on top of the stacks are reset to empty
+func (d *Decoder) openArray() {
+	d.pushState('[')
+
+	for i := range d.stacks {
+		v := d.stacks[i].top()
+		// TODO: Confirm this is needed, write a test case.
+		// if v.Kind() == reflect.Pointer && v.IsNil() {
+		//	v.Set(reflect.New(v.Type().Elem())) // v = new(T).
+		//}
+
+		// Reset slice to empty (in case it had non-zero initial value).
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+
+		if v.Kind() != reflect.Slice {
+			continue
+		}
+
+		v.Set(reflect.MakeSlice(v.Type(), 0, 0)) // v = make(T, 0, 0).
+	}
 }
 
 // pushState pushes a new parse state s onto the stack.
@@ -422,23 +672,18 @@ func (d *Decoder) state() json.Delim {
 	return d.parseState[len(d.parseState)-1]
 }
 
-// popAllVs pops from all d.vs stacks, keeping only non-empty ones.
+// popAllVs pops from all stacks, keeping only non-empty ones.
 func (d *Decoder) popAllVs() {
-	var (
-		nonEmpty          [][]reflect.Value
-		nonEmptyFragTypes []string
-	)
+	var nonEmpty []valueStack
 
-	for i := range d.vs {
-		d.vs[i] = d.vs[i][:len(d.vs[i])-1]
-		if len(d.vs[i]) > 0 {
-			nonEmpty = append(nonEmpty, d.vs[i])
-			nonEmptyFragTypes = append(nonEmptyFragTypes, d.vsFragTypes[i])
+	for i := range d.stacks {
+		d.stacks[i].values = d.stacks[i].values[:len(d.stacks[i].values)-1]
+		if len(d.stacks[i].values) > 0 {
+			nonEmpty = append(nonEmpty, d.stacks[i])
 		}
 	}
 
-	d.vs = nonEmpty
-	d.vsFragTypes = nonEmptyFragTypes
+	d.stacks = nonEmpty
 }
 
 // fieldByGraphQLName returns an exported struct field of struct v
@@ -531,7 +776,7 @@ func (d *Decoder) objectDepth() int {
 // only the inline fragment stack whose type matches that typename is initialized;
 // all others are skipped. Non-fragment stacks are always initialized.
 func (d *Decoder) shouldInitFragPtr(i int) bool {
-	fragType := d.vsFragTypes[i]
+	fragType := d.stacks[i].fragType
 	if fragType == "" {
 		return true // not a typed inline fragment
 	}
