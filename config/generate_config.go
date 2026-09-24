@@ -42,6 +42,56 @@ func (c *GenerateConfig) GetClientInterfaceName() *string {
 	return c.ClientInterfaceName
 }
 
+// applyDefaults fills the unset boolean options with their defaults.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - c is not nil
+//
+// Postconditions:
+//   - StructFieldsAlwaysPointers defaults to true, InlineFragmentAlwaysPointers to false,
+//     EnableClientJsonOmitemptyTag to true, and EnableClientJsonOmitzeroTag to false
+//   - options that were already set are left unchanged
+func (c *GenerateConfig) applyDefaults() {
+	if c.StructFieldsAlwaysPointers == nil {
+		c.StructFieldsAlwaysPointers = boolPointer(true)
+	}
+
+	if c.InlineFragmentAlwaysPointers == nil {
+		c.InlineFragmentAlwaysPointers = boolPointer(false)
+	}
+
+	if c.EnableClientJsonOmitemptyTag == nil {
+		c.EnableClientJsonOmitemptyTag = boolPointer(true)
+	}
+
+	if c.EnableClientJsonOmitzeroTag == nil {
+		c.EnableClientJsonOmitzeroTag = boolPointer(false)
+	}
+}
+
+// boolPointer returns a pointer to b.
+//
+// Arguments:
+//   - b: the value
+//
+// Returns:
+//   - *bool: a pointer to a copy of b
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func boolPointer(b bool) *bool {
+	return &b
+}
+
 type NamingConfig struct {
 	Query    string `yaml:"query,omitempty"`
 	Mutation string `yaml:"mutation,omitempty"`
