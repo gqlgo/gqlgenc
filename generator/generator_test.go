@@ -29,6 +29,12 @@ const (
 
 var update = flag.Bool("update", false, "rewrite the expected files with the generated output")
 
+// nonGoldenFixtures are the testdata directories used by other tests, which
+// TestGenerator_withTestData skips.
+var nonGoldenFixtures = map[string]bool{
+	"multi_config": true,
+}
+
 func (s *Suite) TestGenerator_withTestData() {
 	dirs := s.getTestDirs()
 
@@ -37,8 +43,16 @@ func (s *Suite) TestGenerator_withTestData() {
 			// temporary change working directory
 			s.useDirForTest(filepath.Join("testdata", dir))
 
-			// load config
-			cfg, err := config.LoadConfig("./gqlgenc.yml")
+			// load config, whichever of the accepted file names the fixture uses;
+			// the file must be in the fixture itself, not in a parent directory
+			cfgFile, err := config.FindConfigFile(".")
+			s.Require().NoError(err)
+
+			cwd, err := os.Getwd()
+			s.Require().NoError(err)
+			s.Require().Equal(cwd, filepath.Dir(cfgFile), "fixture has no config of its own")
+
+			cfg, err := config.LoadConfig(cfgFile)
 			s.Require().NoError(err)
 
 			// disable unnecessary validations
@@ -151,6 +165,12 @@ func (s *Suite) getTestDirs() []string {
 
 	for _, dir := range dirs {
 		if !dir.IsDir() {
+			continue
+		}
+
+		// fixtures of other tests have no config at their root; every other
+		// directory must be a golden fixture, so a misnamed one fails loudly
+		if nonGoldenFixtures[dir.Name()] {
 			continue
 		}
 

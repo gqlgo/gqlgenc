@@ -1,0 +1,7 @@
+input CommentFilter {
+  body: String
+}
+
+extend type Query {
+  comments(filter: CommentFilter): [String!]!
+}

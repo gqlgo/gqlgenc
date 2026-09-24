@@ -1,0 +1,41 @@
+type Query {
+  user(id: ID!): User
+  posts(filter: PostFilter): [Post!]!
+}
+
+type Mutation {
+  createPost(input: CreatePostInput!): Post!
+}
+
+type User {
+  id: ID!
+  name: String!
+  address: Address
+  role: Role!
+}
+
+type Address {
+  street: String!
+  city: String!
+}
+
+type Post {
+  id: ID!
+  title: String!
+  author: User!
+}
+
+input PostFilter {
+  title: String
+  role: Role
+}
+
+input CreatePostInput {
+  title: String!
+  authorID: ID!
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}

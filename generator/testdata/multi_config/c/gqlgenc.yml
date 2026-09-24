@@ -1,0 +1,21 @@
+# Writes its models into the package that config b generated, while also
+# binding that package: CreatePostInput comes from b/actual, CommentFilter is
+# only in c's extra schema and is generated into b/actual as models_c_gen.go.
+# The client goes into c's own package.
+model:
+  filename: ../b/actual/models_c_gen.go
+  package: generated
+client:
+  filename: ./actual/client.go
+  package: cgenerated
+schema:
+  - ../schemas/*.graphql
+  - ./schemas/*.graphql
+query:
+  - ./queries/*.graphql
+autobind:
+  - github.com/gqlgo/gqlgenc/generator/testdata/multi_config/models
+  - github.com/gqlgo/gqlgenc/generator/testdata/multi_config/b/actual
+generate:
+  clientV2: true
+  onlyUsedModels: true

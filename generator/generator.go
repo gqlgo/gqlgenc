@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/99designs/gqlgen/api"
+	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin"
 	"github.com/99designs/gqlgen/plugin/federation"
 	"github.com/99designs/gqlgen/plugin/modelgen"
@@ -48,18 +49,51 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 	}
 }
 
-func Generate(ctx context.Context, cfg *config.Config) error {
-	// LoadConfig always sets Generate, but callers that build Config by hand may
-	// leave it nil. Normalize it once so the plugin and the model hook can rely on it.
-	if cfg.Generate == nil {
-		cfg.Generate = &config.GenerateConfig{}
+// unlinkOutput removes the file of an output package and drops that package
+// from the gqlgen package cache when the cache already exists.
+//
+// Arguments:
+//   - cfg: the config being generated; its GQLConfig.Packages may be nil
+//   - pkg: the output package (client or model); ignored when not defined
+//
+// Returns:
+//   - nothing
+//
+// Preconditions:
+//   - the working directory is the one pkg.Filename is relative to
+//
+// Postconditions:
+//   - pkg.Filename does not exist
+//   - when the cache exists, the import path of pkg's directory is not in it
+func unlinkOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) {
+	if !pkg.IsDefined() {
+		return
 	}
 
-	_ = syscall.Unlink(cfg.Client.Filename)
-	if cfg.Model.IsDefined() {
-		_ = syscall.Unlink(cfg.Model.Filename)
-	}
+	_ = syscall.Unlink(pkg.Filename)
 
+	if cfg.GQLConfig.Packages != nil {
+		cfg.GQLConfig.Packages.Evict(pkg.ImportPath())
+	}
+}
+
+// loadSchema injects the federation directives, if any, and loads the schema
+// from the local files or the remote endpoint into cfg.GQLConfig.Schema.
+//
+// Arguments:
+//   - ctx: used for the remote schema introspection, if any
+//   - cfg: the config to load the schema of
+//
+// Returns:
+//   - error: non-nil when the federation plugin or the schema fails to load
+//
+// Preconditions:
+//   - the working directory is the one the schema paths are relative to
+//
+// Postconditions:
+//   - on success cfg.GQLConfig.Schema is non-nil, with the relative import
+//     paths of its @goModel and @goEnum directives replaced by full ones
+func loadSchema(ctx context.Context, cfg *config.Config) error {
 	if cfg.Federation.Version != 0 {
 		var (
 			fedPlugin plugin.Plugin
@@ -90,6 +124,31 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	err := cfg.LoadSchema(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
+	}
+
+	normalizeSchemaImportPaths(cfg.GQLConfig.Schema)
+
+	return nil
+}
+
+func Generate(ctx context.Context, cfg *config.Config) error {
+	// LoadConfig always sets Generate, but callers that build Config by hand may
+	// leave it nil. Normalize it once so the plugin and the model hook can rely on it.
+	if cfg.Generate == nil {
+		cfg.Generate = &config.GenerateConfig{}
+	}
+
+	// Remove the previous output before anything is loaded. When the package
+	// cache is shared with an earlier config (GenerateAll), the packages these
+	// files belong to are evicted too, so that a cached copy does not keep
+	// describing the files just removed. gqlgen's templates.Render evicts them
+	// again after writing.
+	unlinkOutput(cfg, cfg.Client)
+	unlinkOutput(cfg, cfg.Model)
+
+	err := loadSchema(ctx, cfg)
+	if err != nil {
+		return err
 	}
 
 	err = cfg.GQLConfig.Init()

@@ -54,12 +54,38 @@ func (a StringList) Has(file string) bool {
 // LoadConfigFromDefaultLocations looks for a config file in the specified directory, and all parent directories
 // walking up the tree. The closest config file will be returned.
 func LoadConfigFromDefaultLocations(dir string) (*Config, error) {
-	cfgFile, err := findCfg(dir)
+	cfgFile, err := FindConfigFile(dir)
 	if err != nil {
-		return nil, fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s: %w", dir, err)
+		return nil, err
 	}
 
 	return LoadConfig(cfgFile)
+}
+
+// FindConfigFile looks for a config file in the specified directory, and all
+// parent directories walking up the tree, and returns the path of the closest
+// one.
+//
+// Arguments:
+//   - dir: the directory to start from; "." means the current directory
+//
+// Returns:
+//   - string: the path of the config file, joined with dir when dir is not "."
+//   - error: non-nil when dir does not exist or no config file is found
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the returned path refers to an existing file named one of .gqlgenc.yml,
+//     gqlgenc.yml or gqlgenc.yaml
+func FindConfigFile(dir string) (string, error) {
+	cfgFile, err := findCfg(dir)
+	if err != nil {
+		return "", fmt.Errorf("not found Config. Config could not be found. Please make sure the name of the file is correct. want={.gqlgenc.yml, gqlgenc.yml, gqlgenc.yaml}, got=%s: %w", dir, err)
+	}
+
+	return cfgFile, nil
 }
 
 // EndPointConfig are the allowed options for the 'endpoint' config

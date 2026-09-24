@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"runtime/debug"
 
-	"github.com/gqlgo/gqlgenc/config"
 	"github.com/gqlgo/gqlgenc/generator"
 )
 
@@ -19,10 +19,19 @@ var version = ""
 func main() {
 	var (
 		showVersion = flag.Bool("version", false, "print the version")
-		configDir   = flag.String("configdir", ".", "the directory with configuration file")
+		dirs        []string
 	)
 
-	flag.StringVar(configDir, "c", ".", "the directory with configuration file (shorthand)")
+	const configDirUsage = "the directory with configuration file; repeat to generate several configs in one process (default \".\")"
+
+	addDir := func(dir string) error {
+		dirs = append(dirs, dir)
+
+		return nil
+	}
+
+	flag.Func("configdir", configDirUsage, addDir)
+	flag.Func("c", configDirUsage+" (shorthand)", addDir)
 	flag.Parse()
 
 	if *showVersion {
@@ -31,18 +40,14 @@ func main() {
 		return
 	}
 
-	cfg, err := config.LoadConfigFromDefaultLocations(*configDir)
+	err := generator.GenerateAll(context.Background(), dirs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 
-		os.Exit(2)
-	}
-
-	ctx := context.Background()
-
-	err = generator.Generate(ctx, cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		var loadErr *generator.LoadConfigError
+		if errors.As(err, &loadErr) {
+			os.Exit(2)
+		}
 
 		os.Exit(4)
 	}

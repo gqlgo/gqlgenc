@@ -1,0 +1,12 @@
+query GetUserRole($id: ID!, $filter: PostFilter, $tagFilter: TagFilter) {
+  user(id: $id) {
+    role
+    address {
+      city
+    }
+  }
+  posts(filter: $filter) {
+    id
+  }
+  tags(filter: $tagFilter)
+}
