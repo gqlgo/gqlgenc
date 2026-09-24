@@ -2002,3 +2002,109 @@ func TestClientPostMultipartUsesClientEncoder(t *testing.T) {
 	require.JSONEq(t, `{"0":["variables.file"]}`, form.Value["map"][0])
 	require.Len(t, form.File["0"], 1)
 }
+
+// gqlIDs is a named slice implementing graphql.Marshaler, in the shape gqlgen generates for ID list scalars.
+type gqlIDs []string
+
+func (ids gqlIDs) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, ids.gqlString())
+}
+
+func (ids *gqlIDs) UnmarshalGQL(_ any) error {
+	return nil
+}
+
+// gqlString renders the list as a GraphQL JSON array literal.
+func (ids gqlIDs) gqlString() string {
+	quoted := make([]string, 0, len(ids))
+	for _, id := range ids {
+		quoted = append(quoted, strconv.Quote(id))
+	}
+
+	return "[" + strings.Join(quoted, ",") + "]"
+}
+
+// gqlContextIDs is a named slice implementing graphql.ContextMarshaler.
+type gqlContextIDs []string
+
+func (ids gqlContextIDs) MarshalGQLContext(_ context.Context, w io.Writer) error {
+	_, err := io.WriteString(w, gqlIDs(ids).gqlString())
+
+	return err
+}
+
+func (ids *gqlContextIDs) UnmarshalGQLContext(_ context.Context, _ any) error {
+	return nil
+}
+
+// TestEncoderNilMarshalerSlice verifies that a nil named slice implementing graphql.Marshaler or
+// graphql.ContextMarshaler is encoded as null instead of calling its method on the nil value.
+// encoding/json/v2 passes addressable values to interface marshalers as *T, so the nil check must
+// look through that pointer; otherwise MarshalGQL writes [] and the server sees a present, empty list.
+func TestEncoderNilMarshalerSlice(t *testing.T) {
+	t.Parallel()
+
+	type input struct {
+		IDs        gqlIDs         `json:"ids"`
+		ContextIDs gqlContextIDs  `json:"contextIDs"`
+		PtrIDs     *gqlIDs        `json:"ptrIDs"`
+		Nested     map[string]any `json:"nested"`
+	}
+
+	nilIDs := gqlIDs(nil)
+
+	tests := []struct {
+		name                 string
+		nilSliceAsEmptyArray bool
+		v                    any
+		want                 string
+	}{
+		{
+			name: "nil named slices in struct fields encode as null",
+			v:    input{},
+			want: `{"ids":null,"contextIDs":null,"ptrIDs":null,"nested":null}`,
+		},
+		{
+			name: "non-nil named slices encode with MarshalGQL",
+			v:    input{IDs: gqlIDs{"a"}, ContextIDs: gqlContextIDs{"b"}, PtrIDs: &gqlIDs{"c"}},
+			want: `{"ids":["a"],"contextIDs":["b"],"ptrIDs":["c"],"nested":null}`,
+		},
+		{
+			name: "empty named slices encode with MarshalGQL",
+			v:    input{IDs: gqlIDs{}, ContextIDs: gqlContextIDs{}},
+			want: `{"ids":[],"contextIDs":[],"ptrIDs":null,"nested":null}`,
+		},
+		{
+			name: "pointer to nil named slice encodes as null",
+			v:    input{PtrIDs: &nilIDs},
+			want: `{"ids":null,"contextIDs":null,"ptrIDs":null,"nested":null}`,
+		},
+		{
+			name: "nil named slice at top level encodes as null",
+			v:    gqlIDs(nil),
+			want: `null`,
+		},
+		{
+			name: "nil named slice in map and variables encodes as null",
+			v:    map[string]any{"ids": gqlIDs(nil), "input": input{Nested: map[string]any{"ids": gqlContextIDs(nil)}}},
+			want: `{"ids":null,"input":{"ids":null,"contextIDs":null,"ptrIDs":null,"nested":{"ids":null}}}`,
+		},
+		{
+			name:                 "nil named slice encodes with MarshalGQL when NilSliceAsEmptyArray is enabled",
+			nilSliceAsEmptyArray: true,
+			v:                    input{},
+			want:                 `{"ids":[],"contextIDs":[],"ptrIDs":null,"nested":null}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			encoder := &Encoder{NilSliceAsEmptyArray: tt.nilSliceAsEmptyArray}
+
+			got, err := encoder.Encode(reflect.ValueOf(tt.v))
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(got))
+		})
+	}
+}
