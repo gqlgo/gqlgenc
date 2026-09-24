@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 
 	"github.com/99designs/gqlgen/codegen/config"
 
 	"github.com/gqlgo/gqlgenc/clientv2"
+	"github.com/gqlgo/gqlgenc/internal/fileglob"
 	"github.com/gqlgo/gqlgenc/introspection"
 
 	"github.com/vektah/gqlparser/v2"
@@ -140,13 +139,6 @@ func findCfgInDir(dir string) string {
 	return ""
 }
 
-var path2regex = strings.NewReplacer(
-	`.`, `\.`,
-	`*`, `.+`,
-	`\`, `[\\/]`,
-	`/`, `[\\/]`,
-)
-
 // LoadConfig loads and parses the config gqlgenc config
 func LoadConfig(filename string) (*Config, error) {
 	var cfg Config
@@ -173,47 +165,9 @@ func LoadConfig(filename string) (*Config, error) {
 		return nil, fmt.Errorf("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 	}
 
-	// https://github.com/99designs/gqlgen/blob/3a31a752df764738b1f6e99408df3b169d514784/codegen/config/config.go#L120
-	files := StringList{}
-
-	for _, f := range cfg.SchemaFilename {
-		var matches []string
-
-		// for ** we want to override default globbing patterns and walk all
-		// subdirectories to match schema files.
-		if strings.Contains(f, "**") {
-			pathParts := strings.SplitN(f, "**", 2)
-			rest := strings.TrimPrefix(strings.TrimPrefix(pathParts[1], `\`), `/`)
-			// turn the rest of the glob into a regex, anchored only at the end because ** allows
-			// for any number of dirs in between and walk will let us match against the full path name
-			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
-
-			err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if globRe.MatchString(strings.TrimPrefix(path, pathParts[0])) {
-					matches = append(matches, path)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
-			}
-		} else {
-			matches, err = filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to glob schema filename %s: %w", f, err)
-			}
-		}
-
-		for _, m := range matches {
-			if !files.Has(m) {
-				files = append(files, m)
-			}
-		}
+	files, err := fileglob.Expand(cfg.SchemaFilename)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(files) > 0 {

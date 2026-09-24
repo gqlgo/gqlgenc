@@ -26,70 +26,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 
-	"github.com/99designs/gqlgen/codegen/config"
+	"github.com/gqlgo/gqlgenc/internal/fileglob"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-var path2regex = strings.NewReplacer(
-	`.`, `\.`,
-	`*`, `.+`,
-	`\`, `[\\/]`,
-	`/`, `[\\/]`,
-)
-
 // LoadQuerySources loads query sources from file names.
-// This is a modified copy of gqlgen's LoadConfig schema loading implementation.
-// Supports glob patterns like **/test/*.graphql.
+// Supports glob patterns like **/test/*.graphql; see internal/fileglob.
 func LoadQuerySources(queryFileNames []string) ([]*ast.Source, error) {
-	var noGlobQueryFileNames config.StringList
-
-	var err error
-
-	preGlobbing := queryFileNames
-	for _, f := range preGlobbing {
-		var matches []string
-
-		// for ** we want to override default globbing patterns and walk all
-		// subdirectories to match schema files.
-		if strings.Contains(f, "**") {
-			pathParts := strings.SplitN(f, "**", 2)
-			rest := strings.TrimPrefix(strings.TrimPrefix(pathParts[1], `\`), `/`)
-			// turn the rest of the glob into a regex, anchored only at the end because ** allows
-			// for any number of dirs in between and walk will let us match against the full path name
-			globRe := regexp.MustCompile(path2regex.Replace(rest) + `$`)
-
-			err := filepath.Walk(pathParts[0], func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if globRe.MatchString(strings.TrimPrefix(path, pathParts[0])) {
-					matches = append(matches, path)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to walk schema at root %s: %w", pathParts[0], err)
-			}
-		} else {
-			matches, err = filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to glob schema filename %v: %w", f, err)
-			}
-		}
-
-		for _, m := range matches {
-			if noGlobQueryFileNames.Has(m) {
-				continue
-			}
-
-			noGlobQueryFileNames = append(noGlobQueryFileNames, m)
-		}
+	noGlobQueryFileNames, err := fileglob.Expand(queryFileNames)
+	if err != nil {
+		return nil, err
 	}
 
 	querySources := make([]*ast.Source, 0, len(noGlobQueryFileNames))
