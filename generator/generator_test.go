@@ -3,8 +3,10 @@ package generator_test
 import (
 	"context"
 	"flag"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -77,6 +79,9 @@ func (s *Suite) TestGenerator_withTestData() {
 
 			// rewrite the expected files from the generated output when -update is given
 			if *update {
+				// expected を actual の写しにする（生成されなくなったファイルも削除する）
+				s.Require().NoError(os.RemoveAll(expected))
+
 				for path, content := range actualFiles {
 					s.T().Logf("updating expected file %s", path)
 					expectedPath := filepath.Join(expected, path)
@@ -89,6 +94,10 @@ func (s *Suite) TestGenerator_withTestData() {
 			}
 
 			s.Require().NotEmpty(expectedFiles, "no expected files found; run with -update to create them")
+
+			// ファイルの過不足を検出する
+			s.ElementsMatch(slices.Collect(maps.Keys(expectedFiles)), slices.Collect(maps.Keys(actualFiles)),
+				"generated files differ from expected files; run with -update to rewrite them")
 
 			// compare expected and actual files
 			for path, expectedContent := range expectedFiles {
