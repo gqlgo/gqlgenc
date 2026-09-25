@@ -1,0 +1,6 @@
+mutation Paint($input: PaintInput!) {
+    paint(input: $input) {
+        id
+        tones
+    }
+}
