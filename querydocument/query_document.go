@@ -129,20 +129,12 @@ func collectInputObjectFieldsWithCycle(def *ast.Definition, schema *ast.Schema, 
 	usedTypes[def.Name] = true      // この型を使用済みとしてマーク
 
 	for _, field := range def.Fields {
-		var typeName string
-		// リスト型の要素型まで辿る
-		switch {
-		case field.Type == nil:
-			// No type, nothing to do
+		if field.Type == nil {
 			continue
-		case field.Type.Elem != nil:
-			// Handle slices
-			typeName = field.Type.Elem.NamedType
-		case field.Type.NamedType != "":
-			// Handle scalar named types
-			typeName = field.Type.NamedType
 		}
 
+		// Name() は [[T!]!] のような多次元リストも全て剥がして要素型名を返す
+		typeName := field.Type.Name()
 		if typeName != "" {
 			usedTypes[typeName] = true
 			// 入力型のフィールドを再帰的に収集

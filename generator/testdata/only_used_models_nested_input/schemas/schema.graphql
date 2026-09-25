@@ -1,0 +1,48 @@
+type Query {
+    canvas: Canvas
+}
+
+type Mutation {
+    paint(input: PaintInput!): Canvas
+}
+
+input PaintInput {
+    colors: [[Color!]!]!
+    grid: [[Cell!]!]
+}
+
+input Cell {
+    shade: Shade
+    children: [[Cell!]]
+}
+
+type Canvas {
+    id: ID!
+    tones: [[Tone!]!]!
+    unusedField: UnusedEnum
+}
+
+enum Color {
+    RED
+    GREEN
+    BLUE
+}
+
+enum Shade {
+    LIGHT
+    DARK
+}
+
+enum Tone {
+    WARM
+    COOL
+}
+
+enum UnusedEnum {
+    FOO
+    BAR
+}
+
+input UnusedInput {
+    colors: [[Color!]!]
+}

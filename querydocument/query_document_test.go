@@ -19,6 +19,36 @@ type Query {
 
 type Mutation {
 	createTodos(input: NewTodos!): TodoPage
+	paint(input: PaintInput!): Canvas
+}
+
+type Canvas {
+	tones: [[Tone!]!]!
+}
+
+input PaintInput {
+	colors: [[Color!]!]!
+	grid: [[Cell!]!]
+}
+
+input Cell {
+	shade: Shade
+	children: [[Cell!]]
+}
+
+enum Color {
+	RED
+	BLUE
+}
+
+enum Shade {
+	LIGHT
+	DARK
+}
+
+enum Tone {
+	WARM
+	COOL
 }
 
 type Todo {
@@ -145,6 +175,25 @@ func TestCollectTypesFromQueryDocuments(t *testing.T) {
 		usedTypes := querydocument.CollectTypesFromQueryDocuments(schema, docs)
 
 		require.True(t, usedTypes["TodoStatus"], "enum selected inside a fragment spread should be collected")
+		require.False(t, usedTypes["UnusedEnum"], "unreferenced enum should not be collected")
+	})
+
+	t.Run("types nested in multi-dimensional lists", func(t *testing.T) {
+		t.Parallel()
+
+		schema, docs := loadSchemaAndQuery(t, `
+			mutation Paint($input: PaintInput!) {
+				paint(input: $input) { tones }
+			}
+		`)
+
+		usedTypes := querydocument.CollectTypesFromQueryDocuments(schema, docs)
+
+		require.True(t, usedTypes["PaintInput"], "input type from variable definition should be collected")
+		require.True(t, usedTypes["Color"], "enum in a nested list input field should be collected")
+		require.True(t, usedTypes["Cell"], "input type in a nested list input field should be collected")
+		require.True(t, usedTypes["Shade"], "enum inside an input type reached through a nested list should be collected")
+		require.True(t, usedTypes["Tone"], "enum in a nested list response field should be collected")
 		require.False(t, usedTypes["UnusedEnum"], "unreferenced enum should not be collected")
 	})
 }
