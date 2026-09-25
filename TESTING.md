@@ -21,14 +21,37 @@ go tool cover -html=coverage.out
 
 # End-to-End Testing
 
-The `generator` package contains tests which 
+The `generator` package contains golden tests which
 run the full generator pipeline
-and support assertions on the generated code.
+and compare the generated code with checked-in files.
 
-To create such a test, 
-copy one of the directories in `generator/testdata`
-and modify the files to express your test case,
-then run the tests with `go test ./generator/testdata/...`.
-The test will check that the generated code compiles
-and that the generated code matches the files in the
-`expected` directory.
+Every directory in `generator/testdata` is a test case,
+except `multi_config`, which is used by other tests.
+A test case has its own config file (e.g. `gqlgenc.yml`),
+the schema and query files the config points to,
+and an `expected` directory with the generated files.
+The generated code is written to `actual`, which is ignored by git.
+The test checks that the code in `actual` compiles
+and that `actual` and `expected` hold the same files with the same content.
+
+To run the golden tests:
+
+```shell script
+go test ./generator -run TestSuite/TestGenerator_withTestData
+```
+
+To add a test case,
+copy one of the directories in `generator/testdata`,
+modify the config, schema and query files to express your test case,
+and create its `expected` files as described below.
+
+To regenerate the `expected` files after changing a test case or the generator, run
+
+```shell script
+make golden-update
+```
+
+which runs the golden tests with the `-update` flag.
+It replaces the `expected` directory of every test case with the generated output,
+so files that are no longer generated are removed.
+Review the changes with `git diff` before committing them.
