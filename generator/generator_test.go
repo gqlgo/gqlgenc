@@ -75,7 +75,8 @@ func (s *Suite) TestGenerator_withTestData() {
 			pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedTypes}, "./"+actual)
 			s.Require().NoError(err)
 			s.Require().Len(pkgs, 1)
-			s.Empty(pkgs[0].Errors)
+			// コンパイルできない出力は -update でも expected に書き込まない
+			s.Require().Empty(pkgs[0].Errors)
 
 			// rewrite the expected files from the generated output when -update is given
 			if *update {
