@@ -1,0 +1,62 @@
+fragment ArticleFields on Article {
+    id
+    title
+}
+
+fragment VideoFields on Video {
+    duration
+}
+
+fragment NodeFields on Node {
+    id
+}
+
+fragment UserFragment on User {
+    id
+    profile {
+        bio
+    }
+}
+
+# スプレッドのみのインラインフラグメントと、自身のフィールドとスプレッドが混在するインラインフラグメント
+query Search($query: String!) {
+    search(query: $query) {
+        __typename
+        ... on Article {
+            ...ArticleFields
+        }
+        ... on Video {
+            id
+            ...VideoFields
+        }
+    }
+}
+
+# 同じフィールドに別名を付けて異なる選択をする（インターフェースへのスプレッドを含む）
+query GetNodes {
+    a: node(id: "1") {
+        __typename
+        ...NodeFields
+        ... on Article {
+            title
+        }
+    }
+    b: node(id: "2") {
+        __typename
+        id
+        ... on Video {
+            ...VideoFields
+        }
+    }
+}
+
+# スプレッドと直接指定で同じフィールドを選択する（スカラーは重複排除、オブジェクトはマージ）
+query GetUser {
+    user {
+        ...UserFragment
+        id
+        profile {
+            name
+        }
+    }
+}
