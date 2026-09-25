@@ -12,5 +12,8 @@ build:
 test:
 	go test -race -v ./...
 
+golden-update:
+	go test ./generator -run TestSuite/TestGenerator_withTestData -update
+
 compat:
 	go tool gorelease
