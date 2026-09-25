@@ -1,0 +1,32 @@
+type Query {
+    search(query: String!): [SearchResult!]!
+    node(id: ID!): Node
+    user: User
+}
+
+interface Node {
+    id: ID!
+}
+
+union SearchResult = Article | Video
+
+type Article implements Node {
+    id: ID!
+    title: String!
+}
+
+type Video implements Node {
+    id: ID!
+    duration: Int!
+}
+
+type User implements Node {
+    id: ID!
+    name: String!
+    profile: Profile
+}
+
+type Profile {
+    name: String!
+    bio: String
+}
