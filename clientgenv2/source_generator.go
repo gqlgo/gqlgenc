@@ -389,6 +389,22 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 			// append fragment fields
 			allFields = append(allFields, fragmentFields...)
 
+			// 直接指定したフィールドとフラグメントのフィールドが重複する場合は、フィールド選択と同じくマージする
+			// 並び順は最初に現れた順を保つ
+			// merge fields selected both directly and through a fragment, as a field selection does,
+			// keeping the order in which they first appear
+			generator := NewStructGenerator(fieldsResponseFields)
+			r.StructSources = generator.MergedStructSources(r.StructSources)
+			mergedFields := generator.GetCurrentResponseFieldList().MapByName()
+			orderedFields := make(ResponseFieldList, 0, len(mergedFields))
+			for _, field := range allFields {
+				if merged, ok := mergedFields[field.Name]; ok {
+					orderedFields = append(orderedFields, merged)
+					delete(mergedFields, field.Name)
+				}
+			}
+			allFields = orderedFields
+
 			// 構造体を生成
 			// generate struct
 			structType := allFields.StructType()

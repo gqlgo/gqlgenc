@@ -1,0 +1,21 @@
+type Query {
+    search(query: String!): [SearchResult!]!
+}
+
+union SearchResult = Article | Video
+
+type Article {
+    id: ID!
+    title: String!
+    author: Author
+}
+
+type Video {
+    id: ID!
+    duration: Int!
+}
+
+type Author {
+    name: String!
+    bio: String
+}
