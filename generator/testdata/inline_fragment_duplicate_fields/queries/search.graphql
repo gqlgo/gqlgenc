@@ -1,0 +1,30 @@
+fragment ArticleFields on Article {
+    title
+    author {
+        bio
+    }
+}
+
+fragment VideoFields on Video {
+    duration
+}
+
+# インラインフラグメント内で、直接指定したフィールドとスプレッドのフィールドが重複する
+# （スカラーは重複排除、オブジェクトはマージ）
+query Search($query: String!) {
+    search(query: $query) {
+        __typename
+        ... on Article {
+            id
+            title
+            author {
+                name
+            }
+            ...ArticleFields
+        }
+        ... on Video {
+            duration
+            ...VideoFields
+        }
+    }
+}
