@@ -1,0 +1,33 @@
+# 同じフィールドを複数回選択しても 1 つにまとめる (GraphQL のフィールドマージ)
+# A field selected more than once is merged into one field, as GraphQL does.
+fragment PayloadFields on XXXPayload {
+    success
+    success
+    detail { code }
+    detail { note }
+}
+
+query InFragment {
+    payload {
+        ...PayloadFields
+    }
+}
+
+query InInlineFragment {
+    payload {
+        ... on XXXPayload {
+            success
+            success
+            message
+        }
+    }
+}
+
+query AtTopLevel {
+    payload {
+        success
+        success
+        message
+        message
+    }
+}
