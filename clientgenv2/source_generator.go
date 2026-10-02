@@ -249,11 +249,54 @@ func (r *SourceGenerator) NewResponseFields(selectionSet ast.SelectionSet, typeN
 	}
 
 	responseFields := make(ResponseFieldList, 0, len(selectionSet))
-	for _, selection := range selectionSet {
+	for _, selection := range mergeDuplicateFields(selectionSet) {
 		responseFields = append(responseFields, r.NewResponseField(selection, typeName))
 	}
 
 	return responseFields
+}
+
+// mergeDuplicateFields merges field selections that share a response key, as a
+// GraphQL server does when it collects fields.
+//
+// Arguments:
+//   - selectionSet: the selections of one object
+//
+// Returns:
+//   - ast.SelectionSet: the selections in their first-seen order, with the sub-selections
+//     of later duplicates appended to the first occurrence; fragment spreads and inline
+//     fragments are kept as they are
+//
+// Preconditions:
+//   - selectionSet has been validated, so duplicate keys refer to the same field
+//
+// Postconditions:
+//   - selectionSet itself is not modified; merged fields are copies
+func mergeDuplicateFields(selectionSet ast.SelectionSet) ast.SelectionSet {
+	merged := make(ast.SelectionSet, 0, len(selectionSet))
+	fieldByAlias := make(map[string]*ast.Field)
+
+	for _, selection := range selectionSet {
+		field, ok := selection.(*ast.Field)
+		if !ok {
+			merged = append(merged, selection)
+
+			continue
+		}
+
+		if first, seen := fieldByAlias[field.Alias]; seen {
+			first.SelectionSet = append(first.SelectionSet, field.SelectionSet...)
+
+			continue
+		}
+
+		copied := *field
+		copied.SelectionSet = append(ast.SelectionSet(nil), field.SelectionSet...)
+		fieldByAlias[field.Alias] = &copied
+		merged = append(merged, &copied)
+	}
+
+	return merged
 }
 
 // FieldNameCollisionError returns the response keys that collide once converted to Go identifiers.
