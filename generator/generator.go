@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
+	"os"
 	"slices"
 	"strings"
 	"syscall"
@@ -201,5 +204,43 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
+	// onlyUsedModels may empty the model build after gqlgen's empty-build
+	// guard, which still writes a package-clause-only models file. Drop that
+	// file so the output matches the "no models" case.
+	err = removePackageClauseOnlyModel(cfg)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// removePackageClauseOnlyModel deletes cfg.Model.Filename when it exists and
+// contains no declarations (package clause only), which happens when
+// onlyUsedModels filters away every model after gqlgen already decided to
+// render. Evicts the package from the gqlgen cache when present.
+func removePackageClauseOnlyModel(cfg *config.Config) error {
+	if !cfg.Model.IsDefined() {
+		return nil
+	}
+	if !isPackageClauseOnly(cfg.Model.Filename) {
+		return nil
+	}
+	err := os.Remove(cfg.Model.Filename)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove empty model file: %w", err)
+	}
+	if cfg.GQLConfig.Packages != nil {
+		cfg.GQLConfig.Packages.Evict(cfg.Model.ImportPath())
+	}
+	return nil
+}
+
+func isPackageClauseOnly(filename string) bool {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		return false
+	}
+	return len(f.Decls) == 0
 }
