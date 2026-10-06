@@ -111,8 +111,8 @@ func (t *Search_Search_Video) GetDuration() int {
 }
 
 type Search_Search struct {
-	Article  Search_Search_Article `graphql:"... on Article"`
-	Video    Search_Search_Video   `graphql:"... on Video"`
+	Article  Search_Search_Article `graphql:"... on Article" gqlgenc:"possibleTypes=Article"`
+	Video    Search_Search_Video   `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
 	Typename *string               `json:"__typename,omitempty" graphql:"__typename"`
 }
 
