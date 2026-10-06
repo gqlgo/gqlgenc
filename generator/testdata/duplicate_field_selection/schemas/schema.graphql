@@ -1,0 +1,14 @@
+type Query {
+    payload: XXXPayload
+}
+
+type XXXPayload {
+    success: Boolean!
+    message: String
+    detail: Detail
+}
+
+type Detail {
+    code: Int!
+    note: String
+}
