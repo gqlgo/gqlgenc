@@ -118,6 +118,20 @@ func TestLoadConfig(t *testing.T) {
 		require.True(t, *c.GQLConfig.EnableModelJsonOmitemptyTag)
 		require.True(t, *c.GQLConfig.EnableModelJsonOmitzeroTag)
 	})
+
+	t.Run("model omit tags split", func(t *testing.T) {
+		t.Parallel()
+
+		c, err := LoadConfig("testdata/cfg/model_omit_tags_split.yml")
+		require.NoError(t, err)
+
+		require.True(t, *c.Generate.EnableClientJsonOmitemptyTag)
+		require.False(t, *c.Generate.EnableModelJsonOmitemptyTag)
+		require.False(t, *c.Generate.EnableClientJsonOmitzeroTag)
+		require.True(t, *c.Generate.EnableModelJsonOmitzeroTag)
+		require.False(t, *c.GQLConfig.EnableModelJsonOmitemptyTag)
+		require.True(t, *c.GQLConfig.EnableModelJsonOmitzeroTag)
+	})
 }
 
 func TestLoadConfig_LoadSchema(t *testing.T) {

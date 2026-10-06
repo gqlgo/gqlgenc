@@ -126,6 +126,30 @@ gqlgenc -c clients/orders -c clients/products -c clients/customers
   a suffix (`FooBar0`) that a separate run would not add.
 - A config may bind the output of an earlier config in the same run.
 
+### Client-only configuration (all types autobound)
+
+`model:` is optional when every input, enum, and custom scalar used by the
+queries is bound with `autobind` or `models`. gqlgenc then writes only the
+client.
+
+```yaml
+client:
+  package: generated
+  filename: ./client_gen.go
+autobind:
+  - github.com/example/project/domain
+schema:
+  - "schema/**/*.graphql"
+query:
+  - "./query/*.graphql"
+```
+
+`enableModelJsonOmitemptyTag` and `enableModelJsonOmitzeroTag` override
+`enableClientJsonOmitemptyTag` and `enableClientJsonOmitzeroTag` for generated
+models. When a model key is omitted, it falls back to the matching client key
+(`omitempty` defaults to true and `omitzero` to false). Client struct tags
+always follow the client keys.
+
 ### With gqlgen
 
 Do this when creating a server and client for Go.

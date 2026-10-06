@@ -1,0 +1,5 @@
+query GetExtra($filter: ExtraFilter!) {
+  extra(filter: $filter) {
+    id
+  }
+}
