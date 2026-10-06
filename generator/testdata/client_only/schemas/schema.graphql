@@ -1,0 +1,14 @@
+enum Status {
+  OPEN
+  CLOSED
+}
+
+type Item {
+  id: ID!
+  status: Status!
+  name: String!
+}
+
+type Query {
+  item: Item
+}

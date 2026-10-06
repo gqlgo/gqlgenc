@@ -1,0 +1,7 @@
+query GetItem {
+  item {
+    id
+    status
+    name
+  }
+}

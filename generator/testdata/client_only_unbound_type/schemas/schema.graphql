@@ -1,0 +1,11 @@
+input ExtraFilter {
+  id: ID
+}
+
+type Extra {
+  id: ID!
+}
+
+type Query {
+  extra(filter: ExtraFilter!): Extra
+}

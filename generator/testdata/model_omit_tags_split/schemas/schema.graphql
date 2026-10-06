@@ -1,0 +1,14 @@
+directive @dummy_custom(value: String!) on FIELD
+directive @dummy_int(min: Int, max: Int) on FIELD
+
+type Query {
+    user(id: ID!): User!
+}
+
+type User {
+    id: ID!
+    name: String!
+    email: String
+    age: Int
+    bio: String
+}
