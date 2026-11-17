@@ -61,9 +61,6 @@ type outputBackup struct {
 	path    string
 	bakPath string
 	hadFile bool
-	// discard drops the backup without restoring its bytes. Set when success
-	// left no file at the output path.
-	discard bool
 	// settled is set once the backup has been committed or restored, so a
 	// later restore does not undo that result.
 	settled bool
@@ -252,12 +249,17 @@ func Generate(ctx context.Context, cfg *config.Config) (err error) {
 //
 // Postconditions:
 //   - on success, each defined output that existed now exists only at its backup path
-//   - a defined output that did not exist is unchanged, and a stale backup of it is gone
+//   - a defined output that did not exist is unchanged, and a backup of it left
+//     by an interrupted run is kept as its previous output
 func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 	pkgs := []gqlgenconfig.PackageConfig{cfg.Client, cfg.Model}
 	backups := make([]*outputBackup, 0, len(pkgs))
 
 	for _, pkg := range pkgs {
+		if !pkg.IsDefined() {
+			continue
+		}
+
 		backup, err := backupOutput(cfg, pkg)
 		if err != nil {
 			restoreErr := restoreOutputBackups(backups)
@@ -268,9 +270,7 @@ func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 			return nil, err
 		}
 
-		if backup != nil {
-			backups = append(backups, backup)
-		}
+		backups = append(backups, backup)
 	}
 
 	return backups, nil
@@ -280,24 +280,24 @@ func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 //
 // Arguments:
 //   - cfg: the config being generated; its GQLConfig.Packages may be nil
-//   - pkg: the output package; ignored when not defined
+//   - pkg: the output package
 //
 // Returns:
-//   - *outputBackup: nil when pkg is not defined
-//   - error: non-nil when a stale backup cannot be removed or the rename fails
-//     for a reason other than the output not existing
+//   - *outputBackup: the backup of pkg.Filename, non-nil when error is nil
+//   - error: non-nil when the rename fails for a reason other than the output
+//     not existing, or a leftover backup cannot be checked
 //
 // Preconditions:
+//   - pkg is defined
 //   - the working directory is the one pkg.Filename is relative to
 //
 // Postconditions:
 //   - when the cache exists, the import path of pkg's directory is not in it
-//   - when the output existed, it now exists only at the backup path
+//   - when the output existed, it now exists only at the backup path,
+//     replacing any backup left by an interrupted run
+//   - when the output was missing and a backup was left by an interrupted
+//     run, that backup is kept and treated as the previous output
 func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBackup, error) {
-	if !pkg.IsDefined() {
-		return nil, nil
-	}
-
 	if cfg.GQLConfig.Packages != nil {
 		cfg.GQLConfig.Packages.Evict(pkg.ImportPath())
 	}
@@ -307,21 +307,30 @@ func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBa
 		bakPath: pkg.Filename + outputBackupSuffix,
 	}
 
-	err := os.Remove(backup.bakPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("remove stale output backup: %w", err)
+	// Rename replaces a .bak left by an interrupted run when the output exists.
+	err := os.Rename(backup.path, backup.bakPath)
+	if err == nil {
+		backup.hadFile = true
+
+		return backup, nil
 	}
 
-	err = os.Rename(backup.path, backup.bakPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return backup, nil
-		}
-
+	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("backup output: %w", err)
 	}
 
-	backup.hadFile = true
+	// The output is missing. A .bak left by an interrupted run is then the only
+	// copy of the previous output, so adopt it instead of deleting it.
+	_, err = os.Stat(backup.bakPath)
+	if err == nil {
+		backup.hadFile = true
+
+		return backup, nil
+	}
+
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("stat output backup: %w", err)
+	}
 
 	return backup, nil
 }
@@ -361,17 +370,6 @@ func (b *outputBackup) restore() error {
 		return nil
 	}
 
-	if b.discard {
-		err := os.Remove(b.bakPath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove output backup: %w", err)
-		}
-
-		b.settled = true
-
-		return nil
-	}
-
 	if !b.hadFile {
 		err := os.Remove(b.path)
 		if err != nil && !os.IsNotExist(err) {
@@ -398,11 +396,7 @@ func (b *outputBackup) restore() error {
 		return fmt.Errorf("stat output backup: %w", err)
 	}
 
-	err = os.Remove(b.path)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove partial output: %w", err)
-	}
-
+	// Rename replaces a partially written output.
 	err = os.Rename(b.bakPath, b.path)
 	if err != nil {
 		return fmt.Errorf("restore output: %w", err)
@@ -453,10 +447,8 @@ func (b *outputBackup) commit() error {
 			return fmt.Errorf("stat generated output: %w", err)
 		}
 
-		// The empty-model deletion left no file. Drop the backup and do not
-		// restore the previous bytes.
-		b.discard = true
-
+		// The empty-model deletion left no file. Drop the backup. When that
+		// fails the backup stays unsettled and restore puts it back.
 		err = os.Remove(b.bakPath)
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove output backup: %w", err)
@@ -478,11 +470,7 @@ func (b *outputBackup) commit() error {
 	}
 
 	if bytes.Equal(newBytes, oldBytes) {
-		err = os.Remove(b.path)
-		if err != nil {
-			return fmt.Errorf("replace unchanged output: %w", err)
-		}
-
+		// Rename replaces the generated copy, keeping the previous mtime.
 		err = os.Rename(b.bakPath, b.path)
 		if err != nil {
 			return fmt.Errorf("restore unchanged output: %w", err)
@@ -528,7 +516,7 @@ func checkClientTypesBound(cfg *config.Config, docs []*ast.QueryDocument) error 
 		}
 
 		op := doc.Operations[0]
-		for _, name := range typesUsedByOperation(cfg.GQLConfig.Schema, op) {
+		for _, name := range typesUsedByOperation(op) {
 			if bound[name] {
 				continue
 			}
@@ -558,13 +546,12 @@ func unboundTypeError(typeName, opName string) error {
 }
 
 // typesUsedByOperation returns the type names SourceGenerator.Type looks up
-// for op, in the order they are encountered: variable and nested input types
-// first (as CollectTypesFromQueryDocuments collects them), then the element
-// type of every selected field with an empty selection set, which includes a
-// custom scalar used only as a leaf.
+// for op, in the order they are encountered: the named type of each variable
+// first (OperationArguments looks up only that, never nested input fields),
+// then the element type of every selected field with an empty selection set,
+// which includes an enum or custom scalar used only as a leaf.
 //
 // Arguments:
-//   - schema: the loaded schema
 //   - op: one operation
 //
 // Returns:
@@ -575,7 +562,7 @@ func unboundTypeError(typeName, opName string) error {
 //
 // Postconditions:
 //   - none
-func typesUsedByOperation(schema *ast.Schema, op *ast.OperationDefinition) []string {
+func typesUsedByOperation(op *ast.OperationDefinition) []string {
 	var names []string
 
 	seen := map[string]bool{}
@@ -588,41 +575,10 @@ func typesUsedByOperation(schema *ast.Schema, op *ast.OperationDefinition) []str
 		names = append(names, name)
 	}
 
-	processed := map[string]bool{}
-
-	var walkInput func(def *ast.Definition)
-	walkInput = func(def *ast.Definition) {
-		if def == nil || processed[def.Name] {
-			return
-		}
-
-		processed[def.Name] = true
-		add(def.Name)
-
-		for _, field := range def.Fields {
-			if field.Type == nil {
-				continue
-			}
-
-			typeName := field.Type.Name()
-			add(typeName)
-
-			if fieldDef, ok := schema.Types[typeName]; ok && fieldDef.IsInputType() {
-				walkInput(fieldDef)
-			}
-		}
-	}
-
+	// OperationArguments looks up only the named type of each variable.
 	for _, v := range op.VariableDefinitions {
-		addTypeReference(v.Type, add)
-
-		if v.Type == nil {
-			continue
-		}
-
-		typeName := v.Type.Name()
-		if def, ok := schema.Types[typeName]; ok && def.IsInputType() {
-			walkInput(def)
+		if v.Type != nil {
+			add(v.Type.Name())
 		}
 	}
 
@@ -632,13 +588,9 @@ func typesUsedByOperation(schema *ast.Schema, op *ast.OperationDefinition) []str
 			switch s := sel.(type) {
 			case *ast.Field:
 				if s.Definition != nil && s.Definition.Type != nil {
-					typeName := s.Definition.Type.Name()
-					if def, ok := schema.Types[typeName]; ok && def.Kind == ast.Enum {
-						add(typeName)
-					}
-
+					// A leaf, which includes every enum and custom scalar field.
 					if len(s.SelectionSet) == 0 {
-						add(typeName)
+						add(s.Definition.Type.Name())
 					}
 				}
 
@@ -656,20 +608,6 @@ func typesUsedByOperation(schema *ast.Schema, op *ast.OperationDefinition) []str
 	walkSelection(op.SelectionSet)
 
 	return names
-}
-
-// addTypeReference adds every named type in t, matching
-// querydocument.collectTypeFromTypeReference.
-func addTypeReference(t *ast.Type, add func(string)) {
-	if t == nil {
-		return
-	}
-
-	if t.NamedType != "" {
-		add(t.NamedType)
-	}
-
-	addTypeReference(t.Elem, add)
 }
 
 // removePackageClauseOnlyModel deletes cfg.Model.Filename when it exists and

@@ -41,6 +41,7 @@ var nonGoldenFixtures = map[string]bool{
 	"multi_config":             true,
 	"field_name_collision":     true, // expects an error; see TestGenerator_fieldNameCollision
 	"client_only_unbound_type": true, // expects an error; see TestGenerator_clientOnlyUnboundType
+	"client_only_nested_input": true, // see TestGenerator_clientOnlyNestedInputPartlyBound
 }
 
 func (s *Suite) TestGenerator_withTestData() {
@@ -165,32 +166,10 @@ func (s *Suite) TestGenerator_clientOnlyUnboundType() {
 // again keeps the previous bytes and mtimes, and that a later query error
 // puts those files back without leaving a backup behind.
 func (s *Suite) TestGenerator_preservesOutput() {
-	// A system temp dir is outside this module, so gqlgen cannot resolve the
-	// packages it binds. Keep the throwaway copy under testdata, which the go
-	// tool ignores, and remove it when the test ends.
-	dir, err := os.MkdirTemp(filepath.Join("testdata"), "preserve_output_")
-	s.Require().NoError(err)
-	dir, err = filepath.Abs(dir)
-	s.Require().NoError(err)
-	s.T().Cleanup(func() { _ = os.RemoveAll(dir) })
+	dir := s.copyFixture("multiple_queries")
 
-	s.Require().NoError(copyDir(filepath.Join("testdata", "multiple_queries"), dir))
-	s.T().Chdir(dir)
-
-	// Each run loads its own config, as a separate gqlgenc invocation does.
-	// Reusing one Config keeps the operation names the client plugin records
-	// in Models, and the next run reports them as duplicates.
-	load := func() *config.Config {
-		s.T().Helper()
-
-		cfg, err := config.LoadConfig("./gqlgenc.yml")
-		s.Require().NoError(err)
-
-		cfg.GQLConfig.SkipValidation = true
-		cfg.GQLConfig.SkipModTidy = true
-
-		return cfg
-	}
+	// Each run loads its own config; see loadConfig.
+	load := func() *config.Config { return loadConfig(s) }
 
 	cfg := load()
 	s.Require().NoError(generator.Generate(context.Background(), cfg))
@@ -217,13 +196,138 @@ func (s *Suite) TestGenerator_preservesOutput() {
 
 	s.Require().NoError(os.WriteFile(filepath.Join("queries", "user.graphql"), []byte("query GetUser {\n"), 0o644))
 
-	err = generator.Generate(context.Background(), load())
+	err := generator.Generate(context.Background(), load())
 	s.Require().Error(err)
 	s.Require().ErrorContains(err, "user.graphql")
 
 	s.Equal(clientBefore, s.readFile(clientPath))
 	s.Equal(modelBefore, s.readFile(modelPath))
 	s.Require().NoError(assertNoOutputBackup(dir))
+}
+
+// TestGenerator_clientOnlyNestedInputPartlyBound verifies that a client-only
+// config generates when `models:` binds a variable's input type but not the
+// input types nested inside it, which the client never looks up.
+func (s *Suite) TestGenerator_clientOnlyNestedInputPartlyBound() {
+	s.useDirForTest(filepath.Join("testdata", "client_only_nested_input"))
+
+	cfg, err := config.LoadConfig("./gqlgenc.yml")
+	s.Require().NoError(err)
+
+	cfg.GQLConfig.SkipValidation = true
+	cfg.GQLConfig.SkipModTidy = true
+
+	s.Require().NoError(generator.Generate(context.Background(), cfg))
+	s.Contains(s.readFile(filepath.Join("actual", "client_gen.go")), "ListItems")
+	s.Require().NoError(assertNoOutputBackup("."))
+}
+
+// TestGenerator_emptyModelsRemovesPreviousOutput verifies that a models_gen.go
+// left by an earlier run is removed, with its backup, when onlyUsedModels
+// leaves no model to generate.
+func (s *Suite) TestGenerator_emptyModelsRemovesPreviousOutput() {
+	dir := s.copyFixture("only_used_models_empty")
+
+	cfg := loadConfig(s)
+	modelPath := cfg.Model.Filename
+	s.Require().NoError(os.MkdirAll(filepath.Dir(modelPath), 0o755))
+	s.Require().NoError(os.WriteFile(modelPath, []byte("package generated\n\ntype Unused struct {\n\tX string\n}\n"), 0o644))
+
+	s.Require().NoError(generator.Generate(context.Background(), cfg))
+
+	_, err := os.Stat(modelPath)
+	s.Require().ErrorIs(err, os.ErrNotExist)
+	s.FileExists(cfg.Client.Filename)
+	s.Require().NoError(assertNoOutputBackup(dir))
+}
+
+// TestGenerator_restoresLeftoverBackup verifies that when an interrupted run
+// left only the .gqlgenc.bak of an output, a failing run puts it back, and a
+// later successful run leaves no backup.
+func (s *Suite) TestGenerator_restoresLeftoverBackup() {
+	dir := s.copyFixture("multiple_queries")
+
+	cfg := loadConfig(s)
+	s.Require().NoError(generator.Generate(context.Background(), cfg))
+
+	clientPath := cfg.Client.Filename
+	bakPath := clientPath + ".gqlgenc.bak"
+	clientBefore := s.readFile(clientPath)
+
+	queryPath := filepath.Join("queries", "user.graphql")
+	queryBefore := s.readFile(queryPath)
+
+	// The state an interrupted run leaves: no output, only its backup.
+	s.Require().NoError(os.Rename(clientPath, bakPath))
+	s.Require().NoError(os.WriteFile(queryPath, []byte("query GetUser {\n"), 0o644))
+
+	err := generator.Generate(context.Background(), loadConfig(s))
+	s.Require().Error(err)
+	s.Require().ErrorContains(err, "user.graphql")
+
+	s.Equal(clientBefore, s.readFile(clientPath))
+	s.Require().NoError(assertNoOutputBackup(dir))
+
+	s.Require().NoError(os.Rename(clientPath, bakPath))
+	s.Require().NoError(os.WriteFile(queryPath, []byte(queryBefore), 0o644))
+
+	s.Require().NoError(generator.Generate(context.Background(), loadConfig(s)))
+
+	s.Equal(clientBefore, s.readFile(clientPath))
+	s.Require().NoError(assertNoOutputBackup(dir))
+}
+
+// TestGenerator_fieldNameCollision verifies that two response keys that map to the
+// same Go identifier are reported as an error instead of panicking (#108).
+func (s *Suite) TestGenerator_fieldNameCollision() {
+	s.useDirForTest(filepath.Join("testdata", "field_name_collision"))
+
+	cfg, err := config.LoadConfig("./gqlgenc.yml")
+	s.Require().NoError(err)
+
+	cfg.GQLConfig.SkipValidation = true
+	cfg.GQLConfig.SkipModTidy = true
+
+	s.Require().NotPanics(func() {
+		err = generator.Generate(context.Background(), cfg)
+	})
+	s.Require().ErrorContains(err, "foo_bar")
+	s.Require().ErrorContains(err, "fooBar")
+	s.Require().ErrorContains(err, "FooBar")
+}
+
+// copyFixture copies testdata/name into a throwaway directory under testdata,
+// changes into it for the rest of the test, and returns its absolute path.
+// A system temp dir is outside this module, so gqlgen could not resolve the
+// packages it binds; the go tool ignores testdata.
+func (s *Suite) copyFixture(name string) string {
+	s.T().Helper()
+
+	dir, err := os.MkdirTemp(filepath.Join("testdata"), "preserve_output_")
+	s.Require().NoError(err)
+	dir, err = filepath.Abs(dir)
+	s.Require().NoError(err)
+	s.T().Cleanup(func() { _ = os.RemoveAll(dir) })
+
+	s.Require().NoError(copyDir(filepath.Join("testdata", name), dir))
+	s.T().Chdir(dir)
+
+	return dir
+}
+
+// loadConfig loads ./gqlgenc.yml as a separate gqlgenc invocation does.
+// Reusing one Config keeps the operation names the client plugin records in
+// Models, and the next run reports them as duplicates.
+func loadConfig(s *Suite) *config.Config {
+	s.T().Helper()
+
+	cfg, err := config.LoadConfig("./gqlgenc.yml")
+	s.Require().NoError(err)
+
+	cfg.GQLConfig.SkipValidation = true
+	cfg.GQLConfig.SkipModTidy = true
+
+	return cfg
 }
 
 func (s *Suite) readFile(path string) string {
@@ -277,7 +381,8 @@ func copyFile(src, dst string, mode os.FileMode) error {
 
 	defer in.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	err = os.MkdirAll(filepath.Dir(dst), 0o755)
+	if err != nil {
 		return err
 	}
 
@@ -308,25 +413,6 @@ func assertNoOutputBackup(root string) error {
 
 		return nil
 	})
-}
-
-// TestGenerator_fieldNameCollision verifies that two response keys that map to the
-// same Go identifier are reported as an error instead of panicking (#108).
-func (s *Suite) TestGenerator_fieldNameCollision() {
-	s.useDirForTest(filepath.Join("testdata", "field_name_collision"))
-
-	cfg, err := config.LoadConfig("./gqlgenc.yml")
-	s.Require().NoError(err)
-
-	cfg.GQLConfig.SkipValidation = true
-	cfg.GQLConfig.SkipModTidy = true
-
-	s.Require().NotPanics(func() {
-		err = generator.Generate(context.Background(), cfg)
-	})
-	s.Require().ErrorContains(err, "foo_bar")
-	s.Require().ErrorContains(err, "fooBar")
-	s.Require().ErrorContains(err, "FooBar")
 }
 
 // useDirForTest removes the actual output of a previous run and changes the

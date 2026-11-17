@@ -1,0 +1,5 @@
+query ListItems($filter: Outer) {
+  items(filter: $filter) {
+    id
+  }
+}
