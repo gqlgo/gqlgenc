@@ -22,6 +22,12 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 		ClientPackageName: client.Package,
 	}
 
+	// structDef spells field types with gqlgen's ref, not LookupType, because ref also writes interface{} as any.
+	ref, ok := templates.Funcs()["ref"].(func(types.Type) string)
+	if !ok {
+		return fmt.Errorf("%s generating failed: gqlgen's ref template func has an unexpected type", client.Filename)
+	}
+
 	err := templates.Render(templates.Options{
 		PackageName: client.Package,
 		Filename:    client.Filename,
@@ -40,7 +46,7 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 			"genGetters":           genGettersGenerator.GenFunc(),
 			"genConversionGetters": genGettersGenerator.ConversionGettersFunc(fragments),
 			"structDef": func(t types.Type) string {
-				return structDef(t, templates.CurrentImports.LookupType)
+				return structDef(t, ref)
 			},
 		},
 	})
@@ -51,10 +57,24 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 	return nil
 }
 
-// structDef renders t like the `ref` template func, except that struct types are
-// written field by field so that tags come out as raw string literals
-// (`json:"id"`) instead of the escaped form go/types prints ("json:\"id\"").
-// A tag that itself contains a backtick keeps the quoted form.
+// structDef renders the Go type of a generated type declaration.
+//
+// Arguments:
+//   - t: the type to render
+//   - lookupType: renders a type that is not a struct, and each field type of
+//     a struct; the template passes the `ref` template func
+//
+// Returns:
+//   - string: the Go type expression; for a struct, written field by field so
+//     that tags come out as raw string literals (`json:"id"`) instead of the
+//     escaped form go/types prints ("json:\"id\"")
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - field types are spelled exactly as lookupType spells them
+//   - a tag that itself contains a backtick keeps the quoted form
 func structDef(t types.Type, lookupType func(types.Type) string) string {
 	st, ok := t.(*types.Struct)
 	if !ok {
