@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -96,6 +97,37 @@ type valueStack struct {
 	// fragType is "TypeName" for stacks created from "... on TypeName" inline
 	// fragments, otherwise "".
 	fragType string
+
+	// possibleTypes are the object types that satisfy the type condition of the inline
+	// fragment, from its gqlgenc:"possibleTypes=..." tag. nil when the tag is absent.
+	possibleTypes []string
+}
+
+// appliesTo reports whether the inline fragment the stack was created from applies to
+// an object whose __typename is typename.
+//
+// Arguments:
+//   - typename: the __typename of the object being decoded
+//
+// Returns:
+//   - bool: true for stacks not created from a typed inline fragment; otherwise whether
+//     typename is one of the possible types, or equals the type condition when the
+//     fragment has no possibleTypes tag
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the stack is unchanged
+func (s valueStack) appliesTo(typename string) bool {
+	switch {
+	case s.possibleTypes != nil:
+		return slices.Contains(s.possibleTypes, typename)
+	case s.fragType != "":
+		return s.fragType == typename
+	default:
+		return true
+	}
 }
 
 // top returns the value on top of the stack, where the next JSON value goes.
@@ -261,7 +293,8 @@ func wrapReadError(err error) error {
 //   - key: the object key just read
 //
 // Returns:
-//   - json.Token: the value of the key; a whole value for json.RawMessage and map[string]any fields
+//   - json.Token: the value of the key; a whole value for json.RawMessage and map[string]any
+//     fields, and for a key only inline fragments ruled out by __typename have
 //   - error: non-nil if no stack has a matching field or the value cannot be read
 //
 // Preconditions:
@@ -293,13 +326,20 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 		}
 	}
 
-	matchingFieldValue := d.pushField(key)
-	if matchingFieldValue == nil {
+	matchingFieldValue, ruledOutFieldExists := d.pushField(key)
+	if matchingFieldValue == nil && !ruledOutFieldExists {
 		return nil, fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.stacks))
 	}
 
 	if earlyRead {
 		return earlyReadTok, nil
+	}
+
+	if matchingFieldValue == nil {
+		// Only inline fragments that __typename rules out have the field, e.g. an interface
+		// the client schema does not know the type implements. Every stack has an invalid
+		// value on top, so the whole value is read and dropped.
+		return d.readRawValue()
 	}
 
 	return d.readValue(*matchingFieldValue)
@@ -312,29 +352,38 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 //
 // Returns:
 //   - *reflect.Value: the last stack's matching field, or nil if no stack has one
+//   - bool: whether an inline fragment ruled out by __typename has the field
 //
 // Preconditions:
 //   - none
 //
 // Postconditions:
-//   - stacks without a matching field get an invalid value pushed instead
+//   - stacks without a matching field, and inline fragments ruled out by __typename,
+//     get an invalid value pushed instead
 //   - a nil pointer to a struct that has the field is allocated first, unless a
 //     __typename rules out the inline fragment
-func (d *Decoder) pushField(key string) *reflect.Value {
+func (d *Decoder) pushField(key string) (*reflect.Value, bool) {
 	// The last matching one is the one considered
-	var matchingFieldValue *reflect.Value
+	var (
+		matchingFieldValue  *reflect.Value
+		ruledOutFieldExists bool
+	)
 
 	for i := range d.stacks {
 		v := d.stacks[i].top()
+
+		if d.isRuledOut(i) {
+			ruledOutFieldExists = ruledOutFieldExists || hasGraphQLField(v.Type(), key)
+			d.stacks[i].values = append(d.stacks[i].values, reflect.Value{})
+
+			continue
+		}
+
 		// If v is a nil pointer, check whether the key exists in the pointed-to
 		// type before initializing — preserves nil for non-matching union variants.
-		// When a __typename was seen, also require the fragment type to match.
-		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() {
-			if elemType := v.Type().Elem(); elemType.Kind() == reflect.Struct {
-				if fieldByGraphQLName(reflect.New(elemType).Elem(), key).IsValid() && d.shouldInitFragPtr(i) {
-					v.Set(reflect.New(elemType))
-				}
-			}
+		// When a __typename was seen, also require the inline fragment to apply to it.
+		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() && hasGraphQLField(v.Type(), key) && d.shouldInitFragPtr(i) {
+			v.Set(reflect.New(v.Type().Elem()))
 		}
 
 		if v.Kind() == reflect.Pointer {
@@ -352,7 +401,7 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 		d.stacks[i].values = append(d.stacks[i].values, f)
 	}
 
-	return matchingFieldValue
+	return matchingFieldValue, ruledOutFieldExists
 }
 
 // readValue reads the JSON value for field.
@@ -372,14 +421,7 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 func (d *Decoder) readValue(field reflect.Value) (json.Token, error) {
 	switch field.Type() {
 	case reflect.TypeFor[json.RawMessage]():
-		var data json.RawMessage
-
-		err := d.jsonDecoder.Decode(&data)
-		if err != nil {
-			return nil, wrapReadError(err)
-		}
-
-		return data, nil
+		return d.readRawValue()
 	case reflect.TypeFor[map[string]any]():
 		var data map[string]any
 
@@ -392,6 +434,31 @@ func (d *Decoder) readValue(field reflect.Value) (json.Token, error) {
 	default:
 		return d.readToken()
 	}
+}
+
+// readRawValue reads a whole JSON value without decoding it.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - json.Token: the value as a json.RawMessage
+//   - error: non-nil if the input ends or is malformed
+//
+// Preconditions:
+//   - the tokenizer is positioned at the value
+//
+// Postconditions:
+//   - the tokenizer is positioned after the value
+func (d *Decoder) readRawValue() (json.Token, error) {
+	var data json.RawMessage
+
+	err := d.jsonDecoder.Decode(&data)
+	if err != nil {
+		return nil, wrapReadError(err)
+	}
+
+	return data, nil
 }
 
 // pushArrayElement appends a zero element to the slice on top of every stack and pushes it.
@@ -540,6 +607,7 @@ func (d *Decoder) assignScalar(tok json.Token) error {
 //
 // Postconditions:
 //   - the parse state and the stacks reflect the opened or closed value
+//   - on '}', inline fragments of the object ruled out by its __typename are reset
 func (d *Decoder) handleDelim(tok json.Delim) error {
 	switch tok {
 	case '{':
@@ -549,6 +617,7 @@ func (d *Decoder) handleDelim(tok json.Delim) error {
 	case '}', ']':
 		// End of object or array.
 		if tok == '}' {
+			d.resetRuledOutFragments()
 			delete(d.typenameByDepth, d.objectDepth())
 		}
 
@@ -607,8 +676,9 @@ func (d *Decoder) openObject() {
 			if isGraphQLFragment(field) || field.Anonymous {
 				// Add GraphQL fragment or embedded struct.
 				d.stacks = append(d.stacks, valueStack{
-					values:   []reflect.Value{v.Field(i)},
-					fragType: inlineFragmentType(field),
+					values:        []reflect.Value{v.Field(i)},
+					fragType:      inlineFragmentType(field),
+					possibleTypes: possibleTypesOf(field),
 				})
 				frontier = append(frontier, v.Field(i))
 			}
@@ -703,6 +773,32 @@ func fieldByGraphQLName(v reflect.Value, name string) reflect.Value {
 	return reflect.Value{}
 }
 
+// hasGraphQLField reports whether a struct type has an exported field with a GraphQL name.
+//
+// Arguments:
+//   - t: a struct type, or a pointer to one
+//   - name: the GraphQL name of the field
+//
+// Returns:
+//   - bool: whether the struct has the field; false when t is neither a struct nor a pointer to one
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func hasGraphQLField(t reflect.Type, name string) bool {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+
+	return fieldByGraphQLName(reflect.New(t).Elem(), name).IsValid()
+}
+
 // hasGraphQLName reports whether struct field f has GraphQL name.
 func hasGraphQLName(f reflect.StructField, name string) bool {
 	value, ok := f.Tag.Lookup("graphql")
@@ -771,22 +867,88 @@ func (d *Decoder) objectDepth() int {
 	return count
 }
 
-// shouldInitFragPtr reports whether the nil pointer at stack index i should be
-// initialized. When a __typename has been observed for the current object depth,
-// only the inline fragment stack whose type matches that typename is initialized;
-// all others are skipped. Non-fragment stacks are always initialized.
+// shouldInitFragPtr reports whether the nil pointer on top of a stack should be initialized.
+//
+// Arguments:
+//   - i: the index of the stack
+//
+// Returns:
+//   - bool: true when no __typename has been read for the current object depth, or the
+//     stack is not an inline fragment; otherwise whether the inline fragment applies to
+//     that __typename
+//
+// Preconditions:
+//   - 0 <= i < len(d.stacks)
+//
+// Postconditions:
+//   - none
 func (d *Decoder) shouldInitFragPtr(i int) bool {
-	fragType := d.stacks[i].fragType
-	if fragType == "" {
-		return true // not a typed inline fragment
-	}
-
 	typename, ok := d.typenameByDepth[d.objectDepth()]
 	if !ok {
 		return true // no __typename seen yet, fall back to field-presence check
 	}
 
-	return fragType == typename
+	return d.stacks[i].appliesTo(typename)
+}
+
+// isRuledOut reports whether the __typename of the object being decoded rules out the
+// inline fragment a stack was created from.
+//
+// Only inline fragments with a gqlgenc:"possibleTypes=..." tag are ruled out. Fragments
+// without it, generated by older versions or written by hand, keep receiving every field
+// they have; only their nil pointers are held back by shouldInitFragPtr.
+//
+// Arguments:
+//   - i: the index of the stack
+//
+// Returns:
+//   - bool: true if the fragment has a possibleTypes tag, the stack is at the object the
+//     fragment was found in, and the __typename of that object has been read and is not
+//     one of the possible types
+//
+// Preconditions:
+//   - 0 <= i < len(d.stacks)
+//
+// Postconditions:
+//   - none
+func (d *Decoder) isRuledOut(i int) bool {
+	stack := d.stacks[i]
+	// The stack holds only the fragment itself while the keys of the object the fragment
+	// was found in are decoded; deeper entries are fields of the fragment.
+	if stack.possibleTypes == nil || len(stack.values) != 1 {
+		return false
+	}
+
+	typename, ok := d.typenameByDepth[d.objectDepth()]
+
+	return ok && !stack.appliesTo(typename)
+}
+
+// resetRuledOutFragments resets the inline fragments that the __typename of the object
+// being closed rules out, discarding the fields decoded before __typename was read.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - the tokenizer just returned the '}' of the object; d.parseState still includes it
+//
+// Postconditions:
+//   - each ruled out fragment is set to its zero value: nil for a pointer
+func (d *Decoder) resetRuledOutFragments() {
+	for i := range d.stacks {
+		if !d.isRuledOut(i) {
+			continue
+		}
+
+		fragment := d.stacks[i].top()
+		if fragment.CanSet() {
+			fragment.Set(reflect.Zero(fragment.Type()))
+		}
+	}
 }
 
 // inlineFragmentType returns the concrete type name from a "... on TypeName" graphql
@@ -805,4 +967,32 @@ func inlineFragmentType(f reflect.StructField) string {
 	}
 
 	return strings.TrimSpace(strings.TrimPrefix(value, prefix))
+}
+
+// possibleTypesOf returns the object types listed in the possibleTypes tag of an inline fragment.
+//
+// Arguments:
+//   - f: a struct field, e.g. tagged `graphql:"... on Node" gqlgenc:"possibleTypes=Image,Video"`
+//
+// Returns:
+//   - []string: the comma-separated type names after "possibleTypes=", or nil if f has no
+//     gqlgenc tag starting with it
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func possibleTypesOf(f reflect.StructField) []string {
+	value, ok := f.Tag.Lookup("gqlgenc")
+	if !ok {
+		return nil
+	}
+
+	typeNames, ok := strings.CutPrefix(strings.TrimSpace(value), "possibleTypes=")
+	if !ok {
+		return nil
+	}
+
+	return strings.Split(typeNames, ",")
 }
