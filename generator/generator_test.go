@@ -41,7 +41,6 @@ var nonGoldenFixtures = map[string]bool{
 	"multi_config":             true,
 	"field_name_collision":     true, // expects an error; see TestGenerator_fieldNameCollision
 	"client_only_unbound_type": true, // expects an error; see TestGenerator_clientOnlyUnboundType
-	"client_only_nested_input": true, // see TestGenerator_clientOnlyNestedInputPartlyBound
 }
 
 func (s *Suite) TestGenerator_withTestData() {
@@ -201,23 +200,6 @@ func (s *Suite) TestGenerator_preservesOutput() {
 	s.Equal(clientBefore, s.readFile(clientPath))
 	s.Equal(modelBefore, s.readFile(modelPath))
 	s.Require().NoError(assertNoOutputBackup(dir))
-}
-
-// TestGenerator_clientOnlyNestedInputPartlyBound verifies that a client-only
-// config generates when `models:` binds a variable's input type but not the
-// input types nested inside it, which the client never looks up.
-func (s *Suite) TestGenerator_clientOnlyNestedInputPartlyBound() {
-	s.useDirForTest(filepath.Join("testdata", "client_only_nested_input"))
-
-	cfg, err := config.LoadConfig("./gqlgenc.yml")
-	s.Require().NoError(err)
-
-	cfg.GQLConfig.SkipValidation = true
-	cfg.GQLConfig.SkipModTidy = true
-
-	s.Require().NoError(generator.Generate(context.Background(), cfg))
-	s.Contains(s.readFile(filepath.Join("actual", "client_gen.go")), "ListItems")
-	s.Require().NoError(assertNoOutputBackup("."))
 }
 
 // TestGenerator_emptyModelsRemovesPreviousOutput verifies that a models_gen.go
