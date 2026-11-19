@@ -301,7 +301,7 @@ func (s *Suite) TestGenerator_fieldNameCollision() {
 func (s *Suite) copyFixture(name string) string {
 	s.T().Helper()
 
-	dir, err := os.MkdirTemp(filepath.Join("testdata"), "preserve_output_")
+	dir, err := os.MkdirTemp(filepath.Join("testdata"), "fixture_copy_")
 	s.Require().NoError(err)
 	dir, err = filepath.Abs(dir)
 	s.Require().NoError(err)
@@ -464,8 +464,8 @@ func (s *Suite) getTestDirs() []string {
 
 		// fixtures of other tests have no config at their root; every other
 		// directory must be a golden fixture, so a misnamed one fails loudly.
-		// preserve_output_* is the throwaway copy from TestGenerator_preservesOutput.
-		if nonGoldenFixtures[dir.Name()] || strings.HasPrefix(dir.Name(), "preserve_output_") {
+		// fixture_copy_* is the throwaway copy made by copyFixture.
+		if nonGoldenFixtures[dir.Name()] || strings.HasPrefix(dir.Name(), "fixture_copy_") {
 			continue
 		}
 
