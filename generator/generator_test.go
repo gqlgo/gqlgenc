@@ -169,9 +169,7 @@ func (s *Suite) TestGenerator_preservesOutput() {
 	dir := s.copyFixture("multiple_queries")
 
 	// Each run loads its own config; see loadConfig.
-	load := func() *config.Config { return loadConfig(s) }
-
-	cfg := load()
+	cfg := s.loadConfig()
 	s.Require().NoError(generator.Generate(context.Background(), cfg))
 
 	clientPath := cfg.Client.Filename
@@ -186,7 +184,7 @@ func (s *Suite) TestGenerator_preservesOutput() {
 	clientMtime := s.modTime(clientPath)
 	modelMtime := s.modTime(modelPath)
 
-	s.Require().NoError(generator.Generate(context.Background(), load()))
+	s.Require().NoError(generator.Generate(context.Background(), s.loadConfig()))
 
 	s.Equal(clientBefore, s.readFile(clientPath))
 	s.Equal(modelBefore, s.readFile(modelPath))
@@ -196,7 +194,7 @@ func (s *Suite) TestGenerator_preservesOutput() {
 
 	s.Require().NoError(os.WriteFile(filepath.Join("queries", "user.graphql"), []byte("query GetUser {\n"), 0o644))
 
-	err := generator.Generate(context.Background(), load())
+	err := generator.Generate(context.Background(), s.loadConfig())
 	s.Require().Error(err)
 	s.Require().ErrorContains(err, "user.graphql")
 
@@ -228,7 +226,7 @@ func (s *Suite) TestGenerator_clientOnlyNestedInputPartlyBound() {
 func (s *Suite) TestGenerator_emptyModelsRemovesPreviousOutput() {
 	dir := s.copyFixture("only_used_models_empty")
 
-	cfg := loadConfig(s)
+	cfg := s.loadConfig()
 	modelPath := cfg.Model.Filename
 	s.Require().NoError(os.MkdirAll(filepath.Dir(modelPath), 0o755))
 	s.Require().NoError(os.WriteFile(modelPath, []byte("package generated\n\ntype Unused struct {\n\tX string\n}\n"), 0o644))
@@ -247,7 +245,7 @@ func (s *Suite) TestGenerator_emptyModelsRemovesPreviousOutput() {
 func (s *Suite) TestGenerator_restoresLeftoverBackup() {
 	dir := s.copyFixture("multiple_queries")
 
-	cfg := loadConfig(s)
+	cfg := s.loadConfig()
 	s.Require().NoError(generator.Generate(context.Background(), cfg))
 
 	clientPath := cfg.Client.Filename
@@ -261,7 +259,7 @@ func (s *Suite) TestGenerator_restoresLeftoverBackup() {
 	s.Require().NoError(os.Rename(clientPath, bakPath))
 	s.Require().NoError(os.WriteFile(queryPath, []byte("query GetUser {\n"), 0o644))
 
-	err := generator.Generate(context.Background(), loadConfig(s))
+	err := generator.Generate(context.Background(), s.loadConfig())
 	s.Require().Error(err)
 	s.Require().ErrorContains(err, "user.graphql")
 
@@ -271,7 +269,7 @@ func (s *Suite) TestGenerator_restoresLeftoverBackup() {
 	s.Require().NoError(os.Rename(clientPath, bakPath))
 	s.Require().NoError(os.WriteFile(queryPath, []byte(queryBefore), 0o644))
 
-	s.Require().NoError(generator.Generate(context.Background(), loadConfig(s)))
+	s.Require().NoError(generator.Generate(context.Background(), s.loadConfig()))
 
 	s.Equal(clientBefore, s.readFile(clientPath))
 	s.Require().NoError(assertNoOutputBackup(dir))
@@ -318,7 +316,7 @@ func (s *Suite) copyFixture(name string) string {
 // loadConfig loads ./gqlgenc.yml as a separate gqlgenc invocation does.
 // Reusing one Config keeps the operation names the client plugin records in
 // Models, and the next run reports them as duplicates.
-func loadConfig(s *Suite) *config.Config {
+func (s *Suite) loadConfig() *config.Config {
 	s.T().Helper()
 
 	cfg, err := config.LoadConfig("./gqlgenc.yml")
