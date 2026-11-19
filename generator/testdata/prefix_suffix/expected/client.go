@@ -17,9 +17,9 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetUser_User struct {
-	Email *string "json:\"email,omitempty\" graphql:\"email\""
-	ID    string  "json:\"id\" graphql:\"id\""
-	Name  string  "json:\"name\" graphql:\"name\""
+	Email *string `json:"email,omitempty" graphql:"email"`
+	ID    string  `json:"id" graphql:"id"`
+	Name  string  `json:"name" graphql:"name"`
 }
 
 func (t *GetUser_User) GetEmail() *string {
@@ -42,8 +42,8 @@ func (t *GetUser_User) GetName() string {
 }
 
 type ListUsers_Users struct {
-	ID   string "json:\"id\" graphql:\"id\""
-	Name string "json:\"name\" graphql:\"name\""
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *ListUsers_Users) GetID() string {
@@ -60,8 +60,8 @@ func (t *ListUsers_Users) GetName() string {
 }
 
 type CreateUser_CreateUser struct {
-	ID   string "json:\"id\" graphql:\"id\""
-	Name string "json:\"name\" graphql:\"name\""
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *CreateUser_CreateUser) GetID() string {
@@ -78,7 +78,7 @@ func (t *CreateUser_CreateUser) GetName() string {
 }
 
 type GqlGetUserResult struct {
-	User GetUser_User "json:\"user\" graphql:\"user\""
+	User GetUser_User `json:"user" graphql:"user"`
 }
 
 func (t *GqlGetUserResult) GetUser() *GetUser_User {
@@ -89,7 +89,7 @@ func (t *GqlGetUserResult) GetUser() *GetUser_User {
 }
 
 type GqlListUsersResult struct {
-	Users []*ListUsers_Users "json:\"users\" graphql:\"users\""
+	Users []*ListUsers_Users `json:"users" graphql:"users"`
 }
 
 func (t *GqlListUsersResult) GetUsers() []*ListUsers_Users {
@@ -100,7 +100,7 @@ func (t *GqlListUsersResult) GetUsers() []*ListUsers_Users {
 }
 
 type GqlMutCreateUserResponse struct {
-	CreateUser CreateUser_CreateUser "json:\"createUser\" graphql:\"createUser\""
+	CreateUser CreateUser_CreateUser `json:"createUser" graphql:"createUser"`
 }
 
 func (t *GqlMutCreateUserResponse) GetCreateUser() *CreateUser_CreateUser {

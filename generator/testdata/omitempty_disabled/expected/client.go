@@ -17,11 +17,11 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetUser_User struct {
-	Age   *int    "json:\"age\" graphql:\"age\""
-	Bio   *string "json:\"bio\" graphql:\"bio\""
-	Email *string "json:\"email\" graphql:\"email\""
-	ID    string  "json:\"id\" graphql:\"id\""
-	Name  string  "json:\"name\" graphql:\"name\""
+	Age   *int    `json:"age" graphql:"age"`
+	Bio   *string `json:"bio" graphql:"bio"`
+	Email *string `json:"email" graphql:"email"`
+	ID    string  `json:"id" graphql:"id"`
+	Name  string  `json:"name" graphql:"name"`
 }
 
 func (t *GetUser_User) GetAge() *int {
@@ -56,11 +56,11 @@ func (t *GetUser_User) GetName() string {
 }
 
 type GetUserNullable_User struct {
-	Age   *int    "json:\"age\" graphql:\"age\""
-	Bio   *string "json:\"bio\" graphql:\"bio\""
-	Email *string "json:\"email\" graphql:\"email\""
-	ID    string  "json:\"id\" graphql:\"id\""
-	Name  string  "json:\"name\" graphql:\"name\""
+	Age   *int    `json:"age" graphql:"age"`
+	Bio   *string `json:"bio" graphql:"bio"`
+	Email *string `json:"email" graphql:"email"`
+	ID    string  `json:"id" graphql:"id"`
+	Name  string  `json:"name" graphql:"name"`
 }
 
 func (t *GetUserNullable_User) GetAge() *int {
@@ -95,7 +95,7 @@ func (t *GetUserNullable_User) GetName() string {
 }
 
 type GetUser struct {
-	User GetUser_User "json:\"user\" graphql:\"user\""
+	User GetUser_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUser) GetUser() *GetUser_User {
@@ -106,7 +106,7 @@ func (t *GetUser) GetUser() *GetUser_User {
 }
 
 type GetUserNullable struct {
-	User GetUserNullable_User "json:\"user\" graphql:\"user\""
+	User GetUserNullable_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUserNullable) GetUser() *GetUserNullable_User {

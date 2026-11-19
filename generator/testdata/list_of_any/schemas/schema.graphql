@@ -1,0 +1,14 @@
+scalar Any
+scalar Map
+
+type Query {
+    item: Item!
+}
+
+type Item {
+    value: Any
+    values: [Any]
+    nested: [[Any]]
+    meta: Map
+    metas: [Map]
+}

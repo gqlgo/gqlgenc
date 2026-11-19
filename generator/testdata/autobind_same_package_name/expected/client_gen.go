@@ -18,9 +18,9 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetItem_Item struct {
-	ID     string       "json:\"id\" graphql:\"id\""
-	Name   string       "json:\"name\" graphql:\"name\""
-	Status model.Status "json:\"status\" graphql:\"status\""
+	ID     string       `json:"id" graphql:"id"`
+	Name   string       `json:"name" graphql:"name"`
+	Status model.Status `json:"status" graphql:"status"`
 }
 
 func (t *GetItem_Item) GetID() string {
@@ -43,7 +43,7 @@ func (t *GetItem_Item) GetStatus() *model.Status {
 }
 
 type GetItem struct {
-	Item *GetItem_Item "json:\"item,omitempty\" graphql:\"item\""
+	Item *GetItem_Item `json:"item,omitempty" graphql:"item"`
 }
 
 func (t *GetItem) GetItem() *GetItem_Item {

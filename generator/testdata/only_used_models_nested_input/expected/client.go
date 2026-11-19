@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type Paint_Paint struct {
-	ID    string   "json:\"id\" graphql:\"id\""
-	Tones [][]Tone "json:\"tones\" graphql:\"tones\""
+	ID    string   `json:"id" graphql:"id"`
+	Tones [][]Tone `json:"tones" graphql:"tones"`
 }
 
 func (t *Paint_Paint) GetID() string {
@@ -35,7 +35,7 @@ func (t *Paint_Paint) GetTones() [][]Tone {
 }
 
 type Paint struct {
-	Paint *Paint_Paint "json:\"paint,omitempty\" graphql:\"paint\""
+	Paint *Paint_Paint `json:"paint,omitempty" graphql:"paint"`
 }
 
 func (t *Paint) GetPaint() *Paint_Paint {

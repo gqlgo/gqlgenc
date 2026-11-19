@@ -18,7 +18,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type UserFragment struct {
-	Profile *UserFragment_Profile "json:\"profile\" graphql:\"profile\""
+	Profile *UserFragment_Profile `json:"profile" graphql:"profile"`
 }
 
 func (t *UserFragment) GetProfile() *UserFragment_Profile {
@@ -29,7 +29,7 @@ func (t *UserFragment) GetProfile() *UserFragment_Profile {
 }
 
 type ProfileFragment struct {
-	Name string "json:\"name\" graphql:\"name\""
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *ProfileFragment) GetName() string {
@@ -40,7 +40,7 @@ func (t *ProfileFragment) GetName() string {
 }
 
 type UserFragment_Profile struct {
-	Name string "json:\"name\" graphql:\"name\""
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *UserFragment_Profile) GetName() string {
@@ -52,8 +52,8 @@ func (t *UserFragment_Profile) GetName() string {
 
 type A_User_Profile struct {
 	ProfileFragment *ProfileFragment
-	ID              string "json:\"id\" graphql:\"id\""
-	Name            string "json:\"name\" graphql:\"name\""
+	ID              string `json:"id" graphql:"id"`
+	Name            string `json:"name" graphql:"name"`
 }
 
 func (t *A_User_Profile) GetProfileFragment() *ProfileFragment {
@@ -76,8 +76,8 @@ func (t *A_User_Profile) GetName() string {
 }
 
 type A_User struct {
-	ID      string          "json:\"id\" graphql:\"id\""
-	Profile *A_User_Profile "json:\"profile\" graphql:\"profile\""
+	ID      string          `json:"id" graphql:"id"`
+	Profile *A_User_Profile `json:"profile" graphql:"profile"`
 }
 
 func (t *A_User) GetID() string {
@@ -94,7 +94,7 @@ func (t *A_User) GetProfile() *A_User_Profile {
 }
 
 type A struct {
-	User A_User "json:\"user\" graphql:\"user\""
+	User A_User `json:"user" graphql:"user"`
 }
 
 func (t *A) GetUser() *A_User {

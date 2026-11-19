@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type Search_Search_Article struct {
-	ID    string "json:\"id\" graphql:\"id\""
-	Title string "json:\"title\" graphql:\"title\""
+	ID    string `json:"id" graphql:"id"`
+	Title string `json:"title" graphql:"title"`
 }
 
 func (t *Search_Search_Article) GetID() string {
@@ -35,8 +35,8 @@ func (t *Search_Search_Article) GetTitle() string {
 }
 
 type Search_Search_Video struct {
-	ID       string "json:\"id\" graphql:\"id\""
-	Duration int    "json:\"duration\" graphql:\"duration\""
+	ID       string `json:"id" graphql:"id"`
+	Duration int    `json:"duration" graphql:"duration"`
 }
 
 func (t *Search_Search_Video) GetID() string {
@@ -53,9 +53,9 @@ func (t *Search_Search_Video) GetDuration() int {
 }
 
 type Search_Search struct {
-	Article  Search_Search_Article "graphql:\"... on Article\""
-	Video    Search_Search_Video   "graphql:\"... on Video\""
-	Typename *string               "json:\"__typename,omitempty\" graphql:\"__typename\""
+	Article  Search_Search_Article `graphql:"... on Article"`
+	Video    Search_Search_Video   `graphql:"... on Video"`
+	Typename *string               `json:"__typename,omitempty" graphql:"__typename"`
 }
 
 func (t *Search_Search) GetArticle() *Search_Search_Article {
@@ -78,7 +78,7 @@ func (t *Search_Search) GetTypename() *string {
 }
 
 type Search struct {
-	Search Search_Search "json:\"search\" graphql:\"search\""
+	Search Search_Search `json:"search" graphql:"search"`
 }
 
 func (t *Search) GetSearch() *Search_Search {

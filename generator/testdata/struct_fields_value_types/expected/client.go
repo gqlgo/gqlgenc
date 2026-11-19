@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type UserProfile struct {
-	Name    string               "json:\"name\" graphql:\"name\""
-	Profile *UserProfile_Profile "json:\"profile,omitempty\" graphql:\"profile\""
+	Name    string               `json:"name" graphql:"name"`
+	Profile *UserProfile_Profile `json:"profile,omitempty" graphql:"profile"`
 }
 
 func (t *UserProfile) GetName() string {
@@ -35,7 +35,7 @@ func (t *UserProfile) GetProfile() *UserProfile_Profile {
 }
 
 type UserProfile_Profile struct {
-	Bio *string "json:\"bio,omitempty\" graphql:\"bio\""
+	Bio *string `json:"bio,omitempty" graphql:"bio"`
 }
 
 func (t *UserProfile_Profile) GetBio() *string {
@@ -46,7 +46,7 @@ func (t *UserProfile_Profile) GetBio() *string {
 }
 
 type GetUser_User_UserProfile_Profile struct {
-	Bio *string "json:\"bio,omitempty\" graphql:\"bio\""
+	Bio *string `json:"bio,omitempty" graphql:"bio"`
 }
 
 func (t *GetUser_User_UserProfile_Profile) GetBio() *string {
@@ -57,9 +57,9 @@ func (t *GetUser_User_UserProfile_Profile) GetBio() *string {
 }
 
 type GetUser_User struct {
-	ID      string                            "json:\"id\" graphql:\"id\""
-	Name    string                            "json:\"name\" graphql:\"name\""
-	Profile *GetUser_User_UserProfile_Profile "json:\"profile,omitempty\" graphql:\"profile\""
+	ID      string                            `json:"id" graphql:"id"`
+	Name    string                            `json:"name" graphql:"name"`
+	Profile *GetUser_User_UserProfile_Profile `json:"profile,omitempty" graphql:"profile"`
 }
 
 func (t *GetUser_User) GetID() string {
@@ -82,8 +82,8 @@ func (t *GetUser_User) GetProfile() *GetUser_User_UserProfile_Profile {
 }
 
 type GetUserDirect_User_Profile struct {
-	Avatar *string "json:\"avatar,omitempty\" graphql:\"avatar\""
-	Bio    *string "json:\"bio,omitempty\" graphql:\"bio\""
+	Avatar *string `json:"avatar,omitempty" graphql:"avatar"`
+	Bio    *string `json:"bio,omitempty" graphql:"bio"`
 }
 
 func (t *GetUserDirect_User_Profile) GetAvatar() *string {
@@ -100,9 +100,9 @@ func (t *GetUserDirect_User_Profile) GetBio() *string {
 }
 
 type GetUserDirect_User struct {
-	ID      string                      "json:\"id\" graphql:\"id\""
-	Name    string                      "json:\"name\" graphql:\"name\""
-	Profile *GetUserDirect_User_Profile "json:\"profile,omitempty\" graphql:\"profile\""
+	ID      string                      `json:"id" graphql:"id"`
+	Name    string                      `json:"name" graphql:"name"`
+	Profile *GetUserDirect_User_Profile `json:"profile,omitempty" graphql:"profile"`
 }
 
 func (t *GetUserDirect_User) GetID() string {
@@ -125,7 +125,7 @@ func (t *GetUserDirect_User) GetProfile() *GetUserDirect_User_Profile {
 }
 
 type GetUser struct {
-	User GetUser_User "json:\"user\" graphql:\"user\""
+	User GetUser_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUser) GetUser() *GetUser_User {
@@ -136,7 +136,7 @@ func (t *GetUser) GetUser() *GetUser_User {
 }
 
 type GetUserDirect struct {
-	User GetUserDirect_User "json:\"user\" graphql:\"user\""
+	User GetUserDirect_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUserDirect) GetUser() *GetUserDirect_User {

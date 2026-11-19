@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type CreateMany_CreateTodos_Todos struct {
-	ID     string     "json:\"id\" graphql:\"id\""
-	Status TodoStatus "json:\"status\" graphql:\"status\""
+	ID     string     `json:"id" graphql:"id"`
+	Status TodoStatus `json:"status" graphql:"status"`
 }
 
 func (t *CreateMany_CreateTodos_Todos) GetID() string {
@@ -35,7 +35,7 @@ func (t *CreateMany_CreateTodos_Todos) GetStatus() *TodoStatus {
 }
 
 type CreateMany_CreateTodos struct {
-	Todos []*CreateMany_CreateTodos_Todos "json:\"todos\" graphql:\"todos\""
+	Todos []*CreateMany_CreateTodos_Todos `json:"todos" graphql:"todos"`
 }
 
 func (t *CreateMany_CreateTodos) GetTodos() []*CreateMany_CreateTodos_Todos {
@@ -46,7 +46,7 @@ func (t *CreateMany_CreateTodos) GetTodos() []*CreateMany_CreateTodos_Todos {
 }
 
 type GetBySortOrder_TodosBySortOrder struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID string `json:"id" graphql:"id"`
 }
 
 func (t *GetBySortOrder_TodosBySortOrder) GetID() string {
@@ -57,7 +57,7 @@ func (t *GetBySortOrder_TodosBySortOrder) GetID() string {
 }
 
 type CreateMany struct {
-	CreateTodos *CreateMany_CreateTodos "json:\"createTodos,omitempty\" graphql:\"createTodos\""
+	CreateTodos *CreateMany_CreateTodos `json:"createTodos,omitempty" graphql:"createTodos"`
 }
 
 func (t *CreateMany) GetCreateTodos() *CreateMany_CreateTodos {
@@ -68,7 +68,7 @@ func (t *CreateMany) GetCreateTodos() *CreateMany_CreateTodos {
 }
 
 type GetBySortOrder struct {
-	TodosBySortOrder []*GetBySortOrder_TodosBySortOrder "json:\"todosBySortOrder\" graphql:\"todosBySortOrder\""
+	TodosBySortOrder []*GetBySortOrder_TodosBySortOrder `json:"todosBySortOrder" graphql:"todosBySortOrder"`
 }
 
 func (t *GetBySortOrder) GetTodosBySortOrder() []*GetBySortOrder_TodosBySortOrder {

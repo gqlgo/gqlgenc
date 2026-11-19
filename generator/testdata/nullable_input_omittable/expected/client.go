@@ -17,10 +17,10 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type ListUsers_Users struct {
-	Active bool   "json:\"active\" graphql:\"active\""
-	Age    *int   "json:\"age,omitempty\" graphql:\"age\""
-	ID     string "json:\"id\" graphql:\"id\""
-	Name   string "json:\"name\" graphql:\"name\""
+	Active bool   `json:"active" graphql:"active"`
+	Age    *int   `json:"age,omitempty" graphql:"age"`
+	ID     string `json:"id" graphql:"id"`
+	Name   string `json:"name" graphql:"name"`
 }
 
 func (t *ListUsers_Users) GetActive() bool {
@@ -49,7 +49,7 @@ func (t *ListUsers_Users) GetName() string {
 }
 
 type ListUsers struct {
-	Users []*ListUsers_Users "json:\"users\" graphql:\"users\""
+	Users []*ListUsers_Users `json:"users" graphql:"users"`
 }
 
 func (t *ListUsers) GetUsers() []*ListUsers_Users {

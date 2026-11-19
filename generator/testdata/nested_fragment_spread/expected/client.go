@@ -17,7 +17,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type NameFrag struct {
-	Name string "json:\"name\" graphql:\"name\""
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *NameFrag) GetName() string {
@@ -28,8 +28,8 @@ func (t *NameFrag) GetName() string {
 }
 
 type PersonBasic struct {
-	Address string "json:\"address\" graphql:\"address\""
-	Name    string "json:\"name\" graphql:\"name\""
+	Address string `json:"address" graphql:"address"`
+	Name    string `json:"name" graphql:"name"`
 }
 
 func (t *PersonBasic) GetAddress() string {
@@ -55,7 +55,7 @@ func (t *PersonBasic) GetNameFrag() *NameFrag {
 }
 
 type ProfileBioFrag struct {
-	Profile ProfileBioFrag_Profile "json:\"profile\" graphql:\"profile\""
+	Profile ProfileBioFrag_Profile `json:"profile" graphql:"profile"`
 }
 
 func (t *ProfileBioFrag) GetProfile() *ProfileBioFrag_Profile {
@@ -66,7 +66,7 @@ func (t *ProfileBioFrag) GetProfile() *ProfileBioFrag_Profile {
 }
 
 type FullProfile struct {
-	Profile FullProfile_Profile "json:\"profile\" graphql:\"profile\""
+	Profile FullProfile_Profile `json:"profile" graphql:"profile"`
 }
 
 func (t *FullProfile) GetProfile() *FullProfile_Profile {
@@ -88,7 +88,7 @@ func (t *FullProfile) GetProfileBioFrag() *ProfileBioFrag {
 }
 
 type FragC struct {
-	Name string "json:\"name\" graphql:\"name\""
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *FragC) GetName() string {
@@ -99,8 +99,8 @@ func (t *FragC) GetName() string {
 }
 
 type FragB struct {
-	Address string "json:\"address\" graphql:\"address\""
-	Name    string "json:\"name\" graphql:\"name\""
+	Address string `json:"address" graphql:"address"`
+	Name    string `json:"name" graphql:"name"`
 }
 
 func (t *FragB) GetAddress() string {
@@ -126,9 +126,9 @@ func (t *FragB) GetFragC() *FragC {
 }
 
 type FragA struct {
-	Address string "json:\"address\" graphql:\"address\""
-	Age     int    "json:\"age\" graphql:\"age\""
-	Name    string "json:\"name\" graphql:\"name\""
+	Address string `json:"address" graphql:"address"`
+	Age     int    `json:"age" graphql:"age"`
+	Name    string `json:"name" graphql:"name"`
 }
 
 func (t *FragA) GetAddress() string {
@@ -161,7 +161,7 @@ func (t *FragA) GetFragB() *FragB {
 }
 
 type AgeFrag struct {
-	Age int "json:\"age\" graphql:\"age\""
+	Age int `json:"age" graphql:"age"`
 }
 
 func (t *AgeFrag) GetAge() int {
@@ -172,8 +172,8 @@ func (t *AgeFrag) GetAge() int {
 }
 
 type NameAgeFrag struct {
-	Name string "json:\"name\" graphql:\"name\""
-	Age  int    "json:\"age\" graphql:\"age\""
+	Name string `json:"name" graphql:"name"`
+	Age  int    `json:"age" graphql:"age"`
 }
 
 func (t *NameAgeFrag) GetName() string {
@@ -190,9 +190,9 @@ func (t *NameAgeFrag) GetAge() int {
 }
 
 type MultiSpreadOverlap struct {
-	Address string "json:\"address\" graphql:\"address\""
-	Age     int    "json:\"age\" graphql:\"age\""
-	Name    string "json:\"name\" graphql:\"name\""
+	Address string `json:"address" graphql:"address"`
+	Age     int    `json:"age" graphql:"age"`
+	Name    string `json:"name" graphql:"name"`
 }
 
 func (t *MultiSpreadOverlap) GetAddress() string {
@@ -233,8 +233,8 @@ func (t *MultiSpreadOverlap) GetNameAgeFrag() *NameAgeFrag {
 }
 
 type DirectOverlap struct {
-	Age  int    "json:\"age\" graphql:\"age\""
-	Name string "json:\"name\" graphql:\"name\""
+	Age  int    `json:"age" graphql:"age"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *DirectOverlap) GetAge() int {
@@ -260,7 +260,7 @@ func (t *DirectOverlap) GetNameFrag() *NameFrag {
 }
 
 type NicknameFrag struct {
-	Nickname *string "json:\"nickname,omitempty\" graphql:\"nickname\""
+	Nickname *string `json:"nickname,omitempty" graphql:"nickname"`
 }
 
 func (t *NicknameFrag) GetNickname() *string {
@@ -271,8 +271,8 @@ func (t *NicknameFrag) GetNickname() *string {
 }
 
 type PersonWithNickname struct {
-	Name     string  "json:\"name\" graphql:\"name\""
-	Nickname *string "json:\"nickname,omitempty\" graphql:\"nickname\""
+	Name     string  `json:"name" graphql:"name"`
+	Nickname *string `json:"nickname,omitempty" graphql:"nickname"`
 }
 
 func (t *PersonWithNickname) GetName() string {
@@ -298,7 +298,7 @@ func (t *PersonWithNickname) GetNicknameFrag() *NicknameFrag {
 }
 
 type ProfileBioFrag_Profile struct {
-	Bio string "json:\"bio\" graphql:\"bio\""
+	Bio string `json:"bio" graphql:"bio"`
 }
 
 func (t *ProfileBioFrag_Profile) GetBio() string {
@@ -309,7 +309,7 @@ func (t *ProfileBioFrag_Profile) GetBio() string {
 }
 
 type FullProfile_ProfileBioFrag_Profile struct {
-	Bio string "json:\"bio\" graphql:\"bio\""
+	Bio string `json:"bio" graphql:"bio"`
 }
 
 func (t *FullProfile_ProfileBioFrag_Profile) GetBio() string {
@@ -320,8 +320,8 @@ func (t *FullProfile_ProfileBioFrag_Profile) GetBio() string {
 }
 
 type FullProfile_Profile struct {
-	Avatar string "json:\"avatar\" graphql:\"avatar\""
-	Bio    string "json:\"bio\" graphql:\"bio\""
+	Avatar string `json:"avatar" graphql:"avatar"`
+	Bio    string `json:"bio" graphql:"bio"`
 }
 
 func (t *FullProfile_Profile) GetAvatar() string {
@@ -338,7 +338,7 @@ func (t *FullProfile_Profile) GetBio() string {
 }
 
 type GetFullProfile_Person_FullProfile_ProfileBioFrag_Profile struct {
-	Bio string "json:\"bio\" graphql:\"bio\""
+	Bio string `json:"bio" graphql:"bio"`
 }
 
 func (t *GetFullProfile_Person_FullProfile_ProfileBioFrag_Profile) GetBio() string {
@@ -349,8 +349,8 @@ func (t *GetFullProfile_Person_FullProfile_ProfileBioFrag_Profile) GetBio() stri
 }
 
 type GetFullProfile_Person_FullProfile_Profile struct {
-	Avatar string "json:\"avatar\" graphql:\"avatar\""
-	Bio    string "json:\"bio\" graphql:\"bio\""
+	Avatar string `json:"avatar" graphql:"avatar"`
+	Bio    string `json:"bio" graphql:"bio"`
 }
 
 func (t *GetFullProfile_Person_FullProfile_Profile) GetAvatar() string {
@@ -367,9 +367,9 @@ func (t *GetFullProfile_Person_FullProfile_Profile) GetBio() string {
 }
 
 type GetPersonDirect_Person struct {
-	Address string "json:\"address\" graphql:\"address\""
-	Age     int    "json:\"age\" graphql:\"age\""
-	Name    string "json:\"name\" graphql:\"name\""
+	Address string `json:"address" graphql:"address"`
+	Age     int    `json:"age" graphql:"age"`
+	Name    string `json:"name" graphql:"name"`
 }
 
 func (t *GetPersonDirect_Person) GetAddress() string {
@@ -392,7 +392,7 @@ func (t *GetPersonDirect_Person) GetName() string {
 }
 
 type GetPersonBasic struct {
-	Person *PersonBasic "json:\"person\" graphql:\"person\""
+	Person *PersonBasic `json:"person" graphql:"person"`
 }
 
 func (t *GetPersonBasic) GetPerson() *PersonBasic {
@@ -403,7 +403,7 @@ func (t *GetPersonBasic) GetPerson() *PersonBasic {
 }
 
 type GetFullProfile struct {
-	Person *FullProfile "json:\"person\" graphql:\"person\""
+	Person *FullProfile `json:"person" graphql:"person"`
 }
 
 func (t *GetFullProfile) GetPerson() *FullProfile {
@@ -414,7 +414,7 @@ func (t *GetFullProfile) GetPerson() *FullProfile {
 }
 
 type GetFragA struct {
-	Person *FragA "json:\"person\" graphql:\"person\""
+	Person *FragA `json:"person" graphql:"person"`
 }
 
 func (t *GetFragA) GetPerson() *FragA {
@@ -425,7 +425,7 @@ func (t *GetFragA) GetPerson() *FragA {
 }
 
 type GetMultiSpreadOverlap struct {
-	Person *MultiSpreadOverlap "json:\"person\" graphql:\"person\""
+	Person *MultiSpreadOverlap `json:"person" graphql:"person"`
 }
 
 func (t *GetMultiSpreadOverlap) GetPerson() *MultiSpreadOverlap {
@@ -436,7 +436,7 @@ func (t *GetMultiSpreadOverlap) GetPerson() *MultiSpreadOverlap {
 }
 
 type GetDirectOverlap struct {
-	Person *DirectOverlap "json:\"person\" graphql:\"person\""
+	Person *DirectOverlap `json:"person" graphql:"person"`
 }
 
 func (t *GetDirectOverlap) GetPerson() *DirectOverlap {
@@ -447,7 +447,7 @@ func (t *GetDirectOverlap) GetPerson() *DirectOverlap {
 }
 
 type GetPersonWithNickname struct {
-	Person *PersonWithNickname "json:\"person\" graphql:\"person\""
+	Person *PersonWithNickname `json:"person" graphql:"person"`
 }
 
 func (t *GetPersonWithNickname) GetPerson() *PersonWithNickname {
@@ -458,7 +458,7 @@ func (t *GetPersonWithNickname) GetPerson() *PersonWithNickname {
 }
 
 type GetPersonDirect struct {
-	Person GetPersonDirect_Person "json:\"person\" graphql:\"person\""
+	Person GetPersonDirect_Person `json:"person" graphql:"person"`
 }
 
 func (t *GetPersonDirect) GetPerson() *GetPersonDirect_Person {
@@ -469,7 +469,7 @@ func (t *GetPersonDirect) GetPerson() *GetPersonDirect_Person {
 }
 
 type GetPeople struct {
-	People []*PersonBasic "json:\"people\" graphql:\"people\""
+	People []*PersonBasic `json:"people" graphql:"people"`
 }
 
 func (t *GetPeople) GetPeople() []*PersonBasic {

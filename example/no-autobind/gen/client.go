@@ -21,7 +21,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetUserProfileName_User_Profile struct {
-	Name string "json:\"name\" graphql:\"name\""
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *GetUserProfileName_User_Profile) GetName() string {
@@ -32,7 +32,7 @@ func (t *GetUserProfileName_User_Profile) GetName() string {
 }
 
 type GetUserProfileName_User struct {
-	Profile GetUserProfileName_User_Profile "json:\"profile\" graphql:\"profile\""
+	Profile GetUserProfileName_User_Profile `json:"profile" graphql:"profile"`
 }
 
 func (t *GetUserProfileName_User) GetProfile() *GetUserProfileName_User_Profile {
@@ -43,7 +43,7 @@ func (t *GetUserProfileName_User) GetProfile() *GetUserProfileName_User_Profile 
 }
 
 type GetUserProfileName struct {
-	User GetUserProfileName_User "json:\"user\" graphql:\"user\""
+	User GetUserProfileName_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUserProfileName) GetUser() *GetUserProfileName_User {

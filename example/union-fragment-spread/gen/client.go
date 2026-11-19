@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type ItemFragment struct {
-	ID   string "json:\"id\" graphql:\"id\""
-	Name string "json:\"name\" graphql:\"name\""
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *ItemFragment) GetID() string {
@@ -35,7 +35,7 @@ func (t *ItemFragment) GetName() string {
 }
 
 type ItemNotFoundFragment struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID string `json:"id" graphql:"id"`
 }
 
 func (t *ItemNotFoundFragment) GetID() string {
@@ -46,9 +46,9 @@ func (t *ItemNotFoundFragment) GetID() string {
 }
 
 type GetItem_Item struct {
-	Item         ItemFragment         "graphql:\"... on Item\""
-	ItemNotFound ItemNotFoundFragment "graphql:\"... on ItemNotFound\""
-	Typename     *string              "json:\"__typename,omitempty\" graphql:\"__typename\""
+	Item         ItemFragment         `graphql:"... on Item"`
+	ItemNotFound ItemNotFoundFragment `graphql:"... on ItemNotFound"`
+	Typename     *string              `json:"__typename,omitempty" graphql:"__typename"`
 }
 
 func (t *GetItem_Item) GetItem() *ItemFragment {
@@ -71,7 +71,7 @@ func (t *GetItem_Item) GetTypename() *string {
 }
 
 type GetItem struct {
-	Item GetItem_Item "json:\"item\" graphql:\"item\""
+	Item GetItem_Item `json:"item" graphql:"item"`
 }
 
 func (t *GetItem) GetItem() *GetItem_Item {

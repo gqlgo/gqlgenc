@@ -5,6 +5,7 @@ import (
 	_ "embed" // used to load template file
 	"fmt"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/config"
@@ -19,6 +20,12 @@ var template string
 func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Operation, operationResponses []*OperationResponse, structSources []*StructSource, generateCfg *gqlgencConfig.GenerateConfig, client config.PackageConfig) error {
 	genGettersGenerator := &GenGettersGenerator{
 		ClientPackageName: client.Package,
+	}
+
+	// structDef spells field types with gqlgen's ref, not LookupType, because ref also writes interface{} as any.
+	ref, ok := templates.Funcs()["ref"].(func(types.Type) string)
+	if !ok {
+		return fmt.Errorf("%s generating failed: gqlgen's ref template func has an unexpected type", client.Filename)
 	}
 
 	err := templates.Render(templates.Options{
@@ -38,6 +45,9 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 		Funcs: map[string]any{
 			"genGetters":           genGettersGenerator.GenFunc(),
 			"genConversionGetters": genGettersGenerator.ConversionGettersFunc(fragments),
+			"structDef": func(t types.Type) string {
+				return structDef(t, ref)
+			},
 		},
 	})
 	if err != nil {
@@ -45,6 +55,58 @@ func RenderTemplate(cfg *config.Config, fragments []*Fragment, operations []*Ope
 	}
 
 	return nil
+}
+
+// structDef renders the Go type of a generated type declaration.
+//
+// Arguments:
+//   - t: the type to render
+//   - lookupType: renders a type that is not a struct, and each field type of
+//     a struct; the template passes the `ref` template func
+//
+// Returns:
+//   - string: the Go type expression; for a struct, written field by field so
+//     that tags come out as raw string literals (`json:"id"`) instead of the
+//     escaped form go/types prints ("json:\"id\"")
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - field types are spelled exactly as lookupType spells them
+//   - a tag that itself contains a backtick keeps the quoted form
+func structDef(t types.Type, lookupType func(types.Type) string) string {
+	st, ok := t.(*types.Struct)
+	if !ok {
+		return lookupType(t)
+	}
+
+	var b strings.Builder
+
+	b.WriteString("struct {\n")
+
+	for i := range st.NumFields() {
+		field := st.Field(i)
+		if !field.Embedded() {
+			b.WriteString(field.Name() + " ")
+		}
+
+		b.WriteString(lookupType(field.Type()))
+
+		if tag := st.Tag(i); tag != "" {
+			if strings.ContainsRune(tag, '`') {
+				b.WriteString(" " + strconv.Quote(tag))
+			} else {
+				b.WriteString(" `" + tag + "`")
+			}
+		}
+
+		b.WriteString("\n")
+	}
+
+	b.WriteString("}")
+
+	return b.String()
 }
 
 type GenGettersGenerator struct {
