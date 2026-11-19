@@ -104,8 +104,8 @@ func (t *Search_Search_Video) GetDuration() int {
 }
 
 type Search_Search struct {
-	Article  ArticleFields       `graphql:"... on Article"`
-	Video    Search_Search_Video `graphql:"... on Video"`
+	Article  ArticleFields       `graphql:"... on Article" gqlgenc:"possibleTypes=Article"`
+	Video    Search_Search_Video `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
 	Typename *string             `json:"__typename,omitempty" graphql:"__typename"`
 }
 
@@ -140,7 +140,7 @@ func (t *GetNodes_A_Article) GetTitle() string {
 }
 
 type GetNodes_A struct {
-	Article  GetNodes_A_Article `graphql:"... on Article"`
+	Article  GetNodes_A_Article `graphql:"... on Article" gqlgenc:"possibleTypes=Article"`
 	Typename *string            `json:"__typename,omitempty" graphql:"__typename"`
 	ID       string             `json:"id" graphql:"id"`
 }
@@ -165,7 +165,7 @@ func (t *GetNodes_A) GetID() string {
 }
 
 type GetNodes_B struct {
-	Video    VideoFields `graphql:"... on Video"`
+	Video    VideoFields `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
 	Typename *string     `json:"__typename,omitempty" graphql:"__typename"`
 	ID       string      `json:"id" graphql:"id"`
 }

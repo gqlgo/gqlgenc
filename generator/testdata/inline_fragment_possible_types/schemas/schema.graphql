@@ -1,0 +1,34 @@
+type Query {
+    files: [File!]!
+    node(id: ID!): Node
+}
+
+interface Node {
+    id: ID!
+}
+
+# An interface implementing an interface is a possible type of Node in the
+# schema, but never a __typename, so it must not be listed.
+interface Media implements Node {
+    id: ID!
+    filename: String!
+}
+
+union File = Image | Video | Document
+
+type Image implements Node & Media {
+    id: ID!
+    filename: String!
+    width: Int!
+}
+
+type Video implements Node & Media {
+    id: ID!
+    filename: String!
+    duration: Int!
+}
+
+type Document implements Node {
+    id: ID!
+    title: String!
+}

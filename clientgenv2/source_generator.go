@@ -589,7 +589,7 @@ func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFr
 		return &ResponseField{
 			Name:           selection.TypeCondition,
 			Type:           r.inlineFragmentType(baseType),
-			Tags:           inlineFragmentTags(selection.TypeCondition),
+			Tags:           r.inlineFragmentTags(selection.TypeCondition),
 			ResponseFields: fieldsResponseFields,
 		}
 	}
@@ -615,7 +615,7 @@ func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFr
 		Name:             selection.TypeCondition,
 		Type:             r.inlineFragmentType(baseType),
 		IsInlineFragment: true,
-		Tags:             inlineFragmentTags(selection.TypeCondition),
+		Tags:             r.inlineFragmentTags(selection.TypeCondition),
 		ResponseFields:   fields.SortByName(),
 	}
 }
@@ -691,15 +691,62 @@ func (r *SourceGenerator) mergeInlineFragmentFields(fieldsResponseFields Respons
 //   - typeCondition: the type the fragment applies to
 //
 // Returns:
-//   - []string: the graphql tag "... on <typeCondition>"
+//   - []string: the graphql tag "... on <typeCondition>", followed by the gqlgenc tag
+//     "possibleTypes=<names>" that the decoder matches against __typename; the gqlgenc tag
+//     is omitted when the schema has no object type satisfying typeCondition
 //
 // Preconditions:
 //   - none
 //
 // Postconditions:
 //   - none
-func inlineFragmentTags(typeCondition string) []string {
-	return []string{fmt.Sprintf(`graphql:"... on %s"`, typeCondition)}
+func (r *SourceGenerator) inlineFragmentTags(typeCondition string) []string {
+	graphqlTag := fmt.Sprintf(`graphql:"... on %s"`, typeCondition)
+
+	possibleTypeNames := r.possibleTypeNames(typeCondition)
+	if len(possibleTypeNames) == 0 {
+		return []string{graphqlTag}
+	}
+
+	return []string{
+		graphqlTag,
+		fmt.Sprintf(`gqlgenc:"possibleTypes=%s"`, strings.Join(possibleTypeNames, ",")),
+	}
+}
+
+// possibleTypeNames returns the object types that satisfy a type condition.
+//
+// Arguments:
+//   - typeCondition: the name of an object, interface, or union type
+//
+// Returns:
+//   - []string: the names sorted in ascending order: typeCondition itself for an object type,
+//     the implementing object types for an interface, the member types for a union; nil when
+//     the schema has no such type
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - interfaces that implement an interface are not included; __typename is always an object type
+func (r *SourceGenerator) possibleTypeNames(typeCondition string) []string {
+	definition, ok := r.cfg.Schema.Types[typeCondition]
+	if !ok {
+		return nil
+	}
+
+	possibleTypes := r.cfg.Schema.GetPossibleTypes(definition)
+	possibleTypeNames := make([]string, 0, len(possibleTypes))
+
+	for _, possibleType := range possibleTypes {
+		if possibleType.Kind == ast.Object {
+			possibleTypeNames = append(possibleTypeNames, possibleType.Name)
+		}
+	}
+
+	slices.Sort(possibleTypeNames)
+
+	return possibleTypeNames
 }
 
 func (r *SourceGenerator) hasFragmentSpread(fields ResponseFieldList) bool {
