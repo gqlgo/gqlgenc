@@ -1,0 +1,10 @@
+schema:
+  - ./schemas/*.graphql
+client:
+  filename: ./actual/client_gen.go
+autobind:
+  - github.com/gqlgo/gqlgenc/generator/testdata/client_only/model
+query:
+  - ./queries/*.graphql
+generate:
+  clientV2: true

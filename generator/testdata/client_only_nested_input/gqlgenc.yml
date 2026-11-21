@@ -1,0 +1,11 @@
+schema:
+  - ./schemas/*.graphql
+client:
+  filename: ./actual/client_gen.go
+models:
+  Outer:
+    model: github.com/gqlgo/gqlgenc/generator/testdata/client_only_nested_input/model.Outer
+query:
+  - ./queries/*.graphql
+generate:
+  clientV2: true

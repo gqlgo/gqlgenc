@@ -352,10 +352,24 @@ func (c *Config) checkSchemaSource() error {
 //
 // Postconditions:
 //   - the returned config is not yet initialized; call Init after loading the schema
+//   - model JSON-tag pointers are the configured model values, or a copy of the
+//     client values when the model values were left nil
 func (c *Config) newGQLConfig(sources []*ast.Source) *config.Config {
 	models := make(config.TypeMap)
 	if c.Models != nil {
 		models = c.Models
+	}
+
+	// A nil model tag falls back to the client tag, copied into a new pointer
+	// so the two settings do not alias.
+	modelOmitempty := c.Generate.EnableModelJsonOmitemptyTag
+	if modelOmitempty == nil {
+		modelOmitempty = boolPointer(*c.Generate.EnableClientJsonOmitemptyTag)
+	}
+
+	modelOmitzero := c.Generate.EnableModelJsonOmitzeroTag
+	if modelOmitzero == nil {
+		modelOmitzero = boolPointer(*c.Generate.EnableClientJsonOmitzeroTag)
 	}
 
 	return &config.Config{
@@ -370,7 +384,7 @@ func (c *Config) newGQLConfig(sources []*ast.Source) *config.Config {
 		ReturnPointersInUnmarshalInput: false,
 		ResolversAlwaysReturnPointers:  true,
 		NullableInputOmittable:         c.Generate.NullableInputOmittable,
-		EnableModelJsonOmitemptyTag:    c.Generate.EnableClientJsonOmitemptyTag,
-		EnableModelJsonOmitzeroTag:     c.Generate.EnableClientJsonOmitzeroTag,
+		EnableModelJsonOmitemptyTag:    modelOmitempty,
+		EnableModelJsonOmitzeroTag:     modelOmitzero,
 	}
 }

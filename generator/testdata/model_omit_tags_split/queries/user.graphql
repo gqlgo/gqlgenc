@@ -1,0 +1,19 @@
+query GetUser($id: ID!) {
+    user(id: $id) {
+        id @dummy_custom(value: "user-123")
+        name @dummy_custom(value: "Alice")
+        email @dummy_custom(value: "alice@example.com")
+        age @dummy_int(min: 30, max: 30)
+        bio @dummy_custom(value: "Hello world")
+    }
+}
+
+query GetUserNullable($id: ID!) {
+    user(id: $id) {
+        id @dummy_custom(value: "user-456")
+        name @dummy_custom(value: "Bob")
+        email
+        age
+        bio
+    }
+}

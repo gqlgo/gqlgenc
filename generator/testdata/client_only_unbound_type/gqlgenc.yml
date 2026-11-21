@@ -1,0 +1,8 @@
+schema:
+  - ./schemas/*.graphql
+client:
+  filename: ./actual/client_gen.go
+query:
+  - ./queries/*.graphql
+generate:
+  clientV2: true
