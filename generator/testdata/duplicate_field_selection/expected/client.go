@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type PayloadFields struct {
-	Success bool                  "json:\"success\" graphql:\"success\""
-	Detail  *PayloadFields_Detail "json:\"detail,omitempty\" graphql:\"detail\""
+	Success bool                  `json:"success" graphql:"success"`
+	Detail  *PayloadFields_Detail `json:"detail,omitempty" graphql:"detail"`
 }
 
 func (t *PayloadFields) GetSuccess() bool {
@@ -35,8 +35,8 @@ func (t *PayloadFields) GetDetail() *PayloadFields_Detail {
 }
 
 type PayloadFields_Detail struct {
-	Code int     "json:\"code\" graphql:\"code\""
-	Note *string "json:\"note,omitempty\" graphql:\"note\""
+	Code int     `json:"code" graphql:"code"`
+	Note *string `json:"note,omitempty" graphql:"note"`
 }
 
 func (t *PayloadFields_Detail) GetCode() int {
@@ -53,8 +53,8 @@ func (t *PayloadFields_Detail) GetNote() *string {
 }
 
 type InFragment_Payload_PayloadFields_Detail struct {
-	Code int     "json:\"code\" graphql:\"code\""
-	Note *string "json:\"note,omitempty\" graphql:\"note\""
+	Code int     `json:"code" graphql:"code"`
+	Note *string `json:"note,omitempty" graphql:"note"`
 }
 
 func (t *InFragment_Payload_PayloadFields_Detail) GetCode() int {
@@ -71,8 +71,8 @@ func (t *InFragment_Payload_PayloadFields_Detail) GetNote() *string {
 }
 
 type InInlineFragment_Payload_XXXPayload struct {
-	Success bool    "json:\"success\" graphql:\"success\""
-	Message *string "json:\"message,omitempty\" graphql:\"message\""
+	Success bool    `json:"success" graphql:"success"`
+	Message *string `json:"message,omitempty" graphql:"message"`
 }
 
 func (t *InInlineFragment_Payload_XXXPayload) GetSuccess() bool {
@@ -89,8 +89,8 @@ func (t *InInlineFragment_Payload_XXXPayload) GetMessage() *string {
 }
 
 type AtTopLevel_Payload struct {
-	Message *string "json:\"message,omitempty\" graphql:\"message\""
-	Success bool    "json:\"success\" graphql:\"success\""
+	Message *string `json:"message,omitempty" graphql:"message"`
+	Success bool    `json:"success" graphql:"success"`
 }
 
 func (t *AtTopLevel_Payload) GetMessage() *string {
@@ -107,7 +107,7 @@ func (t *AtTopLevel_Payload) GetSuccess() bool {
 }
 
 type InFragment struct {
-	Payload *PayloadFields "json:\"payload,omitempty\" graphql:\"payload\""
+	Payload *PayloadFields `json:"payload,omitempty" graphql:"payload"`
 }
 
 func (t *InFragment) GetPayload() *PayloadFields {
@@ -118,7 +118,7 @@ func (t *InFragment) GetPayload() *PayloadFields {
 }
 
 type InInlineFragment struct {
-	Payload *InInlineFragment_Payload_XXXPayload "json:\"payload,omitempty\" graphql:\"payload\""
+	Payload *InInlineFragment_Payload_XXXPayload `json:"payload,omitempty" graphql:"payload"`
 }
 
 func (t *InInlineFragment) GetPayload() *InInlineFragment_Payload_XXXPayload {
@@ -129,7 +129,7 @@ func (t *InInlineFragment) GetPayload() *InInlineFragment_Payload_XXXPayload {
 }
 
 type AtTopLevel struct {
-	Payload *AtTopLevel_Payload "json:\"payload,omitempty\" graphql:\"payload\""
+	Payload *AtTopLevel_Payload `json:"payload,omitempty" graphql:"payload"`
 }
 
 func (t *AtTopLevel) GetPayload() *AtTopLevel_Payload {

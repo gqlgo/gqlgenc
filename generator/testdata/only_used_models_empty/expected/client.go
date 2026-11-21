@@ -17,7 +17,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type Hello struct {
-	Hello string "json:\"hello\" graphql:\"hello\""
+	Hello string `json:"hello" graphql:"hello"`
 }
 
 func (t *Hello) GetHello() string {

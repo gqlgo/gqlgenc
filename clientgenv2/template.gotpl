@@ -33,20 +33,20 @@
 {{- end }}
 
 {{- range $name, $element := .Fragment }}
-	type  {{ .Name | go  }} {{ .Type | ref }}
+	type  {{ .Name | go  }} {{ .Type | structDef }}
 
     {{ genGetters (.Name|go) .Type }}
     {{ genConversionGetters (.Name|go) .SpreadFragments }}
 {{- end }}
 
 {{- range $name, $element := .StructSources }}
-	type {{ .Name }} {{ .Type | ref }}
+	type {{ .Name }} {{ .Type | structDef }}
 
     {{ genGetters .Name .Type }}
 {{- end}}
 
 {{- range $name, $element := .OperationResponse }}
-	type  {{ .Name | go  }} {{ .Type | ref }}
+	type  {{ .Name | go  }} {{ .Type | structDef }}
 
     {{ genGetters (.Name|go) .Type }}
 {{- end }}

@@ -22,7 +22,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetNumber struct {
-	EnumToNum int "json:\"enumToNum\" graphql:\"enumToNum\""
+	EnumToNum int `json:"enumToNum" graphql:"enumToNum"`
 }
 
 func (t *GetNumber) GetEnumToNum() int {

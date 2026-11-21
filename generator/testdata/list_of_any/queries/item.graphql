@@ -1,0 +1,23 @@
+fragment ItemFields on Item {
+    value
+    values
+    nested
+    meta
+    metas
+}
+
+query GetItem {
+    item {
+        ...ItemFields
+    }
+}
+
+query GetItemInline {
+    item {
+        value
+        values
+        nested
+        meta
+        metas
+    }
+}

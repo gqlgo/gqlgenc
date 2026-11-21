@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type GetPost_Post_Author struct {
-	ID   string "json:\"id\" graphql:\"id\""
-	Name string "json:\"name\" graphql:\"name\""
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *GetPost_Post_Author) GetID() string {
@@ -35,10 +35,10 @@ func (t *GetPost_Post_Author) GetName() string {
 }
 
 type GetPost_Post struct {
-	Author  GetPost_Post_Author "json:\"author\" graphql:\"author\""
-	Content string              "json:\"content\" graphql:\"content\""
-	ID      string              "json:\"id\" graphql:\"id\""
-	Title   string              "json:\"title\" graphql:\"title\""
+	Author  GetPost_Post_Author `json:"author" graphql:"author"`
+	Content string              `json:"content" graphql:"content"`
+	ID      string              `json:"id" graphql:"id"`
+	Title   string              `json:"title" graphql:"title"`
 }
 
 func (t *GetPost_Post) GetAuthor() *GetPost_Post_Author {
@@ -67,9 +67,9 @@ func (t *GetPost_Post) GetTitle() string {
 }
 
 type CreateUser_CreateUser struct {
-	Email string "json:\"email\" graphql:\"email\""
-	ID    string "json:\"id\" graphql:\"id\""
-	Name  string "json:\"name\" graphql:\"name\""
+	Email string `json:"email" graphql:"email"`
+	ID    string `json:"id" graphql:"id"`
+	Name  string `json:"name" graphql:"name"`
 }
 
 func (t *CreateUser_CreateUser) GetEmail() string {
@@ -92,9 +92,9 @@ func (t *CreateUser_CreateUser) GetName() string {
 }
 
 type UpdatePost_UpdatePost struct {
-	Content string "json:\"content\" graphql:\"content\""
-	ID      string "json:\"id\" graphql:\"id\""
-	Title   string "json:\"title\" graphql:\"title\""
+	Content string `json:"content" graphql:"content"`
+	ID      string `json:"id" graphql:"id"`
+	Title   string `json:"title" graphql:"title"`
 }
 
 func (t *UpdatePost_UpdatePost) GetContent() string {
@@ -117,8 +117,8 @@ func (t *UpdatePost_UpdatePost) GetTitle() string {
 }
 
 type GetUser_User_Posts struct {
-	ID    string "json:\"id\" graphql:\"id\""
-	Title string "json:\"title\" graphql:\"title\""
+	ID    string `json:"id" graphql:"id"`
+	Title string `json:"title" graphql:"title"`
 }
 
 func (t *GetUser_User_Posts) GetID() string {
@@ -135,10 +135,10 @@ func (t *GetUser_User_Posts) GetTitle() string {
 }
 
 type GetUser_User struct {
-	Email string                "json:\"email\" graphql:\"email\""
-	ID    string                "json:\"id\" graphql:\"id\""
-	Name  string                "json:\"name\" graphql:\"name\""
-	Posts []*GetUser_User_Posts "json:\"posts\" graphql:\"posts\""
+	Email string                `json:"email" graphql:"email"`
+	ID    string                `json:"id" graphql:"id"`
+	Name  string                `json:"name" graphql:"name"`
+	Posts []*GetUser_User_Posts `json:"posts" graphql:"posts"`
 }
 
 func (t *GetUser_User) GetEmail() string {
@@ -167,8 +167,8 @@ func (t *GetUser_User) GetPosts() []*GetUser_User_Posts {
 }
 
 type ListUsers_Users struct {
-	ID   string "json:\"id\" graphql:\"id\""
-	Name string "json:\"name\" graphql:\"name\""
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
 func (t *ListUsers_Users) GetID() string {
@@ -185,7 +185,7 @@ func (t *ListUsers_Users) GetName() string {
 }
 
 type GetPost struct {
-	Post GetPost_Post "json:\"post\" graphql:\"post\""
+	Post GetPost_Post `json:"post" graphql:"post"`
 }
 
 func (t *GetPost) GetPost() *GetPost_Post {
@@ -196,7 +196,7 @@ func (t *GetPost) GetPost() *GetPost_Post {
 }
 
 type CreateUser struct {
-	CreateUser CreateUser_CreateUser "json:\"createUser\" graphql:\"createUser\""
+	CreateUser CreateUser_CreateUser `json:"createUser" graphql:"createUser"`
 }
 
 func (t *CreateUser) GetCreateUser() *CreateUser_CreateUser {
@@ -207,7 +207,7 @@ func (t *CreateUser) GetCreateUser() *CreateUser_CreateUser {
 }
 
 type UpdatePost struct {
-	UpdatePost UpdatePost_UpdatePost "json:\"updatePost\" graphql:\"updatePost\""
+	UpdatePost UpdatePost_UpdatePost `json:"updatePost" graphql:"updatePost"`
 }
 
 func (t *UpdatePost) GetUpdatePost() *UpdatePost_UpdatePost {
@@ -218,7 +218,7 @@ func (t *UpdatePost) GetUpdatePost() *UpdatePost_UpdatePost {
 }
 
 type GetUser struct {
-	User GetUser_User "json:\"user\" graphql:\"user\""
+	User GetUser_User `json:"user" graphql:"user"`
 }
 
 func (t *GetUser) GetUser() *GetUser_User {
@@ -229,7 +229,7 @@ func (t *GetUser) GetUser() *GetUser_User {
 }
 
 type ListUsers struct {
-	Users []*ListUsers_Users "json:\"users\" graphql:\"users\""
+	Users []*ListUsers_Users `json:"users" graphql:"users"`
 }
 
 func (t *ListUsers) GetUsers() []*ListUsers_Users {

@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type ArticleFields struct {
-	Title  string                "json:\"title\" graphql:\"title\""
-	Author *ArticleFields_Author "json:\"author,omitempty\" graphql:\"author\""
+	Title  string                `json:"title" graphql:"title"`
+	Author *ArticleFields_Author `json:"author,omitempty" graphql:"author"`
 }
 
 func (t *ArticleFields) GetTitle() string {
@@ -35,7 +35,7 @@ func (t *ArticleFields) GetAuthor() *ArticleFields_Author {
 }
 
 type VideoFields struct {
-	Duration int "json:\"duration\" graphql:\"duration\""
+	Duration int `json:"duration" graphql:"duration"`
 }
 
 func (t *VideoFields) GetDuration() int {
@@ -46,7 +46,7 @@ func (t *VideoFields) GetDuration() int {
 }
 
 type ArticleFields_Author struct {
-	Bio *string "json:\"bio,omitempty\" graphql:\"bio\""
+	Bio *string `json:"bio,omitempty" graphql:"bio"`
 }
 
 func (t *ArticleFields_Author) GetBio() *string {
@@ -57,8 +57,8 @@ func (t *ArticleFields_Author) GetBio() *string {
 }
 
 type Search_Search_Article_Author struct {
-	Bio  *string "json:\"bio,omitempty\" graphql:\"bio\""
-	Name string  "json:\"name\" graphql:\"name\""
+	Bio  *string `json:"bio,omitempty" graphql:"bio"`
+	Name string  `json:"name" graphql:"name"`
 }
 
 func (t *Search_Search_Article_Author) GetBio() *string {
@@ -75,9 +75,9 @@ func (t *Search_Search_Article_Author) GetName() string {
 }
 
 type Search_Search_Article struct {
-	ID     string                        "json:\"id\" graphql:\"id\""
-	Title  string                        "json:\"title\" graphql:\"title\""
-	Author *Search_Search_Article_Author "json:\"author,omitempty\" graphql:\"author\""
+	ID     string                        `json:"id" graphql:"id"`
+	Title  string                        `json:"title" graphql:"title"`
+	Author *Search_Search_Article_Author `json:"author,omitempty" graphql:"author"`
 }
 
 func (t *Search_Search_Article) GetID() string {
@@ -100,7 +100,7 @@ func (t *Search_Search_Article) GetAuthor() *Search_Search_Article_Author {
 }
 
 type Search_Search_Video struct {
-	Duration int "json:\"duration\" graphql:\"duration\""
+	Duration int `json:"duration" graphql:"duration"`
 }
 
 func (t *Search_Search_Video) GetDuration() int {
@@ -111,9 +111,9 @@ func (t *Search_Search_Video) GetDuration() int {
 }
 
 type Search_Search struct {
-	Article  Search_Search_Article "graphql:\"... on Article\""
-	Video    Search_Search_Video   "graphql:\"... on Video\""
-	Typename *string               "json:\"__typename,omitempty\" graphql:\"__typename\""
+	Article  Search_Search_Article `graphql:"... on Article"`
+	Video    Search_Search_Video   `graphql:"... on Video"`
+	Typename *string               `json:"__typename,omitempty" graphql:"__typename"`
 }
 
 func (t *Search_Search) GetArticle() *Search_Search_Article {
@@ -136,7 +136,7 @@ func (t *Search_Search) GetTypename() *string {
 }
 
 type Search struct {
-	Search []*Search_Search "json:\"search\" graphql:\"search\""
+	Search []*Search_Search `json:"search" graphql:"search"`
 }
 
 func (t *Search) GetSearch() []*Search_Search {

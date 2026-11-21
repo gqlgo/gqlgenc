@@ -17,8 +17,8 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type ArticleFields struct {
-	ID    string "json:\"id\" graphql:\"id\""
-	Title string "json:\"title\" graphql:\"title\""
+	ID    string `json:"id" graphql:"id"`
+	Title string `json:"title" graphql:"title"`
 }
 
 func (t *ArticleFields) GetID() string {
@@ -35,7 +35,7 @@ func (t *ArticleFields) GetTitle() string {
 }
 
 type VideoFields struct {
-	Duration int "json:\"duration\" graphql:\"duration\""
+	Duration int `json:"duration" graphql:"duration"`
 }
 
 func (t *VideoFields) GetDuration() int {
@@ -46,7 +46,7 @@ func (t *VideoFields) GetDuration() int {
 }
 
 type NodeFields struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID string `json:"id" graphql:"id"`
 }
 
 func (t *NodeFields) GetID() string {
@@ -57,8 +57,8 @@ func (t *NodeFields) GetID() string {
 }
 
 type UserFragment struct {
-	ID      string                "json:\"id\" graphql:\"id\""
-	Profile *UserFragment_Profile "json:\"profile,omitempty\" graphql:\"profile\""
+	ID      string                `json:"id" graphql:"id"`
+	Profile *UserFragment_Profile `json:"profile,omitempty" graphql:"profile"`
 }
 
 func (t *UserFragment) GetID() string {
@@ -75,7 +75,7 @@ func (t *UserFragment) GetProfile() *UserFragment_Profile {
 }
 
 type UserFragment_Profile struct {
-	Bio *string "json:\"bio,omitempty\" graphql:\"bio\""
+	Bio *string `json:"bio,omitempty" graphql:"bio"`
 }
 
 func (t *UserFragment_Profile) GetBio() *string {
@@ -86,8 +86,8 @@ func (t *UserFragment_Profile) GetBio() *string {
 }
 
 type Search_Search_Video struct {
-	ID       string "json:\"id\" graphql:\"id\""
-	Duration int    "json:\"duration\" graphql:\"duration\""
+	ID       string `json:"id" graphql:"id"`
+	Duration int    `json:"duration" graphql:"duration"`
 }
 
 func (t *Search_Search_Video) GetID() string {
@@ -104,9 +104,9 @@ func (t *Search_Search_Video) GetDuration() int {
 }
 
 type Search_Search struct {
-	Article  ArticleFields       "graphql:\"... on Article\""
-	Video    Search_Search_Video "graphql:\"... on Video\""
-	Typename *string             "json:\"__typename,omitempty\" graphql:\"__typename\""
+	Article  ArticleFields       `graphql:"... on Article"`
+	Video    Search_Search_Video `graphql:"... on Video"`
+	Typename *string             `json:"__typename,omitempty" graphql:"__typename"`
 }
 
 func (t *Search_Search) GetArticle() *ArticleFields {
@@ -129,7 +129,7 @@ func (t *Search_Search) GetTypename() *string {
 }
 
 type GetNodes_A_Article struct {
-	Title string "json:\"title\" graphql:\"title\""
+	Title string `json:"title" graphql:"title"`
 }
 
 func (t *GetNodes_A_Article) GetTitle() string {
@@ -140,9 +140,9 @@ func (t *GetNodes_A_Article) GetTitle() string {
 }
 
 type GetNodes_A struct {
-	Article  GetNodes_A_Article "graphql:\"... on Article\""
-	Typename *string            "json:\"__typename,omitempty\" graphql:\"__typename\""
-	ID       string             "json:\"id\" graphql:\"id\""
+	Article  GetNodes_A_Article `graphql:"... on Article"`
+	Typename *string            `json:"__typename,omitempty" graphql:"__typename"`
+	ID       string             `json:"id" graphql:"id"`
 }
 
 func (t *GetNodes_A) GetArticle() *GetNodes_A_Article {
@@ -165,9 +165,9 @@ func (t *GetNodes_A) GetID() string {
 }
 
 type GetNodes_B struct {
-	Video    VideoFields "graphql:\"... on Video\""
-	Typename *string     "json:\"__typename,omitempty\" graphql:\"__typename\""
-	ID       string      "json:\"id\" graphql:\"id\""
+	Video    VideoFields `graphql:"... on Video"`
+	Typename *string     `json:"__typename,omitempty" graphql:"__typename"`
+	ID       string      `json:"id" graphql:"id"`
 }
 
 func (t *GetNodes_B) GetVideo() *VideoFields {
@@ -190,8 +190,8 @@ func (t *GetNodes_B) GetID() string {
 }
 
 type GetUser_User_Profile struct {
-	Bio  *string "json:\"bio,omitempty\" graphql:\"bio\""
-	Name string  "json:\"name\" graphql:\"name\""
+	Bio  *string `json:"bio,omitempty" graphql:"bio"`
+	Name string  `json:"name" graphql:"name"`
 }
 
 func (t *GetUser_User_Profile) GetBio() *string {
@@ -208,8 +208,8 @@ func (t *GetUser_User_Profile) GetName() string {
 }
 
 type GetUser_User struct {
-	ID      string                "json:\"id\" graphql:\"id\""
-	Profile *GetUser_User_Profile "json:\"profile,omitempty\" graphql:\"profile\""
+	ID      string                `json:"id" graphql:"id"`
+	Profile *GetUser_User_Profile `json:"profile,omitempty" graphql:"profile"`
 }
 
 func (t *GetUser_User) GetID() string {
@@ -226,7 +226,7 @@ func (t *GetUser_User) GetProfile() *GetUser_User_Profile {
 }
 
 type Search struct {
-	Search []*Search_Search "json:\"search\" graphql:\"search\""
+	Search []*Search_Search `json:"search" graphql:"search"`
 }
 
 func (t *Search) GetSearch() []*Search_Search {
@@ -237,8 +237,8 @@ func (t *Search) GetSearch() []*Search_Search {
 }
 
 type GetNodes struct {
-	A *GetNodes_A "json:\"a,omitempty\" graphql:\"a\""
-	B *GetNodes_B "json:\"b,omitempty\" graphql:\"b\""
+	A *GetNodes_A `json:"a,omitempty" graphql:"a"`
+	B *GetNodes_B `json:"b,omitempty" graphql:"b"`
 }
 
 func (t *GetNodes) GetA() *GetNodes_A {
@@ -255,7 +255,7 @@ func (t *GetNodes) GetB() *GetNodes_B {
 }
 
 type GetUser struct {
-	User *GetUser_User "json:\"user,omitempty\" graphql:\"user\""
+	User *GetUser_User `json:"user,omitempty" graphql:"user"`
 }
 
 func (t *GetUser) GetUser() *GetUser_User {

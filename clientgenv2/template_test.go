@@ -88,3 +88,64 @@ func TestReturnTypeName(t *testing.T) {
 		})
 	}
 }
+
+// TestStructDef tests that struct tags are rendered as raw string literals.
+func TestStructDef(t *testing.T) {
+	t.Parallel()
+
+	newField := func(name string, typ types.Type, embedded bool) *types.Var {
+		return types.NewField(0, nil, name, typ, embedded)
+	}
+	named := types.NewNamed(types.NewTypeName(0, nil, "Fragment", nil), types.NewStruct(nil, nil), nil)
+	lookupType := func(t types.Type) string { return types.TypeString(t, nil) }
+
+	tests := []struct {
+		name     string
+		input    types.Type
+		expected string
+	}{
+		{
+			name: "Tags as raw string literals",
+			input: types.NewStruct(
+				[]*types.Var{
+					newField("ID", types.Typ[types.String], false),
+					newField("Items", types.NewSlice(types.NewPointer(named)), false),
+				},
+				[]string{`json:"id" graphql:"id"`, `json:"items" graphql:"items"`},
+			),
+			expected: "struct {\nID string `json:\"id\" graphql:\"id\"`\nItems []*Fragment `json:\"items\" graphql:\"items\"`\n}",
+		},
+		{
+			name: "Tag containing a backtick keeps the quoted form",
+			input: types.NewStruct(
+				[]*types.Var{newField("Name", types.Typ[types.String], false)},
+				[]string{"json:\"name\" doc:\"`name`\""},
+			),
+			expected: "struct {\nName string \"json:\\\"name\\\" doc:\\\"`name`\\\"\"\n}",
+		},
+		{
+			name: "Embedded field and field without tag",
+			input: types.NewStruct(
+				[]*types.Var{
+					newField("Fragment", named, true),
+					newField("Count", types.Typ[types.Int], false),
+				},
+				nil,
+			),
+			expected: "struct {\nFragment\nCount int\n}",
+		},
+		{
+			name:     "Non-struct types fall back to lookupType",
+			input:    named,
+			expected: "Fragment",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, test.expected, structDef(test.input, lookupType))
+		})
+	}
+}
