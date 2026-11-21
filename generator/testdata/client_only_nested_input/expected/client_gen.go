@@ -18,7 +18,7 @@ func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Option
 }
 
 type ListItems_Items struct {
-	ID string "json:\"id\" graphql:\"id\""
+	ID string `json:"id" graphql:"id"`
 }
 
 func (t *ListItems_Items) GetID() string {
@@ -29,7 +29,7 @@ func (t *ListItems_Items) GetID() string {
 }
 
 type ListItems struct {
-	Items []*ListItems_Items "json:\"items\" graphql:\"items\""
+	Items []*ListItems_Items `json:"items" graphql:"items"`
 }
 
 func (t *ListItems) GetItems() []*ListItems_Items {
