@@ -13,6 +13,12 @@ type GenerateConfig struct {
 	NullableInputOmittable       bool    `yaml:"nullableInputOmittable,omitempty"`
 	EnableClientJsonOmitemptyTag *bool   `yaml:"enableClientJsonOmitemptyTag,omitempty"`
 	EnableClientJsonOmitzeroTag  *bool   `yaml:"enableClientJsonOmitzeroTag,omitempty"`
+	// EnableModelJsonOmitemptyTag overrides EnableClientJsonOmitemptyTag for
+	// generated models. Nil falls back to the client setting.
+	EnableModelJsonOmitemptyTag *bool `yaml:"enableModelJsonOmitemptyTag,omitempty"`
+	// EnableModelJsonOmitzeroTag overrides EnableClientJsonOmitzeroTag for
+	// generated models. Nil falls back to the client setting.
+	EnableModelJsonOmitzeroTag *bool `yaml:"enableModelJsonOmitzeroTag,omitempty"`
 
 	// Deprecated: not working because v1 is deleted. Must use ClientV2
 	// if true, used client v2 in generate code
@@ -56,6 +62,8 @@ func (c *GenerateConfig) GetClientInterfaceName() *string {
 // Postconditions:
 //   - StructFieldsAlwaysPointers defaults to true, InlineFragmentAlwaysPointers to false,
 //     EnableClientJsonOmitemptyTag to true, and EnableClientJsonOmitzeroTag to false
+//   - EnableModelJsonOmitemptyTag and EnableModelJsonOmitzeroTag stay nil so they
+//     fall back to the client settings when the gqlgen config is built
 //   - options that were already set are left unchanged
 func (c *GenerateConfig) applyDefaults() {
 	if c.StructFieldsAlwaysPointers == nil {

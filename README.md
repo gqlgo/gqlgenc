@@ -80,7 +80,14 @@ generate:
   structFieldsAlwaysPointers: true # Optional: Always use pointers for struct fields (default: true). [same as gqlgen](https://github.com/99designs/gqlgen/blob/e1ef86e795e738654c98553b325a248c02c8c2f8/docs/content/config.md?plain=1#L73)
   onlyUsedModels: true # Optional: Only generate used models
   enableClientJsonOmitemptyTag: true # Optional: Controls whether the "omitempty" option is added to JSON tags (default: true)
+  enableModelJsonOmitemptyTag: true # Optional: Overrides enableClientJsonOmitemptyTag for generated models; needs model:
+  enableModelJsonOmitzeroTag: false # Optional: Overrides enableClientJsonOmitzeroTag for generated models; needs model:
 ```
+
+`enableModelJsonOmitemptyTag` and `enableModelJsonOmitzeroTag` apply only when
+`model:` is set, because models are generated only then. When a model key is
+omitted, it falls back to the matching client key (`omitempty` defaults to true
+and `omitzero` to false). Client struct tags always follow the client keys.
 
 Execute the following command on same directory for .gqlgenc.yml
 
@@ -125,6 +132,25 @@ gqlgenc -c clients/orders -c clients/products -c clients/customers
   GraphQL name whose Go name is already taken (`Foo_Bar` after `FooBar`) gets
   a suffix (`FooBar0`) that a separate run would not add.
 - A config may bind the output of an earlier config in the same run.
+
+### Client-only configuration (all types autobound)
+
+`model:` is optional when every variable type, enum, and custom scalar used by
+the queries is bound with `autobind` or `models`. Input types nested inside a
+bound input type do not need a binding of their own. gqlgenc then writes only the
+client.
+
+```yaml
+client:
+  package: generated
+  filename: ./client_gen.go
+autobind:
+  - github.com/example/project/domain
+schema:
+  - "schema/**/*.graphql"
+query:
+  - "./query/*.graphql"
+```
 
 ### With gqlgen
 

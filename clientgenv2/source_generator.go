@@ -399,7 +399,14 @@ func (r *SourceGenerator) OperationArguments(variableDefinitions ast.VariableDef
 
 // Typeの引数に渡すtypeNameは解析した結果からselectionなどから求めた型の名前を渡さなければいけない
 func (r *SourceGenerator) Type(typeName string) types.Type {
-	goType, err := r.binder.FindTypeFromName(r.cfg.Models[typeName].Model[0])
+	model := r.cfg.Models[typeName].Model
+	if len(model) == 0 {
+		// Generate rejects this for a client-only config before plugins run.
+		// The panic replaces the index panic for every other caller.
+		panic(fmt.Sprintf("type %q is not bound to a Go type; add it to `autobind`/`models`, or set `model.filename` so gqlgenc generates it", typeName))
+	}
+
+	goType, err := r.binder.FindTypeFromName(model[0])
 	if err != nil {
 		panic(fmt.Sprintf("%+v", err))
 	}

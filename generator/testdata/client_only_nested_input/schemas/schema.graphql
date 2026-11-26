@@ -1,0 +1,15 @@
+input Inner {
+  id: ID
+}
+
+input Outer {
+  inner: Inner
+}
+
+type Item {
+  id: ID!
+}
+
+type Query {
+  items(filter: Outer): [Item!]!
+}
