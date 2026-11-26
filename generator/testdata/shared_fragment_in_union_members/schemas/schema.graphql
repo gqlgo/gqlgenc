@@ -1,0 +1,19 @@
+type Query {
+    items: [Item!]!
+}
+
+union Item = Book | Movie
+
+type Book {
+    meta: Meta!
+    pages: Int!
+}
+
+type Movie {
+    meta: Meta!
+    minutes: Int!
+}
+
+type Meta {
+    name: String!
+}

@@ -1,0 +1,24 @@
+query ListItems {
+    items {
+        ...BookDetails
+        ...MovieDetails
+    }
+}
+
+fragment BookDetails on Book {
+    meta {
+        ...MetaDetails
+    }
+    pages
+}
+
+fragment MovieDetails on Movie {
+    meta {
+        ...MetaDetails
+    }
+    minutes
+}
+
+fragment MetaDetails on Meta {
+    name
+}
