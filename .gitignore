@@ -16,3 +16,6 @@ gqlgenc
 # mise local overrides, see https://mise.jdx.dev/configuration.html
 .mise.local.toml
 mise.local.toml
+
+# Personal make targets, run with: make -f Makefile.local <target>
+Makefile.local

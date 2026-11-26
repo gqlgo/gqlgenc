@@ -253,6 +253,56 @@ func TestUnmarshal(t *testing.T) {
 	})
 }
 
+// TestParseResponse_outcomeTable checks every row of the table in the doc
+// comment of parseResponse.
+func TestParseResponse_outcomeTable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		httpCode         int
+		body             string
+		wantNil          bool
+		wantUnmarshalErr bool
+		wantNetworkError bool
+		wantGqlErrors    bool
+	}{
+		{name: "success, Data", httpCode: 200, body: validData, wantNil: true},
+		{name: "success, GraphQLErrors", httpCode: 200, body: qqlSingleErr, wantGqlErrors: true},
+		{name: "success, Undecodable", httpCode: 200, body: invalidJSON, wantUnmarshalErr: true},
+		{name: "error, Data", httpCode: 500, body: validData, wantNetworkError: true},
+		{name: "error, GraphQLErrors", httpCode: 500, body: qqlSingleErr, wantNetworkError: true, wantGqlErrors: true},
+		{name: "error, Undecodable", httpCode: 500, body: invalidJSON, wantNetworkError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &Client{}
+			err := c.parseResponse([]byte(tt.body), tt.httpCode, &fakeRes{})
+
+			if tt.wantNil {
+				require.NoError(t, err)
+
+				return
+			}
+
+			errResponse, isErrorResponse := errors.AsType[*ErrorResponse](err)
+			require.Equal(t, !tt.wantUnmarshalErr, isErrorResponse)
+
+			if tt.wantUnmarshalErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.Equal(t, tt.wantNetworkError, errResponse.NetworkError != nil)
+			require.Equal(t, tt.wantGqlErrors, errResponse.GqlErrors != nil)
+		})
+	}
+}
+
 func TestParseResponse(t *testing.T) {
 	t.Parallel()
 	t.Run("single error", func(t *testing.T) {

@@ -454,11 +454,109 @@ func (c *Client) do(_ context.Context, req *http.Request, _ *GQLRequestInfo, res
 	return c.parseResponse(body, resp.StatusCode, res)
 }
 
+// httpStatusClass is the part of an HTTP status code that decides how a response is reported.
+type httpStatusClass int
+
+const (
+	// httpStatusClassSuccess is a 2xx status code.
+	httpStatusClassSuccess httpStatusClass = iota + 1
+	// httpStatusClassError is any other status code.
+	httpStatusClassError
+)
+
+// classifyHTTPStatus reports whether an HTTP status code is a success.
+//
+// Arguments:
+//   - httpCode: the status code of the response
+//
+// Returns:
+//   - httpStatusClass: httpStatusClassSuccess for 200 to 299, otherwise httpStatusClassError
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func classifyHTTPStatus(httpCode int) httpStatusClass {
+	if httpCode < 200 || 299 < httpCode {
+		return httpStatusClassError
+	}
+
+	return httpStatusClassSuccess
+}
+
+// responseBodyClass is what unmarshal found in a response body.
+type responseBodyClass int
+
+const (
+	// responseBodyClassData means the data was decoded and the body carries no GraphQL errors.
+	responseBodyClassData responseBodyClass = iota + 1
+	// responseBodyClassGraphQLErrors means the body carries a GraphQL error list.
+	// With ParseDataWhenErrors the data, if it could be decoded, is in the result as well.
+	responseBodyClassGraphQLErrors
+	// responseBodyClassUndecodable means the body is not a GraphQL response, its
+	// errors cannot be parsed, or its data does not fit the result.
+	responseBodyClassUndecodable
+)
+
+// classifyResponseBody turns the error of unmarshal into a responseBodyClass.
+//
+// Arguments:
+//   - unmarshalErr: the error returned by unmarshal, or nil
+//
+// Returns:
+//   - responseBodyClass: Data for nil, GraphQLErrors when unmarshalErr is a
+//     *GqlErrorList, otherwise Undecodable
+//   - *GqlErrorList: the error list for GraphQLErrors, otherwise nil
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func classifyResponseBody(unmarshalErr error) (responseBodyClass, *GqlErrorList) {
+	if unmarshalErr == nil {
+		return responseBodyClassData, nil
+	}
+
+	if gqlErrorList, ok := errors.AsType[*GqlErrorList](unmarshalErr); ok {
+		return responseBodyClassGraphQLErrors, gqlErrorList
+	}
+
+	return responseBodyClassUndecodable, nil
+}
+
+// parseResponse decodes a response body into result and reports the failure of the request, if any.
+//
+// The returned error is decided by the HTTP status and the body together:
+//
+//	status  | body          | error
+//	success | Data          | nil
+//	success | GraphQLErrors | *ErrorResponse with GqlErrors
+//	success | Undecodable   | the error of unmarshal
+//	error   | Data          | *ErrorResponse with NetworkError
+//	error   | GraphQLErrors | *ErrorResponse with NetworkError and GqlErrors
+//	error   | Undecodable   | *ErrorResponse with NetworkError
+//
+// Arguments:
+//   - body: the response body, already decompressed
+//   - httpCode: the status code of the response
+//   - result: a pointer to the value the data is decoded into
+//
+// Returns:
+//   - error: see the table
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - nil is returned only for a success status whose body decoded without GraphQL errors
+//   - an error status always yields an *ErrorResponse with NetworkError set
 func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	errResponse := &ErrorResponse{}
 
-	isErrorStatus := httpCode < 200 || 299 < httpCode
-	if isErrorStatus {
+	statusClass := classifyHTTPStatus(httpCode)
+	if statusClass == httpStatusClassError {
 		errResponse.NetworkError = &HTTPError{
 			Code:    httpCode,
 			Message: fmt.Sprintf("Response body %s", string(body)),
@@ -466,12 +564,16 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	}
 
 	// some servers return a graphql error with a non OK http code, try anyway to parse the body
-	err := c.unmarshal(body, result)
-	if err != nil {
-		if gqlErr, ok := errors.AsType[*GqlErrorList](err); ok {
-			errResponse.GqlErrors = &gqlErr.Errors
-		} else if !isErrorStatus {
-			return err
+	unmarshalErr := c.unmarshal(body, result)
+
+	bodyClass, gqlErrorList := classifyResponseBody(unmarshalErr)
+	switch bodyClass {
+	case responseBodyClassData:
+	case responseBodyClassGraphQLErrors:
+		errResponse.GqlErrors = &gqlErrorList.Errors
+	case responseBodyClassUndecodable:
+		if statusClass == httpStatusClassSuccess {
+			return unmarshalErr
 		}
 	}
 

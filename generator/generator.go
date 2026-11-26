@@ -56,14 +56,71 @@ func mutateHook(cfg *config.Config, usedTypes map[string]bool) func(b *modelgen.
 // the way it ignored a file that unlinkOutput had removed.
 const outputBackupSuffix = ".gqlgenc.bak"
 
+// outputBackupState is the lifecycle of one output file during Generate.
+//
+//	backupOutput ──▶ PreviousSaved ──commit──▶ Committed
+//	            └──▶ NoPrevious    ──restore─▶ Restored
+//
+// PreviousSaved and NoPrevious are the unsettled states; each of them moves to
+// Committed or Restored exactly once. A commit or restore that fails leaves the
+// state unchanged, so that the restore deferred by Generate can still run.
+// Committed and Restored are final.
+type outputBackupState int
+
+const (
+	// outputBackupStatePreviousSaved means the previous output is kept at bakPath.
+	outputBackupStatePreviousSaved outputBackupState = iota + 1
+	// outputBackupStateNoPrevious means there was no previous output to keep.
+	outputBackupStateNoPrevious
+	// outputBackupStateCommitted means the result of generation was accepted.
+	outputBackupStateCommitted
+	// outputBackupStateRestored means the previous output was put back.
+	outputBackupStateRestored
+)
+
+// isSettled reports whether the backup has been committed or restored.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - bool: true for Committed and Restored
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (s outputBackupState) isSettled() bool {
+	return s == outputBackupStateCommitted || s == outputBackupStateRestored
+}
+
 // outputBackup is one defined output file moved aside for the duration of Generate.
 type outputBackup struct {
 	path    string
 	bakPath string
-	hadFile bool
-	// settled is set once the backup has been committed or restored, so a
-	// later restore does not undo that result.
-	settled bool
+	state   outputBackupState
+}
+
+// settle moves an unsettled backup to its final state.
+//
+// Arguments:
+//   - finalState: outputBackupStateCommitted or outputBackupStateRestored
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - b is not settled and finalState is a settled state; anything else is a bug and panics
+//
+// Postconditions:
+//   - b.state is finalState, so a later restore leaves the result alone
+func (b *outputBackup) settle(finalState outputBackupState) {
+	if b.state.isSettled() || !finalState.isSettled() {
+		panic(fmt.Sprintf("output backup of %s: invalid transition from state %d to %d", b.path, b.state, finalState))
+	}
+
+	b.state = finalState
 }
 
 // loadSchema injects the federation directives, if any, and loads the schema
@@ -305,12 +362,13 @@ func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBa
 	backup := &outputBackup{
 		path:    pkg.Filename,
 		bakPath: pkg.Filename + outputBackupSuffix,
+		state:   outputBackupStateNoPrevious,
 	}
 
 	// Rename replaces a .bak left by an interrupted run when the output exists.
 	err := os.Rename(backup.path, backup.bakPath)
 	if err == nil {
-		backup.hadFile = true
+		backup.state = outputBackupStatePreviousSaved
 
 		return backup, nil
 	}
@@ -323,7 +381,7 @@ func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBa
 	// copy of the previous output, so adopt it instead of deleting it.
 	_, err = os.Stat(backup.bakPath)
 	if err == nil {
-		backup.hadFile = true
+		backup.state = outputBackupStatePreviousSaved
 
 		return backup, nil
 	}
@@ -363,33 +421,87 @@ func restoreOutputBackups(backups []*outputBackup) error {
 	return errors.Join(errs...)
 }
 
-// restore deletes a partially written output and puts the backup back.
-// A backup that was never created, or that is already settled, is left alone.
+// restore puts the previous output back, moving an unsettled backup to
+// outputBackupStateRestored. A settled backup is left alone.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil when a file cannot be deleted or renamed
+//
+// Preconditions:
+//   - b was returned by backupOutput
+//
+// Postconditions:
+//   - on success b.state is settled: outputBackupStateRestored, or unchanged
+//     when it was settled already
+//   - on failure b.state is unchanged
 func (b *outputBackup) restore() error {
-	if b.settled {
+	switch b.state {
+	case outputBackupStateCommitted, outputBackupStateRestored:
 		return nil
+	case outputBackupStateNoPrevious:
+		return b.restoreNoPrevious()
+	case outputBackupStatePreviousSaved:
+		return b.restorePreviousSaved()
+	default:
+		panic(fmt.Sprintf("output backup of %s: unknown state %d", b.path, b.state))
+	}
+}
+
+// restoreNoPrevious deletes what generation wrote where there was no previous output.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil when the partial output or a backup path cannot be deleted
+//
+// Preconditions:
+//   - b.state is outputBackupStateNoPrevious
+//
+// Postconditions:
+//   - on success neither b.path nor b.bakPath exists and b.state is outputBackupStateRestored
+//   - on failure b.state is unchanged
+func (b *outputBackup) restoreNoPrevious() error {
+	err := os.Remove(b.path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove partial output: %w", err)
 	}
 
-	if !b.hadFile {
-		err := os.Remove(b.path)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove partial output: %w", err)
-		}
-
-		err = os.Remove(b.bakPath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove output backup: %w", err)
-		}
-
-		b.settled = true
-
-		return nil
+	err = os.Remove(b.bakPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove output backup: %w", err)
 	}
 
+	b.settle(outputBackupStateRestored)
+
+	return nil
+}
+
+// restorePreviousSaved renames the backup onto the original path, replacing a
+// partially written output.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil when the backup cannot be checked or renamed
+//
+// Preconditions:
+//   - b.state is outputBackupStatePreviousSaved
+//
+// Postconditions:
+//   - on success b.bakPath does not exist and b.state is outputBackupStateRestored;
+//     a backup that is already gone leaves b.path as it is
+//   - on failure b.state is unchanged
+func (b *outputBackup) restorePreviousSaved() error {
 	_, err := os.Stat(b.bakPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			b.settled = true
+			b.settle(outputBackupStateRestored)
+
 			return nil
 		}
 
@@ -402,7 +514,7 @@ func (b *outputBackup) restore() error {
 		return fmt.Errorf("restore output: %w", err)
 	}
 
-	b.settled = true
+	b.settle(outputBackupStateRestored)
 
 	return nil
 }
@@ -434,13 +546,56 @@ func commitOutputBackups(backups []*outputBackup) error {
 	return nil
 }
 
-// commit settles one backup after a successful generate.
+// commit accepts the result of a successful generate, moving an unsettled
+// backup to outputBackupStateCommitted. A settled backup is left alone.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil when the backup cannot be committed
+//
+// Preconditions:
+//   - b was returned by backupOutput
+//   - generation has finished
+//
+// Postconditions:
+//   - on success b.state is settled: outputBackupStateCommitted, or unchanged
+//     when it was settled already
+//   - on failure b.state is unchanged, so restore puts the backup back
 func (b *outputBackup) commit() error {
-	if !b.hadFile {
-		b.settled = true
+	switch b.state {
+	case outputBackupStateCommitted, outputBackupStateRestored:
 		return nil
-	}
+	case outputBackupStateNoPrevious:
+		b.settle(outputBackupStateCommitted)
 
+		return nil
+	case outputBackupStatePreviousSaved:
+		return b.commitPreviousSaved()
+	default:
+		panic(fmt.Sprintf("output backup of %s: unknown state %d", b.path, b.state))
+	}
+}
+
+// commitPreviousSaved keeps the generated output and drops the backup, or puts
+// the backup back when the generated bytes are identical to it.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: non-nil when the generated output or the backup cannot be read,
+//     renamed or deleted
+//
+// Preconditions:
+//   - b.state is outputBackupStatePreviousSaved
+//   - generation has finished
+//
+// Postconditions:
+//   - on success b.bakPath does not exist and b.state is outputBackupStateCommitted
+//   - on failure b.state is unchanged, so restore puts the backup back
+func (b *outputBackup) commitPreviousSaved() error {
 	_, err := os.Stat(b.path)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -454,7 +609,7 @@ func (b *outputBackup) commit() error {
 			return fmt.Errorf("remove output backup: %w", err)
 		}
 
-		b.settled = true
+		b.settle(outputBackupStateCommitted)
 
 		return nil
 	}
@@ -476,7 +631,7 @@ func (b *outputBackup) commit() error {
 			return fmt.Errorf("restore unchanged output: %w", err)
 		}
 
-		b.settled = true
+		b.settle(outputBackupStateCommitted)
 
 		return nil
 	}
@@ -486,7 +641,7 @@ func (b *outputBackup) commit() error {
 		return fmt.Errorf("remove output backup: %w", err)
 	}
 
-	b.settled = true
+	b.settle(outputBackupStateCommitted)
 
 	return nil
 }

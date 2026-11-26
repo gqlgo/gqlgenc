@@ -73,8 +73,8 @@ func UnmarshalData(data json.RawMessage, v any) error {
 type Decoder struct {
 	jsonDecoder *json.Decoder
 
-	// Stack of what part of input JSON we're in the middle of - objects, arrays.
-	parseState []json.Delim
+	// Stack of the JSON objects and arrays we're in the middle of, innermost last.
+	containers []container
 
 	// Stacks of values where to unmarshal.
 	// The top of each stack is the reflect.Value where to unmarshal next JSON value.
@@ -83,11 +83,81 @@ type Decoder struct {
 	// a single JSON value into multiple GraphQL fragments or embedded structs, so
 	// we keep track of them all.
 	stacks []valueStack
+}
 
-	// typenameByDepth maps object nesting depth (count of open '{' in parseState)
-	// to the __typename value seen at that depth. Used to discriminate which
-	// inline fragment pointer to initialize when multiple variants share a field name.
-	typenameByDepth map[int]string
+// containerKind is the kind of JSON value the decoder is in the middle of.
+type containerKind int
+
+const (
+	// containerKindNone means the decoder is at the top level, outside any object or array.
+	containerKindNone containerKind = iota
+	// containerKindObject means the next token is a key or the end of the object.
+	containerKindObject
+	// containerKindArray means the next token is an element or the end of the array.
+	containerKindArray
+)
+
+// container is one JSON object or array the decoder is in the middle of.
+type container struct {
+	kind containerKind
+
+	// typename is the __typename read so far among the keys of an object. It
+	// discriminates the inline fragments found in that object. It is meaningful
+	// only when isTypenameRead is true.
+	typename string
+
+	// isTypenameRead is false until a string __typename has been read: keys that
+	// come before __typename, and objects without one, are decoded without it.
+	isTypenameRead bool
+}
+
+// fragmentMatch is how the __typename of the object being decoded relates to
+// the inline fragment a stack was created from. It decides what the fragment
+// receives from the keys of that object:
+//
+//	match         | nil pointer allocated | fields stored    | reset on '}'
+//	Undetermined  | yes                   | yes              | no
+//	Applies       | yes                   | yes              | no
+//	HeldBack      | no                    | if non-nil       | no
+//	RuledOut      | no                    | no               | yes
+//
+// An object starts Undetermined and moves once to one of the other three when
+// its __typename is read.
+type fragmentMatch int
+
+const (
+	// fragmentMatchUndetermined means no __typename has been read for the object yet.
+	fragmentMatchUndetermined fragmentMatch = iota
+	// fragmentMatchApplies means the stack is not an inline fragment, or the
+	// inline fragment applies to the __typename.
+	fragmentMatchApplies
+	// fragmentMatchHeldBack means the inline fragment does not apply to the
+	// __typename but cannot be ruled out: it has no possibleTypes tag (generated
+	// by an older version or written by hand), or the stack is below the object
+	// the fragment was found in.
+	fragmentMatchHeldBack
+	// fragmentMatchRuledOut means the inline fragment has a possibleTypes tag,
+	// the stack is at the object the fragment was found in, and the __typename
+	// is not one of the possible types.
+	fragmentMatchRuledOut
+)
+
+// allocatesNilPointer reports whether a nil pointer on top of a stack with this
+// match may be allocated to receive a field.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - bool: true for Undetermined, which falls back to the field-presence check, and Applies
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (m fragmentMatch) allocatesNilPointer() bool {
+	return m == fragmentMatchUndetermined || m == fragmentMatchApplies
 }
 
 // valueStack is one stack of values to unmarshal into.
@@ -151,10 +221,7 @@ func newDecoder(r io.Reader) *Decoder {
 	jsonDecoder := json.NewDecoder(r)
 	jsonDecoder.UseNumber()
 
-	return &Decoder{
-		jsonDecoder:     jsonDecoder,
-		typenameByDepth: make(map[int]string),
-	}
+	return &Decoder{jsonDecoder: jsonDecoder}
 }
 
 // Decode decodes a single JSON value from d.tokenizer into v.
@@ -198,7 +265,7 @@ func (d *Decoder) decode() error {
 
 		switch {
 		// Are we inside an object and seeing next key (rather than end of object)?
-		case d.state() == '{' && tok != json.Delim('}'):
+		case d.containerKind() == containerKindObject && tok != json.Delim('}'):
 			key, ok := tok.(string)
 			if !ok {
 				return errors.New("unexpected non-key in JSON input")
@@ -210,7 +277,7 @@ func (d *Decoder) decode() error {
 			}
 
 		// Are we inside an array and seeing next value (rather than end of array)?
-		case d.state() == '[' && tok != json.Delim(']'):
+		case d.containerKind() == containerKindArray && tok != json.Delim(']'):
 			err = d.pushArrayElement()
 			if err != nil {
 				return err
@@ -298,7 +365,7 @@ func wrapReadError(err error) error {
 //   - error: non-nil if no stack has a matching field or the value cannot be read
 //
 // Preconditions:
-//   - d.state() is '{'
+//   - d.containerKind() is containerKindObject
 //
 // Postconditions:
 //   - every stack has one more entry: the matching field, or an invalid value
@@ -322,7 +389,7 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 		earlyReadTok, earlyRead = tok, true
 
 		if s, ok := tok.(string); ok {
-			d.typenameByDepth[d.objectDepth()] = s
+			d.recordTypename(s)
 		}
 	}
 
@@ -371,7 +438,9 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 	for i := range d.stacks {
 		v := d.stacks[i].top()
 
-		if d.isRuledOut(i) {
+		match := d.fragmentMatchOf(i)
+
+		if match == fragmentMatchRuledOut {
 			d.stacks[i].values = append(d.stacks[i].values, reflect.Value{})
 
 			continue
@@ -380,7 +449,7 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 		// If v is a nil pointer, check whether the key exists in the pointed-to
 		// type before initializing — preserves nil for non-matching union variants.
 		// When a __typename was seen, also require the inline fragment to apply to it.
-		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() && hasGraphQLField(v.Type(), key) && d.shouldInitFragPtr(i) {
+		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() && hasGraphQLField(v.Type(), key) && match.allocatesNilPointer() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
 
@@ -419,7 +488,7 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 //   - the stacks are unchanged
 func (d *Decoder) ruledOutFragmentHasField(key string) bool {
 	for i := range d.stacks {
-		if d.isRuledOut(i) && hasGraphQLField(d.stacks[i].top().Type(), key) {
+		if d.fragmentMatchOf(i) == fragmentMatchRuledOut && hasGraphQLField(d.stacks[i].top().Type(), key) {
 			return true
 		}
 	}
@@ -493,7 +562,7 @@ func (d *Decoder) readRawValue() (json.Token, error) {
 //   - error: non-nil if no stack has a slice on top
 //
 // Preconditions:
-//   - d.state() is '['
+//   - d.containerKind() is containerKindArray
 //
 // Postconditions:
 //   - stacks without a slice on top get an invalid value pushed instead
@@ -629,7 +698,7 @@ func (d *Decoder) assignScalar(tok json.Token) error {
 //   - none
 //
 // Postconditions:
-//   - the parse state and the stacks reflect the opened or closed value
+//   - the containers and the stacks reflect the opened or closed value
 //   - on '}', inline fragments of the object ruled out by its __typename are reset
 func (d *Decoder) handleDelim(tok json.Delim) error {
 	switch tok {
@@ -641,11 +710,10 @@ func (d *Decoder) handleDelim(tok json.Delim) error {
 		// End of object or array.
 		if tok == '}' {
 			d.resetRuledOutFragments()
-			delete(d.typenameByDepth, d.objectDepth())
 		}
 
 		d.popAllVs()
-		d.popState()
+		d.popContainer()
 	default:
 		return errors.New("unexpected delimiter in JSON input")
 	}
@@ -669,7 +737,7 @@ func (d *Decoder) handleDelim(tok json.Delim) error {
 //   - a stack is added for every GraphQL fragment or embedded struct reachable
 //     from the values on top of the stacks
 func (d *Decoder) openObject() {
-	d.pushState('{')
+	d.pushContainer(containerKindObject)
 
 	frontier := make([]reflect.Value, len(d.stacks)) // Places to look for GraphQL fragments/embedded structs.
 	for i := range d.stacks {
@@ -723,7 +791,7 @@ func (d *Decoder) openObject() {
 // Postconditions:
 //   - slices on top of the stacks are reset to empty
 func (d *Decoder) openArray() {
-	d.pushState('[')
+	d.pushContainer(containerKindArray)
 
 	for i := range d.stacks {
 		v := d.stacks[i].top()
@@ -745,24 +813,78 @@ func (d *Decoder) openArray() {
 	}
 }
 
-// pushState pushes a new parse state s onto the stack.
-func (d *Decoder) pushState(s json.Delim) {
-	d.parseState = append(d.parseState, s)
+// pushContainer records that an object or array has been opened.
+//
+// Arguments:
+//   - kind: containerKindObject or containerKindArray
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - the tokenizer just returned the opening delimiter of kind
+//
+// Postconditions:
+//   - the new container is the innermost one, with no __typename read
+func (d *Decoder) pushContainer(kind containerKind) {
+	d.containers = append(d.containers, container{kind: kind})
 }
 
-// popState pops a parse state (already obtained) off the stack.
-// The stack must be non-empty.
-func (d *Decoder) popState() {
-	d.parseState = d.parseState[:len(d.parseState)-1]
+// popContainer records that the innermost object or array has been closed.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - d.containers is not empty
+//
+// Postconditions:
+//   - the __typename read for a closed object is forgotten with it
+func (d *Decoder) popContainer() {
+	d.containers = d.containers[:len(d.containers)-1]
 }
 
-// state reports the parse state on top of stack, or 0 if empty.
-func (d *Decoder) state() json.Delim {
-	if len(d.parseState) == 0 {
-		return 0
+// containerKind reports the kind of the innermost container.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - containerKind: containerKindNone at the top level
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (d *Decoder) containerKind() containerKind {
+	if len(d.containers) == 0 {
+		return containerKindNone
 	}
 
-	return d.parseState[len(d.parseState)-1]
+	return d.containers[len(d.containers)-1].kind
+}
+
+// recordTypename stores the __typename of the object being decoded.
+//
+// Arguments:
+//   - typename: the string value of the __typename key
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - d.containerKind() is containerKindObject
+//
+// Postconditions:
+//   - fragmentMatchOf no longer returns fragmentMatchUndetermined for this object
+func (d *Decoder) recordTypename(typename string) {
+	object := &d.containers[len(d.containers)-1]
+	object.typename = typename
+	object.isTypenameRead = true
 }
 
 // popAllVs pops from all stacks, keeping only non-empty ones.
@@ -877,74 +999,46 @@ func unmarshalValue(value json.Token, v reflect.Value) error {
 	return nil
 }
 
-// objectDepth returns the number of currently open JSON objects ('{') in parseState.
-func (d *Decoder) objectDepth() int {
-	count := 0
-
-	for _, s := range d.parseState {
-		if s == '{' {
-			count++
-		}
-	}
-
-	return count
-}
-
-// shouldInitFragPtr reports whether the nil pointer on top of a stack should be initialized.
-//
-// Arguments:
-//   - i: the index of the stack
-//
-// Returns:
-//   - bool: true when no __typename has been read for the current object depth, or the
-//     stack is not an inline fragment; otherwise whether the inline fragment applies to
-//     that __typename
-//
-// Preconditions:
-//   - 0 <= i < len(d.stacks)
-//
-// Postconditions:
-//   - none
-func (d *Decoder) shouldInitFragPtr(i int) bool {
-	typename, ok := d.typenameByDepth[d.objectDepth()]
-	if !ok {
-		return true // no __typename seen yet, fall back to field-presence check
-	}
-
-	return d.stacks[i].appliesTo(typename)
-}
-
-// isRuledOut reports whether the __typename of the object being decoded rules out the
-// inline fragment a stack was created from.
+// fragmentMatchOf reports how the __typename of the object being decoded relates
+// to the inline fragment a stack was created from.
 //
 // Only inline fragments with a gqlgenc:"possibleTypes=..." tag are ruled out. Fragments
 // without it, generated by older versions or written by hand, keep receiving every field
-// they have; only their nil pointers are held back by shouldInitFragPtr.
+// they have; only their nil pointers are held back.
 //
 // Arguments:
 //   - i: the index of the stack
 //
 // Returns:
-//   - bool: true if the fragment has a possibleTypes tag, the stack is at the object the
-//     fragment was found in, and the __typename of that object has been read and is not
-//     one of the possible types
+//   - fragmentMatch: Undetermined when no __typename has been read for the object;
+//     Applies when the stack is not an inline fragment or the fragment applies to the
+//     __typename; RuledOut when a fragment with a possibleTypes tag does not apply and the
+//     stack is at the object the fragment was found in; HeldBack otherwise
 //
 // Preconditions:
 //   - 0 <= i < len(d.stacks)
+//   - d.containerKind() is containerKindObject
 //
 // Postconditions:
 //   - none
-func (d *Decoder) isRuledOut(i int) bool {
-	stack := d.stacks[i]
-	// The stack holds only the fragment itself while the keys of the object the fragment
-	// was found in are decoded; deeper entries are fields of the fragment.
-	if stack.possibleTypes == nil || len(stack.values) != 1 {
-		return false
+func (d *Decoder) fragmentMatchOf(i int) fragmentMatch {
+	object := d.containers[len(d.containers)-1]
+	if !object.isTypenameRead {
+		return fragmentMatchUndetermined
 	}
 
-	typename, ok := d.typenameByDepth[d.objectDepth()]
+	stack := d.stacks[i]
+	if stack.appliesTo(object.typename) {
+		return fragmentMatchApplies
+	}
 
-	return ok && !stack.appliesTo(typename)
+	// The stack holds only the fragment itself while the keys of the object the fragment
+	// was found in are decoded; deeper entries are fields of the fragment.
+	if stack.possibleTypes != nil && len(stack.values) == 1 {
+		return fragmentMatchRuledOut
+	}
+
+	return fragmentMatchHeldBack
 }
 
 // resetRuledOutFragments resets the inline fragments that the __typename of the object
@@ -957,13 +1051,13 @@ func (d *Decoder) isRuledOut(i int) bool {
 //   - none
 //
 // Preconditions:
-//   - the tokenizer just returned the '}' of the object; d.parseState still includes it
+//   - the tokenizer just returned the '}' of the object; d.containers still includes it
 //
 // Postconditions:
 //   - each ruled out fragment is set to its zero value: nil for a pointer
 func (d *Decoder) resetRuledOutFragments() {
 	for i := range d.stacks {
-		if !d.isRuledOut(i) {
+		if d.fragmentMatchOf(i) != fragmentMatchRuledOut {
 			continue
 		}
 
