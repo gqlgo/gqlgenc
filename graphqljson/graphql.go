@@ -393,7 +393,10 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 		}
 	}
 
-	matchingFieldValue, ruledOutFieldExists := d.pushField(key)
+	// Checked before pushField, which replaces the top of every stack.
+	ruledOutFieldExists := d.ruledOutFragmentHasField(key)
+
+	matchingFieldValue := d.pushField(key)
 	if matchingFieldValue == nil && !ruledOutFieldExists {
 		return nil, fmt.Errorf("struct field for %q doesn't exist in any of %v places to unmarshal", key, len(d.stacks))
 	}
@@ -419,7 +422,6 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 //
 // Returns:
 //   - *reflect.Value: the last stack's matching field, or nil if no stack has one
-//   - bool: whether an inline fragment ruled out by __typename has the field
 //
 // Preconditions:
 //   - none
@@ -429,12 +431,9 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 //     get an invalid value pushed instead
 //   - a nil pointer to a struct that has the field is allocated first, unless a
 //     __typename rules out the inline fragment
-func (d *Decoder) pushField(key string) (*reflect.Value, bool) {
+func (d *Decoder) pushField(key string) *reflect.Value {
 	// The last matching one is the one considered
-	var (
-		matchingFieldValue  *reflect.Value
-		ruledOutFieldExists bool
-	)
+	var matchingFieldValue *reflect.Value
 
 	for i := range d.stacks {
 		v := d.stacks[i].top()
@@ -442,7 +441,6 @@ func (d *Decoder) pushField(key string) (*reflect.Value, bool) {
 		match := d.fragmentMatchOf(i)
 
 		if match == fragmentMatchRuledOut {
-			ruledOutFieldExists = ruledOutFieldExists || hasGraphQLField(v.Type(), key)
 			d.stacks[i].values = append(d.stacks[i].values, reflect.Value{})
 
 			continue
@@ -470,7 +468,32 @@ func (d *Decoder) pushField(key string) (*reflect.Value, bool) {
 		d.stacks[i].values = append(d.stacks[i].values, f)
 	}
 
-	return matchingFieldValue, ruledOutFieldExists
+	return matchingFieldValue
+}
+
+// ruledOutFragmentHasField reports whether an inline fragment that __typename
+// rules out has the field named key.
+//
+// Arguments:
+//   - key: the GraphQL name of the field
+//
+// Returns:
+//   - bool: true if the struct on top of at least one ruled-out stack has the field
+//
+// Preconditions:
+//   - the top of every stack is the struct being decoded, i.e. pushField has not
+//     been called for key yet
+//
+// Postconditions:
+//   - the stacks are unchanged
+func (d *Decoder) ruledOutFragmentHasField(key string) bool {
+	for i := range d.stacks {
+		if d.fragmentMatchOf(i) == fragmentMatchRuledOut && hasGraphQLField(d.stacks[i].top().Type(), key) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // readValue reads the JSON value for field.
