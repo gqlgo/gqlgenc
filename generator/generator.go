@@ -524,9 +524,12 @@ func (b *outputBackup) restorePreviousSaved() error {
 type outputCommitAction int
 
 const (
+	// outputCommitActionUndecided means planCommit could not decide: it is what
+	// planCommit returns next to an error. applyCommit rejects it.
+	outputCommitActionUndecided outputCommitAction = iota
 	// outputCommitActionNone means there is no backup file to deal with: there
 	// was no previous output, or the backup is settled already.
-	outputCommitActionNone outputCommitAction = iota + 1
+	outputCommitActionNone
 	// outputCommitActionDropBackup means generation left no file at the output
 	// path, so the backup is deleted.
 	outputCommitActionDropBackup
@@ -590,7 +593,8 @@ func commitOutputBackups(backups []*outputBackup) error {
 //   - none
 //
 // Returns:
-//   - outputCommitAction: the action for applyCommit
+//   - outputCommitAction: the action for applyCommit, or
+//     outputCommitActionUndecided when error is non-nil
 //   - error: non-nil when the generated output or the backup cannot be checked or read
 //
 // Preconditions:
@@ -611,7 +615,7 @@ func (b *outputBackup) planCommit() (outputCommitAction, error) {
 	_, err := os.Stat(b.path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return 0, fmt.Errorf("stat generated output: %w", err)
+			return outputCommitActionUndecided, fmt.Errorf("stat generated output: %w", err)
 		}
 
 		// The empty-model deletion left no file.
@@ -620,12 +624,12 @@ func (b *outputBackup) planCommit() (outputCommitAction, error) {
 
 	newBytes, err := os.ReadFile(b.path)
 	if err != nil {
-		return 0, fmt.Errorf("read generated output: %w", err)
+		return outputCommitActionUndecided, fmt.Errorf("read generated output: %w", err)
 	}
 
 	oldBytes, err := os.ReadFile(b.bakPath)
 	if err != nil {
-		return 0, fmt.Errorf("read output backup: %w", err)
+		return outputCommitActionUndecided, fmt.Errorf("read output backup: %w", err)
 	}
 
 	if bytes.Equal(newBytes, oldBytes) {
@@ -645,7 +649,8 @@ func (b *outputBackup) planCommit() (outputCommitAction, error) {
 //   - error: non-nil when the backup cannot be deleted or renamed
 //
 // Preconditions:
-//   - action was returned by b.planCommit and no file changed since
+//   - action was returned by b.planCommit without an error, and no file
+//     changed since
 //
 // Postconditions:
 //   - on success b.state is settled: outputBackupStateCommitted, or unchanged
@@ -669,6 +674,8 @@ func (b *outputBackup) applyCommit(action outputCommitAction) error {
 		if err != nil {
 			return fmt.Errorf("restore unchanged output: %w", err)
 		}
+	case outputCommitActionUndecided:
+		panic(fmt.Sprintf("output backup of %s: commit action was not decided", b.path))
 	default:
 		panic(fmt.Sprintf("output backup of %s: unknown commit action %d", b.path, action))
 	}
