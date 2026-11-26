@@ -30,6 +30,15 @@ type ResponseField struct {
 	Type             types.Type
 	Tags             []string
 	ResponseFields   ResponseFieldList
+
+	// StructTypeName is the name of the struct type a field with a selection set
+	// gets when it cannot reuse a fragment type: the name of the enclosing struct
+	// followed by the field name. It is empty for other fields.
+	StructTypeName string
+	// structFieldType builds the type of the field from a struct type named
+	// StructTypeName, applying the list and non-null modifiers of the GraphQL field.
+	// It is nil when StructTypeName is empty.
+	structFieldType func(structType *types.Struct) types.Type
 }
 
 func (r ResponseField) FieldTypeString() string {
@@ -37,6 +46,24 @@ func (r ResponseField) FieldTypeString() string {
 	parts := strings.Split(fullFieldType, ".")
 
 	return parts[len(parts)-1]
+}
+
+// isFragmentTyped reports whether the field has the type of a fragment, which
+// happens when its selection set is a single fragment spread.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - bool: true when the only selection of the field is a fragment spread
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (r ResponseField) isFragmentTyped() bool {
+	return r.ResponseFields.IsFragmentSpread()
 }
 
 type ResponseFieldList []*ResponseField
@@ -127,7 +154,8 @@ func NewStructGenerator(responseFieldList ResponseFieldList) *StructGenerator {
 
 	for _, field := range responseFieldList {
 		if field.IsFragmentSpread {
-			fragmentChildrenFields = append(fragmentChildrenFields, field.ResponseFields...)
+			// a fragment may spread other fragments; their fields belong to the same struct
+			fragmentChildrenFields = append(fragmentChildrenFields, flattenFragmentSpreads(field.ResponseFields)...)
 		} else {
 			currentFields = append(currentFields, field)
 		}
@@ -171,20 +199,42 @@ func mergeFieldsRecursively(targetFields, sourceFields ResponseFieldList, preMer
 				continue
 			}
 
-			newPreMerged = append(newPreMerged, &StructSource{
-				Name: sourceField.FieldTypeString(),
-				Type: sourceField.ResponseFields.StructType(),
-			})
-			newPreMerged = append(newPreMerged, &StructSource{
-				Name: targetField.FieldTypeString(),
-				Type: targetField.ResponseFields.StructType(),
-			})
+			// The struct types of both fields are replaced by the merged one. A field
+			// typed as a fragment has no struct type of its own, and the fragment's
+			// declaration must stay.
+			for _, field := range []*ResponseField{sourceField, targetField} {
+				if field.isFragmentTyped() {
+					continue
+				}
 
-			targetField.ResponseFields, newPreMerged, newPostMerged = mergeFieldsRecursively(targetField.ResponseFields, sourceField.ResponseFields, newPreMerged, newPostMerged)
+				newPreMerged = append(newPreMerged, &StructSource{
+					Name: field.FieldTypeString(),
+					Type: field.ResponseFields.StructType(),
+				})
+			}
+
+			// A field typed as a fragment cannot keep that type once other fields are
+			// merged into it, so it moves to a struct type of its own.
+			mergedTypeName := targetField.FieldTypeString()
+			if targetField.isFragmentTyped() && targetField.StructTypeName != "" {
+				mergedTypeName = targetField.StructTypeName
+			}
+
+			// The merged struct has the fields of the spread fragments, not the spreads.
+			targetField.ResponseFields, newPreMerged, newPostMerged = mergeFieldsRecursively(
+				flattenFragmentSpreads(targetField.ResponseFields),
+				flattenFragmentSpreads(sourceField.ResponseFields),
+				newPreMerged, newPostMerged,
+			)
+
+			mergedStructType := targetField.ResponseFields.StructType()
+			if targetField.structFieldType != nil && mergedTypeName == targetField.StructTypeName {
+				targetField.Type = targetField.structFieldType(mergedStructType)
+			}
 
 			newPostMerged = append(newPostMerged, &StructSource{
-				Name: targetField.FieldTypeString(),
-				Type: targetField.ResponseFields.StructType(),
+				Name: mergedTypeName,
+				Type: mergedStructType,
 			})
 		} else {
 			targetFieldsMap[sourceField.Name] = sourceField
@@ -561,12 +611,23 @@ func (r *SourceGenerator) newFieldResponseField(selection *ast.Field, typeName s
 
 	isOptional := !fieldType.NonNull
 
-	return &ResponseField{
+	responseField := &ResponseField{
 		Name:           selection.Alias,
 		Type:           typ,
 		Tags:           r.fieldTags(selection.Alias, isOptional),
 		ResponseFields: fieldsResponseFields,
 	}
+
+	if !fieldsResponseFields.IsBasicType() {
+		responseField.StructTypeName = typeName
+		responseField.structFieldType = func(structType *types.Struct) types.Type {
+			named := types.NewNamed(types.NewTypeName(0, r.client.Pkg(), typeName, nil), structType, nil)
+
+			return r.binder.CopyModifiersFromAst(selection.Definition.Type, named)
+		}
+	}
+
+	return responseField
 }
 
 // fieldBaseType resolves the Go type of a field before GraphQL modifiers are applied.

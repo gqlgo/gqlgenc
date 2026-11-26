@@ -354,7 +354,8 @@ func (g *GenGettersGenerator) writeStructConversion(buf *bytes.Buffer, targetExp
 //
 // Postconditions:
 //   - a nil source pointer or slice leaves the target nil
-//   - types that differ in shape, e.g. a pointer and a slice, are assigned directly,
+//   - a struct value is converted to a pointer target without a nil check
+//   - other types that differ in shape, e.g. a pointer and a slice, are assigned directly,
 //     which does not compile; the merged struct of the owner never has such a field
 func (g *GenGettersGenerator) writeConversion(buf *bytes.Buffer, targetExpr string, targetType types.Type, sourceExpr string, sourceType types.Type, depth int) {
 	expr, ok := g.conversionExpr(targetType, sourceType, sourceExpr)
@@ -366,17 +367,18 @@ func (g *GenGettersGenerator) writeConversion(buf *bytes.Buffer, targetExpr stri
 
 	switch target := targetType.(type) {
 	case *types.Pointer:
-		source, ok := sourceType.(*types.Pointer)
-		if !ok {
-			break
-		}
+		// The source is a pointer too, or a struct value: a field typed as a fragment
+		// is a pointer even when the owner merged the same non-null field into a struct.
+		sourceElem, sourceIsPointer := pointerElem(sourceType)
 
-		targetStruct, sourceStruct := namedStruct(target.Elem()), namedStruct(source.Elem())
+		targetStruct, sourceStruct := namedStruct(target.Elem()), namedStruct(sourceElem)
 		if targetStruct == nil || sourceStruct == nil {
 			break
 		}
 
-		buf.WriteString("if " + sourceExpr + " != nil {\n")
+		if sourceIsPointer {
+			buf.WriteString("if " + sourceExpr + " != nil {\n")
+		}
 
 		literal, ok := g.structLiteral(g.typeName(target.Elem()), targetStruct, sourceStruct, sourceExpr)
 		if ok {
@@ -386,7 +388,9 @@ func (g *GenGettersGenerator) writeConversion(buf *bytes.Buffer, targetExpr stri
 			g.writeStructConversion(buf, targetExpr, targetStruct, sourceExpr, sourceStruct, depth)
 		}
 
-		buf.WriteString("}\n")
+		if sourceIsPointer {
+			buf.WriteString("}\n")
+		}
 
 		return
 	case *types.Slice:
@@ -441,6 +445,29 @@ func (g *GenGettersGenerator) sliceTypeName(t *types.Slice) string {
 	default:
 		return "[]" + g.typeName(elem)
 	}
+}
+
+// pointerElem returns the type a pointer points to.
+//
+// Arguments:
+//   - t: the type to inspect
+//
+// Returns:
+//   - types.Type: the element type when t is a pointer, otherwise t itself
+//   - bool: whether t is a pointer
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func pointerElem(t types.Type) (types.Type, bool) {
+	pointer, ok := t.(*types.Pointer)
+	if !ok {
+		return t, false
+	}
+
+	return pointer.Elem(), true
 }
 
 // sameType reports whether two types are spelled the same, package path included.
