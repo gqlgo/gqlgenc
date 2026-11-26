@@ -1,0 +1,18 @@
+"""
+Fetches one item.
+"""
+query GetItem(
+  "The ID of the item."
+  $id: ID!
+) {
+  item(id: $id) {
+    ...ItemFields
+  }
+}
+
+"The fields every item view needs."
+fragment ItemFields on Item {
+  id
+  status
+  name
+}

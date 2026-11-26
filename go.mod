@@ -5,17 +5,17 @@ go 1.27
 toolchain go1.27.4
 
 require (
-	github.com/99designs/gqlgen v0.17.95
+	github.com/99designs/gqlgen v0.17.98
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.12.1
-	github.com/vektah/gqlparser/v2 v2.5.37
-	golang.org/x/text v0.41.0
+	github.com/vektah/gqlparser/v2 v2.5.64
+	golang.org/x/text v0.43.0
 	golang.org/x/tools v0.53.0
 )
 
 require (
-	github.com/agnivade/levenshtein v1.2.1 // indirect
+	github.com/agnivade/levenshtein v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
