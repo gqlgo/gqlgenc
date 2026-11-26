@@ -9,11 +9,18 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"slices"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/99designs/gqlgen/codegen/config"
+
+	"github.com/gqlgo/gqlgenc/introspection"
+
+	"github.com/vektah/gqlparser/v2"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -215,6 +222,136 @@ func TestConfig_schemaSource(t *testing.T) {
 			require.ErrorContains(t, err, tt.wantCheckErr)
 		})
 	}
+}
+
+func TestLoadConfig_LoadSchema_capabilities(t *testing.T) {
+	t.Parallel()
+
+	const repeatedDirectiveQuery = `query Test { test(old: true) @tag(name: "a") @tag(name: "b") }`
+
+	t.Run("a server with every capability reports deprecated inputs and repeatable directives", func(t *testing.T) {
+		t.Parallel()
+
+		capabilityServer := newCapabilityServer(t, responseFromFile("testdata/remote/response_capabilities_all.json"))
+
+		cfg := &Config{
+			GQLConfig: &config.Config{},
+			Endpoint:  &EndPointConfig{URL: capabilityServer.URL},
+		}
+
+		require.NoError(t, cfg.LoadSchema(context.Background()))
+
+		allCapabilities := introspection.Capabilities{
+			FieldArgumentDeprecation:     true,
+			InputFieldDeprecation:        true,
+			DirectiveArgumentDeprecation: true,
+			InputValueDeprecation:        true,
+			RepeatableDirective:          true,
+		}
+		require.Equal(t, []string{introspection.CapabilityQueryDocument, introspection.NewQuery(allCapabilities)}, capabilityServer.receivedQueries())
+
+		schema := cfg.GQLConfig.Schema
+
+		deprecatedArgument := schema.Types["Query"].Fields.ForName("test").Arguments.ForName("old")
+		require.NotNil(t, deprecatedArgument)
+		require.Equal(t, "use new", deprecatedArgument.Directives.ForName("deprecated").Arguments.ForName("reason").Value.Raw)
+		require.Nil(t, schema.Types["Query"].Fields.ForName("test").Arguments.ForName("new").Directives.ForName("deprecated"))
+
+		deprecatedInputField := schema.Types["Filter"].Fields.ForName("old")
+		require.NotNil(t, deprecatedInputField)
+		require.Equal(t, "use new", deprecatedInputField.Directives.ForName("deprecated").Arguments.ForName("reason").Value.Raw)
+		require.Nil(t, schema.Types["Filter"].Fields.ForName("new").Directives.ForName("deprecated"))
+
+		require.True(t, schema.Directives["tag"].IsRepeatable)
+
+		_, errs := gqlparser.LoadQuery(schema, repeatedDirectiveQuery)
+		require.Empty(t, errs)
+	})
+
+	fallbacks := []struct {
+		name               string
+		capabilityResponse any
+	}{
+		{"a server without the capabilities", responseFromFile("testdata/remote/response_capabilities_none.json")},
+		{"a server that rejects the capability query", json.RawMessage(`{"errors":[{"message":"Cannot query field \"__type\" on type \"Query\"."}]}`)},
+	}
+
+	for _, fallback := range fallbacks {
+		t.Run(fallback.name+" gets the query without optional parts", func(t *testing.T) {
+			t.Parallel()
+
+			capabilityServer := newCapabilityServer(t, fallback.capabilityResponse)
+
+			cfg := &Config{
+				GQLConfig: &config.Config{},
+				Endpoint:  &EndPointConfig{URL: capabilityServer.URL},
+			}
+
+			require.NoError(t, cfg.LoadSchema(context.Background()))
+			require.Equal(t, []string{introspection.CapabilityQueryDocument, introspection.Introspection}, capabilityServer.receivedQueries())
+		})
+	}
+}
+
+// capabilityServer is a remote server that answers the capability query and
+// the introspection query with different responses.
+type capabilityServer struct {
+	*httptest.Server
+
+	mutex   sync.Mutex
+	queries []string
+}
+
+// newCapabilityServer starts a server that answers the capability query with
+// capabilityResponse and any other query with the schema in
+// testdata/remote/response_deprecated_inputs.json. The server is closed when
+// the test ends.
+func newCapabilityServer(t *testing.T, capabilityResponse any) *capabilityServer {
+	t.Helper()
+
+	server := &capabilityServer{}
+	server.Server = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+		var request struct {
+			OperationName string `json:"operationName"`
+			Query         string `json:"query"`
+		}
+
+		if !assert.NoError(t, json.NewDecoder(req.Body).Decode(&request)) {
+			return
+		}
+
+		server.mutex.Lock()
+		server.queries = append(server.queries, request.Query)
+		server.mutex.Unlock()
+
+		response := any(responseFromFile("testdata/remote/response_deprecated_inputs.json"))
+		if request.OperationName == "Capabilities" {
+			response = capabilityResponse
+		}
+
+		var responseBody []byte
+
+		switch v := response.(type) {
+		case json.RawMessage:
+			responseBody = v
+		case responseFromFile:
+			responseBody = v.load(t)
+		}
+
+		_, err := writer.Write(responseBody)
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+
+	return server
+}
+
+// receivedQueries returns the queries the server has received, in order.
+func (s *capabilityServer) receivedQueries() []string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return slices.Clone(s.queries)
 }
 
 type mockRemoteServer struct {

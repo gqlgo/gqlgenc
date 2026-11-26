@@ -1,0 +1,75 @@
+fragment MetaDetails on Meta {
+    name
+}
+
+# Fields typed as a fragment: the spreading fragment has the same types.
+fragment BookFragmentFields on Book {
+    meta {
+        ...MetaDetails
+    }
+    optMeta {
+        ...MetaDetails
+    }
+    metas {
+        ...MetaDetails
+    }
+}
+
+fragment BookWithFragmentFields on Book {
+    ...BookFragmentFields
+    pages
+}
+
+# Object fields: the spreading fragment gets struct types of its own.
+fragment BookObjectFields on Book {
+    meta {
+        name
+    }
+    optMeta {
+        name
+    }
+    metas {
+        name
+    }
+    optMetas {
+        name
+    }
+    grid {
+        name
+    }
+}
+
+fragment BookWithObjectFields on Book {
+    ...BookObjectFields
+    pages
+}
+
+# Pointers and lists nested in an object field.
+fragment BookShelf on Book {
+    shelf {
+        label
+        owner {
+            name
+        }
+        tags {
+            name
+        }
+    }
+}
+
+fragment BookWithShelf on Book {
+    ...BookShelf
+    pages
+}
+
+query GetBook {
+    fragmentFields: book {
+        ...BookWithFragmentFields
+    }
+    objectFields: book {
+        ...BookWithObjectFields
+    }
+    shelf: book {
+        ...BookWithShelf
+    }
+}

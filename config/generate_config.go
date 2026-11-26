@@ -26,6 +26,29 @@ type GenerateConfig struct {
 	StructFieldsAlwaysPointers   *bool `yaml:"structFieldsAlwaysPointers,omitempty"`
 	InlineFragmentAlwaysPointers *bool `yaml:"inlineFragmentAlwaysPointers,omitempty"`
 	OnlyUsedModels               *bool `yaml:"onlyUsedModels,omitempty"`
+	// IncludeDescriptionsInQuery keeps the descriptions of operations, fragments,
+	// and variables in the query sent to the server. It is off by default because
+	// servers that predate descriptions on executable definitions reject them as
+	// a syntax error.
+	IncludeDescriptionsInQuery bool `yaml:"includeDescriptionsInQuery,omitempty"`
+}
+
+// ShouldIncludeDescriptionsInQuery reports whether the query sent to the server
+// keeps the descriptions written in the query files.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - bool: true when includeDescriptionsInQuery is set
+//
+// Preconditions:
+//   - none; c may be nil
+//
+// Postconditions:
+//   - a nil config gives false
+func (c *GenerateConfig) ShouldIncludeDescriptionsInQuery() bool {
+	return c != nil && c.IncludeDescriptionsInQuery
 }
 
 func (c *GenerateConfig) ShouldGenerateClient() bool {

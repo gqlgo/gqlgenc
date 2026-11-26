@@ -1,0 +1,24 @@
+type Query {
+    book: Book!
+}
+
+type Book {
+    meta: Meta!
+    optMeta: Meta
+    metas: [Meta!]!
+    optMetas: [Meta]
+    grid: [[Meta!]!]!
+    shelf: Shelf
+    pages: Int!
+}
+
+type Meta {
+    name: String!
+    note: String
+}
+
+type Shelf {
+    label: String!
+    owner: Meta
+    tags: [Meta!]!
+}

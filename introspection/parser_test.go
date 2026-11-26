@@ -52,3 +52,45 @@ func readQueryResult(t *testing.T, filename string) Query {
 
 	return query
 }
+
+func TestParseIntrospectionQuery_deprecatedInputsAndRepeatableDirectives(t *testing.T) {
+	t.Parallel()
+
+	typeName := func(name string) *string { return &name }
+	reason := "use new"
+	booleanType := TypeRef{Kind: TypeKindScalar, Name: typeName("Boolean")}
+	deprecatedInput := &InputValue{Name: "old", Type: booleanType, IsDeprecated: true, DeprecationReason: &reason}
+	currentInput := &InputValue{Name: "new", Type: booleanType}
+
+	var query Query
+
+	query.Schema.QueryType.Name = typeName("Query")
+	query.Schema.Types = FullTypes{
+		{Kind: TypeKindScalar, Name: typeName("Boolean")},
+		{Kind: TypeKindInputObject, Name: typeName("Filter"), InputFields: []*InputValue{deprecatedInput, currentInput}},
+		{Kind: TypeKindObject, Name: typeName("Query"), Fields: []*FieldValue{
+			{Name: "test", Type: booleanType, Args: []*InputValue{deprecatedInput, currentInput}},
+		}},
+	}
+	query.Schema.Directives = []*DirectiveType{
+		{Name: "tag", Locations: []string{"FIELD"}, IsRepeatable: true},
+		{Name: "once", Locations: []string{"FIELD"}},
+	}
+
+	doc := ParseIntrospectionQuery("test", query)
+
+	require.True(t, doc.Directives.ForName("tag").IsRepeatable)
+	require.False(t, doc.Directives.ForName("once").IsRepeatable)
+
+	arguments := doc.Definitions.ForName("Query").Fields.ForName("test").Arguments
+	deprecatedArgument := arguments.ForName("old").Directives.ForName("deprecated")
+	require.NotNil(t, deprecatedArgument)
+	require.Equal(t, "use new", deprecatedArgument.Arguments.ForName("reason").Value.Raw)
+	require.Empty(t, arguments.ForName("new").Directives)
+
+	inputFields := doc.Definitions.ForName("Filter").Fields
+	deprecatedInputField := inputFields.ForName("old").Directives.ForName("deprecated")
+	require.NotNil(t, deprecatedInputField)
+	require.Equal(t, "use new", deprecatedInputField.Arguments.ForName("reason").Value.Raw)
+	require.Empty(t, inputFields.ForName("new").Directives)
+}

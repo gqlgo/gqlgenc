@@ -151,14 +151,29 @@ func (g *GenGettersGenerator) GenFunc() func(name string, p types.Type) (string,
 // ConversionGettersFunc returns a template function that generates conversion getters
 // for spread fragments. Each getter constructs the original fragment type from the
 // flattened parent struct's fields.
-func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) func(ownerName string, spreads []*SpreadFragmentInfo) string {
+//
+// Arguments:
+//   - allFragments: every fragment of the query documents, to resolve a spread by name
+//
+// Returns:
+//   - func: takes the Go name and the struct type of the fragment that spreads, and
+//     its spreads; returns the getters as Go source
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a spread whose fragment is not in allFragments, and an owner that is not a
+//     struct, produce no getter
+func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) func(ownerName string, ownerType types.Type, spreads []*SpreadFragmentInfo) string {
 	fragmentMap := make(map[string]*Fragment, len(allFragments))
 	for _, f := range allFragments {
 		fragmentMap[f.Name] = f
 	}
 
-	return func(ownerName string, spreads []*SpreadFragmentInfo) string {
-		if len(spreads) == 0 {
+	return func(ownerName string, ownerType types.Type, spreads []*SpreadFragmentInfo) string {
+		ownerStruct, ok := ownerType.(*types.Struct)
+		if !ok || len(spreads) == 0 {
 			return ""
 		}
 
@@ -170,7 +185,7 @@ func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) fu
 				continue
 			}
 
-			g.writeConversionGetter(&buf, ownerName, g.typeName(spread.Type), targetStruct)
+			g.writeConversionGetter(&buf, ownerName, ownerStruct, g.typeName(spread.Type), targetStruct)
 		}
 
 		return buf.String()
@@ -195,36 +210,281 @@ func resolveTargetFragment(fragmentMap map[string]*Fragment, spread *SpreadFragm
 
 // writeConversionGetter writes a single conversion getter method that constructs
 // the target fragment type from the owner struct's fields.
-func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName, targetTypeName string, targetStruct *types.Struct) {
+//
+// Arguments:
+//   - buf: the buffer to write the method to
+//   - ownerName: the Go name of the struct the getter is declared on
+//   - ownerStruct: the struct type of the owner
+//   - targetTypeName: the Go name of the fragment type the getter returns
+//   - targetStruct: the struct type of that fragment
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the getter is a single struct literal when every field can be written as an
+//     expression, and a sequence of statements when a field needs a nil check or a loop
+//   - a target field the owner does not have is left at its zero value
+func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName string, ownerStruct *types.Struct, targetTypeName string, targetStruct *types.Struct) {
 	buf.WriteString("func (t *" + ownerName + ") Get" + targetTypeName + "() *" + targetTypeName + " {\n")
 	buf.WriteString("if t == nil {\n t = &" + ownerName + "{}\n}\n")
-	buf.WriteString("return &" + targetTypeName + "{\n")
-	g.writeStructLiteral(buf, targetStruct, "t")
-	buf.WriteString("}\n}\n")
+
+	literal, ok := g.structLiteral(targetTypeName, targetStruct, ownerStruct, "t")
+	if ok {
+		buf.WriteString("return &" + literal + "\n}\n")
+
+		return
+	}
+
+	buf.WriteString("res := &" + targetTypeName + "{}\n")
+	g.writeStructConversion(buf, "res", targetStruct, "t", ownerStruct, 0)
+	buf.WriteString("return res\n}\n")
 }
 
-// writeStructLiteral writes field assignments for a struct literal, delegating
-// each field to writeFieldAssignment.
-func (g *GenGettersGenerator) writeStructLiteral(buf *bytes.Buffer, targetStruct *types.Struct, sourceExpr string) {
-	for field := range targetStruct.Fields() {
-		g.writeFieldAssignment(buf, field, sourceExpr)
+// structLiteral renders a struct literal of the target type whose fields are read from the source.
+//
+// Arguments:
+//   - targetTypeName: the Go name of the target struct type
+//   - targetStruct: the target struct type
+//   - sourceStruct: the struct type the values are read from
+//   - sourceExpr: the Go expression of the source value
+//
+// Returns:
+//   - string: the literal, e.g. `T{A: t.A, B: U{C: t.B.C}}`
+//   - bool: false when a field cannot be written as an expression
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a target field the source does not have is left out of the literal
+func (g *GenGettersGenerator) structLiteral(targetTypeName string, targetStruct, sourceStruct *types.Struct, sourceExpr string) (string, bool) {
+	var b strings.Builder
+
+	b.WriteString(targetTypeName + "{\n")
+
+	for targetField := range targetStruct.Fields() {
+		sourceField := fieldByName(sourceStruct, targetField.Name())
+		if sourceField == nil {
+			continue
+		}
+
+		expr, ok := g.conversionExpr(targetField.Type(), sourceField.Type(), sourceExpr+"."+sourceField.Name())
+		if !ok {
+			return "", false
+		}
+
+		b.WriteString(targetField.Name() + ": " + expr + ",\n")
+	}
+
+	b.WriteString("}")
+
+	return b.String(), true
+}
+
+// conversionExpr renders an expression that converts a source value to the target type.
+//
+// Arguments:
+//   - targetType: the type to produce
+//   - sourceType: the type of the source value
+//   - sourceExpr: the Go expression of the source value
+//
+// Returns:
+//   - string: sourceExpr itself when the types are the same, or a struct literal
+//     when both are named struct values
+//   - bool: false when the conversion needs a nil check or a loop, i.e. the types
+//     differ and one of them is a pointer, a slice, or not a struct
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (g *GenGettersGenerator) conversionExpr(targetType, sourceType types.Type, sourceExpr string) (string, bool) {
+	if sameType(targetType, sourceType) {
+		return sourceExpr, true
+	}
+
+	targetStruct, sourceStruct := namedStruct(targetType), namedStruct(sourceType)
+	if targetStruct == nil || sourceStruct == nil {
+		return "", false
+	}
+
+	return g.structLiteral(g.typeName(targetType), targetStruct, sourceStruct, sourceExpr)
+}
+
+// writeStructConversion writes statements that fill each field of the target struct from the source.
+//
+// Arguments:
+//   - buf: the buffer to write the statements to
+//   - targetExpr: the Go expression of the target value, a struct or a non-nil pointer to one
+//   - targetStruct: the struct type of the target
+//   - sourceExpr: the Go expression of the source value, a struct or a non-nil pointer to one
+//   - sourceStruct: the struct type of the source
+//   - depth: the nesting depth of loops around these statements, used to name loop variables
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a target field the source does not have gets no statement
+func (g *GenGettersGenerator) writeStructConversion(buf *bytes.Buffer, targetExpr string, targetStruct *types.Struct, sourceExpr string, sourceStruct *types.Struct, depth int) {
+	for targetField := range targetStruct.Fields() {
+		sourceField := fieldByName(sourceStruct, targetField.Name())
+		if sourceField == nil {
+			continue
+		}
+
+		g.writeConversion(buf, targetExpr+"."+targetField.Name(), targetField.Type(), sourceExpr+"."+sourceField.Name(), sourceField.Type(), depth)
 	}
 }
 
-// writeFieldAssignment writes a single field assignment in a struct literal.
-// For named struct types, it recursively constructs a nested struct literal.
-// For other types, it directly assigns from the source expression.
-func (g *GenGettersGenerator) writeFieldAssignment(buf *bytes.Buffer, field *types.Var, sourceExpr string) {
-	fieldName := field.Name()
+// writeConversion writes statements that assign the converted source value to the target.
+//
+// Arguments:
+//   - buf: the buffer to write the statements to
+//   - targetExpr: the assignable Go expression of the target
+//   - targetType: the type of the target
+//   - sourceExpr: the Go expression of the source value
+//   - sourceType: the type of the source value
+//   - depth: the nesting depth of loops around these statements, used to name loop variables
+//
+// Preconditions:
+//   - the target holds its zero value
+//
+// Postconditions:
+//   - a nil source pointer or slice leaves the target nil
+//   - types that differ in shape, e.g. a pointer and a slice, are assigned directly,
+//     which does not compile; the merged struct of the owner never has such a field
+func (g *GenGettersGenerator) writeConversion(buf *bytes.Buffer, targetExpr string, targetType types.Type, sourceExpr string, sourceType types.Type, depth int) {
+	expr, ok := g.conversionExpr(targetType, sourceType, sourceExpr)
+	if ok {
+		buf.WriteString(targetExpr + " = " + expr + "\n")
 
-	nestedStruct := underlyingStruct(field.Type())
-	if nestedStruct != nil {
-		buf.WriteString(fieldName + ": " + g.typeName(field.Type()) + "{\n")
-		g.writeStructLiteral(buf, nestedStruct, sourceExpr+"."+fieldName)
-		buf.WriteString("},\n")
-	} else {
-		buf.WriteString(fieldName + ": " + sourceExpr + "." + fieldName + ",\n")
+		return
 	}
+
+	switch target := targetType.(type) {
+	case *types.Pointer:
+		source, ok := sourceType.(*types.Pointer)
+		if !ok {
+			break
+		}
+
+		targetStruct, sourceStruct := namedStruct(target.Elem()), namedStruct(source.Elem())
+		if targetStruct == nil || sourceStruct == nil {
+			break
+		}
+
+		buf.WriteString("if " + sourceExpr + " != nil {\n")
+
+		literal, ok := g.structLiteral(g.typeName(target.Elem()), targetStruct, sourceStruct, sourceExpr)
+		if ok {
+			buf.WriteString(targetExpr + " = &" + literal + "\n")
+		} else {
+			buf.WriteString(targetExpr + " = &" + g.typeName(target.Elem()) + "{}\n")
+			g.writeStructConversion(buf, targetExpr, targetStruct, sourceExpr, sourceStruct, depth)
+		}
+
+		buf.WriteString("}\n")
+
+		return
+	case *types.Slice:
+		source, ok := sourceType.(*types.Slice)
+		if !ok {
+			break
+		}
+
+		index := "i" + strconv.Itoa(depth)
+
+		buf.WriteString("if " + sourceExpr + " != nil {\n")
+		buf.WriteString(targetExpr + " = make(" + g.sliceTypeName(target) + ", len(" + sourceExpr + "))\n")
+		buf.WriteString("for " + index + " := range " + sourceExpr + " {\n")
+		g.writeConversion(buf, targetExpr+"["+index+"]", target.Elem(), sourceExpr+"["+index+"]", source.Elem(), depth+1)
+		buf.WriteString("}\n}\n")
+
+		return
+	case *types.Named:
+		targetStruct, sourceStruct := namedStruct(targetType), namedStruct(sourceType)
+		if targetStruct == nil || sourceStruct == nil {
+			break
+		}
+
+		g.writeStructConversion(buf, targetExpr, targetStruct, sourceExpr, sourceStruct, depth)
+
+		return
+	}
+
+	buf.WriteString(targetExpr + " = " + sourceExpr + "\n")
+}
+
+// sliceTypeName renders a slice type whose element is a named type, a pointer to
+// one, or another such slice, with the short name of the named type.
+//
+// Arguments:
+//   - t: the slice type
+//
+// Returns:
+//   - string: the Go type expression, e.g. `[]*BookMeta_Metas`
+//
+// Preconditions:
+//   - the named type belongs to the client package
+//
+// Postconditions:
+//   - none
+func (g *GenGettersGenerator) sliceTypeName(t *types.Slice) string {
+	switch elem := t.Elem().(type) {
+	case *types.Slice:
+		return "[]" + g.sliceTypeName(elem)
+	case *types.Pointer:
+		return "[]*" + g.typeName(elem.Elem())
+	default:
+		return "[]" + g.typeName(elem)
+	}
+}
+
+// sameType reports whether two types are spelled the same, package path included.
+// Named types are built separately for every use, so types.Identical does not
+// tell that two of them are the same generated type.
+//
+// Arguments:
+//   - a: the first type
+//   - b: the second type
+//
+// Returns:
+//   - bool: true when both types have the same full type string
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func sameType(a, b types.Type) bool {
+	return a.String() == b.String()
+}
+
+// fieldByName returns the field of a struct with the given Go name.
+//
+// Arguments:
+//   - st: the struct type to search
+//   - name: the Go name of the field
+//
+// Returns:
+//   - *types.Var: the field, or nil when the struct has no such field
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func fieldByName(st *types.Struct, name string) *types.Var {
+	for field := range st.Fields() {
+		if field.Name() == name {
+			return field
+		}
+	}
+
+	return nil
 }
 
 // returnTypeName renders the Go type of a getter's return value.
@@ -318,13 +578,21 @@ func (g *GenGettersGenerator) typeName(t types.Type) string {
 	}
 }
 
-// underlyingStruct returns the *types.Struct if t is a named struct type, nil otherwise.
-func underlyingStruct(t types.Type) *types.Struct {
-	// Unwrap pointer
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
-	}
-
+// namedStruct returns the struct type behind a named struct type.
+//
+// Arguments:
+//   - t: the type to inspect
+//
+// Returns:
+//   - *types.Struct: the underlying struct, or nil when t is not a named struct;
+//     a pointer to a named struct is not one
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func namedStruct(t types.Type) *types.Struct {
 	named, ok := t.(*types.Named)
 	if !ok {
 		return nil
