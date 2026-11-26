@@ -182,10 +182,25 @@ func queryDocumentMapByOperationName(queryDocuments []*ast.QueryDocument) map[st
 	return queryDocumentMap
 }
 
+// queryString formats a query document as the text sent to the server.
+//
+// Arguments:
+//   - queryDocument: the document holding one operation and the fragments it uses
+//
+// Returns:
+//   - string: the formatted document
+//
+// Preconditions:
+//   - queryDocument is non-nil
+//
+// Postconditions:
+//   - the result has no descriptions of operations, fragments, or variables;
+//     servers that predate descriptions on executable definitions reject them
+//     as a syntax error
 func queryString(queryDocument *ast.QueryDocument) string {
 	var buf bytes.Buffer
 
-	astFormatter := formatter.NewFormatter(&buf)
+	astFormatter := formatter.NewFormatter(&buf, formatter.WithoutDescription())
 	astFormatter.FormatQueryDocument(queryDocument)
 
 	return buf.String()
