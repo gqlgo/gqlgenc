@@ -556,11 +556,15 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 	errResponse := &ErrorResponse{}
 
 	statusClass := classifyHTTPStatus(httpCode)
-	if statusClass == httpStatusClassError {
+	switch statusClass {
+	case httpStatusClassSuccess:
+	case httpStatusClassError:
 		errResponse.NetworkError = &HTTPError{
 			Code:    httpCode,
 			Message: fmt.Sprintf("Response body %s", string(body)),
 		}
+	default:
+		panic(fmt.Sprintf("unknown http status class %d", statusClass))
 	}
 
 	// some servers return a graphql error with a non OK http code, try anyway to parse the body
@@ -575,6 +579,8 @@ func (c *Client) parseResponse(body []byte, httpCode int, result any) error {
 		if statusClass == httpStatusClassSuccess {
 			return unmarshalErr
 		}
+	default:
+		panic(fmt.Sprintf("unknown response body class %d", bodyClass))
 	}
 
 	if errResponse.HasErrors() {

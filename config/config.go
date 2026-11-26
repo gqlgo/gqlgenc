@@ -251,7 +251,7 @@ func readSchemaSources(filenames StringList) ([]*ast.Source, error) {
 func (c *Config) LoadSchema(ctx context.Context) error {
 	var schema *ast.Schema
 
-	switch c.schemaSource() {
+	switch source := c.schemaSource(); source {
 	case schemaSourceLocal, schemaSourceAmbiguous:
 		// LoadConfig rejects an ambiguous source. A config built by hand with
 		// both settings has always been loaded from the local files.
@@ -270,6 +270,8 @@ func (c *Config) LoadSchema(ctx context.Context) error {
 		schema = s
 	case schemaSourceMissing:
 		return errSchemaSourceMissing
+	default:
+		panic(fmt.Sprintf("unknown schema source %d", source))
 	}
 
 	if schema.Query == nil {
@@ -361,16 +363,16 @@ func (c *Config) loadLocalSchema() (*ast.Schema, error) {
 // Postconditions:
 //   - none
 func (c *Config) checkSchemaSource() error {
-	switch c.schemaSource() {
+	switch source := c.schemaSource(); source {
 	case schemaSourceAmbiguous:
 		return errSchemaSourceAmbiguous
 	case schemaSourceMissing:
 		return errSchemaSourceMissing
 	case schemaSourceLocal, schemaSourceRemote:
 		return nil
+	default:
+		panic(fmt.Sprintf("unknown schema source %d", source))
 	}
-
-	return nil
 }
 
 // schemaSource is where the schema of a config comes from. The config file
