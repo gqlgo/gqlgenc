@@ -1,5 +1,7 @@
 """
-Fetches one item.
+GetItem fetches one item.
+
+It returns null when no item has the ID.
 """
 query GetItem(
   "The ID of the item."
@@ -10,9 +12,15 @@ query GetItem(
   }
 }
 
-"The fields every item view needs."
+"ItemFields holds the fields every item view needs."
 fragment ItemFields on Item {
   id
   status
   name
+}
+
+query GetItemName($id: ID!) {
+  item(id: $id) {
+    name
+  }
 }
