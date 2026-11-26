@@ -170,6 +170,51 @@ func TestLoadConfig_LoadSchema(t *testing.T) {
 		err := config.LoadSchema(context.Background())
 		require.Equal(t, fmt.Sprintf("load remote schema failed: validation error: %s:0:0: OBJECT Query: must define one or more fields.", mockServer.URL), err.Error())
 	})
+
+	t.Run("neither schema nor endpoint", func(t *testing.T) {
+		t.Parallel()
+
+		config := &Config{GQLConfig: &config.Config{}}
+
+		err := config.LoadSchema(context.Background())
+		require.ErrorContains(t, err, "neither 'schema' nor 'endpoint' specified")
+	})
+}
+
+func TestConfig_schemaSource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		schemaFilename StringList
+		endpoint       *EndPointConfig
+		want           schemaSource
+		wantCheckErr   string
+	}{
+		{name: "schema only", schemaFilename: StringList{"schema.graphql"}, want: schemaSourceLocal},
+		{name: "endpoint only", endpoint: &EndPointConfig{URL: "http://localhost"}, want: schemaSourceRemote},
+		{name: "both", schemaFilename: StringList{"schema.graphql"}, endpoint: &EndPointConfig{URL: "http://localhost"}, want: schemaSourceAmbiguous, wantCheckErr: "'schema' and 'endpoint' both specified"},
+		{name: "neither", want: schemaSourceMissing, wantCheckErr: "neither 'schema' nor 'endpoint' specified"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			config := &Config{SchemaFilename: tt.schemaFilename, Endpoint: tt.endpoint}
+
+			require.Equal(t, tt.want, config.schemaSource())
+
+			err := config.checkSchemaSource()
+			if tt.wantCheckErr == "" {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorContains(t, err, tt.wantCheckErr)
+		})
+	}
 }
 
 type mockRemoteServer struct {

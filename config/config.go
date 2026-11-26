@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -250,20 +251,25 @@ func readSchemaSources(filenames StringList) ([]*ast.Source, error) {
 func (c *Config) LoadSchema(ctx context.Context) error {
 	var schema *ast.Schema
 
-	if c.SchemaFilename != nil {
+	switch c.schemaSource() {
+	case schemaSourceLocal, schemaSourceAmbiguous:
+		// LoadConfig rejects an ambiguous source. A config built by hand with
+		// both settings has always been loaded from the local files.
 		s, err := c.loadLocalSchema()
 		if err != nil {
 			return fmt.Errorf("load local schema failed: %w", err)
 		}
 
 		schema = s
-	} else {
+	case schemaSourceRemote:
 		s, err := c.loadRemoteSchema(ctx)
 		if err != nil {
 			return fmt.Errorf("load remote schema failed: %w", err)
 		}
 
 		schema = s
+	case schemaSourceMissing:
+		return errSchemaSourceMissing
 	}
 
 	if schema.Query == nil {
@@ -328,15 +334,66 @@ func (c *Config) loadLocalSchema() (*ast.Schema, error) {
 // Postconditions:
 //   - none
 func (c *Config) checkSchemaSource() error {
-	if c.SchemaFilename != nil && c.Endpoint != nil {
-		return fmt.Errorf("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
-	}
-
-	if c.SchemaFilename == nil && c.Endpoint == nil {
-		return fmt.Errorf("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+	switch c.schemaSource() {
+	case schemaSourceAmbiguous:
+		return errSchemaSourceAmbiguous
+	case schemaSourceMissing:
+		return errSchemaSourceMissing
+	case schemaSourceLocal, schemaSourceRemote:
+		return nil
 	}
 
 	return nil
+}
+
+// schemaSource is where the schema of a config comes from. The config file
+// expresses it with two optional settings, 'schema' and 'endpoint', of which
+// exactly one must be present.
+type schemaSource int
+
+const (
+	// schemaSourceLocal means only 'schema' is set: the schema is read from local files.
+	schemaSourceLocal schemaSource = iota + 1
+	// schemaSourceRemote means only 'endpoint' is set: the schema is introspected from a server.
+	schemaSourceRemote
+	// schemaSourceAmbiguous means both 'schema' and 'endpoint' are set.
+	schemaSourceAmbiguous
+	// schemaSourceMissing means neither 'schema' nor 'endpoint' is set.
+	schemaSourceMissing
+)
+
+var (
+	errSchemaSourceAmbiguous = errors.New("'schema' and 'endpoint' both specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+	errSchemaSourceMissing   = errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
+)
+
+// schemaSource reports where the schema of the config comes from.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - schemaSource: decided by which of SchemaFilename and Endpoint are non-nil
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (c *Config) schemaSource() schemaSource {
+	hasLocal := c.SchemaFilename != nil
+	hasRemote := c.Endpoint != nil
+
+	switch {
+	case hasLocal && hasRemote:
+		return schemaSourceAmbiguous
+	case hasLocal:
+		return schemaSourceLocal
+	case hasRemote:
+		return schemaSourceRemote
+	default:
+		return schemaSourceMissing
+	}
 }
 
 // newGQLConfig projects the gqlgenc settings onto the gqlgen config used for generation.
