@@ -25,7 +25,7 @@ func (n *Number) UnmarshalGQL(v any) error {
 	case "TWO":
 		*n = NumberTwo
 	default:
-		return fmt.Errorf("Number not found Type: %d", n)
+		return fmt.Errorf("Number not found Type: %s", str)
 	}
 
 	return nil

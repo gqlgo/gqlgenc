@@ -4,4 +4,4 @@ lockfile = true
 
 [tools]
 # Keep in sync with the golangci-lint version in .github/workflows/go.yml.
-golangci-lint = "2.13.2"
+golangci-lint = "2.15.0"
