@@ -79,6 +79,7 @@ generate:
   clientInterfaceName: "GithubGraphQLClient" # Determine the name of the generated client interface
   structFieldsAlwaysPointers: true # Optional: Always use pointers for struct fields (default: true). [same as gqlgen](https://github.com/99designs/gqlgen/blob/e1ef86e795e738654c98553b325a248c02c8c2f8/docs/content/config.md?plain=1#L73)
   onlyUsedModels: true # Optional: Only generate used models
+  includeDescriptionsInQuery: false # Optional: Keep the descriptions written in query files in the query sent to the server (default: false)
   enableClientJsonOmitemptyTag: true # Optional: Controls whether the "omitempty" option is added to JSON tags (default: true)
   enableModelJsonOmitemptyTag: true # Optional: Overrides enableClientJsonOmitemptyTag for generated models; needs model:
   enableModelJsonOmitzeroTag: false # Optional: Overrides enableClientJsonOmitzeroTag for generated models; needs model:
@@ -231,7 +232,7 @@ query GetItem($id: ID!) {
 }
 ```
 
-Descriptions are never part of the query sent to the server, so they are safe to use with servers that do not accept descriptions on executable definitions.
+By default, descriptions are not part of the query sent to the server, so they are safe to use with servers that do not accept descriptions on executable definitions. Set `generate.includeDescriptionsInQuery: true` to send them, for a server that accepts them and uses them, for example in its logs or traces.
 
 ### Encoding of request variables
 

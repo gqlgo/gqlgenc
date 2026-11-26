@@ -1,0 +1,26 @@
+"""
+GetItem fetches one item.
+
+It returns null when no item has the ID.
+"""
+query GetItem(
+  "The ID of the item."
+  $id: ID!
+) {
+  item(id: $id) {
+    ...ItemFields
+  }
+}
+
+"ItemFields holds the fields every item view needs."
+fragment ItemFields on Item {
+  id
+  status
+  name
+}
+
+query GetItemName($id: ID!) {
+  item(id: $id) {
+    name
+  }
+}

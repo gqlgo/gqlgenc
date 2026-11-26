@@ -122,7 +122,7 @@ func NewOperation(operation *ast.OperationDefinition, queryDocument *ast.QueryDo
 		Name:                operation.Name,
 		Description:         operation.Description,
 		ResponseStructName:  getResponseStructName(operation, generateConfig),
-		Operation:           queryString(queryDocument),
+		Operation:           queryString(queryDocument, generateConfig.ShouldIncludeDescriptionsInQuery()),
 		Args:                args,
 		VariableDefinitions: operation.VariableDefinitions,
 	}
@@ -194,6 +194,8 @@ func queryDocumentMapByOperationName(queryDocuments []*ast.QueryDocument) map[st
 //
 // Arguments:
 //   - queryDocument: the document holding one operation and the fragments it uses
+//   - includeDescriptions: whether the text keeps the descriptions of operations,
+//     fragments, and variables
 //
 // Returns:
 //   - string: the formatted document
@@ -202,13 +204,18 @@ func queryDocumentMapByOperationName(queryDocuments []*ast.QueryDocument) map[st
 //   - queryDocument is non-nil
 //
 // Postconditions:
-//   - the result has no descriptions of operations, fragments, or variables;
-//     servers that predate descriptions on executable definitions reject them
-//     as a syntax error
-func queryString(queryDocument *ast.QueryDocument) string {
+//   - when includeDescriptions is false the result has no descriptions; servers
+//     that predate descriptions on executable definitions reject them as a
+//     syntax error
+func queryString(queryDocument *ast.QueryDocument, includeDescriptions bool) string {
 	var buf bytes.Buffer
 
-	astFormatter := formatter.NewFormatter(&buf, formatter.WithoutDescription())
+	var formatterOptions []formatter.FormatterOption
+	if !includeDescriptions {
+		formatterOptions = append(formatterOptions, formatter.WithoutDescription())
+	}
+
+	astFormatter := formatter.NewFormatter(&buf, formatterOptions...)
 	astFormatter.FormatQueryDocument(queryDocument)
 
 	return buf.String()
