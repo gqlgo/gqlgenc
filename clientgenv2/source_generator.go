@@ -49,6 +49,24 @@ func (rs ResponseFieldList) IsFragmentSpread() bool {
 	return rs[0].IsFragmentSpread
 }
 
+// IsSameFragmentSpread reports whether rs and other each consist of a single
+// spread of the same fragment.
+//
+// Arguments:
+//   - other: the response fields to compare with
+//
+// Returns:
+//   - bool: true when both lists are one fragment spread and the fragment names match
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func (rs ResponseFieldList) IsSameFragmentSpread(other ResponseFieldList) bool {
+	return rs.IsFragmentSpread() && other.IsFragmentSpread() && rs[0].Name == other[0].Name
+}
+
 func (rs ResponseFieldList) StructType() *types.Struct {
 	vars := make([]*types.Var, 0, len(rs))
 	structTags := make([]string, 0, len(rs))
@@ -144,6 +162,12 @@ func mergeFieldsRecursively(targetFields, sourceFields ResponseFieldList, preMer
 	for _, sourceField := range sourceFields {
 		if targetField, ok := targetFieldsMap[sourceField.Name]; ok {
 			if targetField.ResponseFields.IsBasicType() {
+				continue
+			}
+
+			// Both fields already have the type of the same fragment, e.g. `meta { ...MetaDetails }`
+			// selected in two fragments. Merging them would declare that fragment type again.
+			if targetField.ResponseFields.IsSameFragmentSpread(sourceField.ResponseFields) {
 				continue
 			}
 
