@@ -46,8 +46,8 @@ func (t *ItemNotFoundFragment) GetID() string {
 }
 
 type GetItem_Item struct {
-	Item         ItemFragment         `graphql:"... on Item"`
-	ItemNotFound ItemNotFoundFragment `graphql:"... on ItemNotFound"`
+	Item         ItemFragment         `graphql:"... on Item" gqlgenc:"possibleTypes=Item"`
+	ItemNotFound ItemNotFoundFragment `graphql:"... on ItemNotFound" gqlgenc:"possibleTypes=ItemNotFound"`
 	Typename     *string              `json:"__typename,omitempty" graphql:"__typename"`
 }
 

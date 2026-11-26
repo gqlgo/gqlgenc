@@ -1,0 +1,25 @@
+query Files {
+    files {
+        __typename
+        ... on Node {
+            id
+        }
+        ... on Media {
+            filename
+        }
+        ... on Document {
+            title
+        }
+    }
+}
+
+query GetNode($id: ID!) {
+    node(id: $id) {
+        __typename
+        ... on File {
+            ... on Image {
+                width
+            }
+        }
+    }
+}
