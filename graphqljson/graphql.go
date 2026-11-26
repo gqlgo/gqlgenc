@@ -393,6 +393,10 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 		}
 	}
 
+	// Before the stacks are inspected: allocating a fragment adds the stacks of
+	// the fragments inside it.
+	d.allocateFragmentsFor(key)
+
 	// Checked before pushField, which replaces the top of every stack.
 	ruledOutFieldExists := d.ruledOutFragmentHasField(key)
 
@@ -415,6 +419,92 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 	return d.readValue(*matchingFieldValue)
 }
 
+// allocateFragmentsFor allocates the nil pointers on top of the stacks that
+// have to receive the field named key, and adds the stacks of the fragments
+// found inside them.
+//
+// A nil pointer stays nil when neither its struct nor a fragment inside it has
+// the field, which preserves nil for union variants that do not match, and when
+// a __typename was read that the inline fragment does not apply to.
+//
+// Arguments:
+//   - key: the GraphQL name of the field
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - d.containerKind() is containerKindObject
+//   - the top of every stack is the struct being decoded, i.e. pushField has not
+//     been called for key yet
+//
+// Postconditions:
+//   - a fragment written inside an allocated pointer fragment has a stack of its
+//     own, and is allocated by the same rule when it is a pointer
+func (d *Decoder) allocateFragmentsFor(key string) {
+	// The stacks added for an allocated fragment are visited by this loop as
+	// well, so the length is read on every iteration.
+	for i := 0; i < len(d.stacks); i++ { //nolint:intrange // d.stacks grows inside the loop
+		v := d.stacks[i].top()
+		if v.Kind() != reflect.Pointer || !v.IsNil() || !v.CanSet() {
+			continue
+		}
+
+		if !d.fragmentMatchOf(i).allocatesNilPointer() || !hasGraphQLFieldInFragments(v.Type(), key) {
+			continue
+		}
+
+		v.Set(reflect.New(v.Type().Elem()))
+		d.pushFragmentStacks([]reflect.Value{v})
+	}
+}
+
+// pushFragmentStacks adds a stack for every GraphQL fragment or embedded struct
+// reachable from values.
+//
+// Arguments:
+//   - values: the places to look for fragments in: structs or pointers to structs
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - values are tops of stacks, or fields of the struct on top of one
+//
+// Postconditions:
+//   - fragments inside a nil pointer are not reached; allocateFragmentsFor adds
+//     their stacks when it allocates the pointer
+func (d *Decoder) pushFragmentStacks(values []reflect.Value) {
+	// Find GraphQL fragments/embedded structs recursively, adding to frontier
+	// as new ones are discovered and exploring them further.
+	frontier := values
+	for len(frontier) > 0 {
+		v := frontier[0]
+		frontier = frontier[1:]
+
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+
+		if v.Kind() != reflect.Struct {
+			continue
+		}
+
+		for i := range v.NumField() {
+			field := v.Type().Field(i)
+			if isGraphQLFragment(field) || field.Anonymous {
+				// Add GraphQL fragment or embedded struct.
+				d.stacks = append(d.stacks, valueStack{
+					values:        []reflect.Value{v.Field(i)},
+					fragType:      inlineFragmentType(field),
+					possibleTypes: possibleTypesOf(field),
+				})
+				frontier = append(frontier, v.Field(i))
+			}
+		}
+	}
+}
+
 // pushField pushes the field named key of the struct on top of every stack.
 //
 // Arguments:
@@ -424,13 +514,11 @@ func (d *Decoder) decodeObjectKey(key string) (json.Token, error) {
 //   - *reflect.Value: the last stack's matching field, or nil if no stack has one
 //
 // Preconditions:
-//   - none
+//   - allocateFragmentsFor has been called for key
 //
 // Postconditions:
-//   - stacks without a matching field, and inline fragments ruled out by __typename,
-//     get an invalid value pushed instead
-//   - a nil pointer to a struct that has the field is allocated first, unless a
-//     __typename rules out the inline fragment
+//   - stacks without a matching field, inline fragments ruled out by __typename, and
+//     nil pointers that allocateFragmentsFor left nil, get an invalid value pushed instead
 func (d *Decoder) pushField(key string) *reflect.Value {
 	// The last matching one is the one considered
 	var matchingFieldValue *reflect.Value
@@ -438,19 +526,10 @@ func (d *Decoder) pushField(key string) *reflect.Value {
 	for i := range d.stacks {
 		v := d.stacks[i].top()
 
-		match := d.fragmentMatchOf(i)
-
-		if match == fragmentMatchRuledOut {
+		if d.fragmentMatchOf(i) == fragmentMatchRuledOut {
 			d.stacks[i].values = append(d.stacks[i].values, reflect.Value{})
 
 			continue
-		}
-
-		// If v is a nil pointer, check whether the key exists in the pointed-to
-		// type before initializing — preserves nil for non-matching union variants.
-		// When a __typename was seen, also require the inline fragment to apply to it.
-		if v.Kind() == reflect.Pointer && v.IsNil() && v.CanSet() && hasGraphQLField(v.Type(), key) && match.allocatesNilPointer() {
-			v.Set(reflect.New(v.Type().Elem()))
 		}
 
 		if v.Kind() == reflect.Pointer {
@@ -748,33 +827,7 @@ func (d *Decoder) openObject() {
 			v.Set(reflect.New(v.Type().Elem())) // v = new(T).
 		}
 	}
-	// Find GraphQL fragments/embedded structs recursively, adding to frontier
-	// as new ones are discovered and exploring them further.
-	for len(frontier) > 0 {
-		v := frontier[0]
-		frontier = frontier[1:]
-
-		if v.Kind() == reflect.Pointer {
-			v = v.Elem()
-		}
-
-		if v.Kind() != reflect.Struct {
-			continue
-		}
-
-		for i := range v.NumField() {
-			field := v.Type().Field(i)
-			if isGraphQLFragment(field) || field.Anonymous {
-				// Add GraphQL fragment or embedded struct.
-				d.stacks = append(d.stacks, valueStack{
-					values:        []reflect.Value{v.Field(i)},
-					fragType:      inlineFragmentType(field),
-					possibleTypes: possibleTypesOf(field),
-				})
-				frontier = append(frontier, v.Field(i))
-			}
-		}
-	}
+	d.pushFragmentStacks(frontier)
 }
 
 // openArray starts an array.
@@ -942,6 +995,56 @@ func hasGraphQLField(t reflect.Type, name string) bool {
 	}
 
 	return fieldByGraphQLName(reflect.New(t).Elem(), name).IsValid()
+}
+
+// hasGraphQLFieldInFragments reports whether a struct type, or a GraphQL
+// fragment or embedded struct inside it at any depth, has an exported field
+// with a GraphQL name.
+//
+// Arguments:
+//   - t: a struct type, or a pointer to one
+//   - name: the GraphQL name of the field
+//
+// Returns:
+//   - bool: whether a JSON key called name is decoded into a value of type t;
+//     false when t is neither a struct nor a pointer to one
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a type that contains itself is visited once
+func hasGraphQLFieldInFragments(t reflect.Type, name string) bool {
+	visitedTypes := map[reflect.Type]bool{}
+	frontier := []reflect.Type{t}
+
+	for len(frontier) > 0 {
+		structType := frontier[0]
+		frontier = frontier[1:]
+
+		if structType.Kind() == reflect.Pointer {
+			structType = structType.Elem()
+		}
+
+		if structType.Kind() != reflect.Struct || visitedTypes[structType] {
+			continue
+		}
+
+		visitedTypes[structType] = true
+
+		if hasGraphQLField(structType, name) {
+			return true
+		}
+
+		for i := range structType.NumField() {
+			field := structType.Field(i)
+			if isGraphQLFragment(field) || field.Anonymous {
+				frontier = append(frontier, field.Type)
+			}
+		}
+	}
+
+	return false
 }
 
 // hasGraphQLName reports whether struct field f has GraphQL name.
