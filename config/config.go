@@ -292,7 +292,7 @@ func (c *Config) loadRemoteSchema(ctx context.Context) (*ast.Schema, error) {
 
 	var res introspection.Query
 
-	err := gqlclient.Post(ctx, "Query", introspection.Introspection, &res, nil)
+	err := gqlclient.Post(ctx, "Query", introspection.NewQuery(remoteCapabilities(ctx, gqlclient)), &res, nil)
 	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
@@ -303,6 +303,33 @@ func (c *Config) loadRemoteSchema(ctx context.Context) (*ast.Schema, error) {
 	}
 
 	return schema, nil
+}
+
+// remoteCapabilities asks the server which optional parts of introspection it supports.
+//
+// Arguments:
+//   - ctx: the context of the request
+//   - gqlclient: the client for the endpoint
+//
+// Returns:
+//   - introspection.Capabilities: the supported parts, or the zero value when
+//     the server does not answer the capability query
+//
+// Preconditions:
+//   - gqlclient is non-nil
+//
+// Postconditions:
+//   - a failed capability query is not reported; the introspection query that
+//     follows uses no optional part and reports the failure if it persists
+func remoteCapabilities(ctx context.Context, gqlclient *clientv2.Client) introspection.Capabilities {
+	var capabilityQuery introspection.CapabilityQuery
+
+	err := gqlclient.Post(ctx, "Capabilities", introspection.CapabilityQueryDocument, &capabilityQuery, nil)
+	if err != nil {
+		return introspection.Capabilities{}
+	}
+
+	return capabilityQuery.Capabilities()
 }
 
 func (c *Config) loadLocalSchema() (*ast.Schema, error) {

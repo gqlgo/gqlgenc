@@ -101,11 +101,12 @@ func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.Dir
 	}
 
 	return &ast.DirectiveDefinition{
-		Description: pointerString(directiveValue.Description),
-		Name:        directiveValue.Name,
-		Arguments:   args,
-		Locations:   locations,
-		Position:    p.sharedPosition,
+		Description:  pointerString(directiveValue.Description),
+		Name:         directiveValue.Name,
+		Arguments:    args,
+		Locations:    locations,
+		IsRepeatable: directiveValue.IsRepeatable,
+		Position:     p.sharedPosition,
 	}
 }
 
@@ -126,7 +127,7 @@ func (p parser) parseObjectFields(typeValue *FullType) ast.FieldList {
 			Arguments:   args,
 			Type:        typ,
 			Position:    p.sharedPosition,
-			Directives:  p.buildDeprecatedDirective(field),
+			Directives:  p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -143,6 +144,7 @@ func (p parser) parseInputObjectFields(typeValue *FullType) ast.FieldList {
 			Name:        field.Name,
 			Type:        typ,
 			Position:    p.sharedPosition,
+			Directives:  p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationInputFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -295,6 +297,7 @@ func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {
 		DefaultValue: defaultValue,
 		Type:         typ,
 		Position:     p.sharedPosition,
+		Directives:   p.buildDeprecatedDirective(input.IsDeprecated, input.DeprecationReason, ast.LocationArgumentDefinition),
 	}
 }
 
@@ -323,16 +326,31 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	return ast.NamedType(pointerString(typeRef.Name), p.sharedPosition)
 }
 
-func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
+// buildDeprecatedDirective builds the @deprecated directive of a schema member.
+//
+// Arguments:
+//   - isDeprecated: whether the server reports the member as deprecated
+//   - deprecationReason: the reason the server reports, or nil when it reports none
+//   - location: where the member is declared
+//
+// Returns:
+//   - ast.DirectiveList: one @deprecated directive, or nil when isDeprecated is false
+//
+// Preconditions:
+//   - the directive definitions have been parsed
+//
+// Postconditions:
+//   - the directive has a reason argument only when deprecationReason is non-nil
+func (p parser) buildDeprecatedDirective(isDeprecated bool, deprecationReason *string, location ast.DirectiveLocation) ast.DirectiveList {
 	var directives ast.DirectiveList
 
-	if field.IsDeprecated {
+	if isDeprecated {
 		var arguments ast.ArgumentList
-		if field.DeprecationReason != nil {
+		if deprecationReason != nil {
 			arguments = append(arguments, &ast.Argument{
 				Name: "reason",
 				Value: &ast.Value{
-					Raw:      *field.DeprecationReason,
+					Raw:      *deprecationReason,
 					Kind:     ast.StringValue,
 					Position: p.sharedPosition,
 				},
@@ -346,7 +364,7 @@ func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
 			Position:         p.sharedPosition,
 			ParentDefinition: nil,
 			Definition:       p.deprecatedDirectiveDefinition,
-			Location:         ast.LocationVariableDefinition,
+			Location:         location,
 		}
 		directives = append(directives, deprecatedDirective)
 	}

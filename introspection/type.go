@@ -54,6 +54,10 @@ type InputValue struct {
 	Description  *string
 	Type         TypeRef
 	DefaultValue *string
+	// IsDeprecated and DeprecationReason are set only when the server has
+	// Capabilities.InputValueDeprecation.
+	IsDeprecated      bool
+	DeprecationReason *string
 }
 
 type TypeRef struct {
@@ -77,4 +81,6 @@ type DirectiveType struct {
 	Description *string
 	Locations   []string
 	Args        []*InputValue
+	// IsRepeatable is set only when the server has Capabilities.RepeatableDirective.
+	IsRepeatable bool
 }
