@@ -150,14 +150,14 @@ func (g *GenGettersGenerator) GenFunc() func(name string, p types.Type) (string,
 
 // ConversionGettersFunc returns a template function that generates conversion getters
 // for spread fragments. Each getter constructs the original fragment type from the
-// flattened parent struct's fields.
-func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) func(ownerName string, spreads []*SpreadFragmentInfo) string {
+// flattened parent struct's fields. ownerType is the parent fragment's struct type.
+func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) func(ownerName string, ownerType types.Type, spreads []*SpreadFragmentInfo) string {
 	fragmentMap := make(map[string]*Fragment, len(allFragments))
 	for _, f := range allFragments {
 		fragmentMap[f.Name] = f
 	}
 
-	return func(ownerName string, spreads []*SpreadFragmentInfo) string {
+	return func(ownerName string, ownerType types.Type, spreads []*SpreadFragmentInfo) string {
 		if len(spreads) == 0 {
 			return ""
 		}
@@ -170,7 +170,12 @@ func (g *GenGettersGenerator) ConversionGettersFunc(allFragments []*Fragment) fu
 				continue
 			}
 
-			g.writeConversionGetter(&buf, ownerName, g.typeName(spread.Type), targetStruct)
+			ownerStruct, _ := ownerType.(*types.Struct)
+			if ownerStruct == nil {
+				ownerStruct = underlyingStruct(ownerType)
+			}
+
+			g.writeConversionGetter(&buf, ownerName, ownerStruct, g.typeName(spread.Type), targetStruct)
 		}
 
 		return buf.String()
@@ -194,37 +199,77 @@ func resolveTargetFragment(fragmentMap map[string]*Fragment, spread *SpreadFragm
 }
 
 // writeConversionGetter writes a single conversion getter method that constructs
-// the target fragment type from the owner struct's fields.
-func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName, targetTypeName string, targetStruct *types.Struct) {
+// the target fragment type from the owner struct's fields. ownerStruct may be nil
+// when the owner's struct type is unknown.
+func (g *GenGettersGenerator) writeConversionGetter(buf *bytes.Buffer, ownerName string, ownerStruct *types.Struct, targetTypeName string, targetStruct *types.Struct) {
 	buf.WriteString("func (t *" + ownerName + ") Get" + targetTypeName + "() *" + targetTypeName + " {\n")
 	buf.WriteString("if t == nil {\n t = &" + ownerName + "{}\n}\n")
 	buf.WriteString("return &" + targetTypeName + "{\n")
-	g.writeStructLiteral(buf, targetStruct, "t")
+	g.writeStructLiteral(buf, targetStruct, ownerStruct, "t")
 	buf.WriteString("}\n}\n")
 }
 
 // writeStructLiteral writes field assignments for a struct literal, delegating
-// each field to writeFieldAssignment.
-func (g *GenGettersGenerator) writeStructLiteral(buf *bytes.Buffer, targetStruct *types.Struct, sourceExpr string) {
+// each field to writeFieldAssignment. sourceStruct is the struct sourceExpr
+// refers to, or nil when it is unknown.
+func (g *GenGettersGenerator) writeStructLiteral(buf *bytes.Buffer, targetStruct, sourceStruct *types.Struct, sourceExpr string) {
 	for field := range targetStruct.Fields() {
-		g.writeFieldAssignment(buf, field, sourceExpr)
+		g.writeFieldAssignment(buf, field, structFieldType(sourceStruct, field.Name()), sourceExpr)
 	}
 }
 
 // writeFieldAssignment writes a single field assignment in a struct literal.
-// For named struct types, it recursively constructs a nested struct literal.
-// For other types, it directly assigns from the source expression.
-func (g *GenGettersGenerator) writeFieldAssignment(buf *bytes.Buffer, field *types.Var, sourceExpr string) {
+// A field whose source has the same type is assigned directly (#371). Otherwise,
+// for named struct types, it recursively constructs a nested struct literal,
+// taking its address when the target field is a pointer. Other types are
+// assigned directly from the source expression.
+func (g *GenGettersGenerator) writeFieldAssignment(buf *bytes.Buffer, field *types.Var, sourceType types.Type, sourceExpr string) {
 	fieldName := field.Name()
+	fieldExpr := sourceExpr + "." + fieldName
 
 	nestedStruct := underlyingStruct(field.Type())
-	if nestedStruct != nil {
-		buf.WriteString(fieldName + ": " + g.typeName(field.Type()) + "{\n")
-		g.writeStructLiteral(buf, nestedStruct, sourceExpr+"."+fieldName)
-		buf.WriteString("},\n")
-	} else {
-		buf.WriteString(fieldName + ": " + sourceExpr + "." + fieldName + ",\n")
+	if nestedStruct == nil || sameGeneratedType(sourceType, field.Type()) {
+		buf.WriteString(fieldName + ": " + fieldExpr + ",\n")
+
+		return
 	}
+
+	literal := g.typeName(field.Type()) + "{\n"
+	if _, isPointer := field.Type().(*types.Pointer); isPointer {
+		literal = "&" + literal
+	}
+
+	buf.WriteString(fieldName + ": " + literal)
+	g.writeStructLiteral(buf, nestedStruct, underlyingStruct(sourceType), fieldExpr)
+	buf.WriteString("},\n")
+}
+
+// sameGeneratedType reports whether a and b denote the same Go type in the
+// generated code. Each fragment builds its own *types.Named for a fragment type
+// it references, so two fields of type *MetaDetails are not types.Identical;
+// a qualified name names exactly one declaration, so the type strings decide.
+func sameGeneratedType(a, b types.Type) bool {
+	if a == nil || b == nil {
+		return false
+	}
+
+	return types.Identical(a, b) || types.TypeString(a, nil) == types.TypeString(b, nil)
+}
+
+// structFieldType returns the type of the field named name in s, or nil when s
+// is nil or has no such field.
+func structFieldType(s *types.Struct, name string) types.Type {
+	if s == nil {
+		return nil
+	}
+
+	for field := range s.Fields() {
+		if field.Name() == name {
+			return field.Type()
+		}
+	}
+
+	return nil
 }
 
 // returnTypeName renders the Go type of a getter's return value.
