@@ -26,6 +26,9 @@ jobs:
           version: v2.15.0
       - run: make build
       - run: make test
+      # 生成したクライアントをダミーの GraphQL サーバーに対して実行する
+      - run: make install-gqldummy
+      - run: make e2e
       # チェックイン済みの生成コードが現在のジェネレータの出力と一致することを確認する
       - run: make generate-examples
       - run: |
