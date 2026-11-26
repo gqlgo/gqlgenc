@@ -1,0 +1,26 @@
+# #371: BookDetails spreads BookMeta, and both select meta only through the
+# MetaDetails spread. The GetBookMeta conversion getter used to build a
+# MetaDetails value for BookMeta's *MetaDetails field, which does not compile.
+query Q {
+  items {
+    ...BookDetails
+  }
+}
+
+fragment BookDetails on Book {
+  ...BookMeta
+  meta {
+    ...MetaDetails
+  }
+  pages
+}
+
+fragment BookMeta on Book {
+  meta {
+    ...MetaDetails
+  }
+}
+
+fragment MetaDetails on Meta {
+  name
+}
