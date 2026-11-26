@@ -17,6 +17,9 @@
 	{{- if .ClientInterfaceName }}
         type {{ .ClientInterfaceName }} interface {
             {{- range $model := .Operation }}
+                {{- with $model.Description }}
+                    {{ . | prefixLines "// " }}
+                {{- end }}
                 {{ $model.Name | go }} (ctx context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, interceptors ...clientv2.RequestInterceptor) (*{{ $model.ResponseStructName | go }}, error)
             {{- end }}
         }
@@ -33,6 +36,9 @@
 {{- end }}
 
 {{- range $name, $element := .Fragment }}
+	{{- with .Description }}
+		{{ . | prefixLines "// " }}
+	{{- end }}
 	type  {{ .Name | go  }} {{ .Type | structDef }}
 
     {{ genGetters (.Name|go) .Type }}
@@ -55,6 +61,9 @@
 	const {{ $model.Name|go }}Document = `{{ $model.Operation }}`
 
 	{{- if $.GenerateClient }}
+		{{- with $model.Description }}
+			{{ . | prefixLines "// " }}
+		{{- end }}
 		func (c *Client) {{ $model.Name|go }} (ctx context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, interceptors ...clientv2.RequestInterceptor) (*{{ $model.ResponseStructName | go }}, error) {
 			vars := map[string]any{
 			{{- range $args := .VariableDefinitions}}

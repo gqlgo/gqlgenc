@@ -218,6 +218,21 @@ make test
 ### Japanese Comments
 These codes have Japanese comments. Replace with English.
 
+### Descriptions in query files
+
+A description on an operation becomes the doc comment of its generated client method, and a description on a fragment becomes the doc comment of its generated type. Descriptions on variables are accepted and ignored.
+
+```graphql
+"""
+GetItem fetches one item.
+"""
+query GetItem($id: ID!) {
+  item(id: $id) { id }
+}
+```
+
+Descriptions are never part of the query sent to the server, so they are safe to use with servers that do not accept descriptions on executable definitions.
+
 ### Encoding of request variables
 
 `clientv2` encodes request bodies with `encoding/json/v2` configured with `encoding/json` v1 semantics, plus the gqlgen conventions: values implementing `graphql.ContextMarshaler` or `graphql.Marshaler` are encoded with `MarshalGQLContext` / `MarshalGQL`, which take precedence over `json.Marshaler` and `encoding.TextMarshaler`. A nil value of such a type (a nil pointer, or a nil named slice, map or interface such as `type IDs []string`) is encoded as `null` without calling the method, so an optional list variable left nil reaches the server as `null` rather than `[]`; `Options.EncodeNilSliceAsEmptyArray` calls the method on nil slices instead. This also applies to a non-nil pointer to a nil slice or map (`&IDs(nil)`), which before v0.41.0 called the method and produced `[]`. Everything else is encoded exactly as `encoding/json` would encode it.

@@ -45,6 +45,9 @@ type SpreadFragmentInfo struct {
 type Fragment struct {
 	// Name is the fragment's name as declared in GraphQL.
 	Name string
+	// Description is the fragment's description as declared in GraphQL, or "" when it has none.
+	// It becomes the doc comment of the generated type.
+	Description string
 	// Type is the Go struct type generated for this fragment.
 	Type types.Type
 	// SpreadFragments lists fragment spreads that were flattened into this fragment.
@@ -79,6 +82,7 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 
 		fragment := &Fragment{
 			Name:            fragment.Name,
+			Description:     fragment.Description,
 			Type:            structType,
 			SpreadFragments: spreadFragments,
 		}
@@ -103,7 +107,10 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 }
 
 type Operation struct {
-	Name                string
+	Name string
+	// Description is the operation's description as declared in GraphQL, or "" when it has none.
+	// It becomes the doc comment of the generated client method.
+	Description         string
 	ResponseStructName  string
 	Operation           string
 	Args                []*Argument
@@ -113,6 +120,7 @@ type Operation struct {
 func NewOperation(operation *ast.OperationDefinition, queryDocument *ast.QueryDocument, args []*Argument, generateConfig *config.GenerateConfig) *Operation {
 	return &Operation{
 		Name:                operation.Name,
+		Description:         operation.Description,
 		ResponseStructName:  getResponseStructName(operation, generateConfig),
 		Operation:           queryString(queryDocument),
 		Args:                args,

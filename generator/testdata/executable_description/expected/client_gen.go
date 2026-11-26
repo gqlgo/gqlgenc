@@ -9,14 +9,23 @@ import (
 	domain "github.com/gqlgo/gqlgenc/generator/testdata/executable_description/model"
 )
 
+type ItemClient interface {
+	// GetItem fetches one item.
+	//
+	// It returns null when no item has the ID.
+	GetItem(ctx context.Context, id string, interceptors ...clientv2.RequestInterceptor) (*GetItem, error)
+	GetItemName(ctx context.Context, id string, interceptors ...clientv2.RequestInterceptor) (*GetItemName, error)
+}
+
 type Client struct {
 	Client *clientv2.Client
 }
 
-func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Options, interceptors ...clientv2.RequestInterceptor) *Client {
+func NewClient(cli clientv2.HttpClient, baseURL string, options *clientv2.Options, interceptors ...clientv2.RequestInterceptor) ItemClient {
 	return &Client{Client: clientv2.NewClient(cli, baseURL, options, interceptors...)}
 }
 
+// ItemFields holds the fields every item view needs.
 type ItemFields struct {
 	ID     string        `json:"id" graphql:"id"`
 	Status domain.Status `json:"status" graphql:"status"`
@@ -42,6 +51,17 @@ func (t *ItemFields) GetName() string {
 	return t.Name
 }
 
+type GetItemName_Item struct {
+	Name string `json:"name" graphql:"name"`
+}
+
+func (t *GetItemName_Item) GetName() string {
+	if t == nil {
+		t = &GetItemName_Item{}
+	}
+	return t.Name
+}
+
 type GetItem struct {
 	Item *ItemFields `json:"item,omitempty" graphql:"item"`
 }
@@ -49,6 +69,17 @@ type GetItem struct {
 func (t *GetItem) GetItem() *ItemFields {
 	if t == nil {
 		t = &GetItem{}
+	}
+	return t.Item
+}
+
+type GetItemName struct {
+	Item *GetItemName_Item `json:"item,omitempty" graphql:"item"`
+}
+
+func (t *GetItemName) GetItem() *GetItemName_Item {
+	if t == nil {
+		t = &GetItemName{}
 	}
 	return t.Item
 }
@@ -65,6 +96,9 @@ fragment ItemFields on Item {
 }
 `
 
+// GetItem fetches one item.
+//
+// It returns null when no item has the ID.
 func (c *Client) GetItem(ctx context.Context, id string, interceptors ...clientv2.RequestInterceptor) (*GetItem, error) {
 	vars := map[string]any{
 		"id": id,
@@ -82,6 +116,31 @@ func (c *Client) GetItem(ctx context.Context, id string, interceptors ...clientv
 	return &res, nil
 }
 
+const GetItemNameDocument = `query GetItemName ($id: ID!) {
+	item(id: $id) {
+		name
+	}
+}
+`
+
+func (c *Client) GetItemName(ctx context.Context, id string, interceptors ...clientv2.RequestInterceptor) (*GetItemName, error) {
+	vars := map[string]any{
+		"id": id,
+	}
+
+	var res GetItemName
+	if err := c.Client.Post(ctx, "GetItemName", GetItemNameDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
-	GetItemDocument: "GetItem",
+	GetItemDocument:     "GetItem",
+	GetItemNameDocument: "GetItemName",
 }
