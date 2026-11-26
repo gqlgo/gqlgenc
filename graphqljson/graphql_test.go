@@ -1134,3 +1134,234 @@ func TestUnmarshalGraphQL_typenameNull(t *testing.T) {
 		t.Error(diff)
 	}
 }
+
+// The structs below are shaped like the inline fragments gqlgenc generates for
+//
+//	interface Node { id: ID! }
+//	type Image implements Node { id: ID! filename: String! }
+//	type Video implements Node { id: ID! filename: String! duration: Int! }
+//
+// Each inline fragment carries the object types that satisfy its type condition.
+type imageFragment struct {
+	Filename string `json:"filename" graphql:"filename"`
+}
+
+type videoFragment struct {
+	Filename string `json:"filename" graphql:"filename"`
+	Duration int    `json:"duration" graphql:"duration"`
+}
+
+type nodeFragment struct {
+	ID string `json:"id" graphql:"id"`
+}
+
+// TestUnmarshalGraphQL_possibleTypesValueFragments verifies that __typename selects the
+// value-typed inline fragments to fill, wherever it appears in the object.
+func TestUnmarshalGraphQL_possibleTypesValueFragments(t *testing.T) {
+	t.Parallel()
+
+	type file struct {
+		Typename *string       `json:"__typename" graphql:"__typename"`
+		Image    imageFragment `graphql:"... on Image" gqlgenc:"possibleTypes=Image"`
+		Video    videoFragment `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
+	}
+
+	tests := []struct {
+		name string
+		data string
+		want file
+	}{
+		{
+			name: "__typename first",
+			data: `{"__typename": "Image", "filename": "a.png"}`,
+			want: file{Typename: new("Image"), Image: imageFragment{Filename: "a.png"}},
+		},
+		{
+			name: "__typename last",
+			data: `{"filename": "a.png", "__typename": "Image"}`,
+			want: file{Typename: new("Image"), Image: imageFragment{Filename: "a.png"}},
+		},
+		{
+			name: "no __typename fills every fragment with the field",
+			data: `{"filename": "a.png"}`,
+			want: file{Image: imageFragment{Filename: "a.png"}, Video: videoFragment{Filename: "a.png"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got file
+
+			err := graphqljson.UnmarshalData([]byte(tt.data), &got)
+			require.NoError(t, err)
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}
+
+// TestUnmarshalGraphQL_possibleTypesPointerFragments verifies that __typename selects the
+// pointer inline fragments to allocate, wherever it appears in the object.
+func TestUnmarshalGraphQL_possibleTypesPointerFragments(t *testing.T) {
+	t.Parallel()
+
+	type file struct {
+		Typename *string        `json:"__typename" graphql:"__typename"`
+		Image    *imageFragment `graphql:"... on Image" gqlgenc:"possibleTypes=Image"`
+		Video    *videoFragment `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
+	}
+
+	tests := []struct {
+		name string
+		data string
+		want file
+	}{
+		{
+			name: "__typename first",
+			data: `{"__typename": "Video", "filename": "b.mp4", "duration": 3}`,
+			want: file{Typename: new("Video"), Video: &videoFragment{Filename: "b.mp4", Duration: 3}},
+		},
+		{
+			name: "__typename last",
+			data: `{"filename": "b.mp4", "duration": 3, "__typename": "Video"}`,
+			want: file{Typename: new("Video"), Video: &videoFragment{Filename: "b.mp4", Duration: 3}},
+		},
+		{
+			name: "no __typename allocates every fragment with the field",
+			data: `{"filename": "b.mp4"}`,
+			want: file{Image: &imageFragment{Filename: "b.mp4"}, Video: &videoFragment{Filename: "b.mp4"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got file
+
+			err := graphqljson.UnmarshalData([]byte(tt.data), &got)
+			require.NoError(t, err)
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}
+
+// TestUnmarshalGraphQL_possibleTypesInterfaceCondition verifies that an inline fragment on an
+// interface is filled for every object type that implements it.
+func TestUnmarshalGraphQL_possibleTypesInterfaceCondition(t *testing.T) {
+	t.Parallel()
+
+	type file struct {
+		Typename *string        `json:"__typename" graphql:"__typename"`
+		Node     *nodeFragment  `graphql:"... on Node" gqlgenc:"possibleTypes=Image,Video"`
+		Image    *imageFragment `graphql:"... on Image" gqlgenc:"possibleTypes=Image"`
+	}
+
+	tests := []struct {
+		name string
+		data string
+		want file
+	}{
+		{
+			name: "implementing type with its own fragment",
+			data: `{"__typename": "Image", "id": "1", "filename": "a.png"}`,
+			want: file{Typename: new("Image"), Node: &nodeFragment{ID: "1"}, Image: &imageFragment{Filename: "a.png"}},
+		},
+		{
+			name: "implementing type without its own fragment",
+			data: `{"__typename": "Video", "id": "2"}`,
+			want: file{Typename: new("Video"), Node: &nodeFragment{ID: "2"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got file
+
+			err := graphqljson.UnmarshalData([]byte(tt.data), &got)
+			require.NoError(t, err)
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}
+
+// TestUnmarshalGraphQL_possibleTypesUnknownTypename verifies that fields only an inline
+// fragment ruled out by __typename has are skipped rather than rejected. This happens when the
+// server knows an implementation of an interface that the client schema does not.
+func TestUnmarshalGraphQL_possibleTypesUnknownTypename(t *testing.T) {
+	t.Parallel()
+
+	type owner struct {
+		Name string `json:"name" graphql:"name"`
+	}
+
+	type ownedNodeFragment struct {
+		ID    string `json:"id" graphql:"id"`
+		Owner owner  `json:"owner" graphql:"owner"`
+	}
+
+	type file struct {
+		Typename *string            `json:"__typename" graphql:"__typename"`
+		Node     *ownedNodeFragment `graphql:"... on Node" gqlgenc:"possibleTypes=Image,Video"`
+	}
+
+	var got file
+
+	err := graphqljson.UnmarshalData([]byte(`{
+		"__typename": "Audio",
+		"id": "3",
+		"owner": {"name": "Luke"}
+	}`), &got)
+	require.NoError(t, err)
+
+	want := file{Typename: new("Audio")}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+// TestUnmarshalGraphQL_possibleTypesList verifies that each element of a list is matched
+// against its own __typename.
+func TestUnmarshalGraphQL_possibleTypesList(t *testing.T) {
+	t.Parallel()
+
+	type file struct {
+		Typename *string       `json:"__typename" graphql:"__typename"`
+		Image    imageFragment `graphql:"... on Image" gqlgenc:"possibleTypes=Image"`
+		Video    videoFragment `graphql:"... on Video" gqlgenc:"possibleTypes=Video"`
+	}
+
+	type query struct {
+		Files []file `json:"files" graphql:"files"`
+	}
+
+	var got query
+
+	err := graphqljson.UnmarshalData([]byte(`{
+		"files": [
+			{"__typename": "Image", "filename": "a.png"},
+			{"filename": "b.mp4", "duration": 3, "__typename": "Video"}
+		]
+	}`), &got)
+	require.NoError(t, err)
+
+	want := query{Files: []file{
+		{Typename: new("Image"), Image: imageFragment{Filename: "a.png"}},
+		{Typename: new("Video"), Video: videoFragment{Filename: "b.mp4", Duration: 3}},
+	}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error(diff)
+	}
+}
