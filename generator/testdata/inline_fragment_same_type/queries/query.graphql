@@ -1,0 +1,35 @@
+# Two inline fragments on the same type become one struct with the fields of both.
+query NodeWithRepeatedInlineFragment($id: ID!) {
+  node(id: $id) {
+    __typename
+    ... on Item {
+      id
+    }
+    ... on Comment {
+      body
+    }
+    ... on Item {
+      name
+      parent {
+        id
+      }
+    }
+  }
+}
+
+# An inline fragment without a type condition applies to the enclosing type.
+query NodeWithUntypedInlineFragment($id: ID!, $withTypename: Boolean!) {
+  node(id: $id) {
+    ... {
+      id
+    }
+    ... @include(if: $withTypename) {
+      __typename
+    }
+  }
+  item(id: $id) {
+    ... {
+      name
+    }
+  }
+}

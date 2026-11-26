@@ -1,0 +1,16 @@
+# The default values stay in the query document. The Go type of a variable
+# follows its GraphQL type only: a default value does not make it optional.
+query ItemsWithDefaults(
+  $first: Int = 10
+  $requiredFirst: Int! = 5
+  $status: Status = ACTIVE
+  $filter: ItemFilter = { name: "a", statuses: [ACTIVE] }
+  $tags: [String!] = ["x"]
+) {
+  items(first: $first, status: $status, filter: $filter, tags: $tags) {
+    id
+  }
+  more: items(first: $requiredFirst) {
+    id
+  }
+}

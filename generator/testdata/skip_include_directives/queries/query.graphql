@@ -1,0 +1,22 @@
+# A field left out by @skip or @include keeps the zero value of its Go type.
+query ItemWithDirectives($id: ID!, $withName: Boolean!, $withoutStatus: Boolean!) {
+  item(id: $id) {
+    id
+    name @include(if: $withName)
+    status @skip(if: $withoutStatus)
+    parent @include(if: $withName) {
+      id
+    }
+    children @skip(if: $withoutStatus) {
+      id
+    }
+    ...ItemName @include(if: $withName)
+    ... on Item @skip(if: $withoutStatus) {
+      renamed: name
+    }
+  }
+}
+
+fragment ItemName on Item {
+  itemName: name
+}

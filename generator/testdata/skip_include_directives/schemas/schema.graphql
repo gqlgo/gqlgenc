@@ -1,0 +1,36 @@
+enum Status {
+  ACTIVE
+  ARCHIVED
+}
+
+input ItemFilter {
+  name: String
+  statuses: [Status!]
+}
+
+interface Node {
+  id: ID!
+}
+
+type Item implements Node {
+  id: ID!
+  name: String!
+  status: Status!
+  parent: Item
+  children(first: Int = 10): [Item!]!
+}
+
+type Comment implements Node {
+  id: ID!
+  body: String!
+}
+
+type Query {
+  node(id: ID!): Node
+  item(id: ID!): Item!
+  items(first: Int, status: Status, filter: ItemFilter, tags: [String!]): [Item!]!
+}
+
+type Mutation {
+  createItem(name: String!): Item!
+}

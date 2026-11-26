@@ -273,51 +273,68 @@ func (r *SourceGenerator) NewResponseFields(selectionSet ast.SelectionSet, typeN
 	}
 
 	responseFields := make(ResponseFieldList, 0, len(selectionSet))
-	for _, selection := range mergeDuplicateFields(selectionSet) {
+	for _, selection := range mergeDuplicateSelections(selectionSet) {
 		responseFields = append(responseFields, r.NewResponseField(selection, typeName))
 	}
 
 	return responseFields
 }
 
-// mergeDuplicateFields merges field selections that share a response key, as a
-// GraphQL server does when it collects fields.
+// mergeDuplicateSelections merges field selections that share a response key and
+// inline fragments that apply to the same type, as a GraphQL server does when it
+// collects fields.
 //
 // Arguments:
 //   - selectionSet: the selections of one object
 //
 // Returns:
 //   - ast.SelectionSet: the selections in their first-seen order, with the sub-selections
-//     of later duplicates appended to the first occurrence; fragment spreads and inline
-//     fragments are kept as they are
+//     of later duplicates appended to the first occurrence; fragment spreads are kept as
+//     they are
 //
 // Preconditions:
-//   - selectionSet has been validated, so duplicate keys refer to the same field
+//   - selectionSet has been validated, so duplicate keys refer to the same field and
+//     every inline fragment has its enclosing type resolved
 //
 // Postconditions:
-//   - selectionSet itself is not modified; merged fields are copies
-func mergeDuplicateFields(selectionSet ast.SelectionSet) ast.SelectionSet {
+//   - selectionSet itself is not modified; merged fields and inline fragments are copies
+//   - every inline fragment in the result has a type condition; one written without a
+//     type condition has the enclosing type
+//   - no two inline fragments in the result have the same type condition
+func mergeDuplicateSelections(selectionSet ast.SelectionSet) ast.SelectionSet {
 	merged := make(ast.SelectionSet, 0, len(selectionSet))
 	fieldByAlias := make(map[string]*ast.Field)
+	inlineFragmentByTypeCondition := make(map[string]*ast.InlineFragment)
 
 	for _, selection := range selectionSet {
-		field, ok := selection.(*ast.Field)
-		if !ok {
+		switch selection := selection.(type) {
+		case *ast.Field:
+			if first, seen := fieldByAlias[selection.Alias]; seen {
+				first.SelectionSet = append(first.SelectionSet, selection.SelectionSet...)
+
+				continue
+			}
+
+			copied := *selection
+			copied.SelectionSet = append(ast.SelectionSet(nil), selection.SelectionSet...)
+			fieldByAlias[selection.Alias] = &copied
+			merged = append(merged, &copied)
+		case *ast.InlineFragment:
+			typeCondition := inlineFragmentTypeCondition(selection)
+			if first, seen := inlineFragmentByTypeCondition[typeCondition]; seen {
+				first.SelectionSet = append(first.SelectionSet, selection.SelectionSet...)
+
+				continue
+			}
+
+			copied := *selection
+			copied.TypeCondition = typeCondition
+			copied.SelectionSet = append(ast.SelectionSet(nil), selection.SelectionSet...)
+			inlineFragmentByTypeCondition[typeCondition] = &copied
+			merged = append(merged, &copied)
+		default:
 			merged = append(merged, selection)
-
-			continue
 		}
-
-		if first, seen := fieldByAlias[field.Alias]; seen {
-			first.SelectionSet = append(first.SelectionSet, field.SelectionSet...)
-
-			continue
-		}
-
-		copied := *field
-		copied.SelectionSet = append(ast.SelectionSet(nil), field.SelectionSet...)
-		fieldByAlias[field.Alias] = &copied
-		merged = append(merged, &copied)
 	}
 
 	return merged
@@ -599,14 +616,17 @@ func (r *SourceGenerator) newFragmentSpreadResponseField(selection *ast.Fragment
 //   - *ResponseField: a field tagged with "... on TypeCondition" whose type is the fragment struct
 //
 // Preconditions:
-//   - selection.TypeCondition is set
+//   - selection belongs to a validated query document
 //
 // Postconditions:
+//   - an inline fragment without a type condition is treated as one on the enclosing type
 //   - a struct type named after the type condition is appended to r.StructSources, unless the
 //     selection set is a single fragment spread, whose type is reused instead
 func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFragment, typeName string) *ResponseField {
+	typeCondition := inlineFragmentTypeCondition(selection)
+
 	// InlineFragment has child elements, so create a struct type here
-	name := NewLayerTypeName(typeName, templates.ToGo(selection.TypeCondition))
+	name := NewLayerTypeName(typeName, templates.ToGo(typeCondition))
 	fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, name)
 
 	// if single fields that is also a fragment spread, reuse that fragment
@@ -618,9 +638,9 @@ func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFr
 		)
 
 		return &ResponseField{
-			Name:           selection.TypeCondition,
+			Name:           typeCondition,
 			Type:           r.inlineFragmentType(baseType),
-			Tags:           r.inlineFragmentTags(selection.TypeCondition),
+			Tags:           r.inlineFragmentTags(typeCondition),
 			ResponseFields: fieldsResponseFields,
 		}
 	}
@@ -643,12 +663,33 @@ func (r *SourceGenerator) newInlineFragmentResponseField(selection *ast.InlineFr
 	)
 
 	return &ResponseField{
-		Name:             selection.TypeCondition,
+		Name:             typeCondition,
 		Type:             r.inlineFragmentType(baseType),
 		IsInlineFragment: true,
-		Tags:             r.inlineFragmentTags(selection.TypeCondition),
+		Tags:             r.inlineFragmentTags(typeCondition),
 		ResponseFields:   fields.SortByName(),
 	}
+}
+
+// inlineFragmentTypeCondition returns the type an inline fragment applies to.
+//
+// Arguments:
+//   - selection: the inline fragment
+//
+// Returns:
+//   - string: the type condition, or the name of the enclosing type when the fragment has none
+//
+// Preconditions:
+//   - selection belongs to a validated query document, so selection.ObjectDefinition is resolved
+//
+// Postconditions:
+//   - the result is not empty
+func inlineFragmentTypeCondition(selection *ast.InlineFragment) string {
+	if selection.TypeCondition != "" {
+		return selection.TypeCondition
+	}
+
+	return selection.ObjectDefinition.Name
 }
 
 // inlineFragmentType applies the inlineFragmentAlwaysPointers option to a fragment struct type.
