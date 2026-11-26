@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/ast"
+	astparser "github.com/vektah/gqlparser/v2/parser"
 )
 
 func ParseIntrospectionQuery(url string, query Query) *ast.SchemaDocument {
@@ -65,6 +66,12 @@ func (p parser) parseSchemaDefinition(query Query, typeMap map[string]*FullType)
 		)
 	}
 
+	if query.Schema.SubscriptionType != nil {
+		def.OperationTypes = append(def.OperationTypes,
+			p.parseOperationTypeDefinitionForSubscription(typeMap[*query.Schema.SubscriptionType.Name]),
+		)
+	}
+
 	return &def
 }
 
@@ -82,6 +89,16 @@ func (p parser) parseOperationTypeDefinitionForMutation(fullType *FullType) *ast
 	var op ast.OperationTypeDefinition
 
 	op.Operation = ast.Mutation
+	op.Type = *fullType.Name
+	op.Position = p.sharedPosition
+
+	return &op
+}
+
+func (p parser) parseOperationTypeDefinitionForSubscription(fullType *FullType) *ast.OperationTypeDefinition {
+	var op ast.OperationTypeDefinition
+
+	op.Operation = ast.Subscription
 	op.Type = *fullType.Name
 	op.Position = p.sharedPosition
 
@@ -140,11 +157,12 @@ func (p parser) parseInputObjectFields(typeValue *FullType) ast.FieldList {
 	for _, field := range typeValue.InputFields {
 		typ := p.getType(&field.Type)
 		fieldDefinition := &ast.FieldDefinition{
-			Description: pointerString(field.Description),
-			Name:        field.Name,
-			Type:        typ,
-			Position:    p.sharedPosition,
-			Directives:  p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationInputFieldDefinition),
+			Description:  pointerString(field.Description),
+			Name:         field.Name,
+			DefaultValue: p.buildDefaultValue(field.DefaultValue, typ),
+			Type:         typ,
+			Position:     p.sharedPosition,
+			Directives:   p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationInputFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -234,6 +252,7 @@ func (p parser) parseEnumTypeDefinition(typeValue *FullType) *ast.Definition {
 			Description: pointerString(enum.Description),
 			Name:        enum.Name,
 			Position:    p.sharedPosition,
+			Directives:  p.buildDeprecatedDirective(enum.IsDeprecated, enum.DeprecationReason, ast.LocationEnumValue),
 		}
 		enums = append(enums, enumValue)
 	}
@@ -282,23 +301,104 @@ func (p parser) parseTypeSystemDefinition(typeValue *FullType) *ast.Definition {
 func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {
 	typ := p.getType(&input.Type)
 
-	var defaultValue *ast.Value
-	if input.DefaultValue != nil {
-		defaultValue = &ast.Value{
-			Raw:      pointerString(input.DefaultValue),
+	return &ast.ArgumentDefinition{
+		Description:  pointerString(input.Description),
+		Name:         input.Name,
+		DefaultValue: p.buildDefaultValue(input.DefaultValue, typ),
+		Type:         typ,
+		Position:     p.sharedPosition,
+		Directives:   p.buildDeprecatedDirective(input.IsDeprecated, input.DeprecationReason, ast.LocationArgumentDefinition),
+	}
+}
+
+// buildDefaultValue builds the default value of an argument or an input field.
+//
+// Arguments:
+//   - defaultValue: the default value the server reports as a GraphQL literal, or nil when there is none
+//   - typ: the type of the argument or the input field
+//
+// Returns:
+//   - *ast.Value: the default value, or nil when defaultValue is nil
+//
+// Preconditions:
+//   - typ names a type of the schema
+//
+// Postconditions:
+//   - a literal that parses keeps its structure: a list has its items and an object has its fields
+//   - a literal that does not parse is kept as written, with the kind of the named type of typ
+//   - every position in the result is the position of the schema
+func (p parser) buildDefaultValue(defaultValue *string, typ *ast.Type) *ast.Value {
+	if defaultValue == nil {
+		return nil
+	}
+
+	value, err := parseValueLiteral(*defaultValue)
+	if err != nil {
+		return &ast.Value{
+			Raw:      *defaultValue,
 			Kind:     p.parseValueKind(typ),
 			Position: p.sharedPosition,
 		}
 	}
 
-	return &ast.ArgumentDefinition{
-		Description:  pointerString(input.Description),
-		Name:         input.Name,
-		DefaultValue: defaultValue,
-		Type:         typ,
-		Position:     p.sharedPosition,
-		Directives:   p.buildDeprecatedDirective(input.IsDeprecated, input.DeprecationReason, ast.LocationArgumentDefinition),
+	p.setPosition(value)
+
+	return value
+}
+
+// setPosition points a value and the values nested in it at the schema.
+//
+// Arguments:
+//   - value: the value to update
+//
+// Returns:
+//   - none
+//
+// Preconditions:
+//   - value is not nil
+//
+// Postconditions:
+//   - value, its children and their names have the position of the schema
+func (p parser) setPosition(value *ast.Value) {
+	value.Position = p.sharedPosition
+
+	for _, child := range value.Children {
+		child.Position = p.sharedPosition
+		p.setPosition(child.Value)
 	}
+}
+
+// parseValueLiteral parses a GraphQL value literal.
+//
+// Arguments:
+//   - literal: the literal, such as `"text"`, `[A, B]` or `{min: 1}`
+//
+// Returns:
+//   - *ast.Value: the parsed value
+//   - error: non-nil when literal is not one GraphQL value
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the positions in the value refer to a temporary source, not to the schema
+func parseValueLiteral(literal string) (*ast.Value, error) {
+	// A value can only be parsed as part of a document, so wrap it as an argument.
+	document, err := astparser.ParseQuery(&ast.Source{Input: "{field(argument: " + literal + "\n)}"})
+	if err != nil {
+		return nil, fmt.Errorf("parse value literal %q: %w", literal, err)
+	}
+
+	if len(document.Operations) != 1 || len(document.Operations[0].SelectionSet) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	field, ok := document.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok || len(field.Arguments) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	return field.Arguments[0].Value, nil
 }
 
 func (p parser) getType(typeRef *TypeRef) *ast.Type {

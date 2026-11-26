@@ -1,0 +1,105 @@
+# The schema behind response.json. The round trip test expects the schema
+# loaded from response.json to equal this one, so it only uses forms a server
+# reports back unchanged:
+#   - @deprecated always has a reason, because a server reports the default
+#     reason for a member deprecated without one
+#   - an object default value sets every field that has a default of its own,
+#     because a server fills in the missing ones
+"""
+Marks a member with a label.
+It can be applied more than once.
+"""
+directive @tag(
+  "The label to attach."
+  name: String!
+  weight: Int = 1
+  oldName: String @deprecated(reason: "use name")
+) repeatable on FIELD_DEFINITION | OBJECT | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
+
+directive @internal on FIELD_DEFINITION
+
+"An instant in time, encoded as RFC 3339."
+scalar DateTime
+
+"The state of an item."
+enum Status {
+  "Visible to everyone."
+  ACTIVE
+  ARCHIVED
+  HIDDEN @deprecated(reason: "use ARCHIVED")
+  LEGACY @deprecated(reason: "No longer supported")
+}
+
+"Anything with an identifier."
+interface Node {
+  id: ID!
+}
+
+interface Resource implements Node {
+  id: ID!
+  createdAt: DateTime!
+}
+
+"An item of the catalog."
+type Item implements Node & Resource {
+  id: ID!
+  createdAt: DateTime!
+  "The display name."
+  name: String!
+  status: Status!
+  score: Float
+  visible: Boolean!
+  tags: [String!]!
+  matrix: [[Int!]]!
+  parent: Item
+  related(
+    "How many to return."
+    first: Int = 10
+    after: ID
+    status: Status = ACTIVE
+    statuses: [Status!] = [ACTIVE, ARCHIVED]
+    range: RangeInput = {min: 1, max: 10}
+    includeHidden: Boolean = false @deprecated(reason: "use statuses")
+  ): [Item!]!
+  title: String @deprecated(reason: "use name")
+  legacy: String @deprecated(reason: "No longer supported")
+}
+
+type Comment implements Node {
+  id: ID!
+  body: String!
+}
+
+union SearchResult = Item | Comment
+
+input RangeInput {
+  min: Int = 0
+  max: Int
+}
+
+"Narrows a list of items."
+input ItemFilter {
+  name: String = "default \"name\""
+  "Only items in these states."
+  statuses: [Status!] = [ACTIVE]
+  minScore: Float = 1.5
+  visible: Boolean = true
+  range: RangeInput = {min: 1, max: 10}
+  parent: ID = null
+  since: DateTime
+  keyword: String @deprecated(reason: "use name")
+}
+
+type Query {
+  node(id: ID!): Node
+  item(id: ID!): Item
+  search(text: String!, filter: ItemFilter): [SearchResult!]!
+}
+
+type Mutation {
+  createItem(name: String!, status: Status = ACTIVE): Item!
+}
+
+type Subscription {
+  itemCreated: Item!
+}

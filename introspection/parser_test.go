@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 func TestParseIntrospectionQuery_Parse(t *testing.T) {
@@ -93,4 +95,28 @@ func TestParseIntrospectionQuery_deprecatedInputsAndRepeatableDirectives(t *test
 	require.NotNil(t, deprecatedInputField)
 	require.Equal(t, "use new", deprecatedInputField.Arguments.ForName("reason").Value.Raw)
 	require.Empty(t, inputFields.ForName("new").Directives)
+}
+
+func TestParseIntrospectionQuery_defaultValueThatIsNotALiteral(t *testing.T) {
+	t.Parallel()
+
+	typeName := func(name string) *string { return &name }
+	defaultValue := "1)"
+	intType := TypeRef{Kind: TypeKindScalar, Name: typeName("Int")}
+
+	var query Query
+
+	query.Schema.QueryType.Name = typeName("Query")
+	query.Schema.Types = FullTypes{
+		{Kind: TypeKindScalar, Name: typeName("Int")},
+		{Kind: TypeKindObject, Name: typeName("Query"), Fields: []*FieldValue{
+			{Name: "test", Type: intType, Args: []*InputValue{{Name: "first", Type: intType, DefaultValue: &defaultValue}}},
+		}},
+	}
+
+	doc := ParseIntrospectionQuery("test", query)
+
+	argumentDefinition := doc.Definitions.ForName("Query").Fields.ForName("test").Arguments.ForName("first")
+	require.Equal(t, "1)", argumentDefinition.DefaultValue.Raw)
+	require.Equal(t, ast.IntValue, argumentDefinition.DefaultValue.Kind)
 }
