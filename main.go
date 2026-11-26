@@ -43,14 +43,46 @@ func main() {
 	err := generator.GenerateAll(context.Background(), dirs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-
-		var loadErr *generator.LoadConfigError
-		if errors.As(err, &loadErr) {
-			os.Exit(2)
-		}
-
-		os.Exit(4)
+		os.Exit(exitCodeOf(err))
 	}
+}
+
+// The exit codes of the command. A flag parsing error and a panic also exit
+// with 2, which is the default of the flag package and of the Go runtime.
+const (
+	// exitCodeSuccess means every config was generated.
+	exitCodeSuccess = 0
+	// exitCodeLoadConfigFailed means a config could not be found or loaded.
+	exitCodeLoadConfigFailed = 2
+	// exitCodeGenerateFailed means a config was loaded but generating from it failed.
+	exitCodeGenerateFailed = 4
+)
+
+// exitCodeOf returns the exit code for the result of generator.GenerateAll.
+//
+// Arguments:
+//   - err: the error returned by generator.GenerateAll, or nil
+//
+// Returns:
+//   - int: exitCodeSuccess for nil, exitCodeLoadConfigFailed when err is or wraps a
+//     *generator.LoadConfigError, otherwise exitCodeGenerateFailed
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the result is exitCodeSuccess only for a nil err
+func exitCodeOf(err error) int {
+	if err == nil {
+		return exitCodeSuccess
+	}
+
+	var loadConfigError *generator.LoadConfigError
+	if errors.As(err, &loadConfigError) {
+		return exitCodeLoadConfigFailed
+	}
+
+	return exitCodeGenerateFailed
 }
 
 // resolveVersion returns the version to print for -version.
