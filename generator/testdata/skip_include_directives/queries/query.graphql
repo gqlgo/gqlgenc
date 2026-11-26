@@ -1,4 +1,5 @@
-# A field left out by @skip or @include keeps the zero value of its Go type.
+# A field with @skip or @include can be absent from the response, so its Go
+# type is the one of a nullable field, also when the field is non-null.
 query ItemWithDirectives($id: ID!, $withName: Boolean!, $withoutStatus: Boolean!) {
   item(id: $id) {
     id
@@ -19,4 +20,15 @@ query ItemWithDirectives($id: ID!, $withName: Boolean!, $withoutStatus: Boolean!
 
 fragment ItemName on Item {
   itemName: name
+}
+
+# A field selected twice is always returned when one of the selections has no
+# @skip and no @include, so it keeps the Go type of a non-null field.
+query ItemSelectedTwice($id: ID!, $withName: Boolean!) {
+  item(id: $id) {
+    name @include(if: $withName)
+    name
+    status @skip(if: $withName)
+    status @include(if: $withName)
+  }
 }

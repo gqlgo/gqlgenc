@@ -244,6 +244,14 @@ Before v0.40.0, `clientv2` used its own reflect-based encoder. Its output differ
 - Fields of embedded structs are flattened into the parent object instead of being nested under the type name.
 - Struct fields are emitted in declaration order instead of alphabetical order. The JSON is equivalent, but byte-for-byte comparisons of the encoded output need updating.
 
+### Fields with `@skip` or `@include`
+
+A server leaves a field with `@skip` or `@include` out of the response when the condition says so, also when the field is non-null.
+The generated field therefore has the Go type of a nullable field: a non-null `name: String!` selected as `name @include(if: $withName)` becomes `*string`, and is nil when the server left it out.
+
+A field selected more than once keeps its non-null type when one of the selections has neither directive.
+The fields inside a fragment spread or an inline fragment that carries the directive keep their own types and have the zero value when left out.
+
 ### Subscription
 
 This client does not support subscription. If you need a subscription, please create an issue or pull request.

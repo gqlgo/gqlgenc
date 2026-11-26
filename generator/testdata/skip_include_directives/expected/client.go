@@ -62,12 +62,12 @@ func (t *ItemWithDirectives_Item_Item) GetRenamed() string {
 
 type ItemWithDirectives_Item struct {
 	Item     ItemWithDirectives_Item_Item        `graphql:"... on Item" gqlgenc:"possibleTypes=Item"`
-	Children []*ItemWithDirectives_Item_Children `json:"children" graphql:"children"`
+	Children []*ItemWithDirectives_Item_Children `json:"children,omitempty" graphql:"children"`
 	ID       string                              `json:"id" graphql:"id"`
 	ItemName string                              `json:"itemName" graphql:"itemName"`
-	Name     string                              `json:"name" graphql:"name"`
+	Name     *string                             `json:"name,omitempty" graphql:"name"`
 	Parent   *ItemWithDirectives_Item_Parent     `json:"parent,omitempty" graphql:"parent"`
-	Status   Status                              `json:"status" graphql:"status"`
+	Status   *Status                             `json:"status,omitempty" graphql:"status"`
 }
 
 func (t *ItemWithDirectives_Item) GetItem() *ItemWithDirectives_Item_Item {
@@ -94,7 +94,7 @@ func (t *ItemWithDirectives_Item) GetItemName() string {
 	}
 	return t.ItemName
 }
-func (t *ItemWithDirectives_Item) GetName() string {
+func (t *ItemWithDirectives_Item) GetName() *string {
 	if t == nil {
 		t = &ItemWithDirectives_Item{}
 	}
@@ -110,7 +110,25 @@ func (t *ItemWithDirectives_Item) GetStatus() *Status {
 	if t == nil {
 		t = &ItemWithDirectives_Item{}
 	}
-	return &t.Status
+	return t.Status
+}
+
+type ItemSelectedTwice_Item struct {
+	Name   string  `json:"name" graphql:"name"`
+	Status *Status `json:"status,omitempty" graphql:"status"`
+}
+
+func (t *ItemSelectedTwice_Item) GetName() string {
+	if t == nil {
+		t = &ItemSelectedTwice_Item{}
+	}
+	return t.Name
+}
+func (t *ItemSelectedTwice_Item) GetStatus() *Status {
+	if t == nil {
+		t = &ItemSelectedTwice_Item{}
+	}
+	return t.Status
 }
 
 type ItemWithDirectives struct {
@@ -120,6 +138,17 @@ type ItemWithDirectives struct {
 func (t *ItemWithDirectives) GetItem() *ItemWithDirectives_Item {
 	if t == nil {
 		t = &ItemWithDirectives{}
+	}
+	return &t.Item
+}
+
+type ItemSelectedTwice struct {
+	Item ItemSelectedTwice_Item `json:"item" graphql:"item"`
+}
+
+func (t *ItemSelectedTwice) GetItem() *ItemSelectedTwice_Item {
+	if t == nil {
+		t = &ItemSelectedTwice{}
 	}
 	return &t.Item
 }
@@ -165,6 +194,35 @@ func (c *Client) ItemWithDirectives(ctx context.Context, id string, withName boo
 	return &res, nil
 }
 
+const ItemSelectedTwiceDocument = `query ItemSelectedTwice ($id: ID!, $withName: Boolean!) {
+	item(id: $id) {
+		name @include(if: $withName)
+		name
+		status @skip(if: $withName)
+		status @include(if: $withName)
+	}
+}
+`
+
+func (c *Client) ItemSelectedTwice(ctx context.Context, id string, withName bool, interceptors ...clientv2.RequestInterceptor) (*ItemSelectedTwice, error) {
+	vars := map[string]any{
+		"id":       id,
+		"withName": withName,
+	}
+
+	var res ItemSelectedTwice
+	if err := c.Client.Post(ctx, "ItemSelectedTwice", ItemSelectedTwiceDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
 	ItemWithDirectivesDocument: "ItemWithDirectives",
+	ItemSelectedTwiceDocument:  "ItemSelectedTwice",
 }

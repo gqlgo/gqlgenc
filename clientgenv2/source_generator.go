@@ -301,6 +301,7 @@ func (r *SourceGenerator) NewResponseFields(selectionSet ast.SelectionSet, typeN
 //   - every inline fragment in the result has a type condition; one written without a
 //     type condition has the enclosing type
 //   - no two inline fragments in the result have the same type condition
+//   - a merged field has @skip or @include only when every occurrence of it has one
 func mergeDuplicateSelections(selectionSet ast.SelectionSet) ast.SelectionSet {
 	merged := make(ast.SelectionSet, 0, len(selectionSet))
 	fieldByAlias := make(map[string]*ast.Field)
@@ -311,6 +312,12 @@ func mergeDuplicateSelections(selectionSet ast.SelectionSet) ast.SelectionSet {
 		case *ast.Field:
 			if first, seen := fieldByAlias[selection.Alias]; seen {
 				first.SelectionSet = append(first.SelectionSet, selection.SelectionSet...)
+
+				// One occurrence without @skip and @include is enough for the
+				// server to always return the field.
+				if !isConditional(selection.Directives) {
+					first.Directives = withoutConditions(first.Directives)
+				}
 
 				continue
 			}
@@ -338,6 +345,48 @@ func mergeDuplicateSelections(selectionSet ast.SelectionSet) ast.SelectionSet {
 	}
 
 	return merged
+}
+
+// isConditional reports whether directives can make a server leave a selection out of the response.
+//
+// Arguments:
+//   - directives: the directives of one selection
+//
+// Returns:
+//   - bool: true when directives contain @skip or @include
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - none
+func isConditional(directives ast.DirectiveList) bool {
+	return directives.ForName("skip") != nil || directives.ForName("include") != nil
+}
+
+// withoutConditions removes @skip and @include from the directives of one selection.
+//
+// Arguments:
+//   - directives: the directives of one selection
+//
+// Returns:
+//   - ast.DirectiveList: the other directives, in their original order
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - directives itself is not modified
+func withoutConditions(directives ast.DirectiveList) ast.DirectiveList {
+	unconditional := make(ast.DirectiveList, 0, len(directives))
+
+	for _, directive := range directives {
+		if directive.Name != "skip" && directive.Name != "include" {
+			unconditional = append(unconditional, directive)
+		}
+	}
+
+	return unconditional
 }
 
 // FieldNameCollisionError returns the response keys that collide once converted to Go identifiers.
@@ -469,16 +518,26 @@ func (r *SourceGenerator) Type(typeName string) types.Type {
 //
 // Postconditions:
 //   - a struct type is appended to r.StructSources when the field has an object selection set
+//   - a field with @skip or @include has the Go type and the tags of a nullable field
 func (r *SourceGenerator) newFieldResponseField(selection *ast.Field, typeName string) *ResponseField {
 	typeName = NewLayerTypeName(typeName, templates.ToGo(selection.Alias))
 	fieldsResponseFields := r.NewResponseFields(selection.SelectionSet, typeName)
 
 	baseType := r.fieldBaseType(selection, typeName, fieldsResponseFields)
 
-	// return pointer type then optional type or slice pointer then slice type of definition in GraphQL.
-	typ := r.binder.CopyModifiersFromAst(selection.Definition.Type, baseType)
+	// A server leaves a field out of the response when @skip or @include says so,
+	// also when the field is non-null, so the Go type must be able to say "absent".
+	fieldType := selection.Definition.Type
+	if fieldType.NonNull && isConditional(selection.Directives) {
+		nullableType := *fieldType
+		nullableType.NonNull = false
+		fieldType = &nullableType
+	}
 
-	isOptional := !selection.Definition.Type.NonNull
+	// return pointer type then optional type or slice pointer then slice type of definition in GraphQL.
+	typ := r.binder.CopyModifiersFromAst(fieldType, baseType)
+
+	isOptional := !fieldType.NonNull
 
 	return &ResponseField{
 		Name:           selection.Alias,

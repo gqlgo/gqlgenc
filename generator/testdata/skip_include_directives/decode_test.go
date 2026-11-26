@@ -35,7 +35,7 @@ func TestDecode_everyFieldIncluded(t *testing.T) {
 
 	item := res.GetItem()
 	require.Equal(t, "item-1", item.GetID())
-	require.Equal(t, "first", item.GetName())
+	require.Equal(t, "first", *item.GetName())
 	require.Equal(t, generated.StatusActive, *item.GetStatus())
 	require.Equal(t, "item-0", item.GetParent().GetID())
 	require.Len(t, item.GetChildren(), 1)
@@ -54,10 +54,13 @@ func TestDecode_everyDirectedFieldLeftOut(t *testing.T) {
 
 	item := res.GetItem()
 	require.Equal(t, "item-1", item.GetID())
-	require.Empty(t, item.GetName())
-	require.Empty(t, *item.GetStatus())
+	require.Nil(t, item.GetName())
+	require.Nil(t, item.GetStatus())
 	require.Nil(t, item.GetParent())
-	require.Empty(t, item.GetChildren())
+	require.Nil(t, item.GetChildren())
+
+	// The fields of a fragment spread or an inline fragment with a directive
+	// keep their own types, so they have the zero value when left out.
 	require.Empty(t, item.GetItemName())
 	require.Empty(t, item.GetItem().GetRenamed())
 }
