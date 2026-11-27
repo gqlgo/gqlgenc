@@ -29,6 +29,25 @@ jobs:
       # 生成したクライアントをダミーの GraphQL サーバーに対して実行する
       - run: make install-gqldummy
       - run: make e2e
+      # 直近のリリースと比べた公開 API の差分をジョブのサマリーに出す
+      # 破壊的変更を意図して入れることがあるので、非互換でも失敗にせず警告にとどめる
+      - name: Report API compatibility
+        run: |
+          status=0
+          make compat > "$RUNNER_TEMP/gorelease.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/gorelease.txt"
+          {
+            echo '### API compatibility'
+            echo '```'
+            cat "$RUNNER_TEMP/gorelease.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # v0 では非互換な変更があっても gorelease は成功で終わるので、出力で判定する
+          if grep -q '^## incompatible changes' "$RUNNER_TEMP/gorelease.txt"; then
+            echo "::warning title=API compatibility::incompatible changes to the public API; see the job summary"
+          elif [ "$status" -ne 0 ]; then
+            echo "::warning title=API compatibility::gorelease could not compare the API; see the job summary"
+          fi
       # チェックイン済みの生成コードが現在のジェネレータの出力と一致することを確認する
       - run: make generate-examples
       - run: |
