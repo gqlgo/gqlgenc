@@ -303,6 +303,61 @@ func TestParseResponse_outcomeTable(t *testing.T) {
 	}
 }
 
+// An "errors" key that lists no error is not an error, whatever the status and
+// ParseDataWhenErrors are.
+func TestParseResponse_emptyErrorsAreNotErrors(t *testing.T) {
+	t.Parallel()
+
+	bodies := []struct {
+		name string
+		body string
+	}{
+		{name: "errors null", body: `{"data":{"something":"some data"},"errors":null}`},
+		{name: "errors empty", body: `{"data":{"something":"some data"},"errors":[]}`},
+	}
+
+	for _, body := range bodies {
+		for _, parseDataWhenErrors := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s, ParseDataWhenErrors=%t, success", body.name, parseDataWhenErrors), func(t *testing.T) {
+				t.Parallel()
+
+				res := &fakeRes{}
+				c := &Client{ParseDataWhenErrors: parseDataWhenErrors}
+
+				require.NoError(t, c.parseResponse([]byte(body.body), 200, res))
+				require.Equal(t, "some data", res.Something)
+			})
+
+			t.Run(fmt.Sprintf("%s, ParseDataWhenErrors=%t, error status", body.name, parseDataWhenErrors), func(t *testing.T) {
+				t.Parallel()
+
+				res := &fakeRes{}
+				c := &Client{ParseDataWhenErrors: parseDataWhenErrors}
+
+				err := c.parseResponse([]byte(body.body), 500, res)
+
+				errResponse, isErrorResponse := errors.AsType[*ErrorResponse](err)
+				require.True(t, isErrorResponse)
+				require.NotNil(t, errResponse.NetworkError)
+				require.Nil(t, errResponse.GqlErrors)
+				require.Equal(t, "some data", res.Something)
+			})
+		}
+	}
+
+	t.Run("data that cannot be decoded is reported", func(t *testing.T) {
+		t.Parallel()
+
+		c := &Client{}
+		err := c.parseResponse([]byte(`{"data":"notAnObject","errors":[]}`), 200, &fakeRes{})
+
+		require.ErrorContains(t, err, "failed to decode data into response")
+
+		_, isErrorResponse := errors.AsType[*ErrorResponse](err)
+		require.False(t, isErrorResponse)
+	})
+}
+
 func TestParseResponse(t *testing.T) {
 	t.Parallel()
 	t.Run("single error", func(t *testing.T) {

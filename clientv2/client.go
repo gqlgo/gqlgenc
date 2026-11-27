@@ -596,6 +596,28 @@ type response struct {
 	Errors json.RawMessage `json:"errors"`
 }
 
+// unmarshal decodes a GraphQL response body: the "errors" key into the returned
+// error, and the "data" key into res.
+//
+// An "errors" key that lists no error ("errors": null or "errors": []) is the
+// same as no "errors" key: the response is a success.
+//
+// Arguments:
+//   - data: the response body, already decompressed
+//   - res: a pointer to the value the data is decoded into
+//
+// Returns:
+//   - error: nil when the body lists no error and its data was decoded; a
+//     *GqlErrorList when the body lists at least one error; otherwise the
+//     failure to decode the body, its errors or its data
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - a returned *GqlErrorList holds at least one error
+//   - res holds the data when nil is returned, and with ParseDataWhenErrors
+//     also when a *GqlErrorList is returned and the data could be decoded
 func (c *Client) unmarshal(data []byte, res any) error {
 	resp := response{}
 
@@ -616,12 +638,15 @@ func (c *Client) unmarshal(data []byte, res any) error {
 			return fmt.Errorf("faild to parse graphql errors. Response content %s - %w", string(data), err)
 		}
 
-		// if ParseDataWhenErrors is true, try to parse data as well
-		if !c.ParseDataWhenErrors {
-			return gqlErrorList
+		// "errors": null and "errors": [] parse into an empty list.
+		if len(gqlErrorList.Errors) > 0 {
+			gqlErrors = gqlErrorList
 		}
+	}
 
-		gqlErrors = gqlErrorList
+	// if ParseDataWhenErrors is true, try to parse data as well
+	if gqlErrors != nil && !c.ParseDataWhenErrors {
+		return gqlErrors
 	}
 
 	errData := graphqljson.UnmarshalData(resp.Data, res)
