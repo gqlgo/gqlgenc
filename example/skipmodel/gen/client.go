@@ -51,17 +51,10 @@ func (t *UserFragment_Profile) GetName() string {
 }
 
 type A_User_Profile struct {
-	ProfileFragment *ProfileFragment
-	ID              string `json:"id" graphql:"id"`
-	Name            string `json:"name" graphql:"name"`
+	ID   string `json:"id" graphql:"id"`
+	Name string `json:"name" graphql:"name"`
 }
 
-func (t *A_User_Profile) GetProfileFragment() *ProfileFragment {
-	if t == nil {
-		t = &A_User_Profile{}
-	}
-	return t.ProfileFragment
-}
 func (t *A_User_Profile) GetID() string {
 	if t == nil {
 		t = &A_User_Profile{}

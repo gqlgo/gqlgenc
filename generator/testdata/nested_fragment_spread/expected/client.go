@@ -308,17 +308,6 @@ func (t *ProfileBioFrag_Profile) GetBio() string {
 	return t.Bio
 }
 
-type FullProfile_ProfileBioFrag_Profile struct {
-	Bio string `json:"bio" graphql:"bio"`
-}
-
-func (t *FullProfile_ProfileBioFrag_Profile) GetBio() string {
-	if t == nil {
-		t = &FullProfile_ProfileBioFrag_Profile{}
-	}
-	return t.Bio
-}
-
 type FullProfile_Profile struct {
 	Avatar string `json:"avatar" graphql:"avatar"`
 	Bio    string `json:"bio" graphql:"bio"`

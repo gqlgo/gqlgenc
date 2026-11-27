@@ -1,0 +1,156 @@
+fragment MetaDetails on Meta {
+    name
+}
+
+fragment MetaNote on Meta {
+    note
+}
+
+fragment BookWithDetails on Book {
+    meta {
+        ...MetaDetails
+    }
+    pages
+}
+
+fragment MovieWithNote on Movie {
+    meta {
+        ...MetaNote
+    }
+    minutes
+}
+
+fragment MovieWithFields on Movie {
+    meta {
+        note
+    }
+    minutes
+}
+
+# The same field spreads a different fragment in each spread.
+query DifferentFragments {
+    items {
+        ...BookWithDetails
+        ...MovieWithNote
+    }
+}
+
+# A field typed as a fragment comes first, plain fields second.
+query FragmentThenFields {
+    items {
+        ...BookWithDetails
+        ...MovieWithFields
+    }
+}
+
+# Plain fields come first, a field typed as a fragment second.
+query FieldsThenFragment {
+    items {
+        ...MovieWithFields
+        ...BookWithDetails
+    }
+}
+
+fragment BookOptional on Book {
+    optMeta {
+        ...MetaDetails
+    }
+    metas {
+        ...MetaDetails
+    }
+}
+
+fragment MovieOptional on Movie {
+    optMeta {
+        note
+    }
+    metas {
+        ...MetaNote
+    }
+}
+
+# The merged field is nullable, or a list.
+query NullableAndList {
+    items {
+        ...BookOptional
+        ...MovieOptional
+    }
+}
+
+fragment BookDeep on Book {
+    meta {
+        sub {
+            ...MetaDetails
+        }
+    }
+}
+
+fragment MovieDeep on Movie {
+    meta {
+        sub {
+            ...MetaNote
+        }
+        name
+    }
+}
+
+# The field typed as a fragment is nested in the merged field.
+query DeepMerge {
+    items {
+        ...BookDeep
+        ...MovieDeep
+    }
+}
+
+fragment BookMeta on Book {
+    meta {
+        ...MetaDetails
+    }
+}
+
+# A field is selected both directly and through a spread, each with a different fragment.
+query FieldAndSpread {
+    book {
+        ...BookMeta
+        meta {
+            ...MetaNote
+        }
+        pages
+    }
+}
+
+# A fragment spreads another fragment and selects the same field with a different fragment.
+fragment BookDetails on Book {
+    ...BookMeta
+    meta {
+        ...MetaNote
+    }
+    pages
+}
+
+query FragmentInFragment {
+    book {
+        ...BookDetails
+    }
+}
+
+fragment BookName on Book {
+    meta {
+        name
+    }
+}
+
+# A fragment spreads another fragment and selects the same field with other plain fields.
+fragment BookFull on Book {
+    ...BookName
+    meta {
+        note
+    }
+    pages
+}
+
+query FragmentInFragmentFields {
+    book {
+        ...BookFull
+    }
+}

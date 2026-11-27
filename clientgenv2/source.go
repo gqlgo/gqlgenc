@@ -72,8 +72,9 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 			// Collect spread fragment info before flattening (for conversion getter generation).
 			spreadFragments = collectSpreadFragmentInfo(responseFields)
 
-			flattened := flattenFragmentSpreads(responseFields)
-			generator := NewStructGenerator(flattened)
+			// NewStructGenerator flattens the spreads and merges a field selected
+			// both directly and through a spread.
+			generator := NewStructGenerator(responseFields)
 			s.sourceGenerator.StructSources = generator.MergedStructSources(s.sourceGenerator.StructSources)
 			structType = generator.GetCurrentResponseFieldList().StructType()
 		} else {
