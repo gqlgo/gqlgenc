@@ -38,6 +38,17 @@ func (t *ItemsWithDefaults_More) GetID() string {
 	return t.ID
 }
 
+type ItemsWithAndWithoutDefault_Items struct {
+	ID string `json:"id" graphql:"id"`
+}
+
+func (t *ItemsWithAndWithoutDefault_Items) GetID() string {
+	if t == nil {
+		t = &ItemsWithAndWithoutDefault_Items{}
+	}
+	return t.ID
+}
+
 type ItemsWithDefaults struct {
 	Items []*ItemsWithDefaults_Items `json:"items" graphql:"items"`
 	More  []*ItemsWithDefaults_More  `json:"more" graphql:"more"`
@@ -56,6 +67,17 @@ func (t *ItemsWithDefaults) GetMore() []*ItemsWithDefaults_More {
 	return t.More
 }
 
+type ItemsWithAndWithoutDefault struct {
+	Items []*ItemsWithAndWithoutDefault_Items `json:"items" graphql:"items"`
+}
+
+func (t *ItemsWithAndWithoutDefault) GetItems() []*ItemsWithAndWithoutDefault_Items {
+	if t == nil {
+		t = &ItemsWithAndWithoutDefault{}
+	}
+	return t.Items
+}
+
 const ItemsWithDefaultsDocument = `query ItemsWithDefaults ($first: Int = 10, $requiredFirst: Int! = 5, $status: Status = ACTIVE, $filter: ItemFilter = {name:"a",statuses:[ACTIVE]}, $tags: [String!] = ["x"]) {
 	items(first: $first, status: $status, filter: $filter, tags: $tags) {
 		id
@@ -66,13 +88,27 @@ const ItemsWithDefaultsDocument = `query ItemsWithDefaults ($first: Int = 10, $r
 }
 `
 
-func (c *Client) ItemsWithDefaults(ctx context.Context, first *int, requiredFirst int, status *Status, filter *ItemFilter, tags []string, interceptors ...clientv2.RequestInterceptor) (*ItemsWithDefaults, error) {
-	vars := map[string]any{
-		"first":         first,
-		"requiredFirst": requiredFirst,
-		"status":        status,
-		"filter":        filter,
-		"tags":          tags,
+func (c *Client) ItemsWithDefaults(ctx context.Context, first *int, requiredFirst *int, status *Status, filter *ItemFilter, tags []string, interceptors ...clientv2.RequestInterceptor) (*ItemsWithDefaults, error) {
+	vars := map[string]any{}
+	// $first has a default value: leave it out when nil so that the server applies it
+	if first != nil {
+		vars["first"] = first
+	}
+	// $requiredFirst has a default value: leave it out when nil so that the server applies it
+	if requiredFirst != nil {
+		vars["requiredFirst"] = requiredFirst
+	}
+	// $status has a default value: leave it out when nil so that the server applies it
+	if status != nil {
+		vars["status"] = status
+	}
+	// $filter has a default value: leave it out when nil so that the server applies it
+	if filter != nil {
+		vars["filter"] = filter
+	}
+	// $tags has a default value: leave it out when nil so that the server applies it
+	if tags != nil {
+		vars["tags"] = tags
 	}
 
 	var res ItemsWithDefaults
@@ -87,6 +123,35 @@ func (c *Client) ItemsWithDefaults(ctx context.Context, first *int, requiredFirs
 	return &res, nil
 }
 
+const ItemsWithAndWithoutDefaultDocument = `query ItemsWithAndWithoutDefault ($status: Status, $first: Int = 10) {
+	items(first: $first, status: $status) {
+		id
+	}
+}
+`
+
+func (c *Client) ItemsWithAndWithoutDefault(ctx context.Context, status *Status, first *int, interceptors ...clientv2.RequestInterceptor) (*ItemsWithAndWithoutDefault, error) {
+	vars := map[string]any{
+		"status": status,
+	}
+	// $first has a default value: leave it out when nil so that the server applies it
+	if first != nil {
+		vars["first"] = first
+	}
+
+	var res ItemsWithAndWithoutDefault
+	if err := c.Client.Post(ctx, "ItemsWithAndWithoutDefault", ItemsWithAndWithoutDefaultDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 var DocumentOperationNames = map[string]string{
-	ItemsWithDefaultsDocument: "ItemsWithDefaults",
+	ItemsWithDefaultsDocument:          "ItemsWithDefaults",
+	ItemsWithAndWithoutDefaultDocument: "ItemsWithAndWithoutDefault",
 }

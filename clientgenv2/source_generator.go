@@ -475,12 +475,34 @@ func (r *SourceGenerator) NewResponseField(selection ast.Selection, typeName str
 	panic("unexpected selection type")
 }
 
+// OperationArguments converts the variables of an operation into the arguments of its generated method.
+//
+// Arguments:
+//   - variableDefinitions: the variables of the operation
+//
+// Returns:
+//   - []*Argument: one argument per variable, in the order of variableDefinitions
+//
+// Preconditions:
+//   - every variable type is bound to a Go type; otherwise it panics
+//
+// Postconditions:
+//   - a variable with a default value has a Go type that can be nil, also when its GraphQL
+//     type is non-null, because the caller may leave it to the server
+//   - variableDefinitions itself is not modified
 func (r *SourceGenerator) OperationArguments(variableDefinitions ast.VariableDefinitionList) []*Argument {
 	argumentTypes := make([]*Argument, 0, len(variableDefinitions))
 	for _, v := range variableDefinitions {
+		variableType := v.Type
+		if v.DefaultValue != nil && variableType.NonNull {
+			nullableType := *variableType
+			nullableType.NonNull = false
+			variableType = &nullableType
+		}
+
 		argumentTypes = append(argumentTypes, &Argument{
 			Variable: v.Variable,
-			Type:     r.binder.CopyModifiersFromAst(v.Type, r.Type(v.Type.Name())),
+			Type:     r.binder.CopyModifiersFromAst(variableType, r.Type(variableType.Name())),
 		})
 	}
 

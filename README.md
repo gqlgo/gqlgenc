@@ -244,6 +244,19 @@ Before v0.40.0, `clientv2` used its own reflect-based encoder. Its output differ
 - Fields of embedded structs are flattened into the parent object instead of being nested under the type name.
 - Struct fields are emitted in declaration order instead of alphabetical order. The JSON is equivalent, but byte-for-byte comparisons of the encoded output need updating.
 
+### Variables with a default value
+
+A variable with a default value is optional in the generated method, also when its type is non-null.
+When the argument is nil, the variable is left out of the request and the server applies the default value.
+A nil argument for a variable without a default value is sent as `null`.
+
+```graphql
+query Items($first: Int! = 10, $status: Status) { ... }
+```
+
+```go
+client.Items(ctx, nil, nil) // variables: {"status": null}; the server uses first = 10
+```
 ### Fields with `@skip` or `@include`
 
 A server leaves a field with `@skip` or `@include` out of the response when the condition says so, also when the field is non-null.
