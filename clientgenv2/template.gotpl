@@ -67,9 +67,19 @@
 		func (c *Client) {{ $model.Name|go }} (ctx context.Context{{- range $arg := .Args }}, {{ $arg.Variable | goPrivate }} {{ $arg.Type | ref }} {{- end }}, interceptors ...clientv2.RequestInterceptor) (*{{ $model.ResponseStructName | go }}, error) {
 			vars := map[string]any{
 			{{- range $args := .VariableDefinitions}}
+				{{- if not $args.DefaultValue }}
 				"{{ $args.Variable }}": {{ $args.Variable | goPrivate }},
+				{{- end }}
 			{{- end }}
 			}
+			{{- range $args := .VariableDefinitions}}
+				{{- if $args.DefaultValue }}
+			// ${{ $args.Variable }} has a default value: leave it out when nil so that the server applies it
+			if {{ $args.Variable | goPrivate }} != nil {
+				vars["{{ $args.Variable }}"] = {{ $args.Variable | goPrivate }}
+			}
+				{{- end }}
+			{{- end }}
 
 			var res {{ $model.ResponseStructName | go }}
 			if err := c.Client.Post(ctx, "{{ $model.Name }}", {{ $model.Name|go }}Document, &res, vars, interceptors...); err != nil {
