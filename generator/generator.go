@@ -305,9 +305,10 @@ func Generate(ctx context.Context, cfg *config.Config) (err error) {
 //   - the working directory is the one the output filenames are relative to
 //
 // Postconditions:
-//   - on success, each defined output that existed now exists only at its backup path
-//   - a defined output that did not exist is unchanged, and a backup of it left
-//     by an interrupted run is kept as its previous output
+//   - on success, no defined output exists at its output path
+//   - a backup left by an interrupted run is kept as the previous output, and
+//     the file that run left at the output path is deleted
+//   - otherwise a defined output that existed now exists only at its backup path
 func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 	pkgs := []gqlgenconfig.PackageConfig{cfg.Client, cfg.Model}
 	backups := make([]*outputBackup, 0, len(pkgs))
@@ -335,14 +336,20 @@ func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 
 // backupOutput moves pkg.Filename to the same path plus outputBackupSuffix.
 //
+// A backup is deleted only by a commit or a restore, so one that exists when a
+// run starts was left by a run that finished neither. That backup holds the
+// output of the last successful run; the file at the output path, if any, was
+// written by the unfinished run and may be incomplete.
+//
 // Arguments:
 //   - cfg: the config being generated; its GQLConfig.Packages may be nil
 //   - pkg: the output package
 //
 // Returns:
 //   - *outputBackup: the backup of pkg.Filename, non-nil when error is nil
-//   - error: non-nil when the rename fails for a reason other than the output
-//     not existing, or a leftover backup cannot be checked
+//   - error: non-nil when a leftover backup cannot be checked, the file an
+//     interrupted run left at the output path cannot be deleted, or the
+//     rename fails for a reason other than the output not existing
 //
 // Preconditions:
 //   - pkg is defined
@@ -350,10 +357,10 @@ func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 //
 // Postconditions:
 //   - when the cache exists, the import path of pkg's directory is not in it
-//   - when the output existed, it now exists only at the backup path,
-//     replacing any backup left by an interrupted run
-//   - when the output was missing and a backup was left by an interrupted
-//     run, that backup is kept and treated as the previous output
+//   - no file exists at the output path
+//   - when a backup was left by an interrupted run, it is kept and treated as
+//     the previous output; the file at the output path is deleted
+//   - otherwise, when the output existed, it now exists only at the backup path
 func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBackup, error) {
 	if cfg.GQLConfig.Packages != nil {
 		cfg.GQLConfig.Packages.Evict(pkg.ImportPath())
@@ -365,8 +372,25 @@ func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBa
 		state:   outputBackupStateNoPrevious,
 	}
 
-	// Rename replaces a .bak left by an interrupted run when the output exists.
-	err := os.Rename(backup.path, backup.bakPath)
+	_, err := os.Stat(backup.bakPath)
+	if err == nil {
+		// Renaming the output over the leftover backup would replace the last
+		// good output with what the interrupted run wrote.
+		err = os.Remove(backup.path)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("remove output of an interrupted run: %w", err)
+		}
+
+		backup.state = outputBackupStatePreviousSaved
+
+		return backup, nil
+	}
+
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("stat output backup: %w", err)
+	}
+
+	err = os.Rename(backup.path, backup.bakPath)
 	if err == nil {
 		backup.state = outputBackupStatePreviousSaved
 
@@ -375,19 +399,6 @@ func backupOutput(cfg *config.Config, pkg gqlgenconfig.PackageConfig) (*outputBa
 
 	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("backup output: %w", err)
-	}
-
-	// The output is missing. A .bak left by an interrupted run is then the only
-	// copy of the previous output, so adopt it instead of deleting it.
-	_, err = os.Stat(backup.bakPath)
-	if err == nil {
-		backup.state = outputBackupStatePreviousSaved
-
-		return backup, nil
-	}
-
-	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("stat output backup: %w", err)
 	}
 
 	return backup, nil
