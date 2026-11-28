@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/ast"
+	astparser "github.com/vektah/gqlparser/v2/parser"
 )
 
 // errIntrospectionTypeTooDeep は、introspection パースで唯一「仕様違反の応答ではなく valid な
@@ -145,7 +146,7 @@ func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 			Arguments:   args,
 			Type:        typ,
 			Position:    p.sharedPosition,
-			Directives:  p.buildDeprecatedDirective(field),
+			Directives:  p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -161,8 +162,10 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 		fieldDefinition := &ast.FieldDefinition{
 			Description: pointerString(field.Description),
 			Name:        field.Name,
-			Type:        typ,
-			Position:    p.sharedPosition,
+			// 既定値を落とすと、既定値を持つ必須の input フィールドを省いたクエリが検証で弾かれる
+			DefaultValue: p.buildDefaultValue(field.DefaultValue, typ),
+			Type:         typ,
+			Position:     p.sharedPosition,
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -239,6 +242,7 @@ func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
 			Description: pointerString(enum.Description),
 			Name:        enum.Name,
 			Position:    p.sharedPosition,
+			Directives:  p.buildDeprecatedDirective(enum.IsDeprecated, enum.DeprecationReason, ast.LocationEnumValue),
 		}
 		enums = append(enums, enumValue)
 	}
@@ -287,22 +291,73 @@ func (p parser) parseTypeSystemDefinition(typeVale *FullType) *ast.Definition {
 func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {
 	typ := p.getType(&input.Type)
 
-	var defaultValue *ast.Value
-	if input.DefaultValue != nil {
-		defaultValue = &ast.Value{
-			Raw:      pointerString(input.DefaultValue),
+	return &ast.ArgumentDefinition{
+		Description:  pointerString(input.Description),
+		Name:         input.Name,
+		DefaultValue: p.buildDefaultValue(input.DefaultValue, typ),
+		Type:         typ,
+		Position:     p.sharedPosition,
+	}
+}
+
+// buildDefaultValue は、引数または input フィールドの既定値を組み立てる。
+//
+// サーバーは既定値を GraphQL のリテラル (`"text"`・`[A, B]`・`{min: 1}`) の文字列で返す。
+// リテラルとして解釈することで、文字列は引用符を外した値になり、リストは要素を、オブジェクトは
+// フィールドを保つ。リテラルとして解釈できない値は、書かれたまま typ の種類の値として残す。
+//
+// 事前条件: typ はスキーマにある型を指す。
+// 事後条件: defaultValue が nil なら nil を返す。返す値の Position は、入れ子の値も含めて
+// スキーマの Position になる。
+func (p parser) buildDefaultValue(defaultValue *string, typ *ast.Type) *ast.Value {
+	if defaultValue == nil {
+		return nil
+	}
+
+	value, err := parseValueLiteral(*defaultValue)
+	if err != nil {
+		return &ast.Value{
+			Raw:      *defaultValue,
 			Kind:     p.parseValueKind(typ),
 			Position: p.sharedPosition,
 		}
 	}
 
-	return &ast.ArgumentDefinition{
-		Description:  pointerString(input.Description),
-		Name:         input.Name,
-		DefaultValue: defaultValue,
-		Type:         typ,
-		Position:     p.sharedPosition,
+	p.setPosition(value)
+
+	return value
+}
+
+// setPosition は、value とその入れ子の値の Position をスキーマの Position にする。
+// parseValueLiteral が返す値は、解釈のために作った一時的なソースを指しているためである。
+func (p parser) setPosition(value *ast.Value) {
+	value.Position = p.sharedPosition
+
+	for _, child := range value.Children {
+		child.Position = p.sharedPosition
+		p.setPosition(child.Value)
 	}
+}
+
+// parseValueLiteral は GraphQL の値のリテラルを解釈する。literal が 1 つの値でなければエラーを返す。
+func parseValueLiteral(literal string) (*ast.Value, error) {
+	// 値はドキュメントの一部としてしか解釈できないため、フィールドの引数として包む。
+	// 改行は、literal が行コメントで終わっていても閉じ括弧を読めるようにするため。
+	document, err := astparser.ParseQuery(&ast.Source{Input: "{field(argument: " + literal + "\n)}"})
+	if err != nil {
+		return nil, fmt.Errorf("parse value literal %q: %w", literal, err)
+	}
+
+	if len(document.Operations) != 1 || len(document.Operations[0].SelectionSet) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	field, ok := document.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok || len(field.Arguments) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	return field.Arguments[0].Value, nil
 }
 
 func (p parser) getType(typeRef *TypeRef) *ast.Type {
@@ -330,16 +385,18 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	return ast.NamedType(pointerString(typeRef.Name), p.sharedPosition)
 }
 
-func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
+// buildDeprecatedDirective は、スキーマの要素 (フィールド・enum の値) の @deprecated を組み立てる。
+// isDeprecated が false なら nil を返す。location は、その要素にディレクティブを書く位置を表す。
+func (p parser) buildDeprecatedDirective(isDeprecated bool, deprecationReason *string, location ast.DirectiveLocation) ast.DirectiveList {
 	var directives ast.DirectiveList
 
-	if field.IsDeprecated {
+	if isDeprecated {
 		var arguments ast.ArgumentList
-		if field.DeprecationReason != nil {
+		if deprecationReason != nil {
 			arguments = append(arguments, &ast.Argument{
 				Name: "reason",
 				Value: &ast.Value{
-					Raw:      *field.DeprecationReason,
+					Raw:      *deprecationReason,
 					Kind:     ast.StringValue,
 					Position: p.sharedPosition,
 				},
@@ -353,7 +410,7 @@ func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
 			Position:         p.sharedPosition,
 			ParentDefinition: nil,
 			Definition:       p.deprecatedDirectiveDefinition,
-			Location:         ast.LocationVariableDefinition,
+			Location:         location,
 		}
 		directives = append(directives, deprecatedDirective)
 	}
