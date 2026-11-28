@@ -9,6 +9,7 @@ linters:
     - dupword # Lint to detect redundant words, disabled as unnecessary
     - errname # No need to restrict error variable names, so ignoring
     - exhaustruct
+    - exhaustruct_v5 # exhaustruct の後継。exhaustruct と同じ理由で無効化
     - funlen
     - gochecknoglobals
     - gochecknoinits
