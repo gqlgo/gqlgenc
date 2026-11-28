@@ -412,6 +412,176 @@ func TestClient_parseResponse(t *testing.T) {
 				err: errors.New(`http status is OK but failed to decode response data: jsontext: invalid character 'i' at start of value within "/data" after offset 8`),
 			},
 		},
+		{
+			// An "errors" member that lists no error is not an error: the data is decoded
+			// and the response is a success (gqlgo/gqlgenc#373).
+			name: "Null errors in successful HTTP response",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"data":{"user":{"id":"1","name":"John Doe"}},"errors":null}`))),
+					Header:     http.Header{},
+				},
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				out: &struct {
+					User testUser `json:"user"`
+				}{
+					User: testUser{
+						ID:   "1",
+						Name: "John Doe",
+					},
+				},
+				err: nil,
+			},
+		},
+		{
+			name: "Empty errors in successful HTTP response",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"data":{"user":{"id":"1","name":"John Doe"}},"errors":[]}`))),
+					Header:     http.Header{},
+				},
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				out: &struct {
+					User testUser `json:"user"`
+				}{
+					User: testUser{
+						ID:   "1",
+						Name: "John Doe",
+					},
+				},
+				err: nil,
+			},
+		},
+		{
+			// With an HTTP error status, an "errors" member that lists no error leaves only
+			// the network error, and the data is still decoded into out.
+			name: "Null errors in HTTP error status",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"data":{"user":{"id":"1","name":"John Doe"}},"errors":null}`))),
+					Header:     http.Header{},
+				},
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				out: &struct {
+					User testUser `json:"user"`
+				}{
+					User: testUser{
+						ID:   "1",
+						Name: "John Doe",
+					},
+				},
+				err: &ErrorResponse{
+					NetworkError: &HTTPError{
+						Code:    http.StatusInternalServerError,
+						Message: `Response body {"data":{"user":{"id":"1","name":"John Doe"}},"errors":null}`,
+					},
+				},
+			},
+		},
+		{
+			name: "Empty errors in HTTP error status",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"data":{"user":{"id":"1","name":"John Doe"}},"errors":[]}`))),
+					Header:     http.Header{},
+				},
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				out: &struct {
+					User testUser `json:"user"`
+				}{
+					User: testUser{
+						ID:   "1",
+						Name: "John Doe",
+					},
+				},
+				err: &ErrorResponse{
+					NetworkError: &HTTPError{
+						Code:    http.StatusInternalServerError,
+						Message: `Response body {"data":{"user":{"id":"1","name":"John Doe"}},"errors":[]}`,
+					},
+				},
+			},
+		},
+		{
+			// Empty errors must not hide a data member that cannot be decoded.
+			name: "Empty errors with data that cannot be decoded",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"data":"notAnObject","errors":[]}`))),
+					Header:     http.Header{},
+				},
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+				err: errors.New(`http status is OK but failed to decode response data: json: cannot unmarshal JSON string into Go struct { User client.testUser "json:\"user\"" }`),
+			},
+		},
+		{
+			// Empty errors without data is the same as a response with neither member.
+			name: "Empty errors without data",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(`{"errors":[]}`))),
+					Header:     http.Header{},
+				},
+				out: &map[string]any{},
+			},
+			want: want{
+				out: &map[string]any{},
+				err: errors.New(`http status is OK but failed to decode response: no data or errors member`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -459,11 +629,10 @@ func TestClient_parseResponse(t *testing.T) {
 				}
 			}
 
-			// Data comparison for non-error cases
-			if tt.want.err == nil {
-				if !cmp.Equal(tt.want.out, tt.args.out, cmpopts.EquateEmpty()) {
-					t.Errorf("parseResponse() output:\nwant: %v\n got: %v", tt.want.out, tt.args.out)
-				}
+			// Data comparison. out is compared for error cases too, because a response
+			// can carry data together with an error (an HTTP error status, for example).
+			if !cmp.Equal(tt.want.out, tt.args.out, cmpopts.EquateEmpty()) {
+				t.Errorf("parseResponse() output:\nwant: %v\n got: %v", tt.want.out, tt.args.out)
 			}
 		})
 	}

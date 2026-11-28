@@ -245,6 +245,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - [gqlgo/gqlgenc#325](https://github.com/gqlgo/gqlgenc/issues/325) interface / union への型条件（`... on Node`）のインラインフラグメントに値が入らない — `__typename` は具体型の名前で返るため、型条件を満たす具体型（interface を実装する Object 型・union のメンバー）の `__typename` でデコードします。Go の名前へ変換すると綴りが変わる型（`HttpError` → `HTTPError`）も、GraphQL の型名で判別します
 - [gqlgo/gqlgenc#326](https://github.com/gqlgo/gqlgenc/issues/326) 生成される構造体のタグが `"json:\"id\""` の形になる — raw 文字列（`` `json:"id"` ``）で出力します
 - [gqlgo/gqlgenc#327](https://github.com/gqlgo/gqlgenc/issues/327) 使用フィルタがすべての型を除いたときに package 句だけの model ファイルが残る — 宣言の無い model ファイルは出力しません
+- [gqlgo/gqlgenc#373](https://github.com/gqlgo/gqlgenc/issues/373) `"errors": null`・`"errors": []` を返すレスポンスがエラーになる — エラーを 1 件も含まない `errors` はエラーとして扱わず、`data` をデコードして成功にします（HTTP のエラーステータスと一緒に返ったときは、ネットワークエラーだけを返します）
 - [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) `onlyUsedModels` で enum がフィルタリングされない — 未使用モデルのフィルタリングを既定動作として取り込みました
 
 ### 内部改善
