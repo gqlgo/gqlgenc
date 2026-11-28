@@ -61,6 +61,8 @@ func (g *GoTypeGenerator) setErr(err error) {
 }
 
 func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.SelectionSet) Fields {
+	selectionSet = mergeSelections(selectionSet)
+
 	fields := make(Fields, 0, len(selectionSet))
 	for _, selection := range selectionSet {
 		fields = append(fields, g.newField(parentTypeName, selection))
@@ -69,6 +71,73 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 	g.setErr(fields.checkGoNameCollision(parentTypeName))
 
 	return fields
+}
+
+// mergeSelections は、同じ選択セットに複数回現れる選択を GraphQL のフィールド収集の規則どおり
+// 1 つにまとめる。まとめないと同じ名前の Go 型を 2 回作ることになり、後の選択だけが残って
+// 先の選択のサブフィールドが生成型から落ちる (gqlgo/gqlgenc#282)。
+//
+//   - 同じレスポンスキー (alias) のフィールド: 最初の選択に、後の選択のサブセレクションを足す
+//   - 同じフラグメントのスプレッド: 最初の選択だけを残す
+//
+// AST はサーバーへ送る Document の生成にも使うため書き換えず、まとめた選択は写しで返す。
+func mergeSelections(selectionSet graphql.SelectionSet) graphql.SelectionSet {
+	merged := make(graphql.SelectionSet, 0, len(selectionSet))
+	// 最初に現れた位置へまとめるため、選択の種類とキーごとに merged の位置を覚える
+	positions := make(map[string]int, len(selectionSet))
+	fields := make(map[string]*graphql.Field, len(selectionSet))
+
+	for _, selection := range selectionSet {
+		switch sel := selection.(type) {
+		case *graphql.Field:
+			key := "field:" + sel.Alias
+			if first, ok := fields[sel.Alias]; ok {
+				sel = mergeField(first, sel)
+				merged[positions[key]] = sel
+			} else {
+				positions[key] = len(merged)
+				merged = append(merged, sel)
+			}
+			fields[sel.Alias] = sel
+		case *graphql.InlineFragment:
+			merged = append(merged, sel)
+		case *graphql.FragmentSpread:
+			key := "fragmentSpread:" + sel.Name
+			if _, ok := positions[key]; ok {
+				continue
+			}
+			positions[key] = len(merged)
+			merged = append(merged, sel)
+		}
+	}
+
+	return merged
+}
+
+// mergeField は、同じレスポンスキーの 2 つの選択を 1 つにまとめた写しを返す。サブセレクションは
+// 両方を連ねる (次の階層の mergeSelections がさらにまとめる)。@skip / @include は、どちらの選択にも
+// 付いているときだけ残す。片方に条件が無ければサーバーは必ずそのフィールドを返すため、
+// 非 null のフィールドをポインタにしない。
+func mergeField(first, later *graphql.Field) *graphql.Field {
+	merged := *first
+	merged.SelectionSet = slices.Concat(first.SelectionSet, later.SelectionSet)
+	if !hasConditionalDirective(later.Directives) {
+		merged.Directives = withoutConditionalDirectives(first.Directives)
+	}
+
+	return &merged
+}
+
+// withoutConditionalDirectives は @skip / @include を除いたディレクティブの写しを返す。
+func withoutConditionalDirectives(directives graphql.DirectiveList) graphql.DirectiveList {
+	kept := make(graphql.DirectiveList, 0, len(directives))
+	for _, directive := range directives {
+		if directive.Name != skipDirectiveName && directive.Name != includeDirectiveName {
+			kept = append(kept, directive)
+		}
+	}
+
+	return kept
 }
 
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {
@@ -113,10 +182,15 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 	panic("unexpected selection type")
 }
 
+const (
+	skipDirectiveName    = "skip"
+	includeDirectiveName = "include"
+)
+
 // hasConditionalDirective は @skip / @include が付いているかを返す。これらはフィールドを
 // レスポンスから条件付きで欠落させ得る。
 func hasConditionalDirective(directives graphql.DirectiveList) bool {
-	return directives.ForName("skip") != nil || directives.ForName("include") != nil
+	return directives.ForName(skipDirectiveName) != nil || directives.ForName(includeDirectiveName) != nil
 }
 
 // pointerize は型がポインタでなければポインタで包む (既にポインタならそのまま返す)。
