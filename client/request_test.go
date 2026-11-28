@@ -5,10 +5,13 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 func TestNewPostRequest(t *testing.T) {
@@ -184,6 +187,62 @@ func TestNewGetRequest(t *testing.T) {
 				query:         "query Ping { ping }",
 				operationName: "Ping",
 				hasVariables:  false,
+			},
+		},
+		{
+			// GET リクエストには本文が無く、ファイルを送れないため、Upload を含む variables はエラーにする
+			name: "Uploadを含むvariablesはエラー",
+			args: args{
+				operationName: "GetFile",
+				query:         "query GetFile($file: Upload!) { file(file: $file) }",
+				variables:     map[string]any{"file": graphql.Upload{File: strings.NewReader("content"), Filename: "a.txt"}},
+			},
+			want: want{
+				err: errUploadInGetRequest,
+			},
+		},
+		{
+			// graphql.Omittable に包んだ Upload もエラーにする。そのままエンコードすると JSON として URL に載る
+			name: "Omittableに包んだUploadを含むvariablesはエラー",
+			args: args{
+				operationName: "GetFile",
+				query:         "query GetFile($file: Upload) { file(file: $file) }",
+				variables: struct {
+					File graphql.Omittable[*graphql.Upload] `json:"file,omitzero"`
+				}{File: graphql.OmittableOf(&graphql.Upload{File: strings.NewReader("content"), Filename: "a.txt"})},
+			},
+			want: want{
+				err: errUploadInGetRequest,
+			},
+		},
+		{
+			// File が nil の Upload もエラーにする。そのままエンコードすると null として URL に載る
+			name: "FileがnilのUploadを含むvariablesはエラー",
+			args: args{
+				operationName: "GetFile",
+				query:         "query GetFile($file: Upload!) { file(file: $file) }",
+				variables:     map[string]any{"file": graphql.Upload{}},
+			},
+			want: want{
+				err: errUploadWithoutFile,
+			},
+		},
+		{
+			// Upload 以外の値を包んだ Omittable は、中の値をエンコードする
+			name: "Omittableに包んだ値はURLに載る",
+			args: args{
+				operationName: "GetUser",
+				query:         "query GetUser($id: ID) { user(id: $id) { name } }",
+				variables: struct {
+					ID   graphql.Omittable[*string] `json:"id,omitzero"`
+					Name graphql.Omittable[*string] `json:"name,omitzero"`
+				}{ID: graphql.OmittableOf(new("1"))},
+			},
+			want: want{
+				query:         "query GetUser($id: ID) { user(id: $id) { name } }",
+				operationName: "GetUser",
+				variables:     `{"id":"1"}`,
+				hasVariables:  true,
 			},
 		},
 	}

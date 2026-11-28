@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"context"
 	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
+
+// errUploadInGetRequest は、GET リクエストの variables に graphql.Upload があることを表す。
+// GET リクエストには本文が無く、ファイルを送れない。
+var errUploadInGetRequest = errors.New("variables contain graphql.Upload, which a GET request cannot send; use Post")
 
 const (
 	contentTypeJSON       = "application/json;charset=utf-8"
@@ -68,9 +74,15 @@ func newPostRequest(ctx context.Context, endpoint, operationName, query string, 
 // body, so file uploads are not supported; use Post for operations with
 // graphql.Upload variables.
 func newGetRequest(ctx context.Context, endpoint, operationName, query string, variables any) (*http.Request, error) {
-	varsJSON, err := json.Marshal(variables)
+	// Post と同じマーシャラで Upload を見つける。そのままエンコードすると、File が nil の Upload や
+	// graphql.Omittable に包んだ Upload は、エラーにならずに JSON として URL に載る。
+	uploads := &uploadCollector{}
+	varsJSON, err := json.Marshal(variables, json.WithMarshalers(uploads.marshalers()))
 	if err != nil {
 		return nil, fmt.Errorf("encode variables: %w", err)
+	}
+	if len(uploads.files) > 0 {
+		return nil, fmt.Errorf("%w (at %s)", errUploadInGetRequest, strings.Join(uploads.paths, ", "))
 	}
 
 	u, err := url.Parse(endpoint)
