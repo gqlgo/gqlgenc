@@ -135,7 +135,8 @@ func (b *Binder) FindType(pkgPath, typeName string) (types.Type, error) {
 		obj = scope.Lookup(typeName)
 	}
 	if obj == nil {
-		return nil, fmt.Errorf("%w: %s.%s", gqlgenconfig.ErrTypeNotFound, pkgPath, typeName)
+		// 読み込みエラーのあるパッケージは型を 1 つも持たないため、型が無い原因として添える
+		return nil, fmt.Errorf("%w: %s.%s%s", gqlgenconfig.ErrTypeNotFound, pkgPath, typeName, loadErrorsNote(pkg))
 	}
 
 	t := types.Unalias(obj.Type())
@@ -220,7 +221,7 @@ func (b *Binder) pkg(importPath string) (*packages.Package, error) {
 		pkg = b.pkgs[importPath]
 	}
 	if pkg == nil || pkg.Types == nil {
-		return nil, fmt.Errorf("package could not be loaded: %s", importPath)
+		return nil, fmt.Errorf("package could not be loaded: %s%s", importPath, loadErrorsNote(pkg))
 	}
 
 	return pkg, nil

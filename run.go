@@ -129,6 +129,11 @@ func generateOutputs(ctx context.Context, cfg *config.Config, backups []*outputB
 		return err
 	}
 
+	// 読めないコードを出力として採用しない (前回の出力へ戻す)
+	if err := validateOutputs(cfg); err != nil {
+		return err
+	}
+
 	if err := commitOutputBackups(backups); err != nil {
 		return fmt.Errorf("failed to commit outputs: %w", err)
 	}

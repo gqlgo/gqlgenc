@@ -310,6 +310,15 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			wantErr:         true,
 			wantErrContains: `failed to create operations: no Go model is bound for GraphQL type "SearchFilter"`,
 		},
+		{
+			// 束縛先のパッケージを読み込めないと (ここではビルド制約ですべてのファイルが外れる)、
+			// そのパッケージの型はどれも束縛されず、enum Status は未束縛として失敗する。束縛先に
+			// 型が無いという設定の不備と見分けられるよう、エラーにパッケージの読み込みエラーを添える。
+			name:            "bind unloadable package test - should report the package load error",
+			testDir:         "testdata/integration/bind-unloadable-package/",
+			wantErr:         true,
+			wantErrContains: `no Go model is bound for GraphQL type "Status": generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel (package github.com/Yamashou/gqlgenc/v3/testdata/integration/bind-unloadable-package/domain was loaded with errors: build constraints exclude all Go files in `,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

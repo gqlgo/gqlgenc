@@ -1,0 +1,17 @@
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+bind:
+  type:
+    packages:
+      - github.com/Yamashou/gqlgenc/v3/testdata/integration/bind-unloadable-package/domain
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./query/client_gen.go
+# 束縛先の domain パッケージは、唯一のファイルがビルド制約で外れるため読み込みエラーになる。
+# 束縛先のパッケージを読み込めず、enum Status がどこにも束縛されない状況を再現する。

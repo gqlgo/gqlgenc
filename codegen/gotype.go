@@ -497,7 +497,14 @@ func resolveModelType(binder *typebind.Binder, models gqlgenconfig.TypeMap, type
 	if len(bindings) == 0 {
 		// UC1 (generate.model.file 未指定) で enum / input が bind.type.packages / @goModel の
 		// いずれにも束縛されていないと到達する。panic ではなく原因と対処を示すエラーで失敗させる。
-		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel", typeName)
+		err := fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel", typeName)
+		// 束縛先のパッケージを読み込めていないと、そのパッケージの型はどれも束縛されずにここへ届く。
+		// 束縛先に型が無いという設定の不備と見分けられるよう、読み込みのエラーを添える。
+		if loadErr := binder.LoadErrors(); loadErr != nil {
+			err = fmt.Errorf("%w (%w)", err, loadErr)
+		}
+
+		return gotypes.Typ[gotypes.Invalid], err
 	}
 
 	goType, err := binder.FindTypeFromName(bindings[0])
