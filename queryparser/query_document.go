@@ -3,7 +3,7 @@ package queryparser
 import (
 	"fmt"
 
-	"github.com/99designs/gqlgen/codegen/templates"
+	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/parser"
@@ -146,7 +146,7 @@ func injectGoFragmentDirective(schema *ast.Schema) {
 func isUniqueOperationName(operations ast.OperationList) error {
 	operationNames := make(map[string]struct{}, len(operations))
 	for _, operation := range operations {
-		goName := templates.ToGo(operation.Name)
+		goName := gosrc.ToGo(operation.Name)
 		if _, ok := operationNames[goName]; ok {
 			return fmt.Errorf("duplicate operation: %s", operation.Name)
 		}

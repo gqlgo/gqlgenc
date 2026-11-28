@@ -10,9 +10,9 @@ import (
 	"unicode"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-	"github.com/99designs/gqlgen/codegen/templates"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
+	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	graphql "github.com/vektah/gqlparser/v2/ast"
@@ -61,9 +61,9 @@ func NewGoTypeGenerator(cfg *config.Config, schema *graphql.Schema, models gqlge
 func (g *GoTypeGenerator) CreateResponseTypes(operations graphql.OperationList) ([]*ResponseType, error) {
 	for _, operation := range operations {
 		// client_gen.go と query_gen.go の Document 定数は、オペレーション名を Go の名前
-		// (templates.ToGo: getUser → GetUser、GetUserId → GetUserID) にして参照する。
+		// (gosrc.ToGo: getUser → GetUser、GetUserId → GetUserID) にして参照する。
 		// 型も同じ名前で宣言しないと、Go の名前の形でないオペレーション名で参照先が無くなる。
-		typeName := templates.ToGo(operation.Name)
+		typeName := gosrc.ToGo(operation.Name)
 		fields := g.newFields(typeName, operation.SelectionSet)
 		g.claimTypeName(typeName, "operation "+operation.Name)
 		g.newResponseType(typeName, fields)
@@ -613,7 +613,7 @@ func (g *GoTypeGenerator) fragmentBinding(def *graphql.FragmentDefinition) (goty
 // fieldTypeName builds the generated subtype name. Query response types are
 // always exported, so the parent name is upper-cased.
 func fieldTypeName(parentTypeName, fieldName string) string {
-	return fmt.Sprintf("%s_%s", firstUpper(parentTypeName), templates.ToGo(fieldName))
+	return fmt.Sprintf("%s_%s", firstUpper(parentTypeName), gosrc.ToGo(fieldName))
 }
 
 func firstUpper(s string) string {
@@ -661,7 +661,7 @@ type Field struct {
 // 複数のフラグメントの同名のフィールドが曖昧になり (ambiguous selector)、利用者が t.Field を
 // 読めなくなるため。アクセスは常に t.<FragmentName>.Field となる。
 func (r *Field) GoName() string {
-	return templates.ToGo(r.Name)
+	return gosrc.ToGo(r.Name)
 }
 
 // IsFragment は、フラグメントスプレッドかインラインフラグメントかを返す。フラグメントのフィールドは、
@@ -693,7 +693,7 @@ func (fs Fields) uniqueByName() Fields {
 func (fs Fields) checkGoNameCollision(parentTypeName string) error {
 	selectionsByGoName := make(map[string][]string, len(fs))
 	for _, field := range fs {
-		goName := templates.ToGo(field.Name)
+		goName := gosrc.ToGo(field.Name)
 		selection := field.selectionLabel()
 		if !slices.Contains(selectionsByGoName[goName], selection) {
 			selectionsByGoName[goName] = append(selectionsByGoName[goName], selection)

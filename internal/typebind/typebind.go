@@ -13,7 +13,8 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-	"github.com/99designs/gqlgen/codegen/templates"
+
+	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -230,7 +231,7 @@ func (b *Binder) pkg(importPath string) (*packages.Package, error) {
 // lookupAutobindType はスキーマ型名そのもの、または Go 命名へ正規化した名前で
 // パッケージスコープから型を探す。
 func lookupAutobindType(pkg *packages.Package, schemaType *ast.Definition) types.Object {
-	for _, lookupName := range []string{schemaType.Name, templates.ToGo(schemaType.Name)} {
+	for _, lookupName := range []string{schemaType.Name, gosrc.ToGo(schemaType.Name)} {
 		if obj := pkg.Types.Scope().Lookup(lookupName); obj != nil {
 			return obj
 		}
