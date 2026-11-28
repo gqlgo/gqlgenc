@@ -29,7 +29,7 @@ func Generate(cfg *config.Config, gqlgenCfg *gqlgenconfig.Config, operations []*
 		Data: map[string]any{
 			"QueryPackage":     cfg.QueryGen.Pkg().Name(),
 			"QueryPackagePath": cfg.QueryGen.Pkg().Path(),
-			"SamePackage":      cfg.ClientGen.ImportPath() == cfg.QueryGen.ImportPath(),
+			"SamePackage":      cfg.ClientGen.ImportPath == cfg.QueryGen.ImportPath,
 			"Operations":       operations,
 		},
 		Funcs:    nil,

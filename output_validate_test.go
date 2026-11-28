@@ -9,8 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
@@ -201,12 +199,12 @@ func TestValidateOutputs(t *testing.T) {
 			}
 
 			// output は、name を出力先のディレクトリのファイルにした出力の設定を返す。空なら定義しない
-			output := func(name string) gqlgenconfig.PackageConfig {
+			output := func(name string) config.PackageConfig {
 				if name == "" {
-					return gqlgenconfig.PackageConfig{}
+					return config.PackageConfig{}
 				}
 
-				return gqlgenconfig.PackageConfig{Filename: filepath.Join(dir, name)}
+				return config.PackageConfig{Filename: filepath.Join(dir, name)}
 			}
 			cfg := &config.Config{
 				ModelGen:  output(tt.args.model),

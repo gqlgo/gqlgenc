@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/plugins"
 	"github.com/Yamashou/gqlgenc/v3/queryparser"
@@ -135,9 +133,9 @@ func generateOutputs(ctx context.Context, cfg *config.Config, cache *packageCach
 }
 
 // outputConfigs は、設定された出力 (model・query・client) の出力先を返す。指定していない出力は含めない。
-func outputConfigs(cfg *config.Config) []*gqlgenconfig.PackageConfig {
-	outputs := make([]*gqlgenconfig.PackageConfig, 0, 3)
-	for _, output := range []*gqlgenconfig.PackageConfig{&cfg.ModelGen, &cfg.QueryGen, &cfg.ClientGen} {
+func outputConfigs(cfg *config.Config) []*config.PackageConfig {
+	outputs := make([]*config.PackageConfig, 0, 3)
+	for _, output := range []*config.PackageConfig{&cfg.ModelGen, &cfg.QueryGen, &cfg.ClientGen} {
 		if output.IsDefined() {
 			outputs = append(outputs, output)
 		}

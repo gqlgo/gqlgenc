@@ -44,7 +44,7 @@ func GenerateCode(
 		// model 生成前の壊れた状態のキャッシュを codegen の型解決が見てしまう。
 		// gqlgen 側の Packages キャッシュは modelgen 内部の ReloadAllPackages() で
 		// 再ロード済みのため、次のロードは fallback 経由で生成後の状態を取得する。
-		binder.Evict(cfg.ModelGen.ImportPath())
+		binder.Evict(cfg.ModelGen.ImportPath)
 	}
 
 	// modelgen が生成した model の束縛も含めるため、束縛の表は modelgen の後に取り出す

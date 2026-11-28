@@ -9,8 +9,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
 )
 
@@ -116,11 +114,11 @@ func TestLoadConfig(t *testing.T) {
 						"testdata/cfg/glob/foo/foo.graphql",
 					},
 					Query:           []string{"./queries/*.graphql"},
-					ModelGen:        config.PackageConfig{Package: "gen"},
+					ModelGen:        PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 					ModelOnlyUsed:   true,
-					QueryGen:        config.PackageConfig{Package: "gen"},
+					QueryGen:        PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 					GenerateGetters: true,
-					ClientGen:       config.PackageConfig{Package: "gen"},
+					ClientGen:       PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 				},
 			},
 		},
@@ -138,10 +136,10 @@ func TestLoadConfig(t *testing.T) {
 						"testdata/cfg/glob/foo/foo.graphql",
 					},
 					Query:         []string{"./queries/*.graphql"},
-					ModelGen:      config.PackageConfig{Package: "gen"},
+					ModelGen:      PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 					ModelOnlyUsed: false,
-					QueryGen:      config.PackageConfig{Package: "gen"},
-					ClientGen:     config.PackageConfig{Package: "gen"},
+					QueryGen:      PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
+					ClientGen:     PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 				},
 			},
 		},
@@ -158,9 +156,9 @@ func TestLoadConfig(t *testing.T) {
 					},
 					FederationVersion: 2,
 					Query:             []string{"./queries/*.graphql"},
-					ModelGen:          config.PackageConfig{Package: "gen"},
+					ModelGen:          PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 					ModelOnlyUsed:     true,
-					QueryGen:          config.PackageConfig{Package: "gen"},
+					QueryGen:          PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 				},
 			},
 		},
@@ -174,10 +172,10 @@ func TestLoadConfig(t *testing.T) {
 				config: &Config{
 					Endpoint:      &EndPointConfig{URL: "http://mock-server.example.com/graphql"},
 					Query:         []string{"./queries/*.graphql"},
-					ModelGen:      config.PackageConfig{Package: "gen"},
+					ModelGen:      PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 					ModelOnlyUsed: true,
-					QueryGen:      config.PackageConfig{Package: "gen"},
-					ClientGen:     config.PackageConfig{Package: "gen"},
+					QueryGen:      PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
+					ClientGen:     PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 				},
 			},
 		},
@@ -209,7 +207,7 @@ func TestLoadConfig(t *testing.T) {
 						"Timestamp": "github.com/99designs/gqlgen/graphql.Time",
 					},
 					ModelOnlyUsed: true,
-					QueryGen:      config.PackageConfig{Package: "gen"},
+					QueryGen:      PackageConfig{Package: "gen", ImportPath: "github.com/Yamashou/gqlgenc/v3/config/gen"},
 				},
 			},
 		},
@@ -323,7 +321,7 @@ func TestLoadConfig(t *testing.T) {
 			if tt.want.config != nil {
 				// 出力先のファイル名は、実行する環境の絶対パスになるため比べない
 				opts := []cmp.Option{
-					cmpopts.IgnoreFields(config.PackageConfig{}, "Filename"),
+					cmpopts.IgnoreFields(PackageConfig{}, "Filename"),
 				}
 				if diff := cmp.Diff(tt.want.config, got, opts...); diff != "" {
 					t.Errorf("diff(-want +got): %s", diff)

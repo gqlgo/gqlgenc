@@ -14,8 +14,6 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 )
 
 // errNoSchemaSource is returned when neither a local schema nor a remote
@@ -45,16 +43,16 @@ type Config struct {
 	FragmentAutobind []string
 
 	// ModelGen は generate.model.file の出力先。省略できる (IsDefined が false)。
-	ModelGen gqlgenconfig.PackageConfig
+	ModelGen PackageConfig
 	// ModelOnlyUsed は、クエリで使われている Input / Enum 型だけを生成するか (デフォルト true)。
 	// false のときはスキーマの全 Input / Enum 型を生成する。
 	ModelOnlyUsed bool
 	// QueryGen は generate.query.file の出力先。省略できる。
-	QueryGen gqlgenconfig.PackageConfig
+	QueryGen PackageConfig
 	// GenerateGetters は generate.query.getters。レスポンスの型に getter を生成するか。
 	GenerateGetters bool
 	// ClientGen は generate.client.file の出力先。省略できる。
-	ClientGen gqlgenconfig.PackageConfig
+	ClientGen PackageConfig
 }
 
 // fileConfig is the on-disk .gqlgenc.yml schema. gqlgenc owns this schema and
@@ -199,29 +197,27 @@ func LoadConfig(configFilename string) (*Config, error) {
 		TypeAutobind:      fc.Bind.Type.Packages,
 		Models:            models,
 		FragmentAutobind:  fc.Bind.Fragment.Packages,
-		ModelGen:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
+		ModelGen:          PackageConfig{},
 		ModelOnlyUsed:     fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,
-		QueryGen:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Query.File},
+		QueryGen:          PackageConfig{},
 		GenerateGetters:   fc.Generate.Query.Getters,
-		ClientGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Client.File},
+		ClientGen:         PackageConfig{},
 	}
 
-	// 出力先は、指定したものだけを確かめる。Check は、ファイル名を絶対パスにし、パッケージ名を
-	// ディレクトリから決める。
+	// 出力先は、ファイル名を絶対パスにし、パッケージ名と import パスをディレクトリから決める。
 	// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
 	outputs := []struct {
-		key    string
-		output *gqlgenconfig.PackageConfig
+		key      string
+		filename string
+		output   *PackageConfig
 	}{
-		{key: "generate.model.file", output: &c.ModelGen},
-		{key: "generate.query.file", output: &c.QueryGen},
-		{key: "generate.client.file", output: &c.ClientGen},
+		{key: "generate.model.file", filename: fc.Generate.Model.File, output: &c.ModelGen},
+		{key: "generate.query.file", filename: fc.Generate.Query.File, output: &c.QueryGen},
+		{key: "generate.client.file", filename: fc.Generate.Client.File, output: &c.ClientGen},
 	}
 	for _, o := range outputs {
-		if !o.output.IsDefined() {
-			continue
-		}
-		if err := o.output.Check(); err != nil {
+		*o.output, err = newPackageConfig(o.filename)
+		if err != nil {
 			return nil, fmt.Errorf("%s: %w", o.key, err)
 		}
 	}

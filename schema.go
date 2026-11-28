@@ -38,9 +38,9 @@ func newPackageCache() *packageCache {
 
 // evict は、出力先 output のパッケージを両方のキャッシュから外し、次に読み込むときに今のファイルから
 // 読み直させる。
-func (c *packageCache) evict(output *gqlgenconfig.PackageConfig) {
+func (c *packageCache) evict(output *config.PackageConfig) {
 	if c.gqlgen != nil {
-		c.gqlgen.Packages.Evict(output.ImportPath())
+		c.gqlgen.Packages.Evict(output.ImportPath)
 	}
 
 	if dir, err := filepath.Abs(output.Dir()); err == nil {
@@ -138,7 +138,7 @@ func bindTypes(cfg *config.Config, schema *ast.Schema, cache *packageCache) (*gq
 
 	gqlgenCfg := &gqlgenconfig.Config{
 		Schema: schema,
-		Model:  cfg.ModelGen,
+		Model:  gqlgenconfig.PackageConfig{Filename: cfg.ModelGen.Filename, Package: cfg.ModelGen.Package},
 		Models: models,
 		// json/v2 では omitzero が undefined の省略を担うため omitempty は不要。明示的に無効化して
 		// model の nullable フィールドのタグを OperationVars と同じ omitzero のみに揃える。
