@@ -78,14 +78,18 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 // 先の選択のサブフィールドが生成型から落ちる (gqlgo/gqlgenc#282)。
 //
 //   - 同じレスポンスキー (alias) のフィールド: 最初の選択に、後の選択のサブセレクションを足す
+//   - 同じ型へのインラインフラグメント: 最初の選択に、後の選択のセレクションを足す。型条件の無い
+//     もの (`... { id }`・`... @include(if: $x) { id }`) は、外側の型への条件として扱う
 //   - 同じフラグメントのスプレッド: 最初の選択だけを残す
 //
+// 事前条件: selectionSet は検証済み (インラインフラグメントの ObjectDefinition が束縛されている)。
 // AST はサーバーへ送る Document の生成にも使うため書き換えず、まとめた選択は写しで返す。
 func mergeSelections(selectionSet graphql.SelectionSet) graphql.SelectionSet {
 	merged := make(graphql.SelectionSet, 0, len(selectionSet))
 	// 最初に現れた位置へまとめるため、選択の種類とキーごとに merged の位置を覚える
 	positions := make(map[string]int, len(selectionSet))
 	fields := make(map[string]*graphql.Field, len(selectionSet))
+	inlineFragments := make(map[string]*graphql.InlineFragment)
 
 	for _, selection := range selectionSet {
 		switch sel := selection.(type) {
@@ -100,7 +104,16 @@ func mergeSelections(selectionSet graphql.SelectionSet) graphql.SelectionSet {
 			}
 			fields[sel.Alias] = sel
 		case *graphql.InlineFragment:
-			merged = append(merged, sel)
+			sel = inlineFragmentOnEnclosingType(sel)
+			key := "inlineFragment:" + sel.TypeCondition
+			if first, ok := inlineFragments[sel.TypeCondition]; ok {
+				sel = mergeInlineFragment(first, sel)
+				merged[positions[key]] = sel
+			} else {
+				positions[key] = len(merged)
+				merged = append(merged, sel)
+			}
+			inlineFragments[sel.TypeCondition] = sel
 		case *graphql.FragmentSpread:
 			key := "fragmentSpread:" + sel.Name
 			if _, ok := positions[key]; ok {
@@ -138,6 +151,28 @@ func withoutConditionalDirectives(directives graphql.DirectiveList) graphql.Dire
 	}
 
 	return kept
+}
+
+// mergeInlineFragment は、同じ型への 2 つのインラインフラグメントを 1 つにまとめた写しを返す。
+func mergeInlineFragment(first, later *graphql.InlineFragment) *graphql.InlineFragment {
+	merged := *first
+	merged.SelectionSet = slices.Concat(first.SelectionSet, later.SelectionSet)
+
+	return &merged
+}
+
+// inlineFragmentOnEnclosingType は、型条件の無いインラインフラグメントを外側の型への条件にした
+// 写しを返す。型条件があるものはそのまま返す。型条件が無いままだと、空の名前のフィールドと型を
+// 作ってコンパイルできないコードになる。
+func inlineFragmentOnEnclosingType(sel *graphql.InlineFragment) *graphql.InlineFragment {
+	if sel.TypeCondition != "" || sel.ObjectDefinition == nil {
+		return sel
+	}
+
+	resolved := *sel
+	resolved.TypeCondition = sel.ObjectDefinition.Name
+
+	return &resolved
 }
 
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {

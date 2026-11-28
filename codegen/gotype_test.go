@@ -379,6 +379,26 @@ func TestMergeSelections(t *testing.T) {
 			},
 		},
 		{
+			// 同じ型への条件を別々の型にすると、同じ名前の Go 型を 2 回作って先の選択を失う
+			name: "同じ型へのインラインフラグメントは1つにまとめる",
+			args: args{
+				query: `query Q { node { ... on Item { title } ... on Comment { body } ... on Item { name } } }`,
+			},
+			want: want{
+				selections: "...on Item{title name} ...on Comment{body}",
+			},
+		},
+		{
+			// 型条件が空のままだと、空の名前のフィールドと型を作ってコンパイルできないコードになる
+			name: "型条件の無いインラインフラグメントは、外側の型への条件にしてまとめる",
+			args: args{
+				query: `query Q($x: Boolean!) { node { ... { name } ... @include(if: $x) { payload { success } } ... on Node { id } } }`,
+			},
+			want: want{
+				selections: "...on Node{name payload{success} id}",
+			},
+		},
+		{
 			// 同じフラグメントを 2 回埋め込むと、同じ名前の Go フィールドが 2 つできる
 			name: "同じフラグメントのスプレッドは1つにする",
 			args: args{
