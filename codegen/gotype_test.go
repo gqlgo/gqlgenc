@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"errors"
 	gotypes "go/types"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
+	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	"github.com/vektah/gqlparser/v2"
@@ -861,6 +863,122 @@ func TestPublicTag(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.tag, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestFields_checkGoNameCollision(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		fields Fields
+	}
+
+	type args struct {
+		parentTypeName string
+	}
+
+	type want struct {
+		err error
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   want
+	}{
+		{
+			name: "Go名が重ならなければnilを返す",
+			fields: fields{
+				fields: Fields{
+					{Name: "id", TypeKind: Scalar},
+					{Name: "Item", TypeKind: InlineFragment},
+					{Name: "ItemFields", TypeKind: FragmentSpread},
+				},
+			},
+			args: args{
+				parentTypeName: "Q_Node",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		{
+			// 別名を付けずに選ぶと、どちらも Go のフィールド FooBar になる (gqlgo/gqlgenc#108)
+			name: "名前の違うフィールドが同じGo名になるとエラーを返す",
+			fields: fields{
+				fields: Fields{
+					{Name: "foo_bar", TypeKind: Scalar},
+					{Name: "fooBar", TypeKind: Object},
+				},
+			},
+			args: args{
+				parentTypeName: "Q_Object",
+			},
+			want: want{
+				err: errors.New(`field fooBar and field foo_bar in Q_Object map to the same Go field name "FooBar": add an alias to a field or rename a fragment in the query`),
+			},
+		},
+		{
+			// Item: id と ... on Item はどちらも Go のフィールド Item になり、片方が生成型から落ちる
+			name: "フィールドの別名とインラインフラグメントの型条件が同じ名前ならエラーを返す",
+			fields: fields{
+				fields: Fields{
+					{Name: "Item", TypeKind: Scalar},
+					{Name: "Item", TypeKind: InlineFragment},
+				},
+			},
+			args: args{
+				parentTypeName: "Q_Node",
+			},
+			want: want{
+				err: errors.New(`field Item and inline fragment on Item in Q_Node map to the same Go field name "Item": add an alias to a field or rename a fragment in the query`),
+			},
+		},
+		{
+			// ...Item と ... on Item はどちらも Go のフィールド Item になり、片方が生成型から落ちる
+			name: "フラグメントの名前とインラインフラグメントの型条件が同じ名前ならエラーを返す",
+			fields: fields{
+				fields: Fields{
+					{Name: "Item", TypeKind: InlineFragment},
+					{Name: "Item", TypeKind: FragmentSpread},
+				},
+			},
+			args: args{
+				parentTypeName: "Q_Node",
+			},
+			want: want{
+				err: errors.New(`fragment spread Item and inline fragment on Item in Q_Node map to the same Go field name "Item": add an alias to a field or rename a fragment in the query`),
+			},
+		},
+		{
+			// 同じ Go 型に束縛した 2 つのフラグメントは、同じ型を同じデータからデコードするので 1 つにまとめてよい
+			name: "同じ種類の同じ名前の選択は衝突にしない",
+			fields: fields{
+				fields: Fields{
+					{Name: "User", TypeKind: FragmentSpread},
+					{Name: "User", TypeKind: FragmentSpread},
+				},
+			},
+			args: args{
+				parentTypeName: "Q_Node",
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := tt.fields.fields.checkGoNameCollision(tt.args.parentTypeName)
+
+			// 裸の error は cmp.Comparer がトップレベルで効かないため、cmputil のヘルパーを真偽値で使う
+			if !cmputil.EqualErrorMessage(tt.want.err, err) {
+				t.Errorf("error = %v, want %v", err, tt.want.err)
 			}
 		})
 	}

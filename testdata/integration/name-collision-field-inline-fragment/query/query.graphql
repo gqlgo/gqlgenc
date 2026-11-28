@@ -1,0 +1,10 @@
+# フィールドの別名 (Item) とインラインフラグメントの型条件 (Item) が、同じ Go のフィールド名 Item になる。
+# 片方が生成型から落ちるため、生成をエラーにする。
+query AliasEqualsTypeCondition($id: ID!) {
+  node(id: $id) {
+    Item: id
+    ... on Item {
+      name
+    }
+  }
+}

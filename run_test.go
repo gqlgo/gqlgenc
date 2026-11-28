@@ -261,6 +261,22 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			wantErrContains: `GetObject_Object map to the same Go field name "FooBar"`,
 		},
 		{
+			// 別名 Item のフィールドと ... on Item はどちらも Go のフィールド Item になる。
+			// 従来はエラーにならず、別名 Item のフィールドが生成型から黙って落ちていた
+			name:            "field alias equal to an inline fragment type condition - should fail with a Go field name collision",
+			testDir:         "testdata/integration/name-collision-field-inline-fragment/",
+			wantErr:         true,
+			wantErrContains: `field Item and inline fragment on Item in AliasEqualsTypeCondition_Node map to the same Go field name "Item"`,
+		},
+		{
+			// ...Item と ... on Item はどちらも Go のフィールド Item になる。
+			// 従来はエラーにならず、インラインフラグメントの枝が生成型から黙って落ちていた
+			name:            "fragment name equal to an inline fragment type condition - should fail with a Go field name collision",
+			testDir:         "testdata/integration/name-collision-fragment-inline-fragment/",
+			wantErr:         true,
+			wantErrContains: `fragment spread Item and inline fragment on Item in SpreadEqualsTypeCondition_Node map to the same Go field name "Item"`,
+		},
+		{
 			// UC1 (generate.model.file 未指定) で enum を autobind/@goModel のいずれにも束縛せず
 			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)。
 			// これはリーフ型を解決する CreateGoTypes (GoTypeGenerator) 側の経路。

@@ -1,0 +1,12 @@
+# フラグメントの名前とインラインフラグメントの型条件が同じ名前 (どちらも Go のフィールド Item になる)。生成が失敗することを検証する。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

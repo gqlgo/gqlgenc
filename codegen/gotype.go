@@ -708,28 +708,44 @@ func (fs Fields) uniqueByName() Fields {
 	})
 }
 
-// checkGoNameCollision は、異なるセレクション名が同じ Go フィールド名に変換される
-// 衝突を検出する (例: foo_bar と fooBar はどちらも FooBar になる)。
-// 衝突はクエリ側で alias を付けることでしか解消できないため、エラーとして報告する。
+// checkGoNameCollision は、異なる選択が同じ Go フィールド名に変換される衝突を検出する
+// (例: foo_bar と fooBar はどちらも FooBar になる)。選択の種類 (フィールド・インラインフラグメント・
+// フラグメントスプレッド) が違えば、名前が同じでも異なる選択として扱う (例: 別名 Item のフィールドと
+// `... on Item` はどちらも Item になる)。uniqueByName は Go 名ごとに 1 つしか残さないため、衝突を
+// 許すと選択が生成型から落ちる。衝突はクエリ側で別名を付けるかフラグメントの名前を変えることでしか
+// 解消できないため、エラーとして報告する。
 func (fs Fields) checkGoNameCollision(parentTypeName string) error {
-	rawNamesByGoName := make(map[string][]string, len(fs))
+	selectionsByGoName := make(map[string][]string, len(fs))
 	for _, field := range fs {
 		goName := templates.ToGo(field.Name)
-		if !slices.Contains(rawNamesByGoName[goName], field.Name) {
-			rawNamesByGoName[goName] = append(rawNamesByGoName[goName], field.Name)
+		selection := field.selectionLabel()
+		if !slices.Contains(selectionsByGoName[goName], selection) {
+			selectionsByGoName[goName] = append(selectionsByGoName[goName], selection)
 		}
 	}
 
-	for _, goName := range slices.Sorted(maps.Keys(rawNamesByGoName)) {
-		rawNames := rawNamesByGoName[goName]
-		if len(rawNames) < 2 {
+	for _, goName := range slices.Sorted(maps.Keys(selectionsByGoName)) {
+		selections := selectionsByGoName[goName]
+		if len(selections) < 2 {
 			continue
 		}
-		slices.Sort(rawNames)
-		return fmt.Errorf("fields %s in %s map to the same Go field name %q: add an alias to one of them in the query", strings.Join(rawNames, " and "), parentTypeName, goName)
+		slices.Sort(selections)
+		return fmt.Errorf("%s in %s map to the same Go field name %q: add an alias to a field or rename a fragment in the query", strings.Join(selections, " and "), parentTypeName, goName)
 	}
 
 	return nil
+}
+
+// selectionLabel は、エラーメッセージで選択を示す文字列を返す (例: field foo_bar・inline fragment on Item)。
+func (r *Field) selectionLabel() string {
+	switch r.TypeKind {
+	case FragmentSpread:
+		return "fragment spread " + r.Name
+	case InlineFragment:
+		return "inline fragment on " + r.Name
+	default:
+		return "field " + r.Name
+	}
 }
 
 // goFragmentDirectiveName / goFragmentArgType は @goFragment(type:) の名前。
