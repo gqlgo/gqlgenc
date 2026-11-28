@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
+
+	"github.com/Yamashou/gqlgenc/v3/codegen"
 )
 
 // goTypeString は、生成コードに書く型の表記を返す。パッケージ名は生成ファイルの import に合わせて
@@ -136,6 +138,7 @@ func (a *FieldAnalyzer) analyzeField(
 
 	if a.IsInlineFragment(field, tag) {
 		info.IsInlineFragment = true
+		info.PossibleTypes = codegen.PossibleTypesFromTag(tag)
 
 		if ptrType, ok := field.Type().(*types.Pointer); ok {
 			info.IsPointer = true

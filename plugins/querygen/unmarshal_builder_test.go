@@ -645,6 +645,204 @@ func TestUnmarshalBuilder_BuildUnmarshalMethod(t *testing.T) {
 	}
 }
 
+func TestUnmarshalBuilder_decodeInlineFragments(t *testing.T) {
+	t.Parallel()
+
+	// inlineFragment は、サブフィールドを解析していない (自前の UnmarshalJSONFrom を持つ) 枝を作る
+	inlineFragment := func(name string, possibleTypes ...string) InlineFragmentInfo {
+		return InlineFragmentInfo{
+			Field: FieldInfo{
+				Name:             name,
+				JSONTag:          "-",
+				IsExported:       true,
+				IsInlineFragment: true,
+				IsPointer:        true,
+				PointerElemType:  "Files_" + name,
+				PossibleTypes:    possibleTypes,
+			},
+			FieldExpr:   "t." + name,
+			ElemTypeStr: "Files_" + name,
+		}
+	}
+
+	type args struct {
+		fragments  []InlineFragmentInfo
+		targetExpr string
+	}
+
+	type want struct {
+		code string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// Object 型への型条件は、型条件の名前がそのまま __typename になる
+			name: "Object型への型条件は、型ごとに1つのcaseになる",
+			args: args{
+				fragments: []InlineFragmentInfo{
+					inlineFragment("Document", "Document"),
+					inlineFragment("Image", "Image"),
+				},
+				targetExpr: "t",
+			},
+			want: want{
+				code: `switch t.Typename {
+case "Document":
+t.Document = &Files_Document{}
+if err := json.Unmarshal(data, t.Document); err != nil {
+return err
+}
+case "Image":
+t.Image = &Files_Image{}
+if err := json.Unmarshal(data, t.Image); err != nil {
+return err
+}
+}
+`,
+			},
+		},
+		{
+			// __typename は具体型の名前なので、interface の名前の case では一致しない (gqlgo/gqlgenc#325)。
+			// 同じ枝の組み合わせをデコードする具体型は 1 つの case にまとめる
+			name: "interfaceへの型条件は、実装する具体型のcaseでデコードする",
+			args: args{
+				fragments: []InlineFragmentInfo{
+					inlineFragment("Node", "Document", "Image"),
+				},
+				targetExpr: "t",
+			},
+			want: want{
+				code: `switch t.Typename {
+case "Document", "Image":
+t.Node = &Files_Node{}
+if err := json.Unmarshal(data, t.Node); err != nil {
+return err
+}
+}
+`,
+			},
+		},
+		{
+			// Document は Document・File・Node の 3 つの型条件を満たし、Image は File と Node だけを満たす
+			name: "1つの具体型が複数の型条件を満たすときは、そのcaseで該当する枝をすべてデコードする",
+			args: args{
+				fragments: []InlineFragmentInfo{
+					inlineFragment("Document", "Document"),
+					inlineFragment("File", "Document", "Image"),
+					inlineFragment("Node", "Document", "Image", "Item"),
+				},
+				targetExpr: "t",
+			},
+			want: want{
+				code: `switch t.Typename {
+case "Document":
+t.Document = &Files_Document{}
+if err := json.Unmarshal(data, t.Document); err != nil {
+return err
+}
+t.File = &Files_File{}
+if err := json.Unmarshal(data, t.File); err != nil {
+return err
+}
+t.Node = &Files_Node{}
+if err := json.Unmarshal(data, t.Node); err != nil {
+return err
+}
+case "Image":
+t.File = &Files_File{}
+if err := json.Unmarshal(data, t.File); err != nil {
+return err
+}
+t.Node = &Files_Node{}
+if err := json.Unmarshal(data, t.Node); err != nil {
+return err
+}
+case "Item":
+t.Node = &Files_Node{}
+if err := json.Unmarshal(data, t.Node); err != nil {
+return err
+}
+}
+`,
+			},
+		},
+		{
+			// Go のフィールド名は HTTPError でも、__typename は GraphQL の型名 HttpError で返る
+			name: "Goの名前と綴りが違う型は、GraphQLの型名でcaseを作る",
+			args: args{
+				fragments: []InlineFragmentInfo{
+					inlineFragment("HTTPError", "HttpError"),
+				},
+				targetExpr: "t",
+			},
+			want: want{
+				code: `switch t.Typename {
+case "HttpError":
+t.HTTPError = &Files_HTTPError{}
+if err := json.Unmarshal(data, t.HTTPError); err != nil {
+return err
+}
+}
+`,
+			},
+		},
+		{
+			// codegen を通さずに組み立てた型には内部タグが無いので、フィールド名を型名とみなす
+			name: "具体型が渡されていなければ、フィールド名をcaseにする",
+			args: args{
+				fragments: []InlineFragmentInfo{
+					inlineFragment("User"),
+				},
+				targetExpr: "t",
+			},
+			want: want{
+				code: `switch t.Typename {
+case "User":
+t.User = &Files_User{}
+if err := json.Unmarshal(data, t.User); err != nil {
+return err
+}
+}
+`,
+			},
+		},
+		{
+			// inline fragment が無い型には switch を生成しない
+			name: "inline fragmentが無ければ何も生成しない",
+			args: args{
+				fragments:  nil,
+				targetExpr: "t",
+			},
+			want: want{
+				code: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			b := NewUnmarshalBuilder()
+			got := b.decodeInlineFragments(tt.args.fragments, tt.args.targetExpr)
+
+			var buf strings.Builder
+			for _, stmt := range got {
+				buf.WriteString(stmt.String())
+				buf.WriteString("\n")
+			}
+
+			if diff := cmp.Diff(tt.want.code, buf.String()); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
 func TestUnmarshalBuilder_NeedsUnmarshalMethod(t *testing.T) {
 	t.Parallel()
 

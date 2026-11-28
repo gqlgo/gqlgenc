@@ -53,6 +53,29 @@ func TestCodeGenerator_formatTypeDecl(t *testing.T) {
 			},
 		},
 		{
+			// 内部タグは querygen が __typename の分岐を作るための情報で、生成コードには出さない
+			name: "inline fragmentの内部タグは出力しない",
+			args: args{
+				typeName: "Files_Files",
+				structType: types.NewStruct(
+					[]*types.Var{
+						types.NewField(0, nil, "Node", types.NewPointer(namedStruct("Files_Files_Node")), false),
+						types.NewField(0, nil, "Typename", types.Typ[types.String], false),
+					},
+					[]string{
+						`json:"-" gqlgenc:"possibleTypes=Document,Image"`,
+						`json:"__typename"`,
+					},
+				),
+			},
+			want: want{
+				decl: "type Files_Files struct {\n" +
+					"Node *Files_Files_Node `json:\"-\"`\n" +
+					"Typename string `json:\"__typename\"`\n" +
+					"}\n",
+			},
+		},
+		{
 			// 埋め込みフィールド (fragment spread を埋め込む形) は、名前を書かずに型だけを書く
 			name: "埋め込みフィールドは型だけを書く",
 			args: args{

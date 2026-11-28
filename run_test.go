@@ -27,6 +27,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
+	inlinefragmentsgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/inline-fragments/gen"
 	samepackagegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/samepackage/gen"
 	selfbindgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/selfbind/gen"
 )
@@ -684,6 +685,180 @@ func Test_IntegrationTest_KeepOutputs(t *testing.T) {
 	}
 	if diff := cmp.Diff(generatedModTimes, outputModTimes(t, "gen")); diff != "" {
 		t.Errorf("mod times after failed run diff(-want +got): %s", diff)
+	}
+}
+
+// インラインフラグメントと選択の統合の回帰テスト。生成コードを want と比べ、生成された型へ
+// レスポンスをデコードして、__typename に応じた枝に値が入ることを確かめる。
+func Test_IntegrationTest_InlineFragments(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/inline-fragments/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, "./want/query_gen.go.txt", "gen/query_gen.go")
+	compareFiles(t, "./want/client_gen.go.txt", "gen/client_gen.go")
+
+	type args struct {
+		response string
+		out      any
+	}
+
+	type want struct {
+		data any
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// Image は Node と File を実装し、Document は Node・File・Document の 3 つの型条件を満たす。
+			// 型条件の名前 (Node・File) と __typename (Image・Document) は一致しない (gqlgo/gqlgenc#325)
+			name: "interfaceへの型条件は、実装する具体型の__typenameで値が入る",
+			args: args{
+				response: `{"files":[{"__typename":"Image","id":"1","filename":"a.png"},{"__typename":"Document","id":"2","filename":"b.pdf","title":"B"}]}`,
+				out:      &inlinefragmentsgen.Files{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.Files{
+					Files: []*inlinefragmentsgen.Files_Files{
+						{
+							File:     &inlinefragmentsgen.Files_Files_File{Filename: "a.png"},
+							Node:     &inlinefragmentsgen.Files_Files_Node{ID: "1"},
+							Typename: "Image",
+						},
+						{
+							Document: &inlinefragmentsgen.Files_Files_Document{Title: "B"},
+							File:     &inlinefragmentsgen.Files_Files_File{Filename: "b.pdf"},
+							Node:     &inlinefragmentsgen.Files_Files_Node{ID: "2"},
+							Typename: "Document",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "interfaceへの型条件の中の、具体型への型条件にも値が入る",
+			args: args{
+				response: `{"node":{"__typename":"Image","filename":"a.png","width":640}}`,
+				out:      &inlinefragmentsgen.NodeFile{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeFile{
+					Node: &inlinefragmentsgen.NodeFile_Node{
+						File: &inlinefragmentsgen.NodeFile_Node_File{
+							Image:    &inlinefragmentsgen.NodeFile_Node_File_Image{Width: 640},
+							Typename: "Image",
+							Filename: "a.png",
+						},
+						Typename: "Image",
+					},
+				},
+			},
+		},
+		{
+			// Item は Node を実装するが File を実装しないので、... on File の枝は nil のままになる
+			name: "型条件を満たさない具体型では、枝に値が入らない",
+			args: args{
+				response: `{"node":{"__typename":"Item"}}`,
+				out:      &inlinefragmentsgen.NodeFile{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeFile{
+					Node: &inlinefragmentsgen.NodeFile_Node{
+						Typename: "Item",
+					},
+				},
+			},
+		},
+		{
+			// HttpError は Go の名前 (HTTPError) と綴りが違う。__typename は GraphQL の型名で返る
+			name: "unionのメンバーを、GraphQLの型名の__typenameで判別する",
+			args: args{
+				response: `{"search":[{"__typename":"HttpError","message":"not found"},{"__typename":"Item","name":"pen"},{"__typename":"Image","width":640}]}`,
+				out:      &inlinefragmentsgen.Search{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.Search{
+					Search: []*inlinefragmentsgen.Search_Search{
+						{
+							HTTPError: &inlinefragmentsgen.Search_Search_HTTPError{Message: "not found"},
+							Typename:  "HttpError",
+						},
+						{
+							Item:     &inlinefragmentsgen.Search_Search_Item{Name: "pen"},
+							Typename: "Item",
+						},
+						{
+							Image:    &inlinefragmentsgen.Search_Search_Image{Width: 640},
+							Typename: "Image",
+						},
+					},
+				},
+			},
+		},
+		{
+			// detail { code } と detail { note } の両方のサブフィールドが型に残る (gqlgo/gqlgenc#282)
+			name: "同じフィールドを複数回選択しても、サブフィールドがすべてデコードされる",
+			args: args{
+				response: `{"payload":{"success":true,"message":"ok","detail":{"code":7,"note":"memo"}}}`,
+				out:      &inlinefragmentsgen.PayloadTwice{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.PayloadTwice{
+					Payload: &inlinefragmentsgen.PayloadTwice_Payload{
+						Detail: &inlinefragmentsgen.PayloadTwice_Payload_Detail{
+							Code: 7,
+							Note: func() *string { note := "memo"; return &note }(),
+						},
+						Message: func() *string { message := "ok"; return &message }(),
+						Success: true,
+					},
+				},
+			},
+		},
+		{
+			// ... on Item { id } と ... on Item { name parent { id } } は 1 つの枝 Item になる。
+			// 型条件の無い ... { id } は、外側の型 Node への型条件の枝になる
+			name: "同じ型へのインラインフラグメントは1つの枝にまとまり、型条件の無いものは外側の型の枝になる",
+			args: args{
+				response: `{"node":{"__typename":"Item","id":"1","name":"pen","parent":{"id":"0"}}}`,
+				out:      &inlinefragmentsgen.NodeRepeated{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeRepeated{
+					Node: &inlinefragmentsgen.NodeRepeated_Node{
+						Item: &inlinefragmentsgen.NodeRepeated_Node_Item{
+							ID:     "1",
+							Name:   "pen",
+							Parent: &inlinefragmentsgen.NodeRepeated_Node_Item_Parent{ID: "0"},
+						},
+						Node:     &inlinefragmentsgen.NodeRepeated_Node_Node{ID: "1"},
+						Typename: "Item",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := json.Unmarshal([]byte(tt.args.response), tt.args.out); err != nil {
+				t.Fatalf("json.Unmarshal() error = %v", err)
+			}
+
+			if diff := cmp.Diff(tt.want.data, tt.args.out); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
 	}
 }
 

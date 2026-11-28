@@ -2,6 +2,7 @@ package querygen
 
 import (
 	"fmt"
+	"strings"
 )
 
 // UnmarshalBuilder は UnmarshalJSONFrom メソッドのステートメントを構築する。
@@ -211,11 +212,23 @@ func (b *UnmarshalBuilder) separateFieldTypesAt(fields []FieldInfo, parentPath s
 // decodeInlineFragments は __typename を使って inline fragments をデコードするステートメントを生成する。
 // __typename は非 null の string として生成されるため、デコード済みの Typename フィールドで直接分岐する。
 //
-// 以下のようなコードを生成する:
+// __typename はレスポンスの具体型 (Object 型) の名前なので、case には型条件の名前ではなく、
+// 型条件を満たす具体型の名前を並べる。interface / union への型条件 (... on Node) は、
+// それを満たすすべての具体型の case でデコードする。1 つの具体型が複数の型条件を満たすときは、
+// その case で該当する inline fragment をすべてデコードする。
+//
+// 以下のようなコードを生成する (Node は User と Post が実装する interface):
 //
 //	switch t.Typename {
 //	case "User":
+//	    if err := json.Unmarshal(data, &t.Node); err != nil {
+//	        return err
+//	    }
 //	    if err := json.Unmarshal(data, &t.User); err != nil {
+//	        return err
+//	    }
+//	case "Post":
+//	    if err := json.Unmarshal(data, &t.Node); err != nil {
 //	        return err
 //	    }
 //	}
@@ -231,11 +244,43 @@ func (b *UnmarshalBuilder) decodeInlineFragments(fragments []InlineFragmentInfo,
 		return nil
 	}
 
-	cases := make([]SwitchCase, 0, len(fragments))
+	// 具体型ごとに、その型のときに値を入れる inline fragment を集める。具体型は最初に現れた順に並べる。
+	typenames := make([]string, 0, len(fragments))
+	fragmentsByTypename := make(map[string][]InlineFragmentInfo, len(fragments))
 	for _, frag := range fragments {
+		for _, typename := range frag.typenames() {
+			if _, ok := fragmentsByTypename[typename]; !ok {
+				typenames = append(typenames, typename)
+			}
+			fragmentsByTypename[typename] = append(fragmentsByTypename[typename], frag)
+		}
+	}
+
+	// 同じ inline fragment の組み合わせをデコードする具体型は、1 つの case にまとめる。
+	cases := make([]SwitchCase, 0, len(typenames))
+	caseIndexes := make(map[string]int, len(typenames))
+	for _, typename := range typenames {
+		matched := fragmentsByTypename[typename]
+
+		fieldExprs := make([]string, 0, len(matched))
+		for _, frag := range matched {
+			fieldExprs = append(fieldExprs, frag.FieldExpr)
+		}
+		key := strings.Join(fieldExprs, ",")
+
+		if i, ok := caseIndexes[key]; ok {
+			cases[i].Values = append(cases[i].Values, typename)
+			continue
+		}
+
+		var body []Statement
+		for _, frag := range matched {
+			body = append(body, b.buildInlineFragmentCaseBody(frag)...)
+		}
+		caseIndexes[key] = len(cases)
 		cases = append(cases, SwitchCase{
-			Value: frag.Field.Name,
-			Body:  b.buildInlineFragmentCaseBody(frag),
+			Values: []string{typename},
+			Body:   body,
 		})
 	}
 

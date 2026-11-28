@@ -86,6 +86,35 @@ func TestFieldAnalyzer_AnalyzeFields(t *testing.T) {
 			},
 		},
 		{
+			// interface / union への型条件は __typename と名前が一致しないため、codegen が内部タグで
+			// 渡した具体型の名前を PossibleTypes に取り込む
+			name: "インラインフラグメントの内部タグから型条件を満たす具体型を取り込む",
+			args: args{
+				structType: types.NewStruct(
+					[]*types.Var{
+						types.NewField(0, nil, "Node", types.NewPointer(types.Typ[types.String]), false),
+					},
+					[]string{
+						`json:"-" gqlgenc:"possibleTypes=Document,Image"`,
+					},
+				),
+				shouldGenerateUnmarshal: func(*types.Named) bool { return false },
+			},
+			want: want{
+				fields: []FieldInfo{
+					{
+						Name:             "Node",
+						JSONTag:          "-",
+						IsExported:       true,
+						IsEmbedded:       false,
+						IsInlineFragment: true,
+						IsPointer:        true,
+						PossibleTypes:    []string{"Document", "Image"},
+					},
+				},
+			},
+		},
+		{
 			name: "空の構造体を解析しても空のフィールドリストを返す",
 			args: args{
 				structType:              types.NewStruct([]*types.Var{}, []string{}),

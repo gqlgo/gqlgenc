@@ -2,6 +2,7 @@ package querygen
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -46,8 +47,8 @@ type SwitchStatement struct {
 
 // SwitchCase は switch 文の単一の case を表す。
 type SwitchCase struct {
-	Value string      // case の値（例: case "User": における "User"）
-	Body  []Statement // この case で実行するステートメント
+	Values []string    // case の値（例: case "User", "Admin": における "User" と "Admin"）
+	Body   []Statement // この case で実行するステートメント
 }
 
 // String は switch 文の文字列表現を返す。
@@ -56,7 +57,11 @@ func (s *SwitchStatement) String() string {
 
 	fmt.Fprintf(&buf, "switch %s {\n", s.Expr)
 	for _, c := range s.Cases {
-		fmt.Fprintf(&buf, "case %q:\n", c.Value)
+		quoted := make([]string, 0, len(c.Values))
+		for _, value := range c.Values {
+			quoted = append(quoted, strconv.Quote(value))
+		}
+		fmt.Fprintf(&buf, "case %s:\n", strings.Join(quoted, ", "))
 		writeBody(&buf, c.Body)
 	}
 	buf.WriteString("}")

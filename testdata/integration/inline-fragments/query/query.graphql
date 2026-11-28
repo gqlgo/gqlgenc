@@ -1,0 +1,76 @@
+# interface への型条件は、その interface を実装する具体型の __typename で値が入る。
+# 1 つの具体型が複数の型条件を満たすときは、該当するインラインフラグメントすべてに値が入る。
+query Files {
+  files {
+    ... on Node {
+      id
+    }
+    ... on File {
+      filename
+    }
+    ... on Document {
+      title
+    }
+  }
+}
+
+# interface への型条件の中の、具体型への型条件。
+query NodeFile($id: ID!) {
+  node(id: $id) {
+    ... on File {
+      filename
+      ... on Image {
+        width
+      }
+    }
+  }
+}
+
+# union のメンバーへの型条件。HttpError は Go の名前 (HTTPError) と綴りが違う。
+query Search($text: String!) {
+  search(text: $text) {
+    ... on Image {
+      width
+    }
+    ... on Item {
+      name
+    }
+    ... on HttpError {
+      message
+    }
+  }
+}
+
+# 同じフィールドを複数回選択すると、サブフィールドを合わせた 1 つの型になる。
+query PayloadTwice {
+  payload {
+    success
+    detail {
+      code
+    }
+    detail {
+      note
+    }
+    success
+    message
+  }
+}
+
+# 同じ型へのインラインフラグメントは 1 つの型にまとまる。型条件の無いインラインフラグメントは、
+# 外側の型 (Node) への条件として扱う。
+query NodeRepeated($id: ID!) {
+  node(id: $id) {
+    ... on Item {
+      id
+    }
+    ... on Item {
+      name
+      parent {
+        id
+      }
+    }
+    ... {
+      id
+    }
+  }
+}

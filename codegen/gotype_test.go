@@ -10,6 +10,7 @@ import (
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 
+	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	"github.com/vektah/gqlparser/v2"
@@ -448,6 +449,377 @@ func TestMergeSelections(t *testing.T) {
 			// AST はサーバーへ送る Document の生成にも使うため、まとめる前の選択セットを書き換えない
 			if diff := cmp.Diff(source, formatSelections(selectionSet)); diff != "" {
 				t.Errorf("source selection set was modified, diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestGoTypeGenerator_possibleTypeNames(t *testing.T) {
+	t.Parallel()
+
+	schema := gqlparser.MustLoadSchema(&graphql.Source{Input: `
+		type Query {
+			node: Node
+		}
+		interface Node {
+			id: ID!
+		}
+		interface File implements Node {
+			id: ID!
+			filename: String!
+		}
+		type Image implements Node & File {
+			id: ID!
+			filename: String!
+		}
+		type Document implements Node & File {
+			id: ID!
+			filename: String!
+		}
+		type Item implements Node {
+			id: ID!
+		}
+		type HttpError {
+			message: String!
+		}
+		union SearchResult = Item | Image | HttpError
+	`})
+
+	type args struct {
+		typeCondition string
+		enclosing     *graphql.Definition
+	}
+
+	type want struct {
+		typeNames []string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// Object 型への型条件は、その型の名前がそのまま __typename になる
+			name: "Object型はそれ自身を返す",
+			args: args{
+				typeCondition: "Image",
+				enclosing:     schema.Types["Node"],
+			},
+			want: want{
+				typeNames: []string{"Image"},
+			},
+		},
+		{
+			// File は Node を実装する interface だが、__typename にはならないので含めない
+			name: "interfaceは実装するObject型を名前順で返す",
+			args: args{
+				typeCondition: "Node",
+				enclosing:     schema.Types["Node"],
+			},
+			want: want{
+				typeNames: []string{"Document", "Image", "Item"},
+			},
+		},
+		{
+			// union のメンバーは、スキーマに書いた順ではなく名前順で返す
+			name: "unionはメンバーを名前順で返す",
+			args: args{
+				typeCondition: "SearchResult",
+				enclosing:     schema.Types["SearchResult"],
+			},
+			want: want{
+				typeNames: []string{"HttpError", "Image", "Item"},
+			},
+		},
+		{
+			// File を返すフィールドの中の ... on Node は、File を実装していない Item にはならない
+			name: "外側がinterfaceなら、その実装でない型を除く",
+			args: args{
+				typeCondition: "Node",
+				enclosing:     schema.Types["File"],
+			},
+			want: want{
+				typeNames: []string{"Document", "Image"},
+			},
+		},
+		{
+			// SearchResult を返すフィールドの中の ... on Node は、union のメンバーでない Document にはならない
+			name: "外側がunionなら、メンバーでない型を除く",
+			args: args{
+				typeCondition: "Node",
+				enclosing:     schema.Types["SearchResult"],
+			},
+			want: want{
+				typeNames: []string{"Image", "Item"},
+			},
+		},
+		{
+			// 検証を通ったクエリでは起きないが、外側の型と重ならない型条件は具体型を持たない
+			name: "外側の型になり得ない型条件は空を返す",
+			args: args{
+				typeCondition: "Item",
+				enclosing:     schema.Types["File"],
+			},
+			want: want{
+				typeNames: []string{},
+			},
+		},
+		{
+			// 外側の型が分からないときは、型条件だけで決める
+			name: "外側の型がnilなら絞り込まない",
+			args: args{
+				typeCondition: "Node",
+				enclosing:     nil,
+			},
+			want: want{
+				typeNames: []string{"Document", "Image", "Item"},
+			},
+		},
+		{
+			name: "スキーマに無い型はnilを返す",
+			args: args{
+				typeCondition: "Unknown",
+				enclosing:     nil,
+			},
+			want: want{
+				typeNames: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGoTypeGenerator(&config.Config{
+				GQLGenConfig:  &gqlgenconfig.Config{Schema: schema},
+				GQLGencConfig: &config.GQLGencConfig{},
+			})
+			got := g.possibleTypeNames(tt.args.typeCondition, tt.args.enclosing)
+
+			if diff := cmp.Diff(tt.want.typeNames, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestPossibleTypesTag(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		typeNames []string
+	}
+
+	type want struct {
+		tag string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// interface / union への型条件は、満たす具体型をすべて並べる
+			name: "具体型の名前をカンマ区切りで内部タグにする",
+			args: args{
+				typeNames: []string{"Document", "Image"},
+			},
+			want: want{
+				tag: `gqlgenc:"possibleTypes=Document,Image"`,
+			},
+		},
+		{
+			// 具体型が無ければ、値の無いタグを付けずにタグ自体を省く
+			name: "具体型が無ければ空文字を返す",
+			args: args{
+				typeNames: nil,
+			},
+			want: want{
+				tag: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := possibleTypesTag(tt.args.typeNames)
+
+			if diff := cmp.Diff(tt.want.tag, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestPossibleTypesFromTag(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		tag string
+	}
+
+	type want struct {
+		typeNames []string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// possibleTypesTag が作ったタグから、同じ順で具体型名を取り出す
+			name: "内部タグから具体型の名前を取り出す",
+			args: args{
+				tag: `json:"-" gqlgenc:"possibleTypes=Document,Image"`,
+			},
+			want: want{
+				typeNames: []string{"Document", "Image"},
+			},
+		},
+		{
+			// 通常フィールドやフラグメントスプレッドには内部タグが無い
+			name: "内部タグが無ければnilを返す",
+			args: args{
+				tag: `json:"-"`,
+			},
+			want: want{
+				typeNames: nil,
+			},
+		},
+		{
+			// 値が空のタグを、空の名前の具体型 1 つとして扱わない
+			name: "具体型の一覧が空ならnilを返す",
+			args: args{
+				tag: `gqlgenc:"possibleTypes="`,
+			},
+			want: want{
+				typeNames: nil,
+			},
+		},
+		{
+			// 内部タグに別の種類の値が入っていても、具体型として読まない
+			name: "possibleTypes以外の内部タグはnilを返す",
+			args: args{
+				tag: `gqlgenc:"other=Document"`,
+			},
+			want: want{
+				typeNames: nil,
+			},
+		},
+		{
+			// タグの無いフィールドでも panic しない
+			name: "空のタグはnilを返す",
+			args: args{
+				tag: "",
+			},
+			want: want{
+				typeNames: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := PossibleTypesFromTag(tt.args.tag)
+
+			if diff := cmp.Diff(tt.want.typeNames, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestPublicTag(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		tag string
+	}
+
+	type want struct {
+		tag string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// 内部タグは querygen へ情報を渡すためのもので、生成コードには出さない
+			name: "内部タグを除いて残りのタグを返す",
+			args: args{
+				tag: `json:"-" gqlgenc:"possibleTypes=Document,Image"`,
+			},
+			want: want{
+				tag: `json:"-"`,
+			},
+		},
+		{
+			// 内部タグの前後にあるタグは、順序と書き方を保つ
+			name: "内部タグの前後のタグを順序どおりに残す",
+			args: args{
+				tag: `gqlgenc:"possibleTypes=Item" json:"name,omitzero" yaml:"name"`,
+			},
+			want: want{
+				tag: `json:"name,omitzero" yaml:"name"`,
+			},
+		},
+		{
+			// 値の中のエスケープした引用符で、タグの区切りを取り違えない
+			name: "値にエスケープした引用符を含むタグを壊さない",
+			args: args{
+				tag: `json:"a\"b" gqlgenc:"possibleTypes=Item"`,
+			},
+			want: want{
+				tag: `json:"a\"b"`,
+			},
+		},
+		{
+			// 内部タグが無いタグは、書き方を変えずにそのまま返す
+			name: "内部タグが無ければそのまま返す",
+			args: args{
+				tag: `json:"id"`,
+			},
+			want: want{
+				tag: `json:"id"`,
+			},
+		},
+		{
+			// 内部タグだけのフィールドは、生成コードにタグを書かない
+			name: "内部タグだけなら空文字を返す",
+			args: args{
+				tag: `gqlgenc:"possibleTypes=Item"`,
+			},
+			want: want{
+				tag: "",
+			},
+		},
+		{
+			// タグの無いフィールドでも panic しない
+			name: "空のタグは空文字を返す",
+			args: args{
+				tag: "",
+			},
+			want: want{
+				tag: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := PublicTag(tt.args.tag)
+
+			if diff := cmp.Diff(tt.want.tag, got); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
 			}
 		})
 	}

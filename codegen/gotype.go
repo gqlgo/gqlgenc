@@ -5,6 +5,7 @@ import (
 	"fmt"
 	gotypes "go/types"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"unicode"
@@ -211,10 +212,56 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		typeName := fieldTypeName(parentTypeName, sel.TypeCondition)
 		structType := g.newFields(typeName, sel.SelectionSet).goStructType()
 		namedType := g.newGoNamedType(typeName, true, structType)
-		return newField(InlineFragment, gotypes.NewPointer(namedType), sel.TypeCondition, []string{jsonIgnoreTag})
+		// 枝に値が入るのは、レスポンスの __typename が型条件を満たす具体型のとき。interface / union への
+		// 型条件は __typename と名前が一致しないため、満たす具体型を内部タグで querygen へ渡す。
+		tags := []string{jsonIgnoreTag}
+		if tag := possibleTypesTag(g.possibleTypeNames(sel.TypeCondition, sel.ObjectDefinition)); tag != "" {
+			tags = append(tags, tag)
+		}
+		return newField(InlineFragment, gotypes.NewPointer(namedType), sel.TypeCondition, tags)
 	}
 	// 事前条件: selection は *Field/*FragmentSpread/*InlineFragment のいずれか。
 	panic("unexpected selection type")
+}
+
+// possibleTypeNames は、型条件を満たす具体型 (レスポンスの __typename になり得る Object 型) の名前を
+// 名前順で返す。Object 型はそれ自身、interface は実装する Object 型、union はメンバーになる。
+// interface を実装する interface は __typename にならないため含めない。スキーマに無い型は nil を返す。
+//
+// enclosing は、インラインフラグメントを書いた位置の型 (nil なら絞り込まない)。その位置の値に
+// なり得ない具体型は除く。例えば File を返すフィールドの中の `... on Node` は、Node を実装していても
+// File を実装していない型にはならない。
+func (g *GoTypeGenerator) possibleTypeNames(typeCondition string, enclosing *graphql.Definition) []string {
+	schema := g.cfg.GQLGenConfig.Schema
+	definition, ok := schema.Types[typeCondition]
+	if !ok {
+		return nil
+	}
+
+	// 定義のポインタではなく名前で比べる (enclosing がスキーマの定義と同じ実体とは限らない)
+	var enclosingTypeNames map[string]struct{}
+	if enclosing != nil {
+		enclosingTypes := schema.GetPossibleTypes(enclosing)
+		enclosingTypeNames = make(map[string]struct{}, len(enclosingTypes))
+		for _, enclosingType := range enclosingTypes {
+			enclosingTypeNames[enclosingType.Name] = struct{}{}
+		}
+	}
+
+	possibleTypes := schema.GetPossibleTypes(definition)
+	typeNames := make([]string, 0, len(possibleTypes))
+	for _, possibleType := range possibleTypes {
+		if possibleType.Kind != graphql.Object {
+			continue
+		}
+		if _, ok := enclosingTypeNames[possibleType.Name]; enclosing != nil && !ok {
+			continue
+		}
+		typeNames = append(typeNames, possibleType.Name)
+	}
+	slices.Sort(typeNames)
+
+	return typeNames
 }
 
 const (
@@ -442,6 +489,76 @@ const (
 )
 
 const jsonIgnoreTag = `json:"-"`
+
+// internalTagKey は、codegen が querygen へ情報を渡すための struct タグのキー。生成コードには出力しない
+// (PublicTag が取り除く)。インラインフラグメントのフィールドに `gqlgenc:"possibleTypes=A,B"` の形で付け、
+// 型条件を満たす具体型を名前順に並べる。
+const (
+	internalTagKey         = "gqlgenc"
+	possibleTypesTagPrefix = "possibleTypes="
+)
+
+// possibleTypesTag は具体型名の一覧を内部タグにする。一覧が空なら空文字を返す。
+func possibleTypesTag(typeNames []string) string {
+	if len(typeNames) == 0 {
+		return ""
+	}
+
+	return internalTagKey + `:"` + possibleTypesTagPrefix + strings.Join(typeNames, ",") + `"`
+}
+
+// PossibleTypesFromTag は、インラインフラグメントのフィールドの struct タグから、型条件を満たす
+// 具体型名を取り出す。内部タグが無ければ nil を返す。
+func PossibleTypesFromTag(tag string) []string {
+	value, ok := reflect.StructTag(tag).Lookup(internalTagKey)
+	if !ok {
+		return nil
+	}
+
+	typeNames, ok := strings.CutPrefix(value, possibleTypesTagPrefix)
+	if !ok || typeNames == "" {
+		return nil
+	}
+
+	return strings.Split(typeNames, ",")
+}
+
+// PublicTag は、struct タグから生成器内部のタグを除いたものを返す。生成コードに出力するタグに使う。
+// `key:"value"` を空白で区切る慣習の形でないタグは、そのまま返す。
+func PublicTag(tag string) string {
+	if _, ok := reflect.StructTag(tag).Lookup(internalTagKey); !ok {
+		return tag
+	}
+
+	// reflect.StructTag.Lookup と同じ規則で key:"value" を 1 組ずつ読み、内部タグ以外を残す
+	kept := make([]string, 0, 1)
+	rest := tag
+	for {
+		rest = strings.TrimLeft(rest, " ")
+		keyEnd := strings.Index(rest, `:"`)
+		if keyEnd <= 0 {
+			break
+		}
+
+		valueEnd := keyEnd + 2
+		for valueEnd < len(rest) && rest[valueEnd] != '"' {
+			if rest[valueEnd] == '\\' {
+				valueEnd++
+			}
+			valueEnd++
+		}
+		if valueEnd >= len(rest) {
+			break
+		}
+
+		if rest[:keyEnd] != internalTagKey {
+			kept = append(kept, rest[:valueEnd+1])
+		}
+		rest = rest[valueEnd+1:]
+	}
+
+	return strings.Join(kept, " ")
+}
 
 // typenameFieldName は interface / union を判別する GraphQL メタフィールド。gqlparser は注入された
 // __typename を nullable な String で束縛するが、__typename は常に存在する非 null なので string で生成する。

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
+
+	"github.com/Yamashou/gqlgenc/v3/codegen"
 )
 
 // CodeGenerator は全てのジェネレータを統合し、完全な型コードを生成する。
@@ -287,7 +289,8 @@ func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 // 戻り値: フォーマットされた型定義（例: "type User struct { ... }\n"）
 //
 // go/types に struct 全体を書かせるとタグが strconv.Quote の形 ("json:\"id\"") になるため、
-// フィールドごとに書き出してタグを raw 文字列 (`json:"id"`) にする。
+// フィールドごとに書き出してタグを raw 文字列 (`json:"id"`) にする。codegen が querygen へ
+// 情報を渡すための内部タグは出力しない。
 func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct) string {
 	var buf strings.Builder
 
@@ -298,7 +301,7 @@ func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct
 			buf.WriteString(field.Name() + " ")
 		}
 		buf.WriteString(goTypeString(field.Type()))
-		if tag := structType.Tag(i); tag != "" {
+		if tag := codegen.PublicTag(structType.Tag(i)); tag != "" {
 			buf.WriteString(" " + formatStructTag(tag))
 		}
 		buf.WriteString("\n")
