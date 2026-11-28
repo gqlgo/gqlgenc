@@ -423,3 +423,155 @@ func TestSchemaFromIntrospection_TypeTooDeep(t *testing.T) {
 		t.Fatal("SchemaFromIntrospection() should return an error for a type deeper than the introspection query, got nil")
 	}
 }
+
+// TestSchemaFromIntrospection_InvalidResponse は、GraphQL の仕様から外れた introspection の応答で、
+// panic ではなく errInvalidIntrospection が返ることを確認する。サーバーの応答は信頼できず、組み立てを
+// 続けると nil ポインタの参照か、型の種類が分からないことによる panic になる。
+func TestSchemaFromIntrospection_InvalidResponse(t *testing.T) {
+	t.Parallel()
+
+	// queryType と型の一覧以外を差し替えて使う、正しい応答の部品
+	const (
+		queryType  = `{"kind":"OBJECT","name":"Query","fields":[{"name":"id","args":[],"type":{"kind":"SCALAR","name":"String"}}]}`
+		stringType = `{"kind":"SCALAR","name":"String"}`
+	)
+
+	type args struct {
+		response string
+	}
+
+	type want struct {
+		err error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// 型の一覧の null の要素は、名前で引く表を作るときに nil ポインタを参照する
+			name: "型の一覧にnullの要素がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,null]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "型の名前がnull",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,{"kind":"SCALAR","name":null}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			// LIST・NON_NULL は型の参照にだけ現れ、型の一覧には現れない
+			name: "型の一覧にLISTの型がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,{"kind":"LIST","name":"Strings"}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "型の種類が知らないもの",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,{"kind":"TABLE","name":"Row"}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "queryTypeが型の一覧に無い",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Root"},"types":[` + queryType + `,` + stringType + `]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "mutationTypeの名前がnull",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"mutationType":{"name":null},"types":[` + queryType + `,` + stringType + `]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "subscriptionTypeが型の一覧に無い",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"subscriptionType":{"name":"Subscription"},"types":[` + queryType + `,` + stringType + `]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "フィールドの一覧にnullの要素がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[{"kind":"OBJECT","name":"Query","fields":[null]},` + stringType + `]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			// 既定値をリテラルとして解釈できないとき、型の種類から値の種類を決めるため、型の一覧に無い型で panic していた
+			name: "引数の型が型の一覧に無い",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[{"kind":"OBJECT","name":"Query","fields":[{"name":"id","args":[{"name":"filter","type":{"kind":"INPUT_OBJECT","name":"Filter"},"defaultValue":"@"}],"type":{"kind":"SCALAR","name":"String"}}]},` + stringType + `]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "unionの型の名前がnull",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,{"kind":"UNION","name":"Result","possibleTypes":[{"kind":"OBJECT","name":null}]}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "enumの値の一覧にnullの要素がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `,{"kind":"ENUM","name":"Color","enumValues":[null]}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "ディレクティブの一覧にnullの要素がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `],"directives":[null]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			name: "ディレクティブの引数の一覧にnullの要素がある",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `],"directives":[{"name":"auth","locations":["FIELD"],"args":[null]}]}}`,
+			},
+			want: want{err: errInvalidIntrospection},
+		},
+		{
+			// 部品だけの応答は正しく、エラーにならない
+			name: "正しい応答はエラーにならない",
+			args: args{
+				response: `{"__schema":{"queryType":{"name":"Query"},"types":[` + queryType + `,` + stringType + `]}}`,
+			},
+			want: want{err: nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("SchemaFromIntrospection() panicked: %v", r)
+				}
+			}()
+
+			var query Query
+			if err := json.Unmarshal([]byte(tt.args.response), &query); err != nil {
+				t.Fatalf("unmarshal response: %v", err)
+			}
+
+			_, err := SchemaFromIntrospection("test", query)
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+		})
+	}
+}

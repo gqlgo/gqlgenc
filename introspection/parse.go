@@ -11,11 +11,17 @@ import (
 
 // errIntrospectionTypeTooDeep は、introspection パースで唯一「仕様違反の応答ではなく valid な
 // スキーマ」が原因で起きる panic の sentinel。型の list/non-null 入れ子が introspection クエリの
-// ofType 深さ (7) を超えると getType が OfType=nil に当たる。SchemaFromIntrospection はこれだけを
-// エラーに変換し、仕様違反由来の panic (kind 不一致・型欠落) はそのまま再 panic する。
+// ofType 深さ (7) を超えると getType が OfType=nil に当たる。SchemaFromIntrospection はこれを
+// エラーに変換する。仕様から外れた応答 (kind 不一致・型欠落・null の要素) は、組み立てる前に
+// validateIntrospection がエラーにする。
 var errIntrospectionTypeTooDeep = errors.New("type nested deeper than the introspection query's ofType depth (7); use a local schema (schema.files) instead of endpoint introspection for deeply nested list/non-null types")
 
 func SchemaFromIntrospection(url string, query Query) (*ast.SchemaDocument, error) {
+	// サーバーの応答は信頼できないため、組み立てを続けられない応答は panic させずにエラーにする。
+	if err := validateIntrospection(query); err != nil {
+		return nil, fmt.Errorf("introspection schema parse failed: %w", err)
+	}
+
 	parser := parser{
 		sharedPosition: &ast.Position{Src: &ast.Source{
 			Name:    "remote",
