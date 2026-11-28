@@ -28,7 +28,8 @@
               { "name": "fl",  "type": { "kind": "SCALAR", "name": "Float",    "ofType": null }, "defaultValue": "1.5" },
               { "name": "st",  "type": { "kind": "ENUM",   "name": "Status",   "ofType": null }, "defaultValue": "ACTIVE" },
               { "name": "dt",  "type": { "kind": "SCALAR", "name": "DateTime", "ofType": null }, "defaultValue": "\"2020-01-01\"" },
-              { "name": "inp", "type": { "kind": "INPUT_OBJECT", "name": "CreateInput", "ofType": null }, "defaultValue": "{}" }
+              { "name": "inp", "type": { "kind": "INPUT_OBJECT", "name": "CreateInput", "ofType": null }, "defaultValue": "{}" },
+              { "name": "old", "type": { "kind": "SCALAR", "name": "String",   "ofType": null }, "defaultValue": null, "isDeprecated": true, "deprecationReason": "use s" }
             ],
             "isDeprecated": false
           }
@@ -75,7 +76,8 @@
         "name": "CreateInput",
         "inputFields": [
           { "name": "name", "type": { "kind": "NON_NULL", "name": null, "ofType": { "kind": "SCALAR", "name": "String", "ofType": null } }, "defaultValue": null },
-          { "name": "count", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "3" }
+          { "name": "count", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "3" },
+          { "name": "legacy", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": null, "isDeprecated": true, "deprecationReason": "use count" }
         ]
       },
       { "kind": "SCALAR", "name": "DateTime" },
@@ -88,10 +90,17 @@
     "directives": [
       {
         "name": "myDirective",
+        "isRepeatable": true,
         "locations": ["FIELD"],
         "args": [
           { "name": "level", "type": { "kind": "SCALAR", "name": "Int", "ofType": null }, "defaultValue": "1" }
         ]
+      },
+      {
+        "name": "once",
+        "isRepeatable": false,
+        "locations": ["FIELD"],
+        "args": []
       }
     ]
   }

@@ -124,7 +124,9 @@ func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.Dir
 		Name:        directiveValue.Name,
 		Arguments:   args,
 		Locations:   locations,
-		Position:    p.sharedPosition,
+		// repeatable を落とすと、同じ位置に2回書いたディレクティブを持つクエリが検証で弾かれる
+		IsRepeatable: directiveValue.IsRepeatable,
+		Position:     p.sharedPosition,
 	}
 }
 
@@ -166,6 +168,7 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 			DefaultValue: p.buildDefaultValue(field.DefaultValue, typ),
 			Type:         typ,
 			Position:     p.sharedPosition,
+			Directives:   p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationInputFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -297,6 +300,7 @@ func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {
 		DefaultValue: p.buildDefaultValue(input.DefaultValue, typ),
 		Type:         typ,
 		Position:     p.sharedPosition,
+		Directives:   p.buildDeprecatedDirective(input.IsDeprecated, input.DeprecationReason, ast.LocationArgumentDefinition),
 	}
 }
 
@@ -385,8 +389,9 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	return ast.NamedType(pointerString(typeRef.Name), p.sharedPosition)
 }
 
-// buildDeprecatedDirective は、スキーマの要素 (フィールド・enum の値) の @deprecated を組み立てる。
-// isDeprecated が false なら nil を返す。location は、その要素にディレクティブを書く位置を表す。
+// buildDeprecatedDirective は、スキーマの要素 (フィールド・引数・input フィールド・enum の値) の
+// @deprecated を組み立てる。isDeprecated が false なら nil を返す。location は、その要素に
+// ディレクティブを書く位置を表す。
 func (p parser) buildDeprecatedDirective(isDeprecated bool, deprecationReason *string, location ast.DirectiveLocation) ast.DirectiveList {
 	var directives ast.DirectiveList
 

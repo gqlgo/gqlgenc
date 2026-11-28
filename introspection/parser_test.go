@@ -65,6 +65,29 @@ func readQueryResult(t *testing.T, filename string) Query {
 	return query
 }
 
+// deprecation は、スキーマの要素に付いた @deprecated の内容。
+type deprecation struct {
+	// Reason は reason 引数の値。引数が無ければ nil
+	Reason *string
+	// Location は、ディレクティブが付いた要素の種類
+	Location ast.DirectiveLocation
+}
+
+// findDeprecation は、directives の中の @deprecated の内容を返す。@deprecated が無ければ nil を返す。
+func findDeprecation(directives ast.DirectiveList) *deprecation {
+	deprecated := directives.ForName("deprecated")
+	if deprecated == nil {
+		return nil
+	}
+
+	found := &deprecation{Location: deprecated.Location}
+	if reason := deprecated.Arguments.ForName("reason"); reason != nil {
+		found.Reason = &reason.Value.Raw
+	}
+
+	return found
+}
+
 func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 	t.Parallel()
 
@@ -163,30 +186,53 @@ func TestSchemaFromIntrospection_AllTypeKinds(t *testing.T) {
 		}
 	}
 
-	// deprecated な enum の値にだけ @deprecated が付き、理由が reason 引数に入る
+	// deprecated な要素 (enum の値・引数・input フィールド) にだけ @deprecated が付き、理由が reason 引数に、
+	// 要素の種類が Location に入る。引数と input フィールドの @deprecated を落とすと、それらを使うクエリが
+	// 検証で弾かれる
 	status := doc.Definitions.ForName("Status")
 	if status == nil {
 		t.Fatal("Status definition was not parsed")
 	}
-	wantDeprecationReasons := map[string]*string{
-		"ACTIVE":   nil,
-		"INACTIVE": func() *string { reason := "gone"; return &reason }(),
+	gotDeprecations := make(map[string]*deprecation)
+	for _, enumValue := range status.EnumValues {
+		gotDeprecations["Status."+enumValue.Name] = findDeprecation(enumValue.Directives)
 	}
-	for valueName, want := range wantDeprecationReasons {
-		enumValue := status.EnumValues.ForName(valueName)
-		if enumValue == nil {
-			t.Errorf("Status.%s enum value was not parsed", valueName)
-			continue
-		}
-		var got *string
-		if deprecated := enumValue.Directives.ForName("deprecated"); deprecated != nil {
-			if reason := deprecated.Arguments.ForName("reason"); reason != nil {
-				got = &reason.Value.Raw
-			}
-		}
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("Status.%s: deprecation reason diff(-want +got): %s", valueName, diff)
-		}
+	for _, argument := range variants.Arguments {
+		gotDeprecations["Query.variants("+argument.Name+":)"] = findDeprecation(argument.Directives)
+	}
+	for _, inputField := range createInput.Fields {
+		gotDeprecations["CreateInput."+inputField.Name] = findDeprecation(inputField.Directives)
+	}
+	reason := func(text string) *string { return &text }
+	wantDeprecations := map[string]*deprecation{
+		"Status.ACTIVE":        nil,
+		"Status.INACTIVE":      {Reason: reason("gone"), Location: ast.LocationEnumValue},
+		"Query.variants(s:)":   nil,
+		"Query.variants(b:)":   nil,
+		"Query.variants(fl:)":  nil,
+		"Query.variants(st:)":  nil,
+		"Query.variants(dt:)":  nil,
+		"Query.variants(inp:)": nil,
+		"Query.variants(old:)": {Reason: reason("use s"), Location: ast.LocationArgumentDefinition},
+		"CreateInput.name":     nil,
+		"CreateInput.count":    nil,
+		"CreateInput.legacy":   {Reason: reason("use count"), Location: ast.LocationInputFieldDefinition},
+	}
+	if diff := cmp.Diff(wantDeprecations, gotDeprecations); diff != "" {
+		t.Errorf("deprecations diff(-want +got): %s", diff)
+	}
+
+	// repeatable なディレクティブだけが repeatable になる (落とすと、同じ位置に2回書いたクエリが検証で弾かれる)
+	gotRepeatable := make(map[string]bool, len(doc.Directives))
+	for _, directive := range doc.Directives {
+		gotRepeatable[directive.Name] = directive.IsRepeatable
+	}
+	wantRepeatable := map[string]bool{
+		"myDirective": true,
+		"once":        false,
+	}
+	if diff := cmp.Diff(wantRepeatable, gotRepeatable); diff != "" {
+		t.Errorf("repeatable directives diff(-want +got): %s", diff)
 	}
 
 	// queryType / mutationType / subscriptionType が schema 定義の operation type として取り込まれる

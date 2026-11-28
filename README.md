@@ -87,6 +87,8 @@ generate:
     file: ./gen/client_gen.go
 ```
 
+`schema.endpoint` からの取得は2段階で行います。まず、サーバーが introspection のどの部分に対応しているかを問い合わせます。次に、対応している部分だけを使う introspection クエリを送ります。対応しているサーバーからは、deprecated な引数・input フィールドと、ディレクティブが repeatable かどうかも取得します。古いサーバーはこれらを使うクエリを拒否するため、問い合わせに答えないサーバーには、これらを含まないクエリを送ります。
+
 > **注意（introspection の制限）:** `schema.endpoint` での introspection は、型の list / non-null 入れ子が introspection クエリの `ofType` 深さ（7）を超えると取得できずエラーになります（例: 深くネストしたリスト型）。その場合は `schema.files` でローカルスキーマを指定してください。
 
 ### 2. コードを生成する
@@ -597,7 +599,7 @@ input := UpdateUserInput{
 
 1. **設定読み込み**（`config.LoadConfig`）: 設定ファイルの探索、YAML パース（環境変数展開・未知キー検出）、バリデーション
 2. **前回の出力の退避**（`run.go` の `backupOutputs`）: 設定された出力ファイル（model / query / client）を `<ファイル名>.gqlgenc.bak` へ移す。出力先のパッケージを束縛先としてロードするときに、前回の生成物の型を拾わないようにするためである。以降のどこかで失敗したときは、退避したファイルを元へ戻す（前回の出力を消さない）。プロセスが強制終了されて退避ファイルが残った場合は、次の実行がそれを前回の出力として扱い、成功か失敗かに応じて片付ける
-3. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。さらに gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
+3. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。loader は、サーバーが introspection のどの部分（deprecated な引数・input フィールド、repeatable なディレクティブ）に対応しているかを問い合わせてから、対応している部分だけを使う introspection クエリを送る。さらに gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
 4. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
 5. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
 6. **出力の確定**（`run.go` の `commitOutputBackups`）: 使用フィルタがすべての型を除いて宣言の無くなった model ファイルを消し、生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
@@ -630,7 +632,11 @@ sequenceDiagram
         cfg->>cfg: スキーマファイルを AST 化
     else schema.endpoint（リモート）
         cfg->>intro: loadRemoteSchema(endpoint)（注入された関数）
-        intro->>cl: client.Post(introspection)
+        intro->>cl: client.Post(capability の問い合わせ)
+        cl->>srv: HTTP POST
+        srv-->>cl: introspection の型が持つフィールドと引数
+        cl-->>intro: introspection.CapabilityQuery（失敗したら capability なしとして続ける）
+        intro->>cl: client.Post(NewQuery(capabilities))
         cl->>srv: HTTP POST
         srv-->>cl: __schema 結果
         cl-->>intro: introspection.Query

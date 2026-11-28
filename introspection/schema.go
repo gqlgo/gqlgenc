@@ -13,6 +13,8 @@ import (
 	"github.com/vektah/gqlparser/v2/validator"
 )
 
+// Introspection is the introspection query for a server that supports none of
+// the optional parts of introspection. It equals NewQuery(Capabilities{}).
 const Introspection = `query Query {
       __schema {
         queryType { name }
@@ -156,11 +158,15 @@ type FieldValue struct {
 	IsDeprecated      bool          `json:"isDeprecated"`
 }
 
+// InputValue is an argument or an input field. DeprecationReason and
+// IsDeprecated are set only when the server has Capabilities.InputValueDeprecation.
 type InputValue struct {
-	Type         TypeRef `json:"type"`
-	Description  *string `json:"description"`
-	DefaultValue *string `json:"defaultValue"`
-	Name         string  `json:"name"`
+	Type              TypeRef `json:"type"`
+	Description       *string `json:"description"`
+	DefaultValue      *string `json:"defaultValue"`
+	DeprecationReason *string `json:"deprecationReason"`
+	Name              string  `json:"name"`
+	IsDeprecated      bool    `json:"isDeprecated"`
 }
 
 type TypeRef struct {
@@ -185,24 +191,37 @@ type Query struct {
 	} `json:"__schema"`
 }
 
+// DirectiveType is a directive definition. IsRepeatable is set only when the
+// server has Capabilities.RepeatableDirective.
 type DirectiveType struct {
-	Name        string        `json:"name"`
-	Description *string       `json:"description"`
-	Locations   []string      `json:"locations"`
-	Args        []*InputValue `json:"args"`
+	Name         string        `json:"name"`
+	Description  *string       `json:"description"`
+	Locations    []string      `json:"locations"`
+	Args         []*InputValue `json:"args"`
+	IsRepeatable bool          `json:"isRepeatable"`
 }
 
-// introspectionOperation is the typed operation for the GraphQL schema introspection
-// query. It takes no variables.
-var introspectionOperation = client.Operation[client.Query, struct{}, Query]{
-	Name:     "Query",
-	Document: Introspection,
+// introspectionOperation returns the typed operation for the GraphQL schema
+// introspection query sent to a server with the given capabilities. It takes
+// no variables.
+func introspectionOperation(capabilities Capabilities) client.Operation[client.Query, struct{}, Query] {
+	return client.Operation[client.Query, struct{}, Query]{
+		Name:     "Query",
+		Document: NewQuery(capabilities),
+	}
 }
 
 // LoadRemoteSchema fetches the schema from a GraphQL endpoint via an
 // introspection query and returns it as a validated AST. It reuses the runtime
 // client so that the config package can stay free of the client dependency:
 // the layer that handles config (run.go) calls this and assigns the result.
+//
+// The schema is loaded in two steps. A capability query first asks which
+// optional parts of introspection the server declares (deprecated arguments
+// and input fields, repeatable directives), and the introspection query then
+// uses only those parts, because a server built before they existed rejects a
+// query that uses them. A server that does not answer the capability query
+// gets the query without the optional parts (Introspection).
 func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error) {
 	var options []client.Option
 	if len(header) > 0 {
@@ -213,7 +232,7 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 
 	gqlClient := client.NewClient(endpoint, options...)
 
-	res, err := gqlClient.Post(ctx, introspectionOperation, struct{}{})
+	res, err := gqlClient.Post(ctx, introspectionOperation(remoteCapabilities(ctx, gqlClient)), struct{}{})
 	if err != nil {
 		return nil, fmt.Errorf("introspection query failed: %w", err)
 	}
