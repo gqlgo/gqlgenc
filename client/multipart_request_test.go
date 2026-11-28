@@ -3,6 +3,7 @@ package client
 import (
 	json "encoding/json/v2"
 	"io"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +49,7 @@ func TestNewPostRequestUpload(t *testing.T) {
 		operationsContains []string
 		mapping            map[string][]string
 		files              map[string]string
+		partHeaders        map[string]textproto.MIMEHeader
 		bodyContains       []string
 		err                error
 	}
@@ -266,6 +268,56 @@ func TestNewPostRequestUpload(t *testing.T) {
 				err: errUploadWithoutFile,
 			},
 		},
+		{
+			// ContentType の改行はパートのヘッダーと本文の区切りを壊すため、エラーにする
+			name: "ContentTypeに改行を含むUploadはエラー",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload!) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					upload := newUpload(t, "test.txt", "test content")
+					upload.ContentType = "text/plain\r\nX-Injected: 1"
+					return map[string]any{"file": upload}
+				},
+			},
+			want: want{
+				err: errUploadContentTypeLineBreak,
+			},
+		},
+		{
+			// ファイル名の " と \ はエスケープし、CR と LF は %0D・%0A にする (mime/multipart の
+			// CreateFormFile と同じ)。改行をそのまま書くと、受け側がファイル名の後ろをパートの
+			// ヘッダー (X-Injected) と本文として読む。
+			name: "ファイル名の引用符と改行はエスケープする",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload!) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					upload := newUpload(t, "test.txt", "test content")
+					upload.Filename = "a.txt\"\r\nX-Injected: 1\r\n\r\nbody"
+					upload.ContentType = "text/plain"
+					return map[string]any{"file": upload}
+				},
+			},
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"file":null`},
+				mapping: map[string][]string{
+					"0": {"variables.file"},
+				},
+				files: map[string]string{
+					"0": "test content",
+				},
+				partHeaders: map[string]textproto.MIMEHeader{
+					"0": {
+						"Content-Disposition": {`form-data; name="0"; filename="a.txt\"%0D%0AX-Injected: 1%0D%0A%0D%0Abody"`},
+						"Content-Type":        {"text/plain"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -352,6 +404,12 @@ func TestNewPostRequestUpload(t *testing.T) {
 
 				if diff := cmp.Diff(wantContent, string(content)); diff != "" {
 					t.Errorf("file %q content diff(-want +got): %s", fieldName, diff)
+				}
+
+				if wantHeader, ok := tt.want.partHeaders[fieldName]; ok {
+					if diff := cmp.Diff(wantHeader, headers[0].Header); diff != "" {
+						t.Errorf("file %q header diff(-want +got): %s", fieldName, diff)
+					}
 				}
 			}
 		})

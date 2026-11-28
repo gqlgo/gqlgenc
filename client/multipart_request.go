@@ -16,9 +16,14 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
-// errUploadWithoutFile は、File が nil の graphql.Upload を送ろうとしたことを表す。
-// 必須の Upload! 変数は値型で生成されるため、設定し忘れたゼロ値で起こり得る。
-var errUploadWithoutFile = errors.New("graphql.Upload has a nil File")
+var (
+	// errUploadWithoutFile は、File が nil の graphql.Upload を送ろうとしたことを表す。
+	// 必須の Upload! 変数は値型で生成されるため、設定し忘れたゼロ値で起こり得る。
+	errUploadWithoutFile = errors.New("graphql.Upload has a nil File")
+	// errUploadContentTypeLineBreak は、graphql.Upload の ContentType が改行を含むことを表す。
+	// そのままパートのヘッダーに書くと、ヘッダーと本文の区切りが壊れる。
+	errUploadContentTypeLineBreak = errors.New("graphql.Upload ContentType contains a line break")
+)
 
 // uploadCollector は variables のエンコード中に現れた graphql.Upload を収集する。
 // 値の位置には JSON null を書き込み、ファイル本体とその JSON パスを
@@ -50,10 +55,13 @@ func (c *uploadCollector) marshalers() *json.Marshalers {
 
 // collect は Upload の位置に JSON null を書き、ファイルとその位置を記録する。位置は JSON Pointer
 // (例: /variables/input/file) を graphql-multipart-request-spec のパス表記 (例: variables.input.file)
-// に変換したもの。File が nil の Upload はエラーにする。
+// に変換したもの。File が nil の Upload と、ContentType が改行を含む Upload はエラーにする。
 func (c *uploadCollector) collect(enc *jsontext.Encoder, upload graphql.Upload) error {
 	if upload.File == nil {
 		return errUploadWithoutFile
+	}
+	if strings.ContainsAny(upload.ContentType, "\r\n") {
+		return fmt.Errorf("%w: %q", errUploadContentTypeLineBreak, upload.ContentType)
 	}
 
 	if err := enc.WriteToken(jsontext.Null); err != nil {
@@ -65,10 +73,6 @@ func (c *uploadCollector) collect(enc *jsontext.Encoder, upload graphql.Upload) 
 
 	return nil
 }
-
-// quoteEscaper は MIME ヘッダーのクォート内で特別扱いされる文字をエスケープする。
-// mime/multipart 本体が form フィールドに対して行うエスケープと同じ規則。
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
 // newMultipartRequest は graphql-multipart-request-spec に従った
 // multipart/form-data リクエストを構築する。ボディは io.Pipe 経由でストリーミングし、
@@ -144,7 +148,8 @@ func writeMultipartBody(writer *multipart.Writer, operations []byte, uploads *up
 
 // filePartHeader はファイルパートの MIME ヘッダーを組み立てる。Upload.ContentType が
 // 指定されていればそれを使い、無ければ application/octet-stream にフォールバックする。
-// Content-Disposition のエスケープは mime/multipart の CreateFormFile と同じにする。
+// Content-Disposition は mime/multipart の CreateFormFile と同じく、" と \ を \ でエスケープし、
+// CR と LF を %0D・%0A にする (ファイル名の改行でヘッダーを足されないようにする)。
 func filePartHeader(fieldName string, upload graphql.Upload) textproto.MIMEHeader {
 	contentType := upload.ContentType
 	if contentType == "" {
@@ -152,10 +157,7 @@ func filePartHeader(fieldName string, upload graphql.Upload) textproto.MIMEHeade
 	}
 
 	header := textproto.MIMEHeader{}
-	header.Set("Content-Disposition", fmt.Sprintf(
-		`form-data; name="%s"; filename="%s"`,
-		quoteEscaper.Replace(fieldName), quoteEscaper.Replace(upload.Filename),
-	))
+	header.Set("Content-Disposition", multipart.FileContentDisposition(fieldName, upload.Filename))
 	header.Set("Content-Type", contentType)
 
 	return header
