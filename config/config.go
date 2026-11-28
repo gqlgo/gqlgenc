@@ -1,36 +1,58 @@
+// Package config は、設定ファイル (.gqlgenc.yml) を読み込む。
+//
+// Config は設定の値だけを持つ。スキーマ・クエリ・Go の型の束縛など、設定から読み込んだ結果は
+// 持たず、読み込みは呼び出し側 (main) が順に行う。
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/goccy/go-yaml"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-	"github.com/99designs/gqlgen/plugin/federation"
-
-	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
-	"github.com/Yamashou/gqlgenc/v3/queryparser"
-
-	"github.com/vektah/gqlparser/v2"
-	"github.com/vektah/gqlparser/v2/ast"
 )
 
 // errNoSchemaSource is returned when neither a local schema nor a remote
 // endpoint is configured.
 var errNoSchemaSource = errors.New("neither 'schema' nor 'endpoint' specified. Use schema to load from a local file, use endpoint to load from a remote server (using introspection)")
 
-// Config is gqlgenc's internal configuration: the gqlgenc-specific settings plus
-// the gqlgen config they drive. It is built from the on-disk fileConfig by
-// LoadConfig; the YAML file no longer maps onto it directly.
+// Config は、設定ファイルから読み込んだ設定の値。LoadConfig が fileConfig から作る。
+// YAML の形 (fileConfig) とは対応せず、生成の各段階が使う形にしてある。
 type Config struct {
-	GQLGencConfig *GQLGencConfig
-	GQLGenConfig  *gqlgenconfig.Config
+	// SchemaFiles は schema.files のグロブを展開した、スキーマのファイルの一覧 (名前順)。
+	// Endpoint とは、どちらか一方だけを持つ。
+	SchemaFiles []string
+	// Endpoint は schema.endpoint。スキーマを introspection で取得するサーバー。
+	Endpoint *EndPointConfig
+	// FederationVersion は schema.federation.version。0 なら Apollo Federation のディレクティブを
+	// スキーマへ足さない。
+	FederationVersion int
+
+	// Query は query.files。クエリのファイルのグロブ。
+	Query []string
+
+	// TypeAutobind は bind.type.packages。スキーマの型を、同じ名前の Go 型へ束縛するパッケージ。
+	TypeAutobind []string
+	// Models は bind.type.named。スキーマの型ごとの、束縛先の Go 型。
+	Models gqlgenconfig.TypeMap
+	// FragmentAutobind は bind.fragment.packages。フラグメントを、同じ名前の Go 型へ束縛するパッケージ。
+	FragmentAutobind []string
+
+	// ModelGen は generate.model.file の出力先。省略できる (IsDefined が false)。
+	ModelGen gqlgenconfig.PackageConfig
+	// ModelOnlyUsed は、クエリで使われている Input / Enum 型だけを生成するか (デフォルト true)。
+	// false のときはスキーマの全 Input / Enum 型を生成する。
+	ModelOnlyUsed bool
+	// QueryGen は generate.query.file の出力先。省略できる。
+	QueryGen gqlgenconfig.PackageConfig
+	// GenerateGetters は generate.query.getters。レスポンスの型に getter を生成するか。
+	GenerateGetters bool
+	// ClientGen は generate.client.file の出力先。省略できる。
+	ClientGen gqlgenconfig.PackageConfig
 }
 
 // fileConfig is the on-disk .gqlgenc.yml schema. gqlgenc owns this schema and
@@ -112,7 +134,7 @@ type generateClientConfig struct {
 }
 
 // LoadConfig reads, parses and validates a .gqlgenc.yml file and translates it
-// into the internal Config (gqlgenc settings + the gqlgen config they drive).
+// into Config.
 func LoadConfig(configFilename string) (*Config, error) {
 	configContent, err := os.ReadFile(configFilename)
 	if err != nil {
@@ -149,242 +171,53 @@ func LoadConfig(configFilename string) (*Config, error) {
 		federationVersion = fc.Schema.Federation.Version
 	}
 
-	// translate fileConfig into the internal Config
 	c := Config{
-		GQLGencConfig: &GQLGencConfig{
-			QueryGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Query.File},
-			ClientGen:        gqlgenconfig.PackageConfig{Filename: fc.Generate.Client.File},
-			Endpoint:         fc.Schema.Endpoint,
-			Query:            fc.Query.Files,
-			FragmentAutobind: fc.Bind.Fragment.Packages,
-			TypeAutobind:     fc.Bind.Type.Packages,
-			GenerateGetters:  fc.Generate.Query.Getters,
-			ModelOnlyUsed:    fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,
-		},
-		GQLGenConfig: &gqlgenconfig.Config{
-			SchemaFilename: gqlgenconfig.StringList(fc.Schema.Files),
-			Model:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
-			Models:         fc.Bind.Type.Named,
-			Federation:     gqlgenconfig.PackageConfig{Version: federationVersion},
-			// v3 が常に使う設定を固定する (gqlgen の生 config はユーザに露出しない)。
-			// json/v2 では omitzero が undefined の省略を担うため omitempty は不要。明示的に無効化して
-			// model の nullable フィールドのタグを OperationVars と同じ omitzero のみに揃える。
-			StructTag:                   "json",
-			StructFieldsAlwaysPointers:  false,
-			NullableInputOmittable:      true,
-			EnableModelJsonOmitzeroTag:  new(true),
-			EnableModelJsonOmitemptyTag: new(false),
-		},
+		SchemaFiles:       nil,
+		Endpoint:          fc.Schema.Endpoint,
+		FederationVersion: federationVersion,
+		Query:             fc.Query.Files,
+		TypeAutobind:      fc.Bind.Type.Packages,
+		Models:            fc.Bind.Type.Named,
+		FragmentAutobind:  fc.Bind.Fragment.Packages,
+		ModelGen:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
+		ModelOnlyUsed:     fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,
+		QueryGen:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Query.File},
+		GenerateGetters:   fc.Generate.Query.Getters,
+		ClientGen:         gqlgenconfig.PackageConfig{Filename: fc.Generate.Client.File},
 	}
 
+	// 出力先は、指定したものだけを確かめる。Check は、ファイル名を絶対パスにし、パッケージ名を
+	// ディレクトリから決める。
 	// model はサーバー側 (gqlgen) で生成済みのモデルを autobind で使う場合に省略できる
-	if c.GQLGenConfig.Model.IsDefined() {
-		if err := c.GQLGenConfig.Model.Check(); err != nil {
-			return nil, fmt.Errorf("generate.model.file: %w", err)
+	outputs := []struct {
+		key    string
+		output *gqlgenconfig.PackageConfig
+	}{
+		{key: "generate.model.file", output: &c.ModelGen},
+		{key: "generate.query.file", output: &c.QueryGen},
+		{key: "generate.client.file", output: &c.ClientGen},
+	}
+	for _, o := range outputs {
+		if !o.output.IsDefined() {
+			continue
+		}
+		if err := o.output.Check(); err != nil {
+			return nil, fmt.Errorf("%s: %w", o.key, err)
 		}
 	}
 
-	// Fill gqlgen config fields
-	schemaFilename, err := schemaFilenames(c.GQLGenConfig.SchemaFilename)
-	if err != nil {
-		return nil, err
-	}
-	c.GQLGenConfig.SchemaFilename = schemaFilename
-
-	sources, err := schemaFileSources(c.GQLGenConfig.SchemaFilename)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.GQLGenConfig.Federation.Version != 0 {
-		fedPlugin, err := federation.New(c.GQLGenConfig.Federation.Version, c.GQLGenConfig)
+	if hasFiles {
+		c.SchemaFiles, err = schemaFilenames(fc.Schema.Files)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create federation plugin: %w", err)
+			return nil, err
 		}
-
-		federationSources, err := fedPlugin.InjectSourcesEarly()
-		if err != nil {
-			return nil, fmt.Errorf("failed to inject federation directives: %w", err)
-		}
-
-		sources = append(sources, federationSources...)
-	}
-
-	c.GQLGenConfig.Sources = sources
-
-	// gqlgen must be followings parameters
-	// クライアント生成では使用しないため固定のダミーファイル名を設定する
-	const unusedGenFilename = "generated.go"
-	c.GQLGenConfig.Directives = make(map[string]gqlgenconfig.DirectiveConfig)
-	c.GQLGenConfig.Exec = gqlgenconfig.ExecConfig{Filename: unusedGenFilename}
-	c.GQLGenConfig.Resolver = gqlgenconfig.ResolverConfig{Filename: unusedGenFilename}
-	c.GQLGenConfig.Federation = gqlgenconfig.PackageConfig{Filename: unusedGenFilename}
-
-	// gqlgenc validation
-	if c.GQLGencConfig.QueryGen.IsDefined() {
-		if err := c.GQLGencConfig.QueryGen.Check(); err != nil {
-			return nil, fmt.Errorf("generate.query.file: %w", err)
-		}
-	}
-	if c.GQLGencConfig.ClientGen.IsDefined() {
-		if err := c.GQLGencConfig.ClientGen.Check(); err != nil {
-			return nil, fmt.Errorf("generate.client.file: %w", err)
+		// グロブがどのファイルにも一致しなければ、スキーマを読み込む先が無い
+		if len(c.SchemaFiles) == 0 {
+			return nil, errNoSchemaSource
 		}
 	}
 
 	return &c, nil
-}
-
-// RemoteSchemaLoader fetches an AST schema from a GraphQL endpoint via
-// introspection. Injecting it lets LoadSchema load a remote schema while
-// keeping the config package free of the client dependency.
-type RemoteSchemaLoader func(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error)
-
-func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLoader) error {
-	// Load schema
-	switch {
-	case c.GQLGenConfig.SchemaFilename != nil:
-		// gqlgen の LoadSchema は使わない。Packages キャッシュを無条件に作り直し、
-		// その場でプリロード用の go list が走るため、複数 config 間で共有している
-		// キャッシュが config ごとに使い捨てられてしまう。本質的な処理は
-		// gqlparser.LoadSchema と Query 型の補完だけなので、ここで直接行う
-		// (endpoint 経路が Schema を直接セットするのと同じ扱い)。検証は後段の
-		// Init() が行う。
-		schema, err := gqlparser.LoadSchema(c.GQLGenConfig.Sources...)
-		if err != nil {
-			return fmt.Errorf("load local schema failed: %w", err)
-		}
-		if schema.Query == nil {
-			schema.Query = &ast.Definition{Kind: ast.Object, Name: "Query"}
-			schema.Types["Query"] = schema.Query
-		}
-		c.GQLGenConfig.Schema = schema
-	case c.GQLGencConfig.Endpoint != nil:
-		// リモート(endpoint)のスキーマ取得は注入された loadRemoteSchema に委ねる。
-		// これにより config パッケージは client / introspection に依存しない。
-		schema, err := loadRemoteSchema(ctx, c.GQLGencConfig.Endpoint.URL, http.Header(c.GQLGencConfig.Endpoint.Headers))
-		if err != nil {
-			return fmt.Errorf("introspect schema failed: %w", err)
-		}
-		c.GQLGenConfig.Schema = schema
-	default:
-		return errNoSchemaSource
-	}
-
-	// 事前条件: 前回の生成物 (model / query / client の出力ファイル) は、呼び出し側が出力先から
-	// 外してある。残っていると、下の Init() と autobind が前回の生成物の型を束縛先の型として拾う。
-	// 生成の失敗時に戻せるよう、消すのではなく退避するのは呼び出し側 (run.go) の責務とする。
-
-	// gqlgen.Config.Init() に必要なフィールドを初期化
-	if c.GQLGenConfig.Models == nil {
-		c.GQLGenConfig.Models = make(gqlgenconfig.TypeMap)
-	}
-	if c.GQLGenConfig.StructTag == "" {
-		c.GQLGenConfig.StructTag = "json"
-	}
-
-	// autobind は gqlgen (ソース型検査を伴う重いロード) ではなく、export data のみを
-	// 読む自前の軽量 binder で行う。codegen の型解決もこの binder を使う。
-	// gqlgen が Init でロード済みのパッケージ (graphql / introspection / named 束縛先) は
-	// fallback で再利用し、二重ロードを避ける。
-	if c.GQLGencConfig.TypeBinder == nil {
-		c.GQLGencConfig.TypeBinder = typebind.New()
-	}
-
-	// 束縛先のロードと gqlgen の Init() はどちらも go list サブプロセスの待ちが支配的で、
-	// 互いに独立している (TypeBinder は自前の map のみ、Init は gqlgen の Packages のみに
-	// 触れる) ため並行実行する。fallback の設定と Autobind は両方の完了後に行う。
-	bindPaths := make([]string, 0, len(c.GQLGencConfig.TypeAutobind)+len(c.GQLGencConfig.FragmentAutobind))
-	bindPaths = append(bindPaths, c.GQLGencConfig.TypeAutobind...)
-	bindPaths = append(bindPaths, c.GQLGencConfig.FragmentAutobind...)
-	loadErrCh := make(chan error, 1)
-	go func() {
-		loadErrCh <- c.GQLGencConfig.TypeBinder.Load(bindPaths...)
-	}()
-
-	initErr := c.GQLGenConfig.Init()
-
-	if err := <-loadErrCh; err != nil {
-		return fmt.Errorf("load bound packages failed: %w", err)
-	}
-	if initErr != nil {
-		return fmt.Errorf("generating core failed: %w", initErr)
-	}
-
-	c.GQLGencConfig.TypeBinder.SetFallback(c.GQLGenConfig.Packages.LoadWithTypes)
-
-	if err := c.GQLGencConfig.TypeBinder.Autobind(c.GQLGenConfig.Schema, c.GQLGenConfig.Models, c.GQLGencConfig.TypeAutobind); err != nil {
-		return fmt.Errorf("autobind failed: %w", err)
-	}
-
-	// model を生成しない場合は modelgen が動かないため、custom scalar の既定を補う。
-	if !c.GQLGenConfig.Model.IsDefined() {
-		bindDefaultScalars(c.GQLGenConfig.Schema, c.GQLGenConfig.Models)
-	}
-
-	// sort Implements to ensure a deterministic output
-	for _, implements := range c.GQLGenConfig.Schema.Implements {
-		slices.SortFunc(implements, func(a, b *ast.Definition) int {
-			return strings.Compare(a.Name, b.Name)
-		})
-	}
-
-	return nil
-}
-
-// bindDefaultScalars は、まだモデルが束縛されていない schema の custom scalar を
-// graphql.String に束縛する。これは gqlgen modelgen が非 user-defined scalar に与える既定
-// (plugin/modelgen の b.Scalars 束縛) と揃えたもので、modelgen が動かない (model を生成しない)
-// 構成でも同じ既定を適用するために使う。
-//
-// autobind / models: / built-in で既に束縛済みの scalar は UserDefined のため対象外で、
-// 対応する型がある場合はその型へのバインドが優先される。
-func bindDefaultScalars(schema *ast.Schema, models gqlgenconfig.TypeMap) {
-	for _, t := range schema.Types {
-		if t.Kind == ast.Scalar && !models.UserDefined(t.Name) {
-			models.Add(t.Name, "github.com/99designs/gqlgen/graphql.String")
-		}
-	}
-}
-
-// GQLGencConfig holds gqlgenc's settings, built by LoadConfig from the on-disk
-// fileConfig. It is no longer parsed from YAML directly.
-type GQLGencConfig struct {
-	QueryGen         gqlgenconfig.PackageConfig
-	ClientGen        gqlgenconfig.PackageConfig
-	Endpoint         *EndPointConfig
-	Query            []string
-	FragmentAutobind []string
-	TypeAutobind     []string
-	TypeBinder       *typebind.Binder
-	GenerateGetters  bool
-	// ModelOnlyUsed はクエリで使われている Input / Enum 型だけを生成するか (デフォルト true)。
-	// false のときはスキーマの全 Input / Enum 型を生成する。
-	ModelOnlyUsed           bool
-	QueryDocument           *ast.QueryDocument
-	OperationQueryDocuments []*ast.QueryDocument
-}
-
-func (c *GQLGencConfig) LoadQuery(schema *ast.Schema) error {
-	querySources, err := queryparser.LoadQuerySources(c.Query)
-	if err != nil {
-		return fmt.Errorf("load query sources failed: %w", err)
-	}
-
-	queryDocument, err := queryparser.QueryDocument(schema, querySources)
-	if err != nil {
-		return fmt.Errorf("build query document failed: %w", err)
-	}
-
-	operationQueryDocuments, err := queryparser.OperationQueryDocuments(schema, queryDocument.Operations)
-	if err != nil {
-		return fmt.Errorf("build operation documents failed: %w", err)
-	}
-
-	c.QueryDocument = queryDocument
-	c.OperationQueryDocuments = operationQueryDocuments
-
-	return nil
 }
 
 // EndPointConfig are the allowed options for the 'endpoint' config.

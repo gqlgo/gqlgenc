@@ -637,7 +637,7 @@ func Test_IntegrationTest_OperationNameNotGoStyle(t *testing.T) {
 // model 出力先パッケージを bind.type.packages にも指定し、手書きコード (gen/helper.go) が
 // 生成型を参照する自己参照レイアウトの回帰テスト。再生成の開始時に model_gen.go が出力先から
 // 退避されるため、autobind は「手書きコードが未定義の型を参照する壊れたパッケージ」をロードする。
-// modelgen が model_gen.go を書いた後に TypeBinder のキャッシュを evict しないと、codegen の
+// modelgen が model_gen.go を書いた後に binder (internal/typebind) のキャッシュを evict しないと、codegen の
 // 型解決が生成前の状態を見て unable to find type で失敗する。
 func Test_IntegrationTest_SelfBind(t *testing.T) {
 	defer func() {

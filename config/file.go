@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/Yamashou/gqlgenc/v3/internal/glob"
-
-	"github.com/vektah/gqlparser/v2/ast"
 )
 
 // FindConfigFile walks up from path looking for the closest match.
@@ -63,21 +61,4 @@ func schemaFilenames(schemaFilenameGlobs []string) ([]string, error) {
 	slices.Sort(filenames)
 
 	return filenames, nil
-}
-
-func schemaFileSources(schemaFilenames []string) ([]*ast.Source, error) {
-	sources := make([]*ast.Source, 0, len(schemaFilenames))
-
-	for _, schemaFilename := range schemaFilenames {
-		schemaFilename = filepath.ToSlash(schemaFilename)
-
-		schemaRaw, err := os.ReadFile(schemaFilename)
-		if err != nil {
-			return nil, fmt.Errorf("unable to open schema: %w", err)
-		}
-
-		sources = append(sources, &ast.Source{Name: schemaFilename, Input: string(schemaRaw)})
-	}
-
-	return sources, nil
 }

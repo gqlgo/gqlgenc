@@ -209,15 +209,12 @@ func TestValidateOutputs(t *testing.T) {
 				return gqlgenconfig.PackageConfig{Filename: filepath.Join(dir, name)}
 			}
 			cfg := &config.Config{
-				GQLGenConfig: &gqlgenconfig.Config{Model: output(tt.args.model)},
-				GQLGencConfig: &config.GQLGencConfig{
-					QueryGen:   output(tt.args.query),
-					ClientGen:  output(tt.args.client),
-					TypeBinder: binder,
-				},
+				ModelGen:  output(tt.args.model),
+				QueryGen:  output(tt.args.query),
+				ClientGen: output(tt.args.client),
 			}
 
-			err := validateOutputs(cfg)
+			err := validateOutputs(cfg, &packageCache{gqlgen: nil, binder: binder})
 
 			if got := maskTestDirs(t, err, dir); !cmputil.EqualErrorMessage(tt.want.err, got) {
 				t.Errorf("error:\nwant: %v\n got: %v", tt.want.err, got)

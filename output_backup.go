@@ -8,10 +8,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"slices"
-
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 
 	"github.com/Yamashou/gqlgenc/v3/config"
 )
@@ -61,20 +58,15 @@ type outputBackup struct {
 // 事前条件: 作業ディレクトリが、出力ファイルの相対パスの基準になっている。
 // 事後条件: 成功したら、設定された出力ファイルは出力先に無い。失敗したら、それまでに退避した
 // 出力を元へ戻してからエラーを返す。
-func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
-	outputs := []*gqlgenconfig.PackageConfig{
-		&cfg.GQLGenConfig.Model,
-		&cfg.GQLGencConfig.QueryGen,
-		&cfg.GQLGencConfig.ClientGen,
-	}
+func backupOutputs(cfg *config.Config, cache *packageCache) ([]*outputBackup, error) {
+	outputs := outputConfigs(cfg)
 	backups := make([]*outputBackup, 0, len(outputs))
 
 	for _, output := range outputs {
-		if !output.IsDefined() {
-			continue
-		}
-
-		evictOutputPackage(cfg, output)
+		// 出力先のパッケージをキャッシュから外す。複数の設定を 1 プロセスで処理するとき、前の設定が
+		// このパッケージを退避前のファイル込みでロードしていることがある。そのキャッシュを使い続けると、
+		// 退避した前回の生成物の型を束縛先の型として拾ってしまう。
+		cache.evict(output)
 
 		backup, err := backupOutput(output.Filename)
 		if err != nil {
@@ -89,21 +81,6 @@ func backupOutputs(cfg *config.Config) ([]*outputBackup, error) {
 	}
 
 	return backups, nil
-}
-
-// evictOutputPackage は、出力先のパッケージをキャッシュから外す。複数の設定を 1 プロセスで
-// 処理するとき、前の設定がこのパッケージを退避前のファイル込みでロードしていることがある。
-// そのキャッシュを使い続けると、退避した前回の生成物の型を束縛先の型として拾ってしまう。
-func evictOutputPackage(cfg *config.Config, output *gqlgenconfig.PackageConfig) {
-	if cfg.GQLGenConfig.Packages != nil {
-		cfg.GQLGenConfig.Packages.Evict(output.ImportPath())
-	}
-
-	if cfg.GQLGencConfig.TypeBinder != nil {
-		if dir, err := filepath.Abs(output.Dir()); err == nil {
-			cfg.GQLGencConfig.TypeBinder.EvictDir(dir)
-		}
-	}
 }
 
 // backupOutput は、path のファイルを path + outputBackupSuffix へ退避する。
@@ -300,8 +277,8 @@ func (b *outputBackup) applyCommit(action outputCommitAction) error {
 // gqlgen の modelgen は、生成する型があるかを判定した後で gqlgenc の使用フィルタを呼ぶ。
 // フィルタがすべての型を除くと package 句だけのファイルが書かれるため、model を生成しない
 // 場合と同じ出力になるようにそのファイルを消す。
-func removePackageClauseOnlyModel(cfg *config.Config) error {
-	model := &cfg.GQLGenConfig.Model
+func removePackageClauseOnlyModel(cfg *config.Config, cache *packageCache) error {
+	model := &cfg.ModelGen
 	if !model.IsDefined() || !isPackageClauseOnly(model.Filename) {
 		return nil
 	}
@@ -311,9 +288,7 @@ func removePackageClauseOnlyModel(cfg *config.Config) error {
 	}
 
 	// ファイルを消したパッケージを、後続の設定が消した後の状態でロードし直すようにする
-	if cfg.GQLGenConfig.Packages != nil {
-		cfg.GQLGenConfig.Packages.Evict(model.ImportPath())
-	}
+	cache.evict(model)
 
 	return nil
 }

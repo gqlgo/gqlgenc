@@ -10,6 +10,30 @@ import (
 	"github.com/vektah/gqlparser/v2/validator"
 )
 
+// Load は、クエリのファイル queryFiles (グロブ) を読み、スキーマ schema に対して検証する。
+//
+// 戻り値の 1 つ目は、すべてのオペレーションとフラグメントを持つドキュメント。2 つ目は、
+// オペレーションごとに、そのオペレーションと、それが参照するフラグメントだけを持つドキュメント
+// (サーバーへ送るクエリになる)。
+func Load(schema *ast.Schema, queryFiles []string) (*ast.QueryDocument, []*ast.QueryDocument, error) {
+	querySources, err := LoadQuerySources(queryFiles)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load query sources failed: %w", err)
+	}
+
+	queryDocument, err := QueryDocument(schema, querySources)
+	if err != nil {
+		return nil, nil, fmt.Errorf("build query document failed: %w", err)
+	}
+
+	operationQueryDocuments, err := OperationQueryDocuments(schema, queryDocument.Operations)
+	if err != nil {
+		return nil, nil, fmt.Errorf("build operation documents failed: %w", err)
+	}
+
+	return queryDocument, operationQueryDocuments, nil
+}
+
 // QueryDocument parses and validate query sources.
 func QueryDocument(schema *ast.Schema, querySources []*ast.Source) (*ast.QueryDocument, error) {
 	var queryDocument ast.QueryDocument

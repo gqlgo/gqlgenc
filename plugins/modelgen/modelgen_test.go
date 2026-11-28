@@ -5,10 +5,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/plugin/modelgen"
-
-	"github.com/Yamashou/gqlgenc/v3/config"
 
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -92,9 +89,7 @@ type UsedObject {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &config.Config{GQLGenConfig: &gqlgenconfig.Config{Schema: schema}}
-
-			got := mutateHook(cfg, tt.args.usedTypes)(tt.args.build)
+			got := mutateHook(schema, tt.args.usedTypes)(tt.args.build)
 
 			var models []string
 			for _, model := range got.Models {

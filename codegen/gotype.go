@@ -29,6 +29,9 @@ type ResponseType struct {
 
 type GoTypeGenerator struct {
 	cfg    *config.Config
+	schema *graphql.Schema
+	// models は、スキーマの型ごとの束縛先の Go 型
+	models gqlgenconfig.TypeMap
 	binder *typebind.Binder
 	// types は、生成する型を Go の型名で引く表
 	types map[string]*ResponseType
@@ -39,10 +42,14 @@ type GoTypeGenerator struct {
 	typeNameErr error
 }
 
-func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
+// NewGoTypeGenerator は GoTypeGenerator を作る。schema は読み込んだスキーマ、models はスキーマの型の
+// 束縛、binder は束縛先の Go 型を解決する binder。
+func NewGoTypeGenerator(cfg *config.Config, schema *graphql.Schema, models gqlgenconfig.TypeMap, binder *typebind.Binder) *GoTypeGenerator {
 	return &GoTypeGenerator{
 		cfg:             cfg,
-		binder:          cfg.GQLGencConfig.TypeBinder,
+		schema:          schema,
+		models:          models,
+		binder:          binder,
 		types:           map[string]*ResponseType{},
 		typeNameOrigins: map[string]string{},
 		typeNameErr:     nil,
@@ -350,7 +357,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 // なり得ない具体型は除く。例えば File を返すフィールドの中の `... on Node` は、Node を実装していても
 // File を実装していない型にはならない。
 func (g *GoTypeGenerator) possibleTypeNames(typeCondition string, enclosing *graphql.Definition) []string {
-	schema := g.cfg.GQLGenConfig.Schema
+	schema := g.schema
 	definition, ok := schema.Types[typeCondition]
 	if !ok {
 		return nil
@@ -409,7 +416,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 		if sel.Name == typenameFieldName {
 			fieldType = &graphql.Type{NamedType: fieldType.NamedType, NonNull: true}
 		}
-		t := scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, fieldType, g.setErr)
+		t := scalarGoType(g.binder, g.models, fieldType, g.setErr)
 		return Scalar, t
 	}
 
@@ -483,7 +490,7 @@ func (g *GoTypeGenerator) newObjectGoType(baseType gotypes.Type, gqlType *graphq
 func (g *GoTypeGenerator) newResponseType(typeName string, fields Fields) gotypes.Type {
 	g.types[typeName] = &ResponseType{Name: typeName, Fields: fields.uniqueByName()}
 
-	return gotypes.NewNamed(gotypes.NewTypeName(0, g.cfg.GQLGencConfig.QueryGen.Pkg(), typeName, nil), gotypes.NewStruct(nil, nil), nil)
+	return gotypes.NewNamed(gotypes.NewTypeName(0, g.cfg.QueryGen.Pkg(), typeName, nil), gotypes.NewStruct(nil, nil), nil)
 }
 
 // claimTypeName は、生成する型の名前 typeName を、origin (その型を生成する選択の説明) が使うものとして
@@ -576,7 +583,7 @@ func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes
 // バインドできる。戻り値は boundGoType と同じ（バインド先 Go 型、フィールド名、
 // 見つかったか）。
 func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, string, bool) {
-	for _, pkgPath := range g.cfg.GQLGencConfig.FragmentAutobind {
+	for _, pkgPath := range g.cfg.FragmentAutobind {
 		goType, err := g.binder.FindType(pkgPath, fragmentName)
 		if err != nil {
 			if errors.Is(err, gqlgenconfig.ErrTypeNotFound) {

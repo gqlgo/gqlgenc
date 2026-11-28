@@ -71,6 +71,140 @@ enum CellColor {
 }
 `
 
+func TestLoad(t *testing.T) {
+	t.Parallel()
+
+	// testdata/query のクエリが参照するスキーマ
+	schema := gqlparser.MustLoadSchema(&ast.Source{Input: `
+type Query {
+	todos: [Todo!]!
+}
+
+type Mutation {
+	createTodo(input: NewTodo!): Todo!
+}
+
+type Todo {
+	id: ID!
+	text: String!
+	done: Boolean!
+	user: User!
+}
+
+type User {
+	id: ID!
+	name: String!
+}
+
+input NewTodo {
+	text: String!
+	userId: String!
+}
+`})
+
+	type args struct {
+		queryFiles []string
+	}
+
+	type want struct {
+		// operationNames は、すべてのオペレーションを持つドキュメントの、オペレーションの名前
+		operationNames []string
+		// documentOperationNames は、オペレーションごとのドキュメントが持つオペレーションの名前
+		documentOperationNames [][]string
+		err                    error
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "クエリのファイルを読み込み、オペレーションごとのドキュメントに分ける",
+			args: args{
+				queryFiles: []string{"testdata/query/todos.graphql"},
+			},
+			want: want{
+				operationNames:         []string{"GetTodos"},
+				documentOperationNames: [][]string{{"GetTodos"}},
+			},
+		},
+		{
+			name: "複数のファイルのオペレーションを1つのドキュメントにまとめる",
+			args: args{
+				queryFiles: []string{"testdata/query/todos.graphql", "testdata/query/create_todo.graphql"},
+			},
+			want: want{
+				operationNames:         []string{"GetTodos", "CreateTodo"},
+				documentOperationNames: [][]string{{"GetTodos"}, {"CreateTodo"}},
+			},
+		},
+		{
+			// 境界値: グロブに一致するファイルが無い
+			name: "クエリのファイルが無ければ、オペレーションの無いドキュメントを返す",
+			args: args{
+				queryFiles: []string{},
+			},
+			want: want{
+				operationNames:         nil,
+				documentOperationNames: nil,
+			},
+		},
+		{
+			name: "構文エラーのあるクエリはエラー",
+			args: args{
+				queryFiles: []string{"testdata/query/syntax_error.graphql"},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		{
+			name: "スキーマに無いフィールドを選択するクエリはエラー",
+			args: args{
+				queryFiles: []string{"testdata/query/invalid_query.graphql"},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotQueryDocument, gotOperationQueryDocuments, err := Load(schema, tt.args.queryFiles)
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+
+			var gotOperationNames []string
+			if gotQueryDocument != nil {
+				for _, operation := range gotQueryDocument.Operations {
+					gotOperationNames = append(gotOperationNames, operation.Name)
+				}
+			}
+			if diff := cmp.Diff(tt.want.operationNames, gotOperationNames); diff != "" {
+				t.Errorf("operationNames diff(-want +got): %s", diff)
+			}
+
+			var gotDocumentOperationNames [][]string
+			for _, document := range gotOperationQueryDocuments {
+				var names []string
+				for _, operation := range document.Operations {
+					names = append(names, operation.Name)
+				}
+				gotDocumentOperationNames = append(gotDocumentOperationNames, names)
+			}
+			if diff := cmp.Diff(tt.want.documentOperationNames, gotDocumentOperationNames); diff != "" {
+				t.Errorf("documentOperationNames diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
 func TestTypesFromQueryDocuments(t *testing.T) {
 	t.Parallel()
 

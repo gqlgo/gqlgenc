@@ -598,12 +598,13 @@ input := UpdateUserInput{
 `gqlgenc` コマンドは次の順に処理します。
 
 1. **設定読み込み**（`config.LoadConfig`）: 設定ファイルの探索、YAML パース（環境変数展開・未知キー検出）、バリデーション
-2. **前回の出力の退避**（`run.go` の `backupOutputs`）: 設定された出力ファイル（model / query / client）を `<ファイル名>.gqlgenc.bak` へ移す。出力先のパッケージを束縛先としてロードするときに、前回の生成物の型を拾わないようにするためである。以降のどこかで失敗したときは、退避したファイルを元へ戻す（前回の出力を消さない）。プロセスが強制終了されて退避ファイルが残った場合は、次の実行がそれを前回の出力として扱い、成功か失敗かに応じて片付ける
-3. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。loader は、サーバーが introspection のどの部分（deprecated な引数・input フィールド、repeatable なディレクティブ）に対応しているかを問い合わせてから、対応している部分だけを使う introspection クエリを送る。さらに gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
-4. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
-5. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションとレスポンスの型の構築（codegen）→ querygen → clientgen の順に実行する。codegen は、レスポンスの型ごとに型名とフィールドの一覧（選択の種類・インラインフラグメントの型条件を満たす具体型つき）を作り、querygen はそれを読んで書き出すだけで、選択の種類を判定し直さない
-6. **出力の検査**（`output_validate.go` の `validateOutputs`）: 生成した出力ファイルが Go のソースとして構文解析できることを確かめる。gqlgen は出力の整形（gofmt）に失敗しても標準エラーへ `gofmt failed on ...` と書くだけで、整形前の内容をそのまま出力する。束縛した型を解決できなかったときに出る `*invalid type` のような読めないコードを出力として採用しないよう、ここで失敗にして前回の出力へ戻す。エラーには、最初の構文エラーの位置とその行、束縛に使うパッケージの読み込みエラー（あれば）を載せる
-7. **出力の確定**（`run.go` の `commitOutputBackups`）: 使用フィルタがすべての型を除いて宣言の無くなった model ファイルを消し、生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
+2. **前回の出力の退避**（`output_backup.go` の `backupOutputs`）: 設定された出力ファイル（model / query / client）を `<ファイル名>.gqlgenc.bak` へ移す。出力先のパッケージを束縛先としてロードするときに、前回の生成物の型を拾わないようにするためである。以降のどこかで失敗したときは、退避したファイルを元へ戻す（前回の出力を消さない）。プロセスが強制終了されて退避ファイルが残った場合は、次の実行がそれを前回の出力として扱い、成功か失敗かに応じて片付ける
+3. **スキーマ読み込み**（`schema.go` の `loadSchema`）: `schema.files` のファイルを読むか、`schema.endpoint` 指定時は `introspection.LoadRemoteSchema` でサーバーからスキーマを取得する。`LoadRemoteSchema` は、サーバーが introspection のどの部分（deprecated な引数・input フィールド、repeatable なディレクティブ）に対応しているかを問い合わせてから、対応している部分だけを使う introspection クエリを送る。`schema.federation.version` を指定したときは、federation のディレクティブの定義をスキーマへ足す
+4. **型の束縛**（`schema.go` の `bindTypes`）: gqlgen の設定を組み立てて `Init()` を実行し、`bind.type.packages` のパッケージから同じ名前の Go 型を束縛する。interface の実装リストをソートして出力を決定的にする。gqlgen の設定は利用者に見せず、ここで v3 が常に使う値に固定する
+5. **クエリ読み込み**（`queryparser.Load`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
+6. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションとレスポンスの型の構築（codegen）→ querygen → clientgen の順に実行する。codegen は、レスポンスの型ごとに型名とフィールドの一覧（選択の種類・インラインフラグメントの型条件を満たす具体型つき）を作り、querygen はそれを読んで書き出すだけで、選択の種類を判定し直さない
+7. **出力の検査**（`output_validate.go` の `validateOutputs`）: 生成した出力ファイルが Go のソースとして構文解析できることを確かめる。gqlgen は出力の整形（gofmt）に失敗しても標準エラーへ `gofmt failed on ...` と書くだけで、整形前の内容をそのまま出力する。束縛した型を解決できなかったときに出る `*invalid type` のような読めないコードを出力として採用しないよう、ここで失敗にして前回の出力へ戻す。エラーには、最初の構文エラーの位置とその行、束縛に使うパッケージの読み込みエラー（あれば）を載せる
+8. **出力の確定**（`output_backup.go` の `commitOutputBackups`）: 使用フィルタがすべての型を除いて宣言の無くなった model ファイルを消し、生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
 
 ### シーケンス図（コード生成）
 
@@ -622,17 +623,15 @@ sequenceDiagram
 
     U->>run: gqlgenc 実行
     run->>cfg: FindConfigFile + LoadConfig
-    Note over cfg: 設定ファイル探索 / YAMLパース<br/>検証 / schema・federation の Source 構築
-    cfg-->>run: *Config
+    Note over cfg: 設定ファイル探索 / YAMLパース<br/>検証 / schema.files のグロブの展開
+    cfg-->>run: *Config（設定の値だけを持つ）
 
     run->>out: 前回の出力を .gqlgenc.bak へ退避（失敗時は元へ戻す）
 
-    run->>cfg: LoadSchema(ctx, introspection.LoadRemoteSchema)
-    Note over cfg,cl: loader を注入。config は client / introspection に依存しない
     alt schema.files（ローカル）
-        cfg->>cfg: スキーマファイルを AST 化
+        run->>run: loadSchema: スキーマファイルを AST 化
     else schema.endpoint（リモート）
-        cfg->>intro: loadRemoteSchema(endpoint)（注入された関数）
+        run->>intro: LoadRemoteSchema(endpoint)
         intro->>cl: client.Post(capability の問い合わせ)
         cl->>srv: HTTP POST
         srv-->>cl: introspection の型が持つフィールドと引数
@@ -642,18 +641,17 @@ sequenceDiagram
         srv-->>cl: __schema 結果
         cl-->>intro: introspection.Query
         intro->>intro: SchemaFromIntrospection → AST
-        intro-->>cfg: schema (AST)
+        intro-->>run: schema (AST)
     end
-    cfg->>cfg: gqlgen Init() / Implements ソート
-    cfg-->>run: finalized
+    run->>run: bindTypes: gqlgen Init() / autobind / Implements ソート
 
-    run->>qp: LoadQuery(schema)
+    run->>qp: Load(schema, query.files)
     qp->>qp: クエリファイルを glob で読込
     qp->>qp: パース + __typename 注入 + @goFragment 宣言
     qp->>qp: 検証 + オペレーション単位へ分割
     qp-->>run: QueryDocument / OperationQueryDocuments
 
-    run->>gen: GenerateCode(cfg)
+    run->>gen: GenerateCode(設定, 束縛の結果, クエリ)
     opt generate.model.file 指定あり
         gen->>out: model_gen.go（modelgen）
     end
@@ -706,11 +704,12 @@ sequenceDiagram
 
 | パッケージ | 役割 |
 |---|---|
-| `main` / `run.go` | エントリポイント。上記フローの実行。リモート取得の loader（`introspection.LoadRemoteSchema`）を `LoadSchema` に注入する |
-| `config` | 設定ファイルの読み込み・検証、スキーマ読み込み（local / 注入された loader によるリモート取得）と finalize（gqlgen `Init` / Implements ソート）。`client` に依存しない |
+| `main` | エントリポイント。上記フローの実行（`run.go`）、スキーマ読み込みと型の束縛（`schema.go`）、出力の退避・検査・確定（`output_backup.go`・`output_validate.go`）。スキーマ・束縛の結果・クエリは、各段階の戻り値として次の段階へ渡す |
+| `config` | 設定ファイルの読み込み・検証。`Config` は設定の値だけを持ち、スキーマやクエリなど読み込んだ結果は持たない |
 | `introspection` | イントロスペクション結果から GraphQL スキーマ（AST）を構築。リモート取得（`LoadRemoteSchema`、`client` 再利用）も担う |
-| `queryparser` | クエリのパース・検証、オペレーション分割、使用型の収集 |
+| `queryparser` | クエリファイルの読み込み（`Load`）、パース・検証、オペレーション分割、使用型の収集 |
 | `codegen` | オペレーションと、レスポンスの型（型名・フィールド・選択の種類）の構築 |
+| `plugins` | コード生成の実行（`GenerateCode`）。modelgen → codegen → querygen → clientgen の順に呼ぶ |
 | `plugins/modelgen` | gqlgen modelgen のラップ（未使用型のフィルタリング） |
 | `plugins/querygen` | レスポンス型・UnmarshalJSONFrom / MarshalJSONTo・ドキュメント定数の生成 |
 | `plugins/clientgen` | 型付き Operation 値の生成 |

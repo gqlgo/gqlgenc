@@ -1,0 +1,9 @@
+schema:
+  files:
+    - testdata/cfg/glob/no_match/*.graphql
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  query:
+    file: ./gen/query.go

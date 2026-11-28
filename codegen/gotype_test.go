@@ -635,10 +635,7 @@ func TestGoTypeGenerator_possibleTypeNames(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			g := NewGoTypeGenerator(&config.Config{
-				GQLGenConfig:  &gqlgenconfig.Config{Schema: schema},
-				GQLGencConfig: &config.GQLGencConfig{},
-			})
+			g := NewGoTypeGenerator(&config.Config{}, schema, nil, nil)
 			got := g.possibleTypeNames(tt.args.typeCondition, tt.args.enclosing)
 
 			if diff := cmp.Diff(tt.want.typeNames, got); diff != "" {

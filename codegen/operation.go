@@ -6,7 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Yamashou/gqlgenc/v3/config"
+	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
+
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	graphql "github.com/vektah/gqlparser/v2/ast"
@@ -14,15 +15,19 @@ import (
 )
 
 type OperationGenerator struct {
-	cfg    *config.Config
+	// models は、スキーマの型ごとの束縛先の Go 型
+	models gqlgenconfig.TypeMap
 	binder *typebind.Binder
 	err    error
 }
 
-func NewOperationGenerator(cfg *config.Config) *OperationGenerator {
+// NewOperationGenerator は OperationGenerator を作る。models はスキーマの型の束縛、binder は
+// 束縛先の Go 型を解決する binder。
+func NewOperationGenerator(models gqlgenconfig.TypeMap, binder *typebind.Binder) *OperationGenerator {
 	return &OperationGenerator{
-		cfg:    cfg,
-		binder: cfg.GQLGencConfig.TypeBinder,
+		models: models,
+		binder: binder,
+		err:    nil,
 	}
 }
 
@@ -47,7 +52,7 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 	for _, v := range variableDefinitions {
 		argumentTypes = append(argumentTypes, &OperationArgument{
 			Variable: v.Variable,
-			Type:     scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
+			Type:     scalarGoType(g.binder, g.models, v.Type, g.setErr),
 			// 既定値を持つ変数は、型が non-null でも省略できる (省略するとサーバーが既定値を使う)。
 			// 素の型で生成すると必ず値を送ることになり、既定値を使えない。
 			Omittable: !v.Type.NonNull || v.DefaultValue != nil,

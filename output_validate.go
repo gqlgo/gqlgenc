@@ -12,8 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
 )
 
@@ -31,20 +29,10 @@ const maxPackageErrorsInMessage = 3
 // 戻せるようにする。原因の手がかりとして、パッケージの読み込みエラーがあればエラーに添える。
 //
 // 事前条件: 作業ディレクトリが、出力ファイルの相対パスの基準になっている。
-func validateOutputs(cfg *config.Config) error {
-	outputs := []*gqlgenconfig.PackageConfig{
-		&cfg.GQLGenConfig.Model,
-		&cfg.GQLGencConfig.QueryGen,
-		&cfg.GQLGencConfig.ClientGen,
-	}
-
-	for _, output := range outputs {
-		if !output.IsDefined() {
-			continue
-		}
-
+func validateOutputs(cfg *config.Config, cache *packageCache) error {
+	for _, output := range outputConfigs(cfg) {
 		if err := validateGoFile(output.Filename); err != nil {
-			return fmt.Errorf("%w%s", err, packageLoadErrorsNote(cfg))
+			return fmt.Errorf("%w%s", err, packageLoadErrorsNote(cache))
 		}
 	}
 
@@ -104,15 +92,15 @@ func firstErrorLineNote(src []byte, parseErr error) string {
 // コンパイラが書いた export data を golang.org/x/tools が読めず、import 先の型が invalid type に
 // なる)。自前の binder (internal/typebind) がロードしたパッケージと、gqlgen がロードした
 // パッケージの両方を見る。
-func packageLoadErrorsNote(cfg *config.Config) string {
+func packageLoadErrorsNote(cache *packageCache) string {
 	var msgs []string
 
-	if err := cfg.GQLGencConfig.TypeBinder.LoadErrors(); err != nil {
+	if err := cache.binder.LoadErrors(); err != nil {
 		msgs = append(msgs, err.Error())
 	}
 
-	if cfg.GQLGenConfig.Packages != nil {
-		msgs = append(msgs, packageErrorMessages(cfg.GQLGenConfig.Packages.Errors())...)
+	if cache.gqlgen != nil && cache.gqlgen.Packages != nil {
+		msgs = append(msgs, packageErrorMessages(cache.gqlgen.Packages.Errors())...)
 	}
 
 	if len(msgs) == 0 {
