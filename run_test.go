@@ -935,6 +935,41 @@ func Test_IntegrationTest_InlineFragments(t *testing.T) {
 				},
 			},
 		},
+		{
+			// $withName が真のとき、条件付きの選択の __typename と name が返り、Item の枝に値が入る。
+			// __typename は条件付きの選択に注入されたものでも string で生成され、switch で判別できる
+			name: "条件付きの選択にだけあるインラインフラグメントは、__typenameで枝に値が入る",
+			args: args{
+				response: `{"node":{"__typename":"Item","id":"1","name":"pen"}}`,
+				out:      &inlinefragmentsgen.NodeConditionalFragment{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeConditionalFragment{
+					Node: &inlinefragmentsgen.NodeConditionalFragment_Node{
+						Item:     &inlinefragmentsgen.NodeConditionalFragment_Node_Item{Name: func() *string { name := "pen"; return &name }()},
+						Typename: "Item",
+						ID:       "1",
+					},
+				},
+			},
+		},
+		{
+			// $withName が偽のとき、__typename は返らず空文字列になり、どの枝にも値が入らない
+			name: "条件付きの選択が返らないとき、__typenameは空文字列で枝はnilになる",
+			args: args{
+				response: `{"node":{"id":"1"}}`,
+				out:      &inlinefragmentsgen.NodeConditionalFragment{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeConditionalFragment{
+					Node: &inlinefragmentsgen.NodeConditionalFragment_Node{
+						Item:     nil,
+						Typename: "",
+						ID:       "1",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

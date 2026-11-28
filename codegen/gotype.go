@@ -297,7 +297,10 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		}
 		// @skip / @include 付きのフィールドはレスポンスから条件付きで欠落し得るため、
 		// 非null型でもポインタにして「欠落 = nil」を表現できるようにする。
-		if hasConditionalDirective(sel.Directives) {
+		// __typename は除く。querygen が string として switch で分岐するためで、ポインタにすると
+		// コンパイルできない。条件付きの選択をまとめると、gqlparser がその選択に注入した __typename
+		// にも条件が付く (mergeFields)。欠落したときは空文字列になり、どの枝にも一致しない。
+		if hasConditionalDirective(sel.Directives) && sel.Name != typenameFieldName {
 			t = pointerize(t)
 		}
 		return newField(typeKind, t, sel.Alias, tags)

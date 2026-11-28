@@ -95,3 +95,16 @@ query Items($first: Int! = 5, $after: ID = "a") {
     id
   }
 }
+
+# 条件付きの選択にだけインラインフラグメントがあると、gqlparser がその選択に注入した __typename にも
+# 条件が付く。__typename は条件付きでも string で生成し、型条件の枝を switch で判別できる。
+query NodeConditionalFragment($id: ID!, $withName: Boolean!) {
+  node(id: $id) {
+    id
+  }
+  node(id: $id) @include(if: $withName) {
+    ... on Item {
+      name
+    }
+  }
+}

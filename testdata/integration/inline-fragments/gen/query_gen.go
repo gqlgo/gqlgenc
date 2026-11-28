@@ -99,6 +99,52 @@ type Items_Items struct {
 	ID string `json:"id"`
 }
 
+type NodeConditionalFragment struct {
+	Node *NodeConditionalFragment_Node `json:"node"`
+}
+
+type NodeConditionalFragment_Node struct {
+	Item     *NodeConditionalFragment_Node_Item `json:"-"`
+	Typename string                             `json:"__typename"`
+	ID       string                             `json:"id"`
+}
+
+func (t *NodeConditionalFragment_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	data, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	type plain NodeConditionalFragment_Node
+	if err := json.Unmarshal(data, (*plain)(t)); err != nil {
+		return err
+	}
+	switch t.Typename {
+	case "Item":
+		t.Item = &NodeConditionalFragment_Node_Item{}
+		if err := json.Unmarshal(data, t.Item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (t *NodeConditionalFragment_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
+	merged := map[string]jsontext.Value{}
+	type plain NodeConditionalFragment_Node
+	if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {
+		return err
+	}
+	if t.Item != nil {
+		if err := client.MergeJSONObject(merged, t.Item); err != nil {
+			return err
+		}
+	}
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
+}
+
+type NodeConditionalFragment_Node_Item struct {
+	Name *string `json:"name"`
+}
+
 type NodeFile struct {
 	Node *NodeFile_Node `json:"node"`
 }
@@ -363,3 +409,4 @@ const PayloadTwiceDocument = `query PayloadTwice{ payload { success detail { cod
 const PayloadConditionalDocument = `query PayloadConditional($withDetail: Boolean!) { payload @include(if: $withDetail) { success detail { code } } payload { message } }`
 const NodeRepeatedDocument = `query NodeRepeated($id: ID!) { node(id: $id) { __typename ... on Item { id } ... on Item { name parent { id } } ... { id } } }`
 const ItemsDocument = `query Items($first: Int! = 5, $after: ID = "a") { items(first: $first, after: $after) { id } }`
+const NodeConditionalFragmentDocument = `query NodeConditionalFragment($id: ID!, $withName: Boolean!) { node(id: $id) { id } node(id: $id) @include(if: $withName) { __typename ... on Item { name } } }`

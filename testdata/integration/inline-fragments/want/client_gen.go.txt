@@ -68,3 +68,13 @@ var ItemsOp = client.Operation[client.Query, ItemsVars, Items]{
 	Name:     "Items",
 	Document: ItemsDocument,
 }
+
+type NodeConditionalFragmentVars struct {
+	ID       string `json:"id"`
+	WithName bool   `json:"withName"`
+}
+
+var NodeConditionalFragmentOp = client.Operation[client.Query, NodeConditionalFragmentVars, NodeConditionalFragment]{
+	Name:     "NodeConditionalFragment",
+	Document: NodeConditionalFragmentDocument,
+}
