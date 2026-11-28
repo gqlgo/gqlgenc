@@ -10,7 +10,7 @@ import (
 )
 
 type Count struct {
-	Count int "json:\"count\""
+	Count int `json:"count"`
 }
 
 func (t *Count) GetCount() int {
@@ -21,7 +21,7 @@ func (t *Count) GetCount() int {
 }
 
 type FilteredKeys struct {
-	FilteredKeys []string "json:\"filteredKeys\""
+	FilteredKeys []string `json:"filteredKeys"`
 }
 
 func (t *FilteredKeys) GetFilteredKeys() []string {
@@ -32,9 +32,9 @@ func (t *FilteredKeys) GetFilteredKeys() []string {
 }
 
 type PrivateAddressFields struct {
-	ID      string "json:\"id\""
-	Private bool   "json:\"private\""
-	Street  string "json:\"street\""
+	ID      string `json:"id"`
+	Private bool   `json:"private"`
+	Street  string `json:"street"`
 }
 
 func (t *PrivateAddressFields) GetID() string {
@@ -57,8 +57,8 @@ func (t *PrivateAddressFields) GetStreet() string {
 }
 
 type PrivateProfileFields struct {
-	Age *int   "json:\"age\""
-	ID  string "json:\"id\""
+	Age *int   `json:"age"`
+	ID  string `json:"id"`
 }
 
 func (t *PrivateProfileFields) GetAge() *int {
@@ -75,8 +75,8 @@ func (t *PrivateProfileFields) GetID() string {
 }
 
 type PublicProfileFields struct {
-	ID     string "json:\"id\""
-	Status Status "json:\"status\""
+	ID     string `json:"id"`
+	Status Status `json:"status"`
 }
 
 func (t *PublicProfileFields) GetID() string {
@@ -93,7 +93,7 @@ func (t *PublicProfileFields) GetStatus() Status {
 }
 
 type UpdateUser struct {
-	UpdateUser UpdateUser_UpdateUser "json:\"updateUser\""
+	UpdateUser UpdateUser_UpdateUser `json:"updateUser"`
 }
 
 func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
@@ -104,7 +104,7 @@ func (t *UpdateUser) GetUpdateUser() UpdateUser_UpdateUser {
 }
 
 type UpdateUser_UpdateUser struct {
-	User UpdateUser_UpdateUser_User "json:\"user\""
+	User UpdateUser_UpdateUser_User `json:"user"`
 }
 
 func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
@@ -115,8 +115,8 @@ func (t *UpdateUser_UpdateUser) GetUser() UpdateUser_UpdateUser_User {
 }
 
 type UpdateUser_UpdateUser_User struct {
-	Name     string                               "json:\"name\""
-	Settings *UpdateUser_UpdateUser_User_Settings "json:\"settings\""
+	Name     string                               `json:"name"`
+	Settings *UpdateUser_UpdateUser_User_Settings `json:"settings"`
 }
 
 func (t *UpdateUser_UpdateUser_User) GetName() string {
@@ -133,8 +133,8 @@ func (t *UpdateUser_UpdateUser_User) GetSettings() *UpdateUser_UpdateUser_User_S
 }
 
 type UpdateUser_UpdateUser_User_Settings struct {
-	Notifications bool   "json:\"notifications\""
-	Theme         string "json:\"theme\""
+	Notifications bool   `json:"notifications"`
+	Theme         string `json:"theme"`
 }
 
 func (t *UpdateUser_UpdateUser_User_Settings) GetNotifications() bool {
@@ -151,10 +151,10 @@ func (t *UpdateUser_UpdateUser_User_Settings) GetTheme() string {
 }
 
 type UserFragment1 struct {
-	User     *UserFragment1_User   "json:\"-\""
-	Typename string                "json:\"__typename\""
-	Name     string                "json:\"name\""
-	Profile  UserFragment1_Profile "json:\"profile\""
+	User     *UserFragment1_User   `json:"-"`
+	Typename string                `json:"__typename"`
+	Name     string                `json:"name"`
+	Profile  UserFragment1_Profile `json:"profile"`
 }
 
 func (t *UserFragment1) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -214,9 +214,9 @@ func (t *UserFragment1) GetProfile() UserFragment1_Profile {
 }
 
 type UserFragment1_Profile struct {
-	PrivateProfile *UserFragment1_Profile_PrivateProfile "json:\"-\""
-	PublicProfile  *UserFragment1_Profile_PublicProfile  "json:\"-\""
-	Typename       string                                "json:\"__typename\""
+	PrivateProfile *UserFragment1_Profile_PrivateProfile `json:"-"`
+	PublicProfile  *UserFragment1_Profile_PublicProfile  `json:"-"`
+	Typename       string                                `json:"__typename"`
 }
 
 func (t *UserFragment1_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -280,7 +280,7 @@ func (t *UserFragment1_Profile) GetTypename() string {
 }
 
 type UserFragment1_Profile_PrivateProfile struct {
-	Age *int "json:\"age\""
+	Age *int `json:"age"`
 }
 
 func (t *UserFragment1_Profile_PrivateProfile) GetAge() *int {
@@ -291,7 +291,7 @@ func (t *UserFragment1_Profile_PrivateProfile) GetAge() *int {
 }
 
 type UserFragment1_Profile_PublicProfile struct {
-	Status Status "json:\"status\""
+	Status Status `json:"status"`
 }
 
 func (t *UserFragment1_Profile_PublicProfile) GetStatus() Status {
@@ -302,7 +302,7 @@ func (t *UserFragment1_Profile_PublicProfile) GetStatus() Status {
 }
 
 type UserFragment1_User struct {
-	Name string "json:\"name\""
+	Name string `json:"name"`
 }
 
 func (t *UserFragment1_User) GetName() string {
@@ -313,10 +313,10 @@ func (t *UserFragment1_User) GetName() string {
 }
 
 type UserOperation struct {
-	Article      *UserOperation_Article      "json:\"article\""
-	Metadata     *UserOperation_Metadata     "json:\"metadata\""
-	OptionalUser *UserOperation_OptionalUser "json:\"optionalUser\""
-	User         UserOperation_User          "json:\"user\""
+	Article      *UserOperation_Article      `json:"article"`
+	Metadata     *UserOperation_Metadata     `json:"metadata"`
+	OptionalUser *UserOperation_OptionalUser `json:"optionalUser"`
+	User         UserOperation_User          `json:"user"`
 }
 
 func (t *UserOperation) GetArticle() *UserOperation_Article {
@@ -345,25 +345,25 @@ func (t *UserOperation) GetUser() UserOperation_User {
 }
 
 type UserOperation_Article struct {
-	Addresses            []*UserOperation_Article_Addresses          "json:\"addresses\""
-	Comments             []*UserOperation_Article_Comments           "json:\"comments\""
-	FullyNullableList    *[]*string                                  "json:\"fullyNullableList\""
-	ID                   string                                      "json:\"id\""
-	Matrix               [][]string                                  "json:\"matrix\""
-	NullableElementsList []*string                                   "json:\"nullableElementsList\""
-	OptionalAddresses    *[]*UserOperation_Article_OptionalAddresses "json:\"optionalAddresses\""
-	OptionalComments     *[]*UserOperation_Article_OptionalComments  "json:\"optionalComments\""
-	OptionalMatrix       *[][]string                                 "json:\"optionalMatrix\""
-	OptionalProfiles     *[]*UserOperation_Article_OptionalProfiles  "json:\"optionalProfiles\""
-	OptionalRating       *float64                                    "json:\"optionalRating\""
-	OptionalStatuses     *[]Status                                   "json:\"optionalStatuses\""
-	OptionalTags         *[]string                                   "json:\"optionalTags\""
-	ProfileGrid          [][]*UserOperation_Article_ProfileGrid      "json:\"profileGrid\""
-	Profiles             []*UserOperation_Article_Profiles           "json:\"profiles\""
-	Rating               float64                                     "json:\"rating\""
-	Statuses             []Status                                    "json:\"statuses\""
-	Tags                 []string                                    "json:\"tags\""
-	Title                string                                      "json:\"title\""
+	Addresses            []*UserOperation_Article_Addresses          `json:"addresses"`
+	Comments             []*UserOperation_Article_Comments           `json:"comments"`
+	FullyNullableList    *[]*string                                  `json:"fullyNullableList"`
+	ID                   string                                      `json:"id"`
+	Matrix               [][]string                                  `json:"matrix"`
+	NullableElementsList []*string                                   `json:"nullableElementsList"`
+	OptionalAddresses    *[]*UserOperation_Article_OptionalAddresses `json:"optionalAddresses"`
+	OptionalComments     *[]*UserOperation_Article_OptionalComments  `json:"optionalComments"`
+	OptionalMatrix       *[][]string                                 `json:"optionalMatrix"`
+	OptionalProfiles     *[]*UserOperation_Article_OptionalProfiles  `json:"optionalProfiles"`
+	OptionalRating       *float64                                    `json:"optionalRating"`
+	OptionalStatuses     *[]Status                                   `json:"optionalStatuses"`
+	OptionalTags         *[]string                                   `json:"optionalTags"`
+	ProfileGrid          [][]*UserOperation_Article_ProfileGrid      `json:"profileGrid"`
+	Profiles             []*UserOperation_Article_Profiles           `json:"profiles"`
+	Rating               float64                                     `json:"rating"`
+	Statuses             []Status                                    `json:"statuses"`
+	Tags                 []string                                    `json:"tags"`
+	Title                string                                      `json:"title"`
 }
 
 func (t *UserOperation_Article) GetAddresses() []*UserOperation_Article_Addresses {
@@ -482,9 +482,9 @@ func (t *UserOperation_Article) GetTitle() string {
 }
 
 type UserOperation_Article_Addresses struct {
-	AddressView          AddressView          "json:\"-\""
-	PrivateAddressFields PrivateAddressFields "json:\"-\""
-	Street               string               "json:\"street\""
+	AddressView          AddressView          `json:"-"`
+	PrivateAddressFields PrivateAddressFields `json:"-"`
+	Street               string               `json:"street"`
 }
 
 func (t *UserOperation_Article_Addresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -538,8 +538,8 @@ func (t *UserOperation_Article_Addresses) GetStreet() string {
 }
 
 type UserOperation_Article_Comments struct {
-	ID   string "json:\"id\""
-	Text string "json:\"text\""
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
 func (t *UserOperation_Article_Comments) GetID() string {
@@ -556,10 +556,10 @@ func (t *UserOperation_Article_Comments) GetText() string {
 }
 
 type UserOperation_Article_OptionalAddresses struct {
-	PrivateAddress *UserOperation_Article_OptionalAddresses_PrivateAddress "json:\"-\""
-	PublicAddress  *UserOperation_Article_OptionalAddresses_PublicAddress  "json:\"-\""
-	Typename       string                                                  "json:\"__typename\""
-	Street         string                                                  "json:\"street\""
+	PrivateAddress *UserOperation_Article_OptionalAddresses_PrivateAddress `json:"-"`
+	PublicAddress  *UserOperation_Article_OptionalAddresses_PublicAddress  `json:"-"`
+	Typename       string                                                  `json:"__typename"`
+	Street         string                                                  `json:"street"`
 }
 
 func (t *UserOperation_Article_OptionalAddresses) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -629,7 +629,7 @@ func (t *UserOperation_Article_OptionalAddresses) GetStreet() string {
 }
 
 type UserOperation_Article_OptionalAddresses_PrivateAddress struct {
-	Private bool "json:\"private\""
+	Private bool `json:"private"`
 }
 
 func (t *UserOperation_Article_OptionalAddresses_PrivateAddress) GetPrivate() bool {
@@ -640,7 +640,7 @@ func (t *UserOperation_Article_OptionalAddresses_PrivateAddress) GetPrivate() bo
 }
 
 type UserOperation_Article_OptionalAddresses_PublicAddress struct {
-	Public bool "json:\"public\""
+	Public bool `json:"public"`
 }
 
 func (t *UserOperation_Article_OptionalAddresses_PublicAddress) GetPublic() bool {
@@ -651,8 +651,8 @@ func (t *UserOperation_Article_OptionalAddresses_PublicAddress) GetPublic() bool
 }
 
 type UserOperation_Article_OptionalComments struct {
-	ID   string "json:\"id\""
-	Text string "json:\"text\""
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
 func (t *UserOperation_Article_OptionalComments) GetID() string {
@@ -669,9 +669,9 @@ func (t *UserOperation_Article_OptionalComments) GetText() string {
 }
 
 type UserOperation_Article_OptionalProfiles struct {
-	PrivateProfile *UserOperation_Article_OptionalProfiles_PrivateProfile "json:\"-\""
-	PublicProfile  *UserOperation_Article_OptionalProfiles_PublicProfile  "json:\"-\""
-	Typename       string                                                 "json:\"__typename\""
+	PrivateProfile *UserOperation_Article_OptionalProfiles_PrivateProfile `json:"-"`
+	PublicProfile  *UserOperation_Article_OptionalProfiles_PublicProfile  `json:"-"`
+	Typename       string                                                 `json:"__typename"`
 }
 
 func (t *UserOperation_Article_OptionalProfiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -735,7 +735,7 @@ func (t *UserOperation_Article_OptionalProfiles) GetTypename() string {
 }
 
 type UserOperation_Article_OptionalProfiles_PrivateProfile struct {
-	Age *int "json:\"age\""
+	Age *int `json:"age"`
 }
 
 func (t *UserOperation_Article_OptionalProfiles_PrivateProfile) GetAge() *int {
@@ -746,7 +746,7 @@ func (t *UserOperation_Article_OptionalProfiles_PrivateProfile) GetAge() *int {
 }
 
 type UserOperation_Article_OptionalProfiles_PublicProfile struct {
-	Status Status "json:\"status\""
+	Status Status `json:"status"`
 }
 
 func (t *UserOperation_Article_OptionalProfiles_PublicProfile) GetStatus() Status {
@@ -757,9 +757,9 @@ func (t *UserOperation_Article_OptionalProfiles_PublicProfile) GetStatus() Statu
 }
 
 type UserOperation_Article_ProfileGrid struct {
-	PrivateProfile *UserOperation_Article_ProfileGrid_PrivateProfile "json:\"-\""
-	PublicProfile  *UserOperation_Article_ProfileGrid_PublicProfile  "json:\"-\""
-	Typename       string                                            "json:\"__typename\""
+	PrivateProfile *UserOperation_Article_ProfileGrid_PrivateProfile `json:"-"`
+	PublicProfile  *UserOperation_Article_ProfileGrid_PublicProfile  `json:"-"`
+	Typename       string                                            `json:"__typename"`
 }
 
 func (t *UserOperation_Article_ProfileGrid) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -823,8 +823,8 @@ func (t *UserOperation_Article_ProfileGrid) GetTypename() string {
 }
 
 type UserOperation_Article_ProfileGrid_PrivateProfile struct {
-	Age *int   "json:\"age\""
-	ID  string "json:\"id\""
+	Age *int   `json:"age"`
+	ID  string `json:"id"`
 }
 
 func (t *UserOperation_Article_ProfileGrid_PrivateProfile) GetAge() *int {
@@ -841,8 +841,8 @@ func (t *UserOperation_Article_ProfileGrid_PrivateProfile) GetID() string {
 }
 
 type UserOperation_Article_ProfileGrid_PublicProfile struct {
-	ID     string "json:\"id\""
-	Status Status "json:\"status\""
+	ID     string `json:"id"`
+	Status Status `json:"status"`
 }
 
 func (t *UserOperation_Article_ProfileGrid_PublicProfile) GetID() string {
@@ -859,8 +859,8 @@ func (t *UserOperation_Article_ProfileGrid_PublicProfile) GetStatus() Status {
 }
 
 type UserOperation_Article_Profiles struct {
-	PrivateProfileFields PrivateProfileFields "json:\"-\""
-	PublicProfileFields  PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields `json:"-"`
+	PublicProfileFields  PublicProfileFields  `json:"-"`
 }
 
 func (t *UserOperation_Article_Profiles) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -900,10 +900,10 @@ func (t *UserOperation_Article_Profiles) GetPublicProfileFields() PublicProfileF
 }
 
 type UserOperation_Metadata struct {
-	Data       *string         "json:\"data\""
-	ID         string          "json:\"id\""
-	Level      Level           "json:\"level\""
-	Properties *map[string]any "json:\"properties\""
+	Data       *string         `json:"data"`
+	ID         string          `json:"id"`
+	Level      Level           `json:"level"`
+	Properties *map[string]any `json:"properties"`
 }
 
 func (t *UserOperation_Metadata) GetData() *string {
@@ -932,8 +932,8 @@ func (t *UserOperation_Metadata) GetProperties() *map[string]any {
 }
 
 type UserOperation_OptionalUser struct {
-	Email Email  "json:\"email\""
-	Name  string "json:\"name\""
+	Email Email  `json:"email"`
+	Name  string `json:"name"`
 }
 
 func (t *UserOperation_OptionalUser) GetEmail() Email {
@@ -950,23 +950,23 @@ func (t *UserOperation_OptionalUser) GetName() string {
 }
 
 type UserOperation_User struct {
-	User             *UserOperation_User_User            "json:\"-\""
-	UserFragment1    UserFragment1                       "json:\"-\""
-	UserFragment2    UserFragment2                       "json:\"-\""
-	Typename         string                              "json:\"__typename\""
-	Address          UserOperation_User_Address          "json:\"address\""
-	DefaultPic       string                              "json:\"defaultPic\""
-	Email            Email                               "json:\"email\""
-	EmailIfIncluded  *Email                              "json:\"emailIfIncluded\""
-	LargePic         string                              "json:\"largePic\""
-	Name             string                              "json:\"name\""
-	Name2            string                              "json:\"name2\""
-	NameIfNotSkipped *string                             "json:\"nameIfNotSkipped\""
-	OptionalAddress  *UserOperation_User_OptionalAddress "json:\"optionalAddress\""
-	OptionalProfile  *UserOperation_User_OptionalProfile "json:\"optionalProfile\""
-	Profile          UserOperation_User_Profile          "json:\"profile\""
-	Profile2         UserOperation_User_Profile2         "json:\"profile2\""
-	SmallPic         string                              "json:\"smallPic\""
+	User             *UserOperation_User_User            `json:"-"`
+	UserFragment1    UserFragment1                       `json:"-"`
+	UserFragment2    UserFragment2                       `json:"-"`
+	Typename         string                              `json:"__typename"`
+	Address          UserOperation_User_Address          `json:"address"`
+	DefaultPic       string                              `json:"defaultPic"`
+	Email            Email                               `json:"email"`
+	EmailIfIncluded  *Email                              `json:"emailIfIncluded"`
+	LargePic         string                              `json:"largePic"`
+	Name             string                              `json:"name"`
+	Name2            string                              `json:"name2"`
+	NameIfNotSkipped *string                             `json:"nameIfNotSkipped"`
+	OptionalAddress  *UserOperation_User_OptionalAddress `json:"optionalAddress"`
+	OptionalProfile  *UserOperation_User_OptionalProfile `json:"optionalProfile"`
+	Profile          UserOperation_User_Profile          `json:"profile"`
+	Profile2         UserOperation_User_Profile2         `json:"profile2"`
+	SmallPic         string                              `json:"smallPic"`
 }
 
 func (t *UserOperation_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1116,9 +1116,9 @@ func (t *UserOperation_User) GetSmallPic() string {
 }
 
 type UserOperation_User_Address struct {
-	AddressView          AddressView          "json:\"-\""
-	PrivateAddressFields PrivateAddressFields "json:\"-\""
-	Street               string               "json:\"street\""
+	AddressView          AddressView          `json:"-"`
+	PrivateAddressFields PrivateAddressFields `json:"-"`
+	Street               string               `json:"street"`
 }
 
 func (t *UserOperation_User_Address) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1172,10 +1172,10 @@ func (t *UserOperation_User_Address) GetStreet() string {
 }
 
 type UserOperation_User_OptionalAddress struct {
-	PrivateAddress *UserOperation_User_OptionalAddress_PrivateAddress "json:\"-\""
-	PublicAddress  *UserOperation_User_OptionalAddress_PublicAddress  "json:\"-\""
-	Typename       string                                             "json:\"__typename\""
-	Street         string                                             "json:\"street\""
+	PrivateAddress *UserOperation_User_OptionalAddress_PrivateAddress `json:"-"`
+	PublicAddress  *UserOperation_User_OptionalAddress_PublicAddress  `json:"-"`
+	Typename       string                                             `json:"__typename"`
+	Street         string                                             `json:"street"`
 }
 
 func (t *UserOperation_User_OptionalAddress) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1245,8 +1245,8 @@ func (t *UserOperation_User_OptionalAddress) GetStreet() string {
 }
 
 type UserOperation_User_OptionalAddress_PrivateAddress struct {
-	Private bool   "json:\"private\""
-	Street  string "json:\"street\""
+	Private bool   `json:"private"`
+	Street  string `json:"street"`
 }
 
 func (t *UserOperation_User_OptionalAddress_PrivateAddress) GetPrivate() bool {
@@ -1263,8 +1263,8 @@ func (t *UserOperation_User_OptionalAddress_PrivateAddress) GetStreet() string {
 }
 
 type UserOperation_User_OptionalAddress_PublicAddress struct {
-	Public bool   "json:\"public\""
-	Street string "json:\"street\""
+	Public bool   `json:"public"`
+	Street string `json:"street"`
 }
 
 func (t *UserOperation_User_OptionalAddress_PublicAddress) GetPublic() bool {
@@ -1281,8 +1281,8 @@ func (t *UserOperation_User_OptionalAddress_PublicAddress) GetStreet() string {
 }
 
 type UserOperation_User_OptionalProfile struct {
-	PrivateProfileFields PrivateProfileFields "json:\"-\""
-	PublicProfileFields  PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields `json:"-"`
+	PublicProfileFields  PublicProfileFields  `json:"-"`
 }
 
 func (t *UserOperation_User_OptionalProfile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1322,8 +1322,8 @@ func (t *UserOperation_User_OptionalProfile) GetPublicProfileFields() PublicProf
 }
 
 type UserOperation_User_Profile struct {
-	PrivateProfileFields PrivateProfileFields "json:\"-\""
-	PublicProfileFields  PublicProfileFields  "json:\"-\""
+	PrivateProfileFields PrivateProfileFields `json:"-"`
+	PublicProfileFields  PublicProfileFields  `json:"-"`
 }
 
 func (t *UserOperation_User_Profile) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1363,9 +1363,9 @@ func (t *UserOperation_User_Profile) GetPublicProfileFields() PublicProfileField
 }
 
 type UserOperation_User_Profile2 struct {
-	PrivateProfile *UserOperation_User_Profile2_PrivateProfile "json:\"-\""
-	PublicProfile  *UserOperation_User_Profile2_PublicProfile  "json:\"-\""
-	Typename       string                                      "json:\"__typename\""
+	PrivateProfile *UserOperation_User_Profile2_PrivateProfile `json:"-"`
+	PublicProfile  *UserOperation_User_Profile2_PublicProfile  `json:"-"`
+	Typename       string                                      `json:"__typename"`
 }
 
 func (t *UserOperation_User_Profile2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -1429,7 +1429,7 @@ func (t *UserOperation_User_Profile2) GetTypename() string {
 }
 
 type UserOperation_User_Profile2_PrivateProfile struct {
-	Age *int "json:\"age\""
+	Age *int `json:"age"`
 }
 
 func (t *UserOperation_User_Profile2_PrivateProfile) GetAge() *int {
@@ -1440,7 +1440,7 @@ func (t *UserOperation_User_Profile2_PrivateProfile) GetAge() *int {
 }
 
 type UserOperation_User_Profile2_PublicProfile struct {
-	Status Status "json:\"status\""
+	Status Status `json:"status"`
 }
 
 func (t *UserOperation_User_Profile2_PublicProfile) GetStatus() Status {
@@ -1451,8 +1451,8 @@ func (t *UserOperation_User_Profile2_PublicProfile) GetStatus() Status {
 }
 
 type UserOperation_User_User struct {
-	UserFragment2 UserFragment2 "json:\"-\""
-	Name          string        "json:\"name\""
+	UserFragment2 UserFragment2 `json:"-"`
+	Name          string        `json:"name"`
 }
 
 func (t *UserOperation_User_User) UnmarshalJSONFrom(dec *jsontext.Decoder) error {

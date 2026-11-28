@@ -3,7 +3,7 @@
 package gen
 
 type Search struct {
-	Search string "json:\"search\""
+	Search string `json:"search"`
 }
 
 const SearchDocument = `query Search($filter: UsedFilter!, $kind: UsedKind!) { search(filter: $filter, kind: $kind) }`

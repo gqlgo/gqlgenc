@@ -3,12 +3,12 @@
 package gen
 
 type GetDiscount struct {
-	Discount GetDiscount_Discount "json:\"discount\""
+	Discount GetDiscount_Discount `json:"discount"`
 }
 
 type GetDiscount_Discount struct {
-	Code DiscountErrorCode "json:\"code\""
-	ID   string            "json:\"id\""
+	Code DiscountErrorCode `json:"code"`
+	ID   string            `json:"id"`
 }
 
 const GetDiscountDocument = `query GetDiscount($code: DiscountErrorCode!) { discount(code: $code) { id code } }`

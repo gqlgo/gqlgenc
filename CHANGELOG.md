@@ -240,6 +240,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - [gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292) struct や配列の中にネストした `Upload` が認識されない — multipart リクエストの構築を json/v2 のエンコード中に `graphql.Upload` を収集する方式にしたため、配列要素や入れ子 input の中にある Upload も検出されます
 - [gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269) undefined と null の区別 — `graphql.Omittable` + `omitzero` への対応で解決しました
 - [gqlgo/gqlgenc#282](https://github.com/gqlgo/gqlgenc/issues/282) 特定のクエリで発生する panic — 修正済みです
+- [gqlgo/gqlgenc#326](https://github.com/gqlgo/gqlgenc/issues/326) 生成される構造体のタグが `"json:\"id\""` の形になる — raw 文字列（`` `json:"id"` ``）で出力します
 - [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) `onlyUsedModels` で enum がフィルタリングされない — 未使用モデルのフィルタリングを既定動作として取り込みました
 
 ### 内部改善

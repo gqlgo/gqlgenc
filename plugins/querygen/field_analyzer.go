@@ -8,6 +8,13 @@ import (
 	"github.com/99designs/gqlgen/codegen/templates"
 )
 
+// goTypeString は、生成コードに書く型の表記を返す。パッケージ名は生成ファイルの import に合わせて
+// 修飾する。go/types は空の interface を interface{} と書くため、any に揃える
+// (空でない interface は interface{ M() } の形になるので、置換の対象にならない)。
+func goTypeString(t types.Type) string {
+	return strings.ReplaceAll(templates.CurrentImports.LookupType(t), "interface{}", "any")
+}
+
 // FieldAnalyzer はGo構造体のフィールドを解析し、FieldInfo構造体のリストを構築する。
 // 埋め込みフィールドの再帰的解析、インラインフラグメントの検出、
 // JSONタグの解析などを行い、GraphQLクエリの型情報を抽出する。
@@ -121,7 +128,7 @@ func (a *FieldAnalyzer) analyzeField(
 ) FieldInfo {
 	info := FieldInfo{
 		Name:       field.Name(),
-		TypeName:   templates.CurrentImports.LookupType(field.Type()),
+		TypeName:   goTypeString(field.Type()),
 		JSONTag:    a.parseJSONTag(tag),
 		IsExported: field.Exported(),
 		IsEmbedded: field.Anonymous(),
@@ -133,7 +140,7 @@ func (a *FieldAnalyzer) analyzeField(
 		if ptrType, ok := field.Type().(*types.Pointer); ok {
 			info.IsPointer = true
 			elemType := ptrType.Elem()
-			info.PointerElemType = templates.CurrentImports.LookupType(elemType)
+			info.PointerElemType = goTypeString(elemType)
 		}
 
 		// 枝は名前付き型で生成され、フラグメントを含む場合は自前の UnmarshalJSONFrom を

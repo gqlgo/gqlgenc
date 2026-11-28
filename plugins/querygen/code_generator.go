@@ -3,6 +3,7 @@ package querygen
 import (
 	"fmt"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"github.com/99designs/gqlgen/codegen/templates"
@@ -284,9 +285,37 @@ func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
 //   - structType: 構造体型の情報
 //
 // 戻り値: フォーマットされた型定義（例: "type User struct { ... }\n"）
+//
+// go/types に struct 全体を書かせるとタグが strconv.Quote の形 ("json:\"id\"") になるため、
+// フィールドごとに書き出してタグを raw 文字列 (`json:"id"`) にする。
 func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct) string {
-	typeStr := templates.CurrentImports.LookupType(structType)
-	return fmt.Sprintf("type %s %s\n", typeName, typeStr)
+	var buf strings.Builder
+
+	fmt.Fprintf(&buf, "type %s struct {\n", typeName)
+	for i := range structType.NumFields() {
+		field := structType.Field(i)
+		if !field.Embedded() {
+			buf.WriteString(field.Name() + " ")
+		}
+		buf.WriteString(goTypeString(field.Type()))
+		if tag := structType.Tag(i); tag != "" {
+			buf.WriteString(" " + formatStructTag(tag))
+		}
+		buf.WriteString("\n")
+	}
+	buf.WriteString("}\n")
+
+	return buf.String()
+}
+
+// formatStructTag は struct タグを Go のソースに書く形にする。raw 文字列で書けるタグは
+// バッククォートで囲み、バッククォートや制御文字を含むタグだけを解釈文字列にする。
+func formatStructTag(tag string) string {
+	if strconv.CanBackquote(tag) {
+		return "`" + tag + "`"
+	}
+
+	return strconv.Quote(tag)
 }
 
 // formatUnmarshalMethod は UnmarshalJSONFrom メソッドを文字列にフォーマットする。

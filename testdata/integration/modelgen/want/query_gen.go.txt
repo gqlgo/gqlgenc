@@ -10,16 +10,16 @@ import (
 )
 
 type Search struct {
-	Node        *Search_Node          "json:\"node\""
-	SearchInput Search_SearchInput    "json:\"searchInput\""
-	SearchNodes []*Search_SearchNodes "json:\"searchNodes\""
+	Node        *Search_Node          `json:"node"`
+	SearchInput Search_SearchInput    `json:"searchInput"`
+	SearchNodes []*Search_SearchNodes `json:"searchNodes"`
 }
 
 type Search_Node struct {
-	Post     *Search_Node_Post "json:\"-\""
-	User     *Search_Node_User "json:\"-\""
-	Typename string            "json:\"__typename\""
-	ID       string            "json:\"id\""
+	Post     *Search_Node_Post `json:"-"`
+	User     *Search_Node_User `json:"-"`
+	Typename string            `json:"__typename"`
+	ID       string            `json:"id"`
 }
 
 func (t *Search_Node) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -65,22 +65,22 @@ func (t *Search_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
 }
 
 type Search_Node_Post struct {
-	Title string "json:\"title\""
+	Title string `json:"title"`
 }
 
 type Search_Node_User struct {
-	Name string "json:\"name\""
+	Name string `json:"name"`
 }
 
 type Search_SearchInput struct {
-	Status Status "json:\"status\""
-	Total  int    "json:\"total\""
+	Status Status `json:"status"`
+	Total  int    `json:"total"`
 }
 
 type Search_SearchNodes struct {
-	Post     *Search_SearchNodes_Post "json:\"-\""
-	User     *Search_SearchNodes_User "json:\"-\""
-	Typename string                   "json:\"__typename\""
+	Post     *Search_SearchNodes_Post `json:"-"`
+	User     *Search_SearchNodes_User `json:"-"`
+	Typename string                   `json:"__typename"`
 }
 
 func (t *Search_SearchNodes) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
@@ -126,14 +126,14 @@ func (t *Search_SearchNodes) MarshalJSONTo(enc *jsontext.Encoder) error {
 }
 
 type Search_SearchNodes_Post struct {
-	ID    string "json:\"id\""
-	Title string "json:\"title\""
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 type Search_SearchNodes_User struct {
-	ID   string   "json:\"id\""
-	Kind NodeKind "json:\"kind\""
-	Name string   "json:\"name\""
+	ID   string   `json:"id"`
+	Kind NodeKind `json:"kind"`
+	Name string   `json:"name"`
 }
 
 const SearchDocument = `query Search($input: SearchInput!, $filter: SearchFilter!) { searchInput(input: $input) { total status } searchNodes(filter: $filter) { __typename ... on User { id name kind } ... on Post { id title } } node(id: "1") { __typename id ... on User { name } ... on Post { title } } }`

@@ -3,12 +3,12 @@
 package gen
 
 type GetUser struct {
-	User GetUser_User "json:\"user\""
+	User GetUser_User `json:"user"`
 }
 
 type GetUser_User struct {
-	ID   string "json:\"id\""
-	Name string "json:\"name\""
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 const GetUserDocument = `query GetUser($id: ID!) { user(id: $id) { id name } }`
