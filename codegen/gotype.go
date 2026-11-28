@@ -78,7 +78,7 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 // 1 つにまとめる。まとめないと同じ名前の Go 型を 2 回作ることになり、後の選択だけが残って
 // 先の選択のサブフィールドが生成型から落ちる (gqlgo/gqlgenc#282)。
 //
-//   - 同じレスポンスキー (alias) のフィールド: 最初の選択に、後の選択のサブセレクションを足す
+//   - 同じレスポンスキー (alias) のフィールド: 最初の選択の位置に、すべての選択をまとめる (mergeFields)
 //   - 同じ型へのインラインフラグメント: 最初の選択に、後の選択のセレクションを足す。型条件の無い
 //     もの (`... { id }`・`... @include(if: $x) { id }`) は、外側の型への条件として扱う
 //   - 同じフラグメントのスプレッド: 最初の選択だけを残す
@@ -86,24 +86,29 @@ func (g *GoTypeGenerator) newFields(parentTypeName string, selectionSet graphql.
 // 事前条件: selectionSet は検証済み (インラインフラグメントの ObjectDefinition が束縛されている)。
 // AST はサーバーへ送る Document の生成にも使うため書き換えず、まとめた選択は写しで返す。
 func mergeSelections(selectionSet graphql.SelectionSet) graphql.SelectionSet {
+	// 同じレスポンスキーのフィールドの選択を、現れた順に集める。条件 (@skip / @include) の扱いは
+	// 同じキーのすべての選択を見て決めるため、2 つずつではなくまとめて渡す
+	fieldsByAlias := make(map[string][]*graphql.Field, len(selectionSet))
+	for _, selection := range selectionSet {
+		if field, ok := selection.(*graphql.Field); ok {
+			fieldsByAlias[field.Alias] = append(fieldsByAlias[field.Alias], field)
+		}
+	}
+
 	merged := make(graphql.SelectionSet, 0, len(selectionSet))
 	// 最初に現れた位置へまとめるため、選択の種類とキーごとに merged の位置を覚える
 	positions := make(map[string]int, len(selectionSet))
-	fields := make(map[string]*graphql.Field, len(selectionSet))
 	inlineFragments := make(map[string]*graphql.InlineFragment)
 
 	for _, selection := range selectionSet {
 		switch sel := selection.(type) {
 		case *graphql.Field:
 			key := "field:" + sel.Alias
-			if first, ok := fields[sel.Alias]; ok {
-				sel = mergeField(first, sel)
-				merged[positions[key]] = sel
-			} else {
-				positions[key] = len(merged)
-				merged = append(merged, sel)
+			if _, ok := positions[key]; ok {
+				continue
 			}
-			fields[sel.Alias] = sel
+			positions[key] = len(merged)
+			merged = append(merged, mergeFields(fieldsByAlias[sel.Alias]))
 		case *graphql.InlineFragment:
 			sel = inlineFragmentOnEnclosingType(sel)
 			key := "inlineFragment:" + sel.TypeCondition
@@ -128,18 +133,102 @@ func mergeSelections(selectionSet graphql.SelectionSet) graphql.SelectionSet {
 	return merged
 }
 
-// mergeField は、同じレスポンスキーの 2 つの選択を 1 つにまとめた写しを返す。サブセレクションは
-// 両方を連ねる (次の階層の mergeSelections がさらにまとめる)。@skip / @include は、どちらの選択にも
-// 付いているときだけ残す。片方に条件が無ければサーバーは必ずそのフィールドを返すため、
-// 非 null のフィールドをポインタにしない。
-func mergeField(first, later *graphql.Field) *graphql.Field {
+// mergeFields は、同じレスポンスキーの選択 (現れた順) を 1 つにまとめた写しを返す。選択が 1 つなら
+// それをそのまま返す。サブセレクションはすべての選択のものを順に連ねる (次の階層の mergeSelections が
+// さらにまとめる)。
+//
+// @skip / @include は次のように扱う。
+//   - まとめたフィールド: 条件の無い選択が 1 つでもあれば条件を外す (サーバーは必ずそのフィールドを
+//     返すため、非 null のフィールドをポインタにしない)。無ければ最初の選択の条件を残す (どの条件も
+//     偽ならフィールドが返らないため、ポインタにする)
+//   - サブセレクション: 選択ごとの条件が同じでなければ、条件付きの選択のサブセレクションにその選択の
+//     条件を付ける。まとめたフィールドがレスポンスにあっても、条件が偽の選択のサブフィールドは
+//     返らないため、条件の無い選択にも現れるもの以外をポインタにする
+//
+// 事前条件: fields は空でなく、どれも同じ Alias を持つ。
+func mergeFields(fields []*graphql.Field) *graphql.Field {
+	first := fields[0]
+	if len(fields) == 1 {
+		return first
+	}
+
+	sameConditions := true
+	for _, field := range fields[1:] {
+		if conditionKey(field.Directives) != conditionKey(first.Directives) {
+			sameConditions = false
+			break
+		}
+	}
+
 	merged := *first
-	merged.SelectionSet = slices.Concat(first.SelectionSet, later.SelectionSet)
-	if !hasConditionalDirective(later.Directives) {
+	merged.SelectionSet = nil
+	unconditional := false
+	for _, field := range fields {
+		conditions := conditionalDirectives(field.Directives)
+		if len(conditions) == 0 {
+			unconditional = true
+		}
+
+		if sameConditions || len(conditions) == 0 {
+			merged.SelectionSet = append(merged.SelectionSet, field.SelectionSet...)
+			continue
+		}
+		merged.SelectionSet = append(merged.SelectionSet, withConditions(field.SelectionSet, conditions)...)
+	}
+
+	if unconditional {
 		merged.Directives = withoutConditionalDirectives(first.Directives)
 	}
 
 	return &merged
+}
+
+// conditionalDirectives は @skip / @include だけを、書かれた順に返す。
+func conditionalDirectives(directives graphql.DirectiveList) graphql.DirectiveList {
+	var conditions graphql.DirectiveList
+	for _, directive := range directives {
+		if directive.Name == skipDirectiveName || directive.Name == includeDirectiveName {
+			conditions = append(conditions, directive)
+		}
+	}
+
+	return conditions
+}
+
+// conditionKey は、@skip / @include の名前と引数を 1 つの文字列にする。同じ条件の選択は同じ文字列になる。
+func conditionKey(directives graphql.DirectiveList) string {
+	var key strings.Builder
+	for _, directive := range conditionalDirectives(directives) {
+		key.WriteString("@" + directive.Name)
+		for _, argument := range directive.Arguments {
+			key.WriteString("(" + argument.Name + ":" + argument.Value.String() + ")")
+		}
+	}
+
+	return key.String()
+}
+
+// withConditions は、選択セットの各フィールドに conditions (@skip / @include) を足した写しを返す。
+// インラインフラグメントは、その中の選択に足す。フラグメントスプレッドはそのまま返す (フラグメントの
+// 型はほかの選択と共有するため、条件を付けても型は変わらない)。
+func withConditions(selectionSet graphql.SelectionSet, conditions graphql.DirectiveList) graphql.SelectionSet {
+	conditioned := make(graphql.SelectionSet, 0, len(selectionSet))
+	for _, selection := range selectionSet {
+		switch sel := selection.(type) {
+		case *graphql.Field:
+			field := *sel
+			field.Directives = slices.Concat(sel.Directives, conditions)
+			conditioned = append(conditioned, &field)
+		case *graphql.InlineFragment:
+			fragment := *sel
+			fragment.SelectionSet = withConditions(sel.SelectionSet, conditions)
+			conditioned = append(conditioned, &fragment)
+		default:
+			conditioned = append(conditioned, selection)
+		}
+	}
+
+	return conditioned
 }
 
 // withoutConditionalDirectives は @skip / @include を除いたディレクティブの写しを返す。

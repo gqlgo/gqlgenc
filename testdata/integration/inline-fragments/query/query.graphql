@@ -56,6 +56,20 @@ query PayloadTwice {
   }
 }
 
+# 条件付きの選択と条件の無い選択をまとめると、条件付きの選択だけにあるサブフィールドは条件付きになる。
+# $withDetail が偽のとき、payload は返るが success と detail は返らない。
+query PayloadConditional($withDetail: Boolean!) {
+  payload @include(if: $withDetail) {
+    success
+    detail {
+      code
+    }
+  }
+  payload {
+    message
+  }
+}
+
 # 同じ型へのインラインフラグメントは 1 つの型にまとまる。型条件の無いインラインフラグメントは、
 # 外側の型 (Node) への条件として扱う。
 query NodeRepeated($id: ID!) {

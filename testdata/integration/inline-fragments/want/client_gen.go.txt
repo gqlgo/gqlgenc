@@ -41,6 +41,15 @@ var PayloadTwiceOp = client.Operation[client.Query, PayloadTwiceVars, PayloadTwi
 	Document: PayloadTwiceDocument,
 }
 
+type PayloadConditionalVars struct {
+	WithDetail bool `json:"withDetail"`
+}
+
+var PayloadConditionalOp = client.Operation[client.Query, PayloadConditionalVars, PayloadConditional]{
+	Name:     "PayloadConditional",
+	Document: PayloadConditionalDocument,
+}
+
 type NodeRepeatedVars struct {
 	ID string `json:"id"`
 }

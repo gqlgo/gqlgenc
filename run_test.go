@@ -847,6 +847,24 @@ func Test_IntegrationTest_InlineFragments(t *testing.T) {
 				},
 			},
 		},
+		{
+			// $withDetail が偽のとき、payload は無条件の選択で返るが、条件付きの選択だけにある success と
+			// detail は返らない。success は非 null の Boolean! でも *bool になり、返らなかったことを nil で表す
+			name: "条件付きの選択と条件の無い選択をまとめると、条件付きの選択だけのサブフィールドはnilになる",
+			args: args{
+				response: `{"payload":{"message":"ok"}}`,
+				out:      &inlinefragmentsgen.PayloadConditional{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.PayloadConditional{
+					Payload: &inlinefragmentsgen.PayloadConditional_Payload{
+						Detail:  nil,
+						Message: func() *string { message := "ok"; return &message }(),
+						Success: nil,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -380,6 +380,47 @@ func TestMergeSelections(t *testing.T) {
 			},
 		},
 		{
+			// $x が偽のとき、payload は返るが success は返らない。success を条件付きにしないと、
+			// 非 null の bool で生成され、返らなかった success を false と読み違える
+			name: "条件付きの選択と条件の無い選択をまとめると、条件付きの選択のサブフィールドを条件付きにする",
+			args: args{
+				query: `query Q($x: Boolean!) { node { payload @include(if: $x) { success } payload { message } } }`,
+			},
+			want: want{
+				selections: "payload{success@include message}",
+			},
+		},
+		{
+			// payload はどちらかの条件が真なら返るが、そのとき反対の条件の選択のサブフィールドは返らない
+			name: "条件の違う選択をまとめると、それぞれのサブフィールドにその選択の条件を付ける",
+			args: args{
+				query: `query Q($x: Boolean!) { node { payload @include(if: $x) { success } payload @skip(if: $x) { message } } }`,
+			},
+			want: want{
+				selections: "payload@include{success@include message@skip}",
+			},
+		},
+		{
+			// 条件が同じなら、payload が返るときはどちらの選択のサブフィールドも返る
+			name: "同じ条件の選択をまとめると、サブフィールドに条件を付けない",
+			args: args{
+				query: `query Q($x: Boolean!) { node { payload @include(if: $x) { success } payload @include(if: $x) { message } } }`,
+			},
+			want: want{
+				selections: "payload@include{success message}",
+			},
+		},
+		{
+			// インラインフラグメントの中のフィールドも、条件が偽の選択のものは返らない
+			name: "条件付きの選択のインラインフラグメントは、その中のフィールドに条件を付ける",
+			args: args{
+				query: `query Q($x: Boolean!) { node { payload @include(if: $x) { ... on Payload { success } } payload { message } } }`,
+			},
+			want: want{
+				selections: "payload{...on Payload{success@include} message}",
+			},
+		},
+		{
 			// 同じ型への条件を別々の型にすると、同じ名前の Go 型を 2 回作って先の選択を失う
 			name: "同じ型へのインラインフラグメントは1つにまとめる",
 			args: args{

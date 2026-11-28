@@ -252,6 +252,20 @@ type NodeRepeated_Node_Node struct {
 	ID string `json:"id"`
 }
 
+type PayloadConditional struct {
+	Payload *PayloadConditional_Payload `json:"payload"`
+}
+
+type PayloadConditional_Payload struct {
+	Detail  *PayloadConditional_Payload_Detail `json:"detail"`
+	Message *string                            `json:"message"`
+	Success *bool                              `json:"success"`
+}
+
+type PayloadConditional_Payload_Detail struct {
+	Code int `json:"code"`
+}
+
 type PayloadTwice struct {
 	Payload *PayloadTwice_Payload `json:"payload"`
 }
@@ -346,5 +360,6 @@ const FilesDocument = `query Files{ files { __typename ... on Node { id } ... on
 const NodeFileDocument = `query NodeFile($id: ID!) { node(id: $id) { __typename ... on File { __typename filename ... on Image { width } } } }`
 const SearchDocument = `query Search($text: String!) { search(text: $text) { __typename ... on Image { width } ... on Item { name } ... on HttpError { message } } }`
 const PayloadTwiceDocument = `query PayloadTwice{ payload { success detail { code } detail { note } success message } }`
+const PayloadConditionalDocument = `query PayloadConditional($withDetail: Boolean!) { payload @include(if: $withDetail) { success detail { code } } payload { message } }`
 const NodeRepeatedDocument = `query NodeRepeated($id: ID!) { node(id: $id) { __typename ... on Item { id } ... on Item { name parent { id } } ... { id } } }`
 const ItemsDocument = `query Items($first: Int! = 5, $after: ID = "a") { items(first: $first, after: $after) { id } }`
