@@ -6,8 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
 
 	graphql "github.com/vektah/gqlparser/v2/ast"
@@ -15,15 +13,15 @@ import (
 )
 
 type OperationGenerator struct {
-	// models は、スキーマの型ごとの束縛先の Go 型
-	models gqlgenconfig.TypeMap
+	// models は、スキーマの型の名前ごとの、束縛先の Go 型 ("import/path.TypeName" の形)
+	models map[string]string
 	binder *typebind.Binder
 	err    error
 }
 
 // NewOperationGenerator は OperationGenerator を作る。models はスキーマの型の束縛、binder は
 // 束縛先の Go 型を解決する binder。
-func NewOperationGenerator(models gqlgenconfig.TypeMap, binder *typebind.Binder) *OperationGenerator {
+func NewOperationGenerator(models map[string]string, binder *typebind.Binder) *OperationGenerator {
 	return &OperationGenerator{
 		models: models,
 		binder: binder,

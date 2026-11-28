@@ -9,8 +9,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
@@ -139,7 +137,7 @@ func TestResolveModelType(t *testing.T) {
 
 	type args struct {
 		binder   *typebind.Binder
-		models   gqlgenconfig.TypeMap
+		models   map[string]string
 		typeName string
 		nonNull  bool
 	}
@@ -158,7 +156,7 @@ func TestResolveModelType(t *testing.T) {
 			// UC1 (generate.model.file 未指定) で enum/input が未束縛のとき、panic ではなくエラーを返す
 			name: "束縛が無いGraphQL型はpanicせずエラーを返す",
 			args: args{
-				models:   gqlgenconfig.TypeMap{},
+				models:   map[string]string{},
 				typeName: "Status",
 				nonNull:  true,
 			},
@@ -168,10 +166,10 @@ func TestResolveModelType(t *testing.T) {
 			},
 		},
 		{
-			// キーは在るが Model が空のときも未束縛として同じくエラーを返す
-			name: "Modelが空のGraphQL型はエラーを返す",
+			// キーは在るが束縛先が空のときも未束縛として同じくエラーを返す
+			name: "束縛先が空のGraphQL型はエラーを返す",
 			args: args{
-				models:   gqlgenconfig.TypeMap{"Status": gqlgenconfig.TypeMapEntry{}},
+				models:   map[string]string{"Status": ""},
 				typeName: "Status",
 				nonNull:  false,
 			},
@@ -187,7 +185,7 @@ func TestResolveModelType(t *testing.T) {
 			name: "束縛先のGo型を解決できないときはエラーを返す",
 			args: args{
 				binder:   typebind.New(),
-				models:   gqlgenconfig.TypeMap{"Status": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"NoPackageSeparator"}}},
+				models:   map[string]string{"Status": "NoPackageSeparator"},
 				typeName: "Status",
 				nonNull:  true,
 			},
@@ -202,7 +200,7 @@ func TestResolveModelType(t *testing.T) {
 			name: "束縛が解決できるときはその型を返す",
 			args: args{
 				binder:   typebind.New(),
-				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
+				models:   map[string]string{"Meta": "map[string]any"},
 				typeName: "Meta",
 				nonNull:  true,
 			},
@@ -215,7 +213,7 @@ func TestResolveModelType(t *testing.T) {
 			name: "nullableのときは解決した型をポインタで包む",
 			args: args{
 				binder:   typebind.New(),
-				models:   gqlgenconfig.TypeMap{"Meta": gqlgenconfig.TypeMapEntry{Model: gqlgenconfig.StringList{"map[string]any"}}},
+				models:   map[string]string{"Meta": "map[string]any"},
 				typeName: "Meta",
 				nonNull:  false,
 			},

@@ -47,16 +47,19 @@ func GenerateCode(
 		binder.Evict(cfg.ModelGen.ImportPath())
 	}
 
+	// modelgen が生成した model の束縛も含めるため、束縛の表は modelgen の後に取り出す
+	models := boundGoTypes(gqlgenCfg.Models)
+
 	// 型生成で @goFragment(type:) を読み取った後、サーバーへ送る Document に残さないよう
 	// AST から @goFragment を除去してから Document を生成する。
-	responseTypes, err := codegen.NewGoTypeGenerator(cfg, gqlgenCfg.Schema, gqlgenCfg.Models, binder).CreateResponseTypes(queryDocument.Operations)
+	responseTypes, err := codegen.NewGoTypeGenerator(cfg, gqlgenCfg.Schema, models, binder).CreateResponseTypes(queryDocument.Operations)
 	if err != nil {
 		return fmt.Errorf("failed to create go types: %w", err)
 	}
 
 	codegen.StripGoFragmentDirectives(queryDocument)
 
-	operations, err := codegen.NewOperationGenerator(gqlgenCfg.Models, binder).CreateOperations(queryDocument, operationQueryDocuments)
+	operations, err := codegen.NewOperationGenerator(models, binder).CreateOperations(queryDocument, operationQueryDocuments)
 	if err != nil {
 		return fmt.Errorf("failed to create operations: %w", err)
 	}
@@ -76,6 +79,20 @@ func GenerateCode(
 	}
 
 	return nil
+}
+
+// boundGoTypes は、gqlgen の束縛の表から、スキーマの型の名前ごとの束縛先の Go 型
+// ("import/path.TypeName" の形) を取り出す。束縛先を複数持つ型 (built-in の Int は int・int64・int32) は、
+// 最初の束縛先を使う。束縛先の無い型は含めない。
+func boundGoTypes(models gqlgenconfig.TypeMap) map[string]string {
+	goTypes := make(map[string]string, len(models))
+	for typeName, entry := range models {
+		if len(entry.Model) > 0 {
+			goTypes[typeName] = entry.Model[0]
+		}
+	}
+
+	return goTypes
 }
 
 // warmPackageNames は生成ファイルが import するパッケージの名前解決を1回の

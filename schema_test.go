@@ -222,10 +222,12 @@ type Query { user: User }`,
 	type want struct {
 		// userImplements は、User が実装する interface の名前
 		userImplements []string
+		// userModel は、type User の束縛先の Go 型
+		userModel []string
 		// dateModel は、scalar Date の束縛先の Go 型
 		dateModel []string
 		// configModels は、bindTypes の後の設定の bind.type.named
-		configModels gqlgenconfig.TypeMap
+		configModels map[string]string
 		err          error
 	}
 
@@ -251,13 +253,30 @@ type Query { user: User }`,
 			name: "bind.type.namedの束縛を使い、設定の値は書き換えない",
 			args: args{
 				cfg: &config.Config{
-					Models: gqlgenconfig.TypeMap{"Date": {Model: gqlgenconfig.StringList{timeModel}}},
+					Models: map[string]string{"Date": timeModel},
 				},
 			},
 			want: want{
 				userImplements: []string{"Entity", "Node"},
 				dateModel:      []string{timeModel},
-				configModels:   gqlgenconfig.TypeMap{"Date": {Model: gqlgenconfig.StringList{timeModel}}},
+				configModels:   map[string]string{"Date": timeModel},
+			},
+		},
+		{
+			// bind.type.packages のパッケージにある、スキーマの型と同じ名前の Go 型へ束縛する。
+			// "パッケージ名.型名" の短縮形の束縛は、import パスを含む形へ直す
+			name: "bind.type.packagesのパッケージの同じ名前の型へ束縛し、短縮形の束縛を直す",
+			args: args{
+				cfg: &config.Config{
+					TypeAutobind: []string{"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"},
+					Models:       map[string]string{"Date": "domain.Email"},
+				},
+			},
+			want: want{
+				userImplements: []string{"Entity", "Node"},
+				userModel:      []string{"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.User"},
+				dateModel:      []string{"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain.Email"},
+				configModels:   map[string]string{"Date": "domain.Email"},
 			},
 		},
 	}
@@ -275,11 +294,12 @@ type Query { user: User }`,
 				t.Errorf("error diff(-want +got): %s", diff)
 			}
 
-			var gotUserImplements, gotDateModel []string
+			var gotUserImplements, gotUserModel, gotDateModel []string
 			if got != nil {
 				for _, definition := range got.Schema.Implements["User"] {
 					gotUserImplements = append(gotUserImplements, definition.Name)
 				}
+				gotUserModel = []string(got.Models["User"].Model)
 				gotDateModel = []string(got.Models["Date"].Model)
 
 				// 事後条件: 次の設定へ引き継ぐ gqlgen の設定は、今回のものになる
@@ -289,6 +309,9 @@ type Query { user: User }`,
 			}
 			if diff := cmp.Diff(tt.want.userImplements, gotUserImplements); diff != "" {
 				t.Errorf("userImplements diff(-want +got): %s", diff)
+			}
+			if diff := cmp.Diff(tt.want.userModel, gotUserModel); diff != "" {
+				t.Errorf("userModel diff(-want +got): %s", diff)
 			}
 			if diff := cmp.Diff(tt.want.dateModel, gotDateModel); diff != "" {
 				t.Errorf("dateModel diff(-want +got): %s", diff)

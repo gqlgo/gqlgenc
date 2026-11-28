@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/Yamashou/gqlgenc/v3/internal/cmputil"
@@ -181,6 +182,278 @@ func TestBinder_FindType(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want.goType, goType); diff != "" {
 				t.Errorf("goType diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+// newTestPackage は、名前 typeNames の型 (どれも string を基底にする) を持つ束縛先パッケージを作る。
+func newTestPackage(t *testing.T, pkgPath, pkgName string, typeNames ...string) *packages.Package {
+	t.Helper()
+
+	pkg := types.NewPackage(pkgPath, pkgName)
+	for _, typeName := range typeNames {
+		obj := types.NewTypeName(token.NoPos, pkg, typeName, nil)
+		types.NewNamed(obj, types.Typ[types.String], nil)
+		pkg.Scope().Insert(obj)
+	}
+
+	return &packages.Package{PkgPath: pkgPath, Name: pkgName, Types: pkg}
+}
+
+func TestBinder_AutobindType(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		pkgs map[string]*packages.Package
+	}
+
+	type args struct {
+		schemaTypeName string
+		autobindPkgs   []string
+	}
+
+	type want struct {
+		goType string
+		err    error
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   want
+	}{
+		{
+			name: "スキーマの型と同じ名前の型を返す",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				schemaTypeName: "Status",
+				autobindPkgs:   []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "example.com/shop/domain.Status",
+			},
+		},
+		{
+			// スキーマの型の名前そのものが無ければ、Go の名前へ直した名前で探す
+			name: "Goの名前へ直した名前の型を返す",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "OrderID"),
+				},
+			},
+			args: args{
+				schemaTypeName: "order_id",
+				autobindPkgs:   []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "example.com/shop/domain.OrderID",
+			},
+		},
+		{
+			name: "複数のパッケージにあるときは先に書いたパッケージの型を返す",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+					"example.com/shop/order":  newTestPackage(t, "example.com/shop/order", "order", "Status"),
+				},
+			},
+			args: args{
+				schemaTypeName: "Status",
+				autobindPkgs:   []string{"example.com/shop/order", "example.com/shop/domain"},
+			},
+			want: want{
+				goType: "example.com/shop/order.Status",
+			},
+		},
+		{
+			name: "どのパッケージにも無ければ空文字を返す",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				schemaTypeName: "Order",
+				autobindPkgs:   []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "",
+			},
+		},
+		{
+			// 境界値: autobind パッケージの指定が無い
+			name: "パッケージの指定が無ければ空文字を返す",
+			fields: fields{
+				pkgs: map[string]*packages.Package{},
+			},
+			args: args{
+				schemaTypeName: "Status",
+				autobindPkgs:   nil,
+			},
+			want: want{
+				goType: "",
+			},
+		},
+		{
+			// 読み込みに失敗したパッケージ (nil を覚えている) は、型を探せない
+			name: "パッケージを読み込めていなければエラー",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": nil,
+				},
+			},
+			args: args{
+				schemaTypeName: "Status",
+				autobindPkgs:   []string{"example.com/shop/domain"},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			binder := &Binder{pkgs: tt.fields.pkgs, dirToPath: map[string]string{}}
+			got, err := binder.AutobindType(tt.args.schemaTypeName, tt.args.autobindPkgs)
+
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error diff(-want +got): %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.goType, got); diff != "" {
+				t.Errorf("autobind goType diff(-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestBinder_QualifyShortBinding(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		pkgs map[string]*packages.Package
+	}
+
+	type args struct {
+		binding      string
+		autobindPkgs []string
+	}
+
+	type want struct {
+		goType string
+		ok     bool
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   want
+	}{
+		{
+			name: "パッケージ名と型名の短縮形をimportパスを含む形にする",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				binding:      "domain.Status",
+				autobindPkgs: []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "example.com/shop/domain.Status",
+				ok:     true,
+			},
+		},
+		{
+			name: "importパスを含む束縛は短縮形ではない",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				binding:      "example.com/shop/domain.Status",
+				autobindPkgs: []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "",
+				ok:     false,
+			},
+		},
+		{
+			// 境界値: any のようなパッケージを持たない束縛
+			name: "パッケージ名の無い束縛は短縮形ではない",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				binding:      "any",
+				autobindPkgs: []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "",
+				ok:     false,
+			},
+		},
+		{
+			name: "同じ名前のパッケージがautobindパッケージに無ければfalse",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				binding:      "order.Status",
+				autobindPkgs: []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "",
+				ok:     false,
+			},
+		},
+		{
+			name: "パッケージに型が無ければfalse",
+			fields: fields{
+				pkgs: map[string]*packages.Package{
+					"example.com/shop/domain": newTestPackage(t, "example.com/shop/domain", "domain", "Status"),
+				},
+			},
+			args: args{
+				binding:      "domain.Order",
+				autobindPkgs: []string{"example.com/shop/domain"},
+			},
+			want: want{
+				goType: "",
+				ok:     false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			binder := &Binder{pkgs: tt.fields.pkgs, dirToPath: map[string]string{}}
+			got, ok := binder.QualifyShortBinding(tt.args.binding, tt.args.autobindPkgs)
+
+			if diff := cmp.Diff(tt.want.goType, got); diff != "" {
+				t.Errorf("qualified goType diff(-want +got): %s", diff)
+			}
+			if diff := cmp.Diff(tt.want.ok, ok); diff != "" {
+				t.Errorf("ok diff(-want +got): %s", diff)
 			}
 		})
 	}

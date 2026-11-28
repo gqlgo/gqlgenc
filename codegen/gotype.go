@@ -9,8 +9,6 @@ import (
 	"strings"
 	"unicode"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/config"
 	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 	"github.com/Yamashou/gqlgenc/v3/internal/typebind"
@@ -30,8 +28,8 @@ type ResponseType struct {
 type GoTypeGenerator struct {
 	cfg    *config.Config
 	schema *graphql.Schema
-	// models は、スキーマの型ごとの束縛先の Go 型
-	models gqlgenconfig.TypeMap
+	// models は、スキーマの型の名前ごとの、束縛先の Go 型 ("import/path.TypeName" の形)
+	models map[string]string
 	binder *typebind.Binder
 	// types は、生成する型を Go の型名で引く表
 	types map[string]*ResponseType
@@ -44,7 +42,7 @@ type GoTypeGenerator struct {
 
 // NewGoTypeGenerator は GoTypeGenerator を作る。schema は読み込んだスキーマ、models はスキーマの型の
 // 束縛、binder は束縛先の Go 型を解決する binder。
-func NewGoTypeGenerator(cfg *config.Config, schema *graphql.Schema, models gqlgenconfig.TypeMap, binder *typebind.Binder) *GoTypeGenerator {
+func NewGoTypeGenerator(cfg *config.Config, schema *graphql.Schema, models map[string]string, binder *typebind.Binder) *GoTypeGenerator {
 	return &GoTypeGenerator{
 		cfg:             cfg,
 		schema:          schema,
@@ -431,7 +429,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 // を、リスト構造を保ったまま Go 型へ変換する。リストは要素型のスライスにし、nullable なリストは
 // ポインタで包む。最内の名前付き型はモデルマップから解決し、最初の解決エラーを setErr に渡す。
 // GoTypeGenerator (リーフ) と OperationGenerator (変数) の双方が使う共有関数。
-func scalarGoType(binder *typebind.Binder, models gqlgenconfig.TypeMap, t *graphql.Type, setErr func(error)) gotypes.Type {
+func scalarGoType(binder *typebind.Binder, models map[string]string, t *graphql.Type, setErr func(error)) gotypes.Type {
 	// Base case: named type (e.g., String, Int, Status)
 	if t.NamedType != "" {
 		goType, err := resolveModelType(binder, models, t.NamedType, t.NonNull)
@@ -510,11 +508,11 @@ func (g *GoTypeGenerator) claimTypeName(typeName, origin string) {
 	}
 }
 
-// resolveModelType は GraphQL 型名に束縛された Go 型を gqlgen の model マップから解決する。
-// nullable な場合はポインタで包む。codegen 内の型解決はこの関数に集約する。
-func resolveModelType(binder *typebind.Binder, models gqlgenconfig.TypeMap, typeName string, nonNull bool) (gotypes.Type, error) {
-	bindings := models[typeName].Model
-	if len(bindings) == 0 {
+// resolveModelType は GraphQL 型名に束縛された Go 型を、束縛の表 models ("import/path.TypeName" の形) から
+// 解決する。nullable な場合はポインタで包む。codegen 内の型解決はこの関数に集約する。
+func resolveModelType(binder *typebind.Binder, models map[string]string, typeName string, nonNull bool) (gotypes.Type, error) {
+	binding := models[typeName]
+	if binding == "" {
 		// UC1 (generate.model.file 未指定) で enum / input が bind.type.packages / @goModel の
 		// いずれにも束縛されていないと到達する。panic ではなく原因と対処を示すエラーで失敗させる。
 		err := fmt.Errorf("no Go model is bound for GraphQL type %q: generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel", typeName)
@@ -527,7 +525,7 @@ func resolveModelType(binder *typebind.Binder, models gqlgenconfig.TypeMap, type
 		return gotypes.Typ[gotypes.Invalid], err
 	}
 
-	goType, err := binder.FindTypeFromName(bindings[0])
+	goType, err := binder.FindTypeFromName(binding)
 	if err != nil {
 		return gotypes.Typ[gotypes.Invalid], fmt.Errorf("resolve Go model for GraphQL type %q: %w", typeName, err)
 	}
@@ -586,7 +584,7 @@ func (g *GoTypeGenerator) autobindFragment(fragmentName string) (gotypes.Type, s
 	for _, pkgPath := range g.cfg.FragmentAutobind {
 		goType, err := g.binder.FindType(pkgPath, fragmentName)
 		if err != nil {
-			if errors.Is(err, gqlgenconfig.ErrTypeNotFound) {
+			if errors.Is(err, typebind.ErrTypeNotFound) {
 				continue
 			}
 			g.setErr(fmt.Errorf("autobind: failed to load package %q: %w", pkgPath, err))

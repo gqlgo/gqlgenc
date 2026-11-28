@@ -192,6 +192,48 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "bind.type を指定した設定を正しく読み込めることを確認する",
+			args: args{
+				file: "testdata/cfg/bind_named.yml",
+			},
+			want: want{
+				config: &Config{
+					SchemaFiles: []string{
+						"testdata/cfg/glob/bar/bar with spaces.graphql",
+						"testdata/cfg/glob/foo/foo.graphql",
+					},
+					Query:        []string{"./queries/*.graphql"},
+					TypeAutobind: []string{"github.com/example/myapp/domain"},
+					Models: map[string]string{
+						"Email":     "github.com/example/myapp/domain.Email",
+						"Timestamp": "github.com/99designs/gqlgen/graphql.Time",
+					},
+					ModelOnlyUsed: true,
+					QueryGen:      config.PackageConfig{Package: "gen"},
+				},
+			},
+		},
+		{
+			// 境界値: 束縛する型の名前だけを書き、束縛先を書いていない
+			name: "bind.type.named の model が無い場合はエラー",
+			args: args{
+				file: "testdata/cfg/bind_named_without_model.yml",
+			},
+			want: want{
+				err: errors.New("'bind.type.named.Email.model' is required"),
+			},
+		},
+		{
+			// bind.type.named に書けるのは model だけ。gqlgen の設定のキー (forceGenerate など) は受け付けない
+			name: "bind.type.named に model 以外のキーがある場合はエラー",
+			args: args{
+				file: "testdata/cfg/bind_named_unknown_key.yml",
+			},
+			want: want{
+				err: errors.New("unable to parse config: [15:9] unknown field \"forceGenerate\"\n  12 |     named:\n  13 |       Email:\n  14 |         model: github.com/example/myapp/domain.Email\n> 15 |         forceGenerate: true\n               ^\n"), //nolint:revive // 実際のエラーメッセージと一致させる
+			},
+		},
+		{
 			name: "globパターンでスキーマファイルを読み込めることを確認する（Windows）",
 			args: args{
 				file: "testdata/cfg/glob.yml",

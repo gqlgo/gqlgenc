@@ -7,8 +7,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -37,8 +39,8 @@ type Config struct {
 
 	// TypeAutobind は bind.type.packages。スキーマの型を、同じ名前の Go 型へ束縛するパッケージ。
 	TypeAutobind []string
-	// Models は bind.type.named。スキーマの型ごとの、束縛先の Go 型。
-	Models gqlgenconfig.TypeMap
+	// Models は bind.type.named。スキーマの型の名前ごとの、束縛先の Go 型 ("import/path.TypeName" の形)。
+	Models map[string]string
 	// FragmentAutobind は bind.fragment.packages。フラグメントを、同じ名前の Go 型へ束縛するパッケージ。
 	FragmentAutobind []string
 
@@ -94,8 +96,14 @@ type bindConfig struct {
 // typeBindConfig binds schema types: packages binds type names to same-named Go
 // types in the listed packages, named binds individual GraphQL types to Go types.
 type typeBindConfig struct {
-	Packages []string             `yaml:"packages,omitempty"`
-	Named    gqlgenconfig.TypeMap `yaml:"named,omitempty"`
+	Packages []string                   `yaml:"packages,omitempty"`
+	Named    map[string]namedTypeConfig `yaml:"named,omitempty"`
+}
+
+// namedTypeConfig は、bind.type.named の GraphQL の型 1 つの束縛先。
+type namedTypeConfig struct {
+	// Model は、束縛先の Go 型 ("import/path.TypeName" の形)
+	Model string `yaml:"model"`
 }
 
 // fragmentBindConfig binds fragment names to same-named Go types in the listed packages.
@@ -166,6 +174,18 @@ func LoadConfig(configFilename string) (*Config, error) {
 		return nil, errors.New("'generate.client.file' is set, 'generate.query.file' must be set")
 	}
 
+	var models map[string]string
+	for _, typeName := range slices.Sorted(maps.Keys(fc.Bind.Type.Named)) {
+		model := fc.Bind.Type.Named[typeName].Model
+		if model == "" {
+			return nil, fmt.Errorf("'bind.type.named.%s.model' is required", typeName)
+		}
+		if models == nil {
+			models = make(map[string]string, len(fc.Bind.Type.Named))
+		}
+		models[typeName] = model
+	}
+
 	var federationVersion int
 	if fc.Schema.Federation != nil {
 		federationVersion = fc.Schema.Federation.Version
@@ -177,7 +197,7 @@ func LoadConfig(configFilename string) (*Config, error) {
 		FederationVersion: federationVersion,
 		Query:             fc.Query.Files,
 		TypeAutobind:      fc.Bind.Type.Packages,
-		Models:            fc.Bind.Type.Named,
+		Models:            models,
 		FragmentAutobind:  fc.Bind.Fragment.Packages,
 		ModelGen:          gqlgenconfig.PackageConfig{Filename: fc.Generate.Model.File},
 		ModelOnlyUsed:     fc.Generate.Model.OnlyUsed == nil || *fc.Generate.Model.OnlyUsed,

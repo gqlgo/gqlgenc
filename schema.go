@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -128,10 +127,10 @@ func schemaFileSources(schemaFilenames []string) ([]*ast.Source, error) {
 // 外してある。残っていると、Init() と autobind が前回の生成物の型を束縛先の型として拾う。
 // 事後条件: エラーでも、cache.gqlgen は今回の gqlgen の設定になる。
 func bindTypes(cfg *config.Config, schema *ast.Schema, cache *packageCache) (*gqlgenconfig.Config, error) {
-	// Init() と autobind が束縛を書き足すため、設定の値は写して渡す
-	models := maps.Clone(cfg.Models)
-	if models == nil {
-		models = make(gqlgenconfig.TypeMap)
+	// 設定の束縛 (bind.type.named) を、gqlgen の束縛の表にする。Init() と autobind がこの表へ束縛を書き足す
+	models := make(gqlgenconfig.TypeMap, len(cfg.Models))
+	for typeName, goType := range cfg.Models {
+		models.Add(typeName, goType)
 	}
 
 	// gqlgen が必須にしているが、クライアントの生成では使わない出力先に入れるファイル名
@@ -185,7 +184,7 @@ func bindTypes(cfg *config.Config, schema *ast.Schema, cache *packageCache) (*gq
 	// fallback で使い回し、二重に読み込まない
 	cache.binder.SetFallback(gqlgenCfg.Packages.LoadWithTypes)
 
-	if err := cache.binder.Autobind(schema, gqlgenCfg.Models, cfg.TypeAutobind); err != nil {
+	if err := autobind(cache.binder, schema, gqlgenCfg.Models, cfg.TypeAutobind); err != nil {
 		return nil, fmt.Errorf("autobind failed: %w", err)
 	}
 
@@ -202,6 +201,43 @@ func bindTypes(cfg *config.Config, schema *ast.Schema, cache *packageCache) (*gq
 	}
 
 	return gqlgenCfg, nil
+}
+
+// autobind は、gqlgen の Config.autobind にあたる処理を、export data だけを読む binder で行う。
+// スキーマの型のうち束縛の無いものを、autobind パッケージの同じ名前の Go 型へ束縛する。加えて、
+// "パッケージ名.型名" の短縮形の束縛を、import パスを含む形へ直す。
+func autobind(binder *typebind.Binder, schema *ast.Schema, models gqlgenconfig.TypeMap, autobindPkgs []string) error {
+	if len(autobindPkgs) == 0 {
+		return nil
+	}
+
+	for _, t := range schema.Types {
+		if models.UserDefined(t.Name) || models[t.Name].ForceGenerate {
+			continue
+		}
+
+		goType, err := binder.AutobindType(t.Name, autobindPkgs)
+		if err != nil {
+			return err //nolint:wrapcheck // 読み込めないパッケージを示すエラーで、呼び出し元の bindTypes が文脈を付ける
+		}
+		if goType != "" {
+			models.Add(t.Name, goType)
+		}
+	}
+
+	for _, entry := range models {
+		if entry.ForceGenerate {
+			continue
+		}
+		// entry は写しだが、Model のスライスは表と同じ配列を指すため、要素への代入は表に届く
+		for i, binding := range entry.Model {
+			if qualified, ok := binder.QualifyShortBinding(binding, autobindPkgs); ok {
+				entry.Model[i] = qualified
+			}
+		}
+	}
+
+	return nil
 }
 
 // bindDefaultScalars は、まだモデルが束縛されていない schema の custom scalar を

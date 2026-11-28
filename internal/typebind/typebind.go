@@ -6,17 +6,23 @@
 package typebind
 
 import (
+	"errors"
 	"fmt"
 	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
 
-	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
-
 	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
+)
 
-	"github.com/vektah/gqlparser/v2/ast"
+// ErrTypeNotFound は、束縛先のパッケージに、指定した名前の型が無いことを表す。
+var ErrTypeNotFound = errors.New("unable to find type")
+
+// パッケージを持たない束縛 ("map[string]any"・"any") の Go 型
+var (
+	mapType = types.NewMap(types.Typ[types.String], types.Universe.Lookup("any").Type())
+	anyType = types.Universe.Lookup("any").Type()
 )
 
 // loadMode は export data から型情報だけを読むモード。NeedSyntax を含めないことで
@@ -117,9 +123,9 @@ func (b *Binder) FindType(pkgPath, typeName string) (types.Type, error) {
 	if pkgPath == "" {
 		switch typeName {
 		case "map[string]any", "map[string]interface{}":
-			return gqlgenconfig.MapType, nil
+			return mapType, nil
 		case "any", "interface{}":
-			return gqlgenconfig.InterfaceType, nil
+			return anyType, nil
 		default:
 			return nil, fmt.Errorf("package cannot be empty for type: %s", typeName)
 		}
@@ -137,7 +143,7 @@ func (b *Binder) FindType(pkgPath, typeName string) (types.Type, error) {
 	}
 	if obj == nil {
 		// 読み込みエラーのあるパッケージは型を 1 つも持たないため、型が無い原因として添える
-		return nil, fmt.Errorf("%w: %s.%s%s", gqlgenconfig.ErrTypeNotFound, pkgPath, typeName, loadErrorsNote(pkg))
+		return nil, fmt.Errorf("%w: %s.%s%s", ErrTypeNotFound, pkgPath, typeName, loadErrorsNote(pkg))
 	}
 
 	t := types.Unalias(obj.Type())
@@ -148,61 +154,46 @@ func (b *Binder) FindType(pkgPath, typeName string) (types.Type, error) {
 	return t, nil
 }
 
-// Autobind は gqlgen の Config.autobind 相当。schema の各型を autobind パッケージ
-// から同名 (または Go 命名へ正規化した名前) で探し、見つかれば models に束縛する。
-// 加えて "パッケージ名.型名" 短縮形の束縛を import パスへ解決する。
-func (b *Binder) Autobind(schema *ast.Schema, models gqlgenconfig.TypeMap, autobindPkgs []string) error {
-	if len(autobindPkgs) == 0 {
-		return nil
-	}
-	if err := b.Load(autobindPkgs...); err != nil {
-		return err
+// AutobindType は、スキーマの型 schemaTypeName と同じ名前 (または Go の名前へ直した名前) の Go 型を
+// autobind パッケージから順に探し、最初に見つけた型を "import/path.TypeName" の形で返す。
+// どのパッケージにも無ければ空文字を返す。探し方は gqlgen の Config.autobind と同じである。
+func (b *Binder) AutobindType(schemaTypeName string, autobindPkgs []string) (string, error) {
+	for _, path := range autobindPkgs {
+		pkg, err := b.pkg(path)
+		if err != nil {
+			return "", fmt.Errorf("unable to load %s - make sure you're using an import path to a package that exists: %w", path, err)
+		}
+
+		for _, lookupName := range []string{schemaTypeName, gosrc.ToGo(schemaTypeName)} {
+			if obj := pkg.Types.Scope().Lookup(lookupName); obj != nil {
+				return obj.Pkg().Path() + "." + obj.Name(), nil
+			}
+		}
 	}
 
-	for _, t := range schema.Types {
-		if models.UserDefined(t.Name) || models[t.Name].ForceGenerate {
+	return "", nil
+}
+
+// QualifyShortBinding は、"パッケージ名.型名" の短縮形の束縛 binding を autobind パッケージから探し、
+// "import/path.TypeName" の形にして返す。binding が短縮形でないとき (import パスを含む・パッケージ名が
+// 無い) と、当てはまる型が無いときは、false を返す。
+func (b *Binder) QualifyShortBinding(binding string, autobindPkgs []string) (string, bool) {
+	pkgName, typeName := pkgAndType(binding)
+	if pkgName == "" || strings.Contains(pkgName, "/") {
+		return "", false
+	}
+
+	for _, path := range autobindPkgs {
+		pkg, err := b.pkg(path)
+		if err != nil || pkg.Name != pkgName {
 			continue
 		}
-		for _, path := range autobindPkgs {
-			pkg, err := b.pkg(path)
-			if err != nil {
-				return fmt.Errorf("unable to load %s - make sure you're using an import path to a package that exists: %w", path, err)
-			}
-			obj := lookupAutobindType(pkg, t)
-			if obj == nil {
-				continue
-			}
-			models.Add(t.Name, obj.Pkg().Path()+"."+obj.Name())
-
-			break
+		if obj := pkg.Types.Scope().Lookup(typeName); obj != nil {
+			return obj.Pkg().Path() + "." + obj.Name(), true
 		}
 	}
 
-	// "パッケージ名.型名" 短縮形 (import パスを含まない束縛) を autobind パッケージから解決する
-	for name, entry := range models {
-		if entry.ForceGenerate {
-			continue
-		}
-		for i, model := range entry.Model {
-			pkgName, typeName := pkgAndType(model)
-			if pkgName == "" || strings.Contains(pkgName, "/") {
-				continue
-			}
-			for _, path := range autobindPkgs {
-				pkg, err := b.pkg(path)
-				if err != nil || pkg.Name != pkgName {
-					continue
-				}
-				if obj := pkg.Types.Scope().Lookup(typeName); obj != nil {
-					models[name].Model[i] = obj.Pkg().Path() + "." + obj.Name()
-
-					break
-				}
-			}
-		}
-	}
-
-	return nil
+	return "", false
 }
 
 func (b *Binder) pkg(importPath string) (*packages.Package, error) {
@@ -226,18 +217,6 @@ func (b *Binder) pkg(importPath string) (*packages.Package, error) {
 	}
 
 	return pkg, nil
-}
-
-// lookupAutobindType はスキーマ型名そのもの、または Go 命名へ正規化した名前で
-// パッケージスコープから型を探す。
-func lookupAutobindType(pkg *packages.Package, schemaType *ast.Definition) types.Object {
-	for _, lookupName := range []string{schemaType.Name, gosrc.ToGo(schemaType.Name)} {
-		if obj := pkg.Types.Scope().Lookup(lookupName); obj != nil {
-			return obj
-		}
-	}
-
-	return nil
 }
 
 // pkgAndType は "import/path.TypeName" を import パスと型名に分割する。
