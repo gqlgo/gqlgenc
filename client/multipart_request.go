@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -35,7 +36,8 @@ type uploadCollector struct {
 
 // marshalers は graphql.Upload と *graphql.Upload を捕捉する json/v2 のマーシャラを返す。
 // ネストした input オブジェクトやリスト内の Upload も、エンコード中に現れた位置
-// (jsontext.Encoder の StackPointer) ごと収集される。
+// (jsontext.Encoder の StackPointer) ごと収集される。nullable な変数・input フィールドに
+// 生成される graphql.Omittable[T] の中の Upload も収集する。
 func (c *uploadCollector) marshalers() *json.Marshalers {
 	return json.JoinMarshalers(
 		json.MarshalToFunc(func(enc *jsontext.Encoder, upload graphql.Upload) error {
@@ -50,6 +52,7 @@ func (c *uploadCollector) marshalers() *json.Marshalers {
 			}
 			return c.collect(enc, *upload)
 		}),
+		json.MarshalToFunc(marshalOmittable),
 	)
 }
 
@@ -70,6 +73,46 @@ func (c *uploadCollector) collect(enc *jsontext.Encoder, upload graphql.Upload) 
 
 	c.files = append(c.files, upload)
 	c.paths = append(c.paths, strings.ReplaceAll(strings.TrimPrefix(string(enc.StackPointer()), "/"), "/", "."))
+
+	return nil
+}
+
+// omittable は graphql.Omittable[T] を T によらず捕捉するためのインターフェース。
+// 型パラメータを含まないメソッドだけを並べ、Omittable かどうかは marshalOmittable が型で確かめる。
+type omittable interface {
+	IsSet() bool
+}
+
+// omittablePkgPath と omittableTypePrefix は graphql.Omittable[T] の型を見分けるための
+// パッケージのパスと型の名前の接頭辞。
+const (
+	omittablePkgPath    = "github.com/99designs/gqlgen/graphql"
+	omittableTypePrefix = "Omittable["
+)
+
+// marshalOmittable は graphql.Omittable[T] の中の値を、呼び出し元と同じオプション (Upload の
+// マーシャラを含む) でエンコードする。Omittable は encoding/json (v1) の MarshalJSON しか持たず、
+// そのまま任せると中の Upload に json/v2 のマーシャラが届かず、ファイルのパートにならない。
+// 値の設定されていない Omittable は、Omittable.MarshalJSON と同じく null にする。
+// graphql.Omittable[T] でない型は errors.ErrUnsupported を返し、通常のエンコードに任せる。
+func marshalOmittable(enc *jsontext.Encoder, o omittable) error {
+	// インターフェースの型のマーシャラには、json/v2 が常に値へのポインタを渡す。
+	value := reflect.Indirect(reflect.ValueOf(o))
+	if value.Type().PkgPath() != omittablePkgPath || !strings.HasPrefix(value.Type().Name(), omittableTypePrefix) {
+		return errors.ErrUnsupported
+	}
+
+	if !o.IsSet() {
+		if err := enc.WriteToken(jsontext.Null); err != nil {
+			return fmt.Errorf("write null: %w", err)
+		}
+		return nil
+	}
+
+	inner := value.MethodByName("Value").Call(nil)[0].Interface()
+	if err := json.MarshalEncode(enc, inner); err != nil {
+		return fmt.Errorf("encode omittable value: %w", err)
+	}
 
 	return nil
 }

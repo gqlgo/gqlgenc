@@ -250,6 +250,108 @@ func TestNewPostRequestUpload(t *testing.T) {
 			},
 		},
 		{
+			// nullable な Upload の変数に生成される graphql.Omittable[*graphql.Upload] の中の Upload も
+			// ファイルのパートとして送信される。Omittable は v1 の MarshalJSON しか持たないため、
+			// 中の値をマーシャラに通さないと JSON の {"File":{},...} として送られる。
+			name: "Omittableに包んだUploadポインタのアップロード",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type vars struct {
+						File graphql.Omittable[*graphql.Upload] `json:"file,omitzero"`
+					}
+					upload := newUpload(t, "test.txt", "test content")
+					return vars{File: graphql.OmittableOf(&upload)}
+				},
+			},
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"file":null`},
+				mapping: map[string][]string{
+					"0": {"variables.file"},
+				},
+				files: map[string]string{
+					"0": "test content",
+				},
+			},
+		},
+		{
+			// ネストした input の Omittable に包んだ Upload の値も、その位置ごと収集される
+			name: "ネストしたinputのOmittableに包んだUploadのアップロード",
+			args: args{
+				operationName: "UploadAvatar",
+				query:         "mutation UploadAvatar($input: AvatarInput!) { uploadAvatar(input: $input) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type avatarInput struct {
+						Name graphql.Omittable[*string]        `json:"name,omitzero"`
+						File graphql.Omittable[graphql.Upload] `json:"file,omitzero"`
+					}
+					type vars struct {
+						Input avatarInput `json:"input"`
+					}
+					name := "icon"
+					return vars{
+						Input: avatarInput{
+							Name: graphql.OmittableOf(&name),
+							File: graphql.OmittableOf(newUpload(t, "avatar.png", "image bytes")),
+						},
+					}
+				},
+			},
+			want: want{
+				multipart:          true,
+				operationsContains: []string{`"name":"icon"`, `"file":null`},
+				mapping: map[string][]string{
+					"0": {"variables.input.file"},
+				},
+				files: map[string]string{
+					"0": "image bytes",
+				},
+			},
+		},
+		{
+			// nil を設定した Omittable は null として送信され multipart にはならない
+			name: "nilを設定したOmittableのUploadはJSONリクエスト",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type vars struct {
+						File graphql.Omittable[*graphql.Upload] `json:"file,omitzero"`
+					}
+					return vars{File: graphql.OmittableOf[*graphql.Upload](nil)}
+				},
+			},
+			want: want{
+				multipart:    false,
+				bodyContains: []string{`"variables":{"file":null}`},
+			},
+		},
+		{
+			// 値を設定していない Omittable は omitzero で省略され multipart にはならない。
+			// variables が空のオブジェクトになるため、variables ごと省略される。
+			name: "値を設定していないOmittableのUploadは省略する",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type vars struct {
+						File graphql.Omittable[*graphql.Upload] `json:"file,omitzero"`
+					}
+					return vars{}
+				},
+			},
+			want: want{
+				multipart:    false,
+				bodyContains: []string{`"operationName":"UploadFile"}`},
+			},
+		},
+		{
 			// File が nil の Upload (必須の Upload! 変数の設定し忘れ) はエラーにする。
 			// 本文を書く goroutine で nil の File を読むと、プロセスごと panic で落ちる。
 			name: "FileがnilのUploadはエラー",
