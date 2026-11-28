@@ -177,6 +177,7 @@ type UserOperation_User_User struct {
 
 - `UnmarshalJSONFrom` を生成する型（フラグメントを含む型）には、対称の `MarshalJSONTo`（json/v2 の `MarshalerTo`）も生成します。フラグメントのフィールドは `json:"-"` のためデフォルトマーシャルでは出力されませんが、`MarshalJSONTo` が通常フィールド・フラグメントスプレッド・値の入ったインラインフラグメントを1つの JSON オブジェクトへ平坦化して出力するため、レスポンス型を json/v2 で JSON 化して保存し、後で復元するラウンドトリップ（タスクキューのペイロード等への永続化）が成立します
 - 重複するキーは GraphQL のセレクションマージに合わせて解決します（オブジェクトは再帰マージ、同じ長さの配列は要素ごとにマージ。ランタイムの `client.MergeJSONObject` を使用）
+- 同じ値からは毎回同じ JSON を出力します。フラグメントをまとめたオブジェクトのメンバーは、キーの昇順に並びます
 - ゼロ値のフィールドは出力から省略します。レスポンスに含まれなかったフィールド（union / interface メンバー向けフラグメントの非共有フィールド等）はデコード後ゼロ値になっており、そのまま再出力すると復元側の enum バリデーション等で失敗するためです。出力は「復元すると同じ Go 値になる JSON」であり、サーバーのレスポンスそのものの再現ではありません
 - エンコード・デコードとも json/v2 のインターフェースのため、永続化の Marshal / Unmarshal には `encoding/json/v2` を使ってください（v1 の `encoding/json` は `MarshalJSONTo` / `UnmarshalJSONFrom` を呼びません）
 
@@ -265,6 +266,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - HTTP レスポンス解析（`parseResponse`）を整理しました。gzip リーダーを `defer` で確実に閉じ、引数の `*http.Response` を破壊的に書き換えないようにし、正常レスポンス時の不要なエラー構造体のアロケーションを削減しました
 - `schema.endpoint`（introspection）で取得したスキーマが、input フィールドの既定値と enum の値の `@deprecated` を落としていたのを修正しました。既定値は GraphQL のリテラルとして解釈するため、文字列は引用符を外した値になり、リストとオブジェクトは要素とフィールドを保ちます。既定値を落とすと、既定値を持つ必須の input フィールドを省いたクエリが検証で弾かれていました
 - `schema.endpoint`（introspection）で、deprecated な引数・input フィールドと、ディレクティブが repeatable かどうかを取得するようにしました。これまでは、仕様どおりのサーバーが deprecated な引数・input フィールドを外して返し、repeatable かどうかも取得していなかったため、deprecated な引数・input フィールドを使うクエリと、repeatable なディレクティブを同じ位置に2回書くクエリが検証で弾かれていました。古いサーバーはこれらを使う introspection クエリを拒否するため、取得は2段階で行います。まずサーバーが対応している部分を問い合わせ、対応している部分だけを使う introspection クエリ（`introspection.NewQuery`）を送ります。問い合わせに答えないサーバーには、これまでと同じクエリを送ります
+- フラグメントを含む型の `MarshalJSONTo` の出力で、同じ値でも実行のたびにメンバーの順が変わることがあったのを修正しました。json/v2 は既定では map のメンバーを反復の順で出力するため、生成コードとランタイムの `client.MergeJSONObject` が `json.Deterministic` を指定して、キーの昇順に並べます。`client` パッケージの `TestMergeJSONObject` が間欠的に失敗していた原因でもありました
 - レスポンス本文のトップレベルのオブジェクトの後ろに別の入力が続く場合（`{"data":…} trailing`）、先頭のオブジェクトだけを採用して成功にせず、デコードエラーを返すようにしました
 - `gqlgenc -version` が表示するバージョンを、ソースの定数ではなくビルド情報（`go install` / `go tool` が記録するモジュールのバージョン）から取るようにしました。リリースのたびに定数を書き換える必要が無くなります。`-ldflags "-X main.version=..."` で上書きできます
 - ファイルアップロード（multipart）のリクエストボディを `io.Pipe` でストリーミング送信するようにし、ファイル本体をメモリに溜め込まないようにしました。あわせて各ファイルパートの `Content-Type` に `Upload.ContentType` を反映します（未指定時は `application/octet-stream`）

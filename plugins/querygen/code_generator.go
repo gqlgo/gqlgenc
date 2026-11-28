@@ -355,7 +355,8 @@ func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement)
 // UnmarshalJSONFrom と対称になるよう、通常フィールド (plain 型経由)・フラグメント
 // スプレッド・値の入ったインラインフラグメントを1つの JSON オブジェクトへマージして
 // 出力する。これによりレスポンス型を JSON へ永続化して復元するラウンドトリップが
-// 成立する。出力のキー順は json/v2 の map エンコード順 (ソート済み) になる。
+// 成立する。出力のメンバーは、キーの昇順に並べる。json/v2 は既定では map のメンバーを反復の順
+// (実行のたびに変わる) で出力するため、json.Deterministic を指定して、同じ値から毎回同じ JSON を得る。
 func (g *CodeGenerator) formatMarshalMethod(typeName string, fields []FieldInfo) string {
 	regularFields, fragmentSpreads, inlineFragments := g.unmarshalBuilder.separateFieldTypesList(fields)
 
@@ -373,7 +374,7 @@ func (g *CodeGenerator) formatMarshalMethod(typeName string, fields []FieldInfo)
 	for _, frag := range inlineFragments {
 		fmt.Fprintf(&buf, "if t.%s != nil {\nif err := client.MergeJSONObject(merged, t.%s); err != nil {\nreturn err\n}\n}\n", frag.Field.Name, frag.Field.Name)
 	}
-	buf.WriteString("return json.MarshalEncode(enc, merged)\n")
+	buf.WriteString("return json.MarshalEncode(enc, merged, json.Deterministic(true))\n")
 	buf.WriteString("}\n")
 
 	return buf.String()

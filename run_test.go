@@ -911,6 +911,27 @@ func Test_IntegrationTest_InlineFragments(t *testing.T) {
 		})
 	}
 
+	// 生成された MarshalJSONTo は、通常フィールド (__typename) とインラインフラグメントの枝
+	// (Document の title・File の filename・Node の id) を1つのオブジェクトにまとめ、メンバーをキーの昇順に
+	// 並べる。json/v2 は既定では map のメンバーを反復の順で出力するため、生成コードが順を決めないと、
+	// 同じ値でも実行のたびに出力が変わる
+	marshaled, err := json.Marshal(&inlinefragmentsgen.Files{
+		Files: []*inlinefragmentsgen.Files_Files{
+			{
+				Document: &inlinefragmentsgen.Files_Files_Document{Title: "B"},
+				File:     &inlinefragmentsgen.Files_Files_File{Filename: "b.pdf"},
+				Node:     &inlinefragmentsgen.Files_Files_Node{ID: "2"},
+				Typename: "Document",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{"files":[{"__typename":"Document","filename":"b.pdf","id":"2","title":"B"}]}`, string(marshaled)); diff != "" {
+		t.Errorf("marshaled response diff(-want +got): %s", diff)
+	}
+
 	// 既定値を持つ変数 ($first: Int! = 5) は、型が non-null でも省略できる。省略すると variables に
 	// 含まれず、サーバーが既定値を使う
 	omitted, err := json.Marshal(inlinefragmentsgen.ItemsVars{})

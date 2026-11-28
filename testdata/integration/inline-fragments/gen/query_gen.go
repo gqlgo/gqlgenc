@@ -76,7 +76,7 @@ func (t *Files_Files) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type Files_Files_Document struct {
@@ -137,7 +137,7 @@ func (t *NodeFile_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type NodeFile_Node_File struct {
@@ -175,7 +175,7 @@ func (t *NodeFile_Node_File) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type NodeFile_Node_File_Image struct {
@@ -235,7 +235,7 @@ func (t *NodeRepeated_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type NodeRepeated_Node_Item struct {
@@ -341,7 +341,7 @@ func (t *Search_Search) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type Search_Search_HTTPError struct {

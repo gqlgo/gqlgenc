@@ -61,7 +61,7 @@ func (t *Search_Node) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type Search_Node_Post struct {
@@ -122,7 +122,7 @@ func (t *Search_SearchNodes) MarshalJSONTo(enc *jsontext.Encoder) error {
 			return err
 		}
 	}
-	return json.MarshalEncode(enc, merged)
+	return json.MarshalEncode(enc, merged, json.Deterministic(true))
 }
 
 type Search_SearchNodes_Post struct {

@@ -18,13 +18,19 @@ import (
 //
 // ゼロ値のフィールドは省略されるため、出力はサーバーのレスポンスそのものではなく
 // 「復元すると同じ Go 値になる JSON」である。
+//
+// 同じ入力からは毎回同じ JSON になる。v の中の map と、重複したキーのオブジェクトを再帰的に
+// マージした結果は、メンバーをキーの昇順に並べる。
 func MergeJSONObject(dst map[string]jsontext.Value, v any) error {
 	// ゼロ値のフィールドは出力から省略する。レスポンスに含まれなかったフィールド
 	// (union / interface メンバー向けフラグメントの非共有フィールドなど) はデコード後
 	// ゼロ値になっており、そのまま再出力すると復元側のバリデーション (enum 等) で
 	// 失敗する。省略すれば復元時に再びゼロ値へ戻るため、値としてのラウンドトリップ
 	// (marshal → unmarshal で元の Go 値と一致) が成立する。
-	data, err := json.Marshal(v, json.OmitZeroStructFields(true))
+	//
+	// json/v2 は、既定では map のメンバーを反復の順 (実行のたびに変わる) で出力する。
+	// 同じ入力から毎回同じ JSON を得るため、json.Deterministic でキーの昇順にする。
+	data, err := json.Marshal(v, json.OmitZeroStructFields(true), json.Deterministic(true))
 	if err != nil {
 		return fmt.Errorf("marshal for merge: %w", err)
 	}
@@ -62,7 +68,8 @@ func mergeValue(dst, src jsontext.Value) (jsontext.Value, error) {
 			}
 			dstObj[key] = merged
 		}
-		data, err := json.Marshal(dstObj)
+		// dstObj は map なので、キーの昇順で出力する (理由は MergeJSONObject のコメントを参照)
+		data, err := json.Marshal(dstObj, json.Deterministic(true))
 		if err != nil {
 			return dst, fmt.Errorf("encode merged object: %w", err)
 		}

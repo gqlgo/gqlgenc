@@ -86,6 +86,52 @@ func TestMergeJSONObject(t *testing.T) {
 			},
 		},
 		{
+			// json/v2 は既定では map のメンバーを反復の順で出力する。並びを決めないと、同じ入力でも
+			// 実行のたびに出力が変わる
+			name: "マージしたオブジェクトのメンバーはキーの昇順に並ぶ",
+			fields: fields{
+				dstJSON: `{"profile":{"e":"5","c":"3","a":"1"}}`,
+			},
+			args: args{
+				v: struct {
+					Profile struct {
+						F string `json:"f"`
+						D string `json:"d"`
+						B string `json:"b"`
+					} `json:"profile"`
+				}{
+					Profile: struct {
+						F string `json:"f"`
+						D string `json:"d"`
+						B string `json:"b"`
+					}{F: "6", D: "4", B: "2"},
+				},
+			},
+			want: want{
+				dst: map[string]string{
+					"profile": `{"a":"1","b":"2","c":"3","d":"4","e":"5","f":"6"}`,
+				},
+			},
+		},
+		{
+			name: "vの中のmapのメンバーはキーの昇順に並ぶ",
+			fields: fields{
+				dstJSON: `{}`,
+			},
+			args: args{
+				v: struct {
+					Labels map[string]string `json:"labels"`
+				}{
+					Labels: map[string]string{"e": "5", "c": "3", "a": "1", "f": "6", "d": "4", "b": "2"},
+				},
+			},
+			want: want{
+				dst: map[string]string{
+					"labels": `{"a":"1","b":"2","c":"3","d":"4","e":"5","f":"6"}`,
+				},
+			},
+		},
+		{
 			name: "重複する同じ長さの配列は要素ごとにマージされる",
 			fields: fields{
 				dstJSON: `{"items":[{"id":"1"}]}`,
