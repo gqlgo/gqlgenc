@@ -51,17 +51,15 @@ func GenerateCode(cfg *config.Config) error {
 
 	// querygen
 	if cfg.GQLGencConfig.QueryGen.IsDefined() {
-		queryGen := querygen.New(cfg, operations, goTypes)
-		if err := queryGen.MutateConfig(cfg.GQLGenConfig); err != nil {
-			return fmt.Errorf("%s failed: %w", queryGen.Name(), err)
+		if err := querygen.Generate(cfg, operations, goTypes); err != nil {
+			return fmt.Errorf("querygen failed: %w", err)
 		}
 	}
 
 	// clientgen
 	if cfg.GQLGencConfig.ClientGen.IsDefined() {
-		clientGen := clientgen.New(cfg, operations)
-		if err := clientGen.MutateConfig(cfg.GQLGenConfig); err != nil {
-			return fmt.Errorf("%s failed: %w", clientGen.Name(), err)
+		if err := clientgen.Generate(cfg, operations); err != nil {
+			return fmt.Errorf("clientgen failed: %w", err)
 		}
 	}
 

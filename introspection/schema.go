@@ -7,7 +7,6 @@ import (
 
 	"github.com/Yamashou/gqlgenc/v3/client"
 	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
-	"github.com/Yamashou/gqlgenc/v3/introspection/internal/transport"
 
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/validator"
@@ -225,9 +224,9 @@ func introspectionOperation(capabilities Capabilities) client.Operation[client.Q
 func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) (*ast.Schema, error) {
 	var options []client.Option
 	if len(header) > 0 {
-		options = append(options, clientopt.WithRoundTripper(transport.NewHeader(func(context.Context) http.Header {
-			return header
-		})))
+		options = append(options, clientopt.WithRoundTripper(func(base http.RoundTripper) http.RoundTripper {
+			return &headerTransport{base: base, header: header}
+		}))
 	}
 
 	gqlClient := client.NewClient(endpoint, options...)
@@ -248,4 +247,26 @@ func LoadRemoteSchema(ctx context.Context, endpoint string, header http.Header) 
 	}
 
 	return schema, nil
+}
+
+// headerTransport は、設定ファイルの schema.endpoint.headers を introspection の各リクエストに付ける
+// http.RoundTripper。同じキーのヘッダーは上書きする。
+type headerTransport struct {
+	base   http.RoundTripper
+	header http.Header
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// RoundTripper はリクエストを書き換えてはいけないため、複製にヘッダーを足す
+	clone := req.Clone(req.Context())
+	for key, values := range t.header {
+		clone.Header[http.CanonicalHeaderKey(key)] = values
+	}
+
+	resp, err := t.base.RoundTrip(clone)
+	if err != nil {
+		return nil, fmt.Errorf("header transport: %w", err)
+	}
+
+	return resp, nil
 }

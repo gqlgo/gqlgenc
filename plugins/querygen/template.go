@@ -1,3 +1,14 @@
+// Package querygen はカスタム UnmarshalJSON メソッドを持つ GraphQL クライアントのクエリ型を生成する。
+//
+// GraphQL オペレーション（クエリ、ミューテーション、サブスクリプション）用の Go 型と、
+// 型安全な UnmarshalJSON メソッドを生成する。UnmarshalJSON メソッドは以下を処理する:
+//   - Fragment spreads (json:"-" を持つ名前付きフィールド)
+//   - Inline fragments (__typename に基づく型条件付きフィールド)
+//   - ネストしたフィールド構造
+//
+// 生成されるコードは json/v2 を使用する。UnmarshalJSONFrom は
+// フラグメントを含む型にのみ生成され、通常フィールドはメソッドを持たない別名型を
+// 経由して json/v2 のデフォルトデコードに任せる。
 package querygen
 
 import (
@@ -14,7 +25,7 @@ import (
 //go:embed template.tmpl
 var template string
 
-// RenderTemplate は埋め込みテンプレートをレンダリングしてクエリ型ファイルを生成する。
+// Generate は埋め込みテンプレートをレンダリングしてクエリ型ファイルを生成する。
 //
 // この関数は以下の処理を行う:
 //  1. 型生成ロジックを扱う CodeGenerator を作成
@@ -28,7 +39,7 @@ var template string
 //   - goTypes: コード生成対象の Go 型（オペレーションレスポンス型）
 //
 // テンプレートのレンダリングが失敗した場合はエラーを返す。
-func RenderTemplate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
+func Generate(cfg *config.Config, operations []*codegen.Operation, goTypes []types.Type) error {
 	// 解析済みの型で CodeGenerator を作成
 	codeGen := NewCodeGenerator(goTypes, cfg.GQLGencConfig.GenerateGetters)
 

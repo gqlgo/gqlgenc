@@ -13,7 +13,7 @@ import (
 //go:embed template.tmpl
 var template string
 
-func RenderTemplate(cfg *config.Config, operations []*codegen.Operation) error {
+func Generate(cfg *config.Config, operations []*codegen.Operation) error {
 	if err := templates.Render(templates.Options{
 		PackageName:     cfg.GQLGencConfig.ClientGen.Package,
 		Template:        template,
