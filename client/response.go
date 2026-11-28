@@ -178,6 +178,20 @@ func unmarshalResponse(respBody []byte, out any) error {
 		}
 	}
 
+	// 閉じ括弧を読み、トップレベルのオブジェクトの後ろに何も続かないことを確かめる。
+	// 続きがある本文は GraphQL のレスポンスとして壊れているため、先頭のオブジェクトだけを
+	// 採用して成功にしない。
+	if _, err := dec.ReadToken(); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+	if _, err := dec.ReadToken(); !errors.Is(err, io.EOF) {
+		if err != nil {
+			return fmt.Errorf("failed to decode response: invalid input after top-level value: %w", err)
+		}
+
+		return errors.New("failed to decode response: unexpected token after top-level value")
+	}
+
 	// GraphQL errors があれば最優先で返す。data は best-effort で out に展開して
 	// 部分データを保持する（型不一致でも errors をデコードエラーで握り潰さない）。
 	if len(errs) > 0 {

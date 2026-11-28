@@ -175,6 +175,63 @@ func TestClient_unmarshalResponse(t *testing.T) {
 				err:  errors.New(`failed to decode response: no data or errors member`),
 			},
 		},
+		{
+			// 末尾の空白と改行は JSON の値の一部ではないので、正常なレスポンスとして扱う
+			name: "トップレベルのオブジェクトの後ろが空白と改行だけなら成功する",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte("{\"data\":{\"user\":{\"id\":\"1\",\"name\":\"John Doe\"}}} \n"),
+				out: &struct {
+					User testUser `json:"user"`
+				}{},
+			},
+			want: want{
+				data: &struct {
+					User testUser `json:"user"`
+				}{
+					User: testUser{
+						ID:   "1",
+						Name: "John Doe",
+					},
+				},
+				err: nil,
+			},
+		},
+		{
+			// 閉じ括弧が 1 つ多い本文は壊れている。先頭のオブジェクトだけを採用して成功にせず、data も展開しない
+			name: "トップレベルのオブジェクトの後ろにJSONでない入力が続くとエラーを返す",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte(`{"data":{"user":{"id":"1","name":"John Doe"}}}}`),
+				out:      &map[string]any{},
+			},
+			want: want{
+				data: &map[string]any{},
+				err:  errors.New(`failed to decode response: invalid input after top-level value: jsontext: invalid character '}' at start of value after offset 46`),
+			},
+		},
+		{
+			// 2 つのレスポンスが連結された本文は、どちらを採用すべきか決められないのでエラーにする
+			name: "トップレベルのオブジェクトの後ろに別のJSONの値が続くとエラーを返す",
+			fields: fields{
+				client:   &http.Client{},
+				endpoint: "https://example.com/graphql",
+			},
+			args: args{
+				respBody: []byte(`{"data":{"user":{"id":"1","name":"John Doe"}}}{"data":null}`),
+				out:      &map[string]any{},
+			},
+			want: want{
+				data: &map[string]any{},
+				err:  errors.New(`failed to decode response: unexpected token after top-level value`),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
