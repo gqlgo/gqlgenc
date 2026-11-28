@@ -3,34 +3,33 @@ package querygen
 import (
 	"fmt"
 	"go/token"
-	"go/types"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/99designs/gqlgen/codegen/templates"
-
 	"github.com/Yamashou/gqlgenc/v3/codegen"
+	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 )
 
 // genCode は、レスポンスの型 1 つのコードを返す。型の宣言に続けて、フラグメントを持つ型には
 // UnmarshalJSONFrom と MarshalJSONTo を、generateGetters が true ならフィールドごとの getter を書く。
+// フィールドの型のパッケージは imports に加え、その import の名前で修飾して書く。
 // 整形は書き出すときの gofmt に任せ、インデントしない。
-func genCode(responseType *codegen.ResponseType, generateGetters bool) string {
+func genCode(responseType *codegen.ResponseType, generateGetters bool, imports *gosrc.Imports) string {
 	var buf strings.Builder
 
-	writeTypeDecl(&buf, responseType)
+	writeTypeDecl(&buf, responseType, imports)
 
 	// フラグメントのフィールドは JSON のメンバーに対応しないため、既定のデコードでは値が入らない。
 	// MarshalJSONTo は、JSON にして戻す往復でフラグメントのフィールドを落とさないよう、対で生成する。
 	if hasFragment(responseType) {
-		writeUnmarshalMethod(&buf, responseType)
+		writeUnmarshalMethod(&buf, responseType, imports)
 		writeMarshalMethod(&buf, responseType)
 	}
 
 	if generateGetters {
 		for _, field := range responseType.Fields {
-			writeGetter(&buf, responseType.Name, field)
+			writeGetter(&buf, responseType.Name, field, imports)
 		}
 	}
 
@@ -63,23 +62,16 @@ func fieldsOfKind(responseType *codegen.ResponseType, kind codegen.TypeKind) []*
 	return fields
 }
 
-// goTypeString は、生成コードに書く型の表記を返す。パッケージ名は生成ファイルの import に合わせて
-// 修飾する。go/types は空の interface を interface{} と書くため、any に揃える
-// (空でない interface は interface{ M() } の形になるので、置換の対象にならない)。
-func goTypeString(t types.Type) string {
-	return strings.ReplaceAll(templates.CurrentImports.LookupType(t), "interface{}", "any")
-}
-
 // writeTypeDecl は型の宣言を書く。フィールドの JSON のタグは raw 文字列 (`json:"id"`) で書く
 // (gqlgo/gqlgenc#326)。フラグメントのフィールドは JSON のメンバーに対応しないため json:"-" にする。
-func writeTypeDecl(buf *strings.Builder, responseType *codegen.ResponseType) {
+func writeTypeDecl(buf *strings.Builder, responseType *codegen.ResponseType, imports *gosrc.Imports) {
 	fmt.Fprintf(buf, "type %s struct {\n", responseType.Name)
 	for _, field := range responseType.Fields {
 		jsonName := field.Name
 		if field.IsFragment() {
 			jsonName = "-"
 		}
-		fmt.Fprintf(buf, "%s %s `json:\"%s\"`\n", field.GoName(), goTypeString(field.Type), jsonName)
+		fmt.Fprintf(buf, "%s %s `json:\"%s\"`\n", field.GoName(), imports.TypeString(field.Type), jsonName)
 	}
 	buf.WriteString("}\n")
 }
@@ -92,7 +84,7 @@ func writeTypeDecl(buf *strings.Builder, responseType *codegen.ResponseType) {
 //  3. インラインフラグメント。__typename が型条件を満たす具体型のときだけ、枝の型を確保してデコードする
 //
 // フラグメントの型がさらにフラグメントを持つときは、その型の UnmarshalJSONFrom がデコードする。
-func writeUnmarshalMethod(buf *strings.Builder, responseType *codegen.ResponseType) {
+func writeUnmarshalMethod(buf *strings.Builder, responseType *codegen.ResponseType, imports *gosrc.Imports) {
 	fmt.Fprintf(buf, "func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", responseType.Name)
 	buf.WriteString("data, err := dec.ReadValue()\nif err != nil {\nreturn err\n}\n")
 
@@ -117,7 +109,7 @@ func writeUnmarshalMethod(buf *strings.Builder, responseType *codegen.ResponseTy
 
 			for _, field := range typenameCase.Fragments {
 				// インラインフラグメントのフィールドの型は、枝の型へのポインタ
-				branchType := strings.TrimPrefix(goTypeString(field.Type), "*")
+				branchType := strings.TrimPrefix(imports.TypeString(field.Type), "*")
 				fmt.Fprintf(buf, "t.%s = &%s{}\n", field.GoName(), branchType)
 				fmt.Fprintf(buf, "if err := json.Unmarshal(data, t.%s); err != nil {\nreturn err\n}\n", field.GoName())
 			}
@@ -212,12 +204,12 @@ func writeMarshalMethod(buf *strings.Builder, responseType *codegen.ResponseType
 
 // writeGetter は、フィールドの getter を書く。getter はレシーバが nil でも呼べて、そのときは
 // フィールドのゼロ値を返す。
-func writeGetter(buf *strings.Builder, typeName string, field *codegen.Field) {
+func writeGetter(buf *strings.Builder, typeName string, field *codegen.Field, imports *gosrc.Imports) {
 	fmt.Fprintf(buf, `func (t *%s) Get%s() %s {
 	if t == nil {
 		t = &%s{}
 	}
 	return t.%s
 }
-`, typeName, field.GoName(), goTypeString(field.Type), typeName, field.GoName())
+`, typeName, field.GoName(), imports.TypeString(field.Type), typeName, field.GoName())
 }

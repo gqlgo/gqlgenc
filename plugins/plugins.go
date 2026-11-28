@@ -3,6 +3,7 @@ package plugins
 
 import (
 	"fmt"
+	"slices"
 
 	gqlgenconfig "github.com/99designs/gqlgen/codegen/config"
 
@@ -30,10 +31,10 @@ func GenerateCode(
 	queryDocument *ast.QueryDocument,
 	operationQueryDocuments []*ast.QueryDocument,
 ) error {
-	warmPackageNames(cfg, gqlgenCfg)
-
 	// modelgen (gqlgen のプラグイン)
 	if cfg.ModelGen.IsDefined() {
+		warmPackageNames(cfg, gqlgenCfg)
+
 		modelGen := modelgen.New(gqlgenCfg.Schema, cfg.ModelOnlyUsed, operationQueryDocuments)
 		if err := modelGen.MutateConfig(gqlgenCfg); err != nil {
 			return fmt.Errorf("%s failed: %w", modelGen.Name(), err)
@@ -66,14 +67,14 @@ func GenerateCode(
 
 	// querygen
 	if cfg.QueryGen.IsDefined() {
-		if err := querygen.Generate(cfg, gqlgenCfg, operations, responseTypes); err != nil {
+		if err := querygen.Generate(cfg, operations, responseTypes); err != nil {
 			return fmt.Errorf("querygen failed: %w", err)
 		}
 	}
 
 	// clientgen
 	if cfg.ClientGen.IsDefined() {
-		if err := clientgen.Generate(cfg, gqlgenCfg, operations); err != nil {
+		if err := clientgen.Generate(cfg, operations); err != nil {
 			return fmt.Errorf("clientgen failed: %w", err)
 		}
 	}
@@ -95,24 +96,13 @@ func boundGoTypes(models gqlgenconfig.TypeMap) map[string]string {
 	return goTypes
 }
 
-// warmPackageNames は生成ファイルが import するパッケージの名前解決を1回の
-// go list にまとめて先読みする。テンプレート描画中に templates が個別に解決すると
-// 参照パッケージごとに go list サブプロセスが起動する。autobind などでロード済みの
-// パッケージはキャッシュから名前を写すだけでサブプロセスを起動しないため、生成の
-// 書き込みで Evict される前のこの時点で行う。
+// warmPackageNames は、model のファイルが import するパッケージ (束縛先のパッケージ) の名前解決を、
+// 1 回の go list にまとめて先読みする。gqlgen の modelgen がテンプレートの描画中に個別に解決すると、
+// 参照するパッケージごとに go list サブプロセスが起動する。autobind などで読み込み済みのパッケージは
+// キャッシュから名前を写すだけでサブプロセスを起動しないため、生成の書き込みで Evict される前の
+// この時点で行う。
+//
+// querygen と clientgen は、パッケージ名を型の情報から取るため、先読みは要らない。
 func warmPackageNames(cfg *config.Config, gqlgenCfg *gqlgenconfig.Config) {
-	// querygen / clientgen のテンプレートが常に import する静的パッケージ
-	staticPaths := []string{
-		"encoding/json/jsontext",
-		"encoding/json/v2",
-		"github.com/Yamashou/gqlgenc/v3/client",
-	}
-	referencedPaths := gqlgenCfg.Models.ReferencedPackages()
-
-	paths := make([]string, 0, len(staticPaths)+len(cfg.TypeAutobind)+len(cfg.FragmentAutobind)+len(referencedPaths))
-	paths = append(paths, staticPaths...)
-	paths = append(paths, cfg.TypeAutobind...)
-	paths = append(paths, cfg.FragmentAutobind...)
-	paths = append(paths, referencedPaths...)
-	gqlgenCfg.Packages.LoadAllNames(paths...)
+	gqlgenCfg.Packages.LoadAllNames(slices.Concat(cfg.TypeAutobind, gqlgenCfg.Models.ReferencedPackages())...)
 }

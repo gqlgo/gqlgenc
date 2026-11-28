@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/Yamashou/gqlgenc/v3/codegen"
+	"github.com/Yamashou/gqlgenc/v3/internal/gosrc"
 )
 
 func TestGenCode(t *testing.T) {
@@ -287,7 +288,7 @@ func TestGenCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := genCode(tt.args.responseType, tt.args.generateGetters)
+			got := genCode(tt.args.responseType, tt.args.generateGetters, gosrc.NewImports("example.com/shop/gen"))
 
 			if diff := cmp.Diff(tt.want.code, got); diff != "" {
 				t.Errorf("diff(-want +got): %s", diff)

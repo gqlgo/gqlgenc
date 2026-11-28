@@ -1,7 +1,3 @@
-{{ reserveImport "github.com/Yamashou/gqlgenc/v3/client" }}
-{{ reserveImport "github.com/99designs/gqlgen/graphql" }}
-{{ if not .SamePackage }}{{ reserveImport $.QueryPackagePath }}{{ end }}
-
 {{range $operation := .Operations}}
 type {{ $operation.Name|go }}Vars struct {
 	{{- range $arg := $operation.Args }}
