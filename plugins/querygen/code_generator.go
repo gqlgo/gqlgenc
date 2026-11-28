@@ -2,7 +2,9 @@ package querygen
 
 import (
 	"fmt"
+	"go/token"
 	"go/types"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,392 +13,211 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/codegen"
 )
 
-// CodeGenerator は全てのジェネレータを統合し、完全な型コードを生成する。
-type CodeGenerator struct {
-	unmarshalBuilder *UnmarshalBuilder
-	analyzer         *FieldAnalyzer
-	skipUnmarshal    map[*types.TypeName]struct{}
-	generateGetters  bool
-}
-
-// NewCodeGenerator は新しい CodeGenerator を作成する。
-//
-// パラメータ:
-//   - goTypes: 生成対象の全ての Go 型のリスト
-//   - generateGetters: nil セーフな getter メソッドを生成するか
-//
-// このコンストラクタは埋め込み型を識別し、それらの型に対する UnmarshalJSONFrom の
-// 生成をスキップするように設定する。
-func NewCodeGenerator(goTypes []types.Type, generateGetters bool) *CodeGenerator {
-	return &CodeGenerator{
-		unmarshalBuilder: NewUnmarshalBuilder(),
-		analyzer:         NewFieldAnalyzer(),
-		skipUnmarshal:    findEmbeddedTypes(goTypes),
-		generateGetters:  generateGetters,
-	}
-}
-
-// Generate は型の完全なコードを生成する（型定義、UnmarshalJSONFrom、getter メソッド）。
-//
-// パラメータ:
-//   - t: コード生成対象の Go 型
-//
-// 戻り値:
-//   - string: 生成されたコード
-//   - error: 型の解析に失敗した場合のエラー
-func (g *CodeGenerator) Generate(t types.Type) (string, error) {
-	named, err := g.unwrapToNamed(t)
-	if err != nil {
-		return "", err
-	}
-
-	st, ok := named.Underlying().(*types.Struct)
-	if !ok {
-		return "", fmt.Errorf("type must have struct underlying: %v", t)
-	}
-
-	typeName := templates.CurrentImports.LookupType(named)
-	fields := g.analyzer.AnalyzeFields(st, g.shouldGenerateUnmarshal)
-
+// genCode は、レスポンスの型 1 つのコードを返す。型の宣言に続けて、フラグメントを持つ型には
+// UnmarshalJSONFrom と MarshalJSONTo を、generateGetters が true ならフィールドごとの getter を書く。
+// 整形は書き出すときの gofmt に任せ、インデントしない。
+func genCode(responseType *codegen.ResponseType, generateGetters bool) string {
 	var buf strings.Builder
 
-	// Generate type declaration
-	buf.WriteString(g.formatTypeDecl(typeName, st))
+	writeTypeDecl(&buf, responseType)
 
-	// Generate UnmarshalJSONFrom only when fragments require custom decoding.
-	// MarshalJSONTo is always generated as its symmetric pair so that
-	// marshal -> unmarshal round-trips do not silently drop fragment fields.
-	if g.shouldGenerateUnmarshal(named) && g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
-		statements := g.unmarshalBuilder.BuildUnmarshalMethod(typeName, fields)
-		buf.WriteString(g.formatUnmarshalMethod(typeName, statements))
-		buf.WriteString(g.formatMarshalMethod(typeName, fields))
+	// フラグメントのフィールドは JSON のメンバーに対応しないため、既定のデコードでは値が入らない。
+	// MarshalJSONTo は、JSON にして戻す往復でフラグメントのフィールドを落とさないよう、対で生成する。
+	if hasFragment(responseType) {
+		writeUnmarshalMethod(&buf, responseType)
+		writeMarshalMethod(&buf, responseType)
 	}
 
-	// Generate getters only when enabled
-	if g.generateGetters {
-		for _, field := range fields {
-			getter := g.formatGetter(typeName, field.Name, field.TypeName)
-			buf.WriteString(getter)
+	if generateGetters {
+		for _, field := range responseType.Fields {
+			writeGetter(&buf, responseType.Name, field)
 		}
 	}
-
-	return buf.String(), nil
-}
-
-// NeedsJSONImport は、いずれかの型が JSON インポートを必要とするかを確認する。
-//
-// パラメータ:
-//   - goTypes: チェック対象の Go 型のリスト
-//
-// 戻り値:
-//   - bool: いずれかの型がフラグメントを含み UnmarshalJSONFrom メソッドを生成する場合は true
-func (g *CodeGenerator) NeedsJSONImport(goTypes []types.Type) bool {
-	for _, t := range goTypes {
-		named, err := g.unwrapToNamed(t)
-		if err != nil {
-			continue
-		}
-		if !g.shouldGenerateUnmarshal(named) {
-			continue
-		}
-		fields, err := g.fields(t)
-		if err != nil {
-			continue
-		}
-		if g.unmarshalBuilder.NeedsUnmarshalMethod(fields) {
-			return true
-		}
-	}
-	return false
-}
-
-// unwrapToNamed はtypes.Typeをポインタアンラップして*types.Namedを返す。
-//
-// このメソッドはポインタ型を剥がして、名前付き型を取得する。
-// 名前付き型でない場合はエラーを返す。
-//
-// パラメータ:
-//   - t: アンラップ対象の Go 型
-//
-// 戻り値:
-//   - *types.Named: 名前付き型
-//   - error: 型が名前付き型でない場合のエラー
-func (g *CodeGenerator) unwrapToNamed(t types.Type) (*types.Named, error) {
-	if pointerType, ok := t.(*types.Pointer); ok {
-		t = pointerType.Elem()
-	}
-	named, ok := t.(*types.Named)
-	if !ok {
-		return nil, fmt.Errorf("type must be named type: %v", t)
-	}
-	return named, nil
-}
-
-// structType はtypes.Typeから構造体型を取得する。
-//
-// このメソッドは名前付き型の基礎型が構造体であることを検証し、
-// 構造体型を返す。
-//
-// パラメータ:
-//   - t: 構造体型を取得する Go 型
-//
-// 戻り値:
-//   - *types.Struct: 構造体型
-//   - error: 型が構造体でない場合のエラー
-func (g *CodeGenerator) structType(t types.Type) (*types.Struct, error) {
-	named, err := g.unwrapToNamed(t)
-	if err != nil {
-		return nil, err
-	}
-	st, ok := named.Underlying().(*types.Struct)
-	if !ok {
-		return nil, fmt.Errorf("type must have struct underlying: %v", t)
-	}
-	return st, nil
-}
-
-// fields はtypes.Typeからフィールド情報を取得する。
-//
-// このメソッドは構造体型を取得し、FieldAnalyzerを使用して
-// フィールド情報を解析する。
-//
-// パラメータ:
-//   - t: フィールド情報を取得する Go 型
-//
-// 戻り値:
-//   - []FieldInfo: 解析されたフィールド情報のリスト
-//   - error: 型が構造体でない場合のエラー
-func (g *CodeGenerator) fields(t types.Type) ([]FieldInfo, error) {
-	st, err := g.structType(t)
-	if err != nil {
-		return nil, err
-	}
-	return g.analyzer.AnalyzeFields(st, g.shouldGenerateUnmarshal), nil
-}
-
-// shouldGenerateUnmarshal は型に UnmarshalJSONFrom メソッドを生成すべきかを判定する。
-//
-// 他の型に埋め込まれている型（fragment spreads）は、親型の UnmarshalJSONFrom で
-// 処理されるため、独自の UnmarshalJSONFrom の生成をスキップする。
-//
-// パラメータ:
-//   - named: 判定対象の名前付き型
-//
-// 戻り値:
-//   - bool: UnmarshalJSONFrom を生成すべき場合は true
-func (g *CodeGenerator) shouldGenerateUnmarshal(named *types.Named) bool {
-	if named == nil {
-		return false
-	}
-
-	_, skip := g.skipUnmarshal[named.Obj()]
-	return !skip
-}
-
-// unwrapToStruct は様々な型ラッパーから構造体型を取得する。
-//
-// このメソッドは Named 型と Pointer 型を再帰的にアンラップして、
-// 基礎となる構造体型に到達する。
-//
-// パラメータ:
-//   - t: アンラップ対象の Go 型
-//
-// 戻り値:
-//   - *types.Struct: 構造体型、または型が構造体でない場合は nil
-func unwrapToStruct(t types.Type) *types.Struct {
-	switch tt := t.(type) {
-	case *types.Struct:
-		return tt
-	case *types.Named:
-		if st, ok := tt.Underlying().(*types.Struct); ok {
-			return st
-		}
-	case *types.Pointer:
-		return unwrapToStruct(tt.Elem())
-	}
-	return nil
-}
-
-// unwrapToNamedStruct は構造体を基礎型として持つ Named 型を取得する。
-//
-// このメソッドは Pointer 型を再帰的にアンラップするが、
-// 構造体を基礎に持つ Named 型のみを返す。
-//
-// パラメータ:
-//   - t: アンラップ対象の Go 型
-//
-// 戻り値:
-//   - *types.Named: 名前付き構造体型、または型が名前付き構造体でない場合は nil
-func unwrapToNamedStruct(t types.Type) *types.Named {
-	switch tt := t.(type) {
-	case *types.Named:
-		if _, ok := tt.Underlying().(*types.Struct); ok {
-			return tt
-		}
-	case *types.Pointer:
-		return unwrapToNamedStruct(tt.Elem())
-	}
-	return nil
-}
-
-// findEmbeddedTypes は埋め込み（匿名）フィールドとして使用されているすべての型を識別する。
-//
-// これらの型は親型の UnmarshalJSONFrom メソッドを通じてアンマーシャルされるため、
-// UnmarshalJSONFrom の生成をスキップする必要がある。これにより、重複したアンマーシャル
-// ロジックを防ぎ、GraphQL の fragment spreads が正しく動作することを保証する。
-//
-// 例:
-//
-//	type A struct {
-//	    B  // 埋め込みフィールド（fragment spread）
-//	    ID string
-//	}
-//
-// この場合、B は返されるマップに含まれ、独自の UnmarshalJSONFrom を生成しない。
-// 代わりに、A の UnmarshalJSONFrom が B のフィールドのアンマーシャルを処理する。
-//
-// パラメータ:
-//   - goTypes: チェック対象の全ての Go 型のリスト
-//
-// 戻り値:
-//   - map[*types.TypeName]struct{}: 埋め込みフィールドとして使用されている型名のセット
-func findEmbeddedTypes(goTypes []types.Type) map[*types.TypeName]struct{} {
-	result := make(map[*types.TypeName]struct{})
-	for _, t := range goTypes {
-		named := unwrapToNamedStruct(t)
-		if named == nil {
-			continue
-		}
-		structType := named.Underlying().(*types.Struct) //nolint:forcetypeassert // named.Underlying() is guaranteed to be *types.Struct by unwrapToNamedStruct
-		for field := range structType.Fields() {
-			if !field.Anonymous() {
-				continue
-			}
-			if namedField := unwrapToNamedStruct(field.Type()); namedField != nil {
-				result[namedField.Obj()] = struct{}{}
-			}
-		}
-	}
-	return result
-}
-
-// formatTypeDecl は型定義を文字列にフォーマットする。
-//
-// パラメータ:
-//   - typeName: 型名（例: "User"）
-//   - structType: 構造体型の情報
-//
-// 戻り値: フォーマットされた型定義（例: "type User struct { ... }\n"）
-//
-// go/types に struct 全体を書かせるとタグが strconv.Quote の形 ("json:\"id\"") になるため、
-// フィールドごとに書き出してタグを raw 文字列 (`json:"id"`) にする。codegen が querygen へ
-// 情報を渡すための内部タグは出力しない。
-func (g *CodeGenerator) formatTypeDecl(typeName string, structType *types.Struct) string {
-	var buf strings.Builder
-
-	fmt.Fprintf(&buf, "type %s struct {\n", typeName)
-	for i := range structType.NumFields() {
-		field := structType.Field(i)
-		if !field.Embedded() {
-			buf.WriteString(field.Name() + " ")
-		}
-		buf.WriteString(goTypeString(field.Type()))
-		if tag := codegen.PublicTag(structType.Tag(i)); tag != "" {
-			buf.WriteString(" " + formatStructTag(tag))
-		}
-		buf.WriteString("\n")
-	}
-	buf.WriteString("}\n")
 
 	return buf.String()
 }
 
-// formatStructTag は struct タグを Go のソースに書く形にする。raw 文字列で書けるタグは
-// バッククォートで囲み、バッククォートや制御文字を含むタグだけを解釈文字列にする。
-func formatStructTag(tag string) string {
-	if strconv.CanBackquote(tag) {
-		return "`" + tag + "`"
-	}
-
-	return strconv.Quote(tag)
+// hasFragment は、型がフラグメントスプレッドかインラインフラグメントのフィールドを持つかを返す。
+func hasFragment(responseType *codegen.ResponseType) bool {
+	return slices.ContainsFunc(responseType.Fields, (*codegen.Field).IsFragment)
 }
 
-// formatUnmarshalMethod は UnmarshalJSONFrom メソッドを文字列にフォーマットする。
-//
-// 生成される UnmarshalJSONFrom メソッドは、GraphQL レスポンスの JSON データを
-// 構造体にデシリアライズするために使用される。
-//
-// パラメータ:
-//   - typeName: レシーバ型の名前（例: "User"）
-//   - body: メソッド本体のステートメントリスト
-//
-// 戻り値: フォーマットされた UnmarshalJSONFrom メソッド定義
-func (g *CodeGenerator) formatUnmarshalMethod(typeName string, body []Statement) string {
-	var buf strings.Builder
+// hasDecodableField は、既定のデコードで値が入るフィールド (フラグメントでないフィールド) を型が
+// 持つかを返す。json/v2 は JSON にできるフィールドの無い struct をエラーにするため、無い型は
+// 既定のデコードを通さない。別名 _ のフィールドは Go の名前も _ で、JSON にできないため数えない。
+func hasDecodableField(responseType *codegen.ResponseType) bool {
+	return slices.ContainsFunc(responseType.Fields, func(field *codegen.Field) bool {
+		return !field.IsFragment() && token.IsExported(field.GoName())
+	})
+}
 
-	// Method signature
-	fmt.Fprintf(&buf, "func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", typeName)
-
-	// Method body (gofmt が整形するため手動インデントはしない)
-	for _, stmt := range body {
-		buf.WriteString(stmt.String())
-		buf.WriteString("\n")
+// fieldsOfKind は、型のフィールドのうち種類が kind のものを、フィールドの順に返す。
+func fieldsOfKind(responseType *codegen.ResponseType, kind codegen.TypeKind) []*codegen.Field {
+	var fields []*codegen.Field
+	for _, field := range responseType.Fields {
+		if field.TypeKind == kind {
+			fields = append(fields, field)
+		}
 	}
 
-	// Closing
+	return fields
+}
+
+// goTypeString は、生成コードに書く型の表記を返す。パッケージ名は生成ファイルの import に合わせて
+// 修飾する。go/types は空の interface を interface{} と書くため、any に揃える
+// (空でない interface は interface{ M() } の形になるので、置換の対象にならない)。
+func goTypeString(t types.Type) string {
+	return strings.ReplaceAll(templates.CurrentImports.LookupType(t), "interface{}", "any")
+}
+
+// writeTypeDecl は型の宣言を書く。フィールドの JSON のタグは raw 文字列 (`json:"id"`) で書く
+// (gqlgo/gqlgenc#326)。フラグメントのフィールドは JSON のメンバーに対応しないため json:"-" にする。
+func writeTypeDecl(buf *strings.Builder, responseType *codegen.ResponseType) {
+	fmt.Fprintf(buf, "type %s struct {\n", responseType.Name)
+	for _, field := range responseType.Fields {
+		jsonName := field.Name
+		if field.IsFragment() {
+			jsonName = "-"
+		}
+		fmt.Fprintf(buf, "%s %s `json:\"%s\"`\n", field.GoName(), goTypeString(field.Type), jsonName)
+	}
 	buf.WriteString("}\n")
-
-	return buf.String()
 }
 
-// formatMarshalMethod は MarshalJSONTo メソッドを文字列にフォーマットする。
+// writeUnmarshalMethod は UnmarshalJSONFrom を書く。
 //
-// フラグメントのフィールドは json:"-" のためデフォルトマーシャルでは出力されない。
-// UnmarshalJSONFrom と対称になるよう、通常フィールド (plain 型経由)・フラグメント
-// スプレッド・値の入ったインラインフラグメントを1つの JSON オブジェクトへマージして
-// 出力する。これによりレスポンス型を JSON へ永続化して復元するラウンドトリップが
-// 成立する。出力のメンバーは、キーの昇順に並べる。json/v2 は既定では map のメンバーを反復の順
-// (実行のたびに変わる) で出力するため、json.Deterministic を指定して、同じ値から毎回同じ JSON を得る。
-func (g *CodeGenerator) formatMarshalMethod(typeName string, fields []FieldInfo) string {
-	regularFields, fragmentSpreads, inlineFragments := g.unmarshalBuilder.separateFieldTypesList(fields)
+// 値全体を 1 度だけ読み、同じ JSON オブジェクトから次の順にデコードする。
+//  1. フラグメントでないフィールド。メソッドを持たない別名の型 plain を通して、既定のデコードに任せる
+//  2. フラグメントスプレッド。フラグメントの型へそのままデコードする
+//  3. インラインフラグメント。__typename が型条件を満たす具体型のときだけ、枝の型を確保してデコードする
+//
+// フラグメントの型がさらにフラグメントを持つときは、その型の UnmarshalJSONFrom がデコードする。
+func writeUnmarshalMethod(buf *strings.Builder, responseType *codegen.ResponseType) {
+	fmt.Fprintf(buf, "func (t *%s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {\n", responseType.Name)
+	buf.WriteString("data, err := dec.ReadValue()\nif err != nil {\nreturn err\n}\n")
 
-	var buf strings.Builder
+	if hasDecodableField(responseType) {
+		fmt.Fprintf(buf, "type plain %s\n", responseType.Name)
+		buf.WriteString("if err := json.Unmarshal(data, (*plain)(t)); err != nil {\nreturn err\n}\n")
+	}
 
-	fmt.Fprintf(&buf, "func (t *%s) MarshalJSONTo(enc *jsontext.Encoder) error {\n", typeName)
+	for _, field := range fieldsOfKind(responseType, codegen.FragmentSpread) {
+		fmt.Fprintf(buf, "if err := json.Unmarshal(data, &t.%s); err != nil {\nreturn err\n}\n", field.GoName())
+	}
+
+	// __typename は非 null の string として生成するため、ポインタを外さずに分岐する
+	if cases := typenameCases(fieldsOfKind(responseType, codegen.InlineFragment)); len(cases) > 0 {
+		buf.WriteString("switch t.Typename {\n")
+		for _, typenameCase := range cases {
+			quoted := make([]string, 0, len(typenameCase.Typenames))
+			for _, typename := range typenameCase.Typenames {
+				quoted = append(quoted, strconv.Quote(typename))
+			}
+			fmt.Fprintf(buf, "case %s:\n", strings.Join(quoted, ", "))
+
+			for _, field := range typenameCase.Fragments {
+				// インラインフラグメントのフィールドの型は、枝の型へのポインタ
+				branchType := strings.TrimPrefix(goTypeString(field.Type), "*")
+				fmt.Fprintf(buf, "t.%s = &%s{}\n", field.GoName(), branchType)
+				fmt.Fprintf(buf, "if err := json.Unmarshal(data, t.%s); err != nil {\nreturn err\n}\n", field.GoName())
+			}
+		}
+		buf.WriteString("}\n")
+	}
+
+	buf.WriteString("return nil\n}\n")
+}
+
+// typenameCase は、UnmarshalJSONFrom が __typename で分岐する switch の case 1 つを表す。
+type typenameCase struct {
+	// Typenames は、case に並べる __typename の値 (GraphQL の具体型の名前)
+	Typenames []string
+	// Fragments は、その具体型のときに値を入れるインラインフラグメントのフィールド
+	Fragments []*codegen.Field
+}
+
+// typenameCases は、インラインフラグメントのフィールドから、__typename の switch の case を作る。
+//
+// __typename はレスポンスの具体型 (Object 型) の名前なので、case には型条件の名前ではなく、
+// 型条件を満たす具体型の名前を並べる (gqlgo/gqlgenc#325)。interface / union への型条件 (... on Node) は、
+// それを満たすすべての具体型の case でデコードする。1 つの具体型が複数の型条件を満たすときは、
+// その case で該当するインラインフラグメントをすべてデコードする。同じ組み合わせをデコードする
+// 具体型は 1 つの case にまとめる。
+//
+// 例えば Node を User と Post が実装し、選択が `... on Node` と `... on User` なら、
+// case "Post" は Node を、case "User" は Node と User をデコードする。
+//
+// 満たす具体型が 1 つも無い型条件 (実装する型の無い interface など) は、どの case にも入らない。
+func typenameCases(inlineFragments []*codegen.Field) []typenameCase {
+	// 具体型ごとに、その型のときに値を入れるインラインフラグメントを集める。具体型は最初に現れた順に並べる
+	typenames := make([]string, 0, len(inlineFragments))
+	fragmentsByTypename := make(map[string][]*codegen.Field, len(inlineFragments))
+	for _, fragment := range inlineFragments {
+		for _, typename := range fragment.PossibleTypes {
+			if _, ok := fragmentsByTypename[typename]; !ok {
+				typenames = append(typenames, typename)
+			}
+			fragmentsByTypename[typename] = append(fragmentsByTypename[typename], fragment)
+		}
+	}
+
+	cases := make([]typenameCase, 0, len(typenames))
+	caseIndexes := make(map[string]int, len(typenames))
+	for _, typename := range typenames {
+		fragments := fragmentsByTypename[typename]
+
+		names := make([]string, 0, len(fragments))
+		for _, fragment := range fragments {
+			names = append(names, fragment.Name)
+		}
+		key := strings.Join(names, ",")
+
+		if i, ok := caseIndexes[key]; ok {
+			cases[i].Typenames = append(cases[i].Typenames, typename)
+			continue
+		}
+
+		caseIndexes[key] = len(cases)
+		cases = append(cases, typenameCase{Typenames: []string{typename}, Fragments: fragments})
+	}
+
+	return cases
+}
+
+// writeMarshalMethod は MarshalJSONTo を書く。
+//
+// UnmarshalJSONFrom と対称になるよう、フラグメントでないフィールド (plain を通す)・フラグメント
+// スプレッド・値の入ったインラインフラグメントを 1 つの JSON オブジェクトへまとめて出力する。
+// 出力のメンバーは、キーの昇順に並べる。json/v2 は既定では map のメンバーを反復の順 (実行のたびに
+// 変わる) で出力するため、json.Deterministic を指定して、同じ値から毎回同じ JSON を得る。
+func writeMarshalMethod(buf *strings.Builder, responseType *codegen.ResponseType) {
+	fmt.Fprintf(buf, "func (t *%s) MarshalJSONTo(enc *jsontext.Encoder) error {\n", responseType.Name)
 	buf.WriteString("merged := map[string]jsontext.Value{}\n")
-	if hasDecodableField(regularFields) {
-		fmt.Fprintf(&buf, "type plain %s\n", typeName)
+
+	if hasDecodableField(responseType) {
+		fmt.Fprintf(buf, "type plain %s\n", responseType.Name)
 		buf.WriteString("if err := client.MergeJSONObject(merged, (*plain)(t)); err != nil {\nreturn err\n}\n")
 	}
-	for _, field := range fragmentSpreads {
-		fmt.Fprintf(&buf, "if err := client.MergeJSONObject(merged, &t.%s); err != nil {\nreturn err\n}\n", field.Name)
-	}
-	for _, frag := range inlineFragments {
-		fmt.Fprintf(&buf, "if t.%s != nil {\nif err := client.MergeJSONObject(merged, t.%s); err != nil {\nreturn err\n}\n}\n", frag.Field.Name, frag.Field.Name)
-	}
-	buf.WriteString("return json.MarshalEncode(enc, merged, json.Deterministic(true))\n")
-	buf.WriteString("}\n")
 
-	return buf.String()
+	for _, field := range fieldsOfKind(responseType, codegen.FragmentSpread) {
+		fmt.Fprintf(buf, "if err := client.MergeJSONObject(merged, &t.%s); err != nil {\nreturn err\n}\n", field.GoName())
+	}
+
+	for _, field := range fieldsOfKind(responseType, codegen.InlineFragment) {
+		fmt.Fprintf(buf, "if t.%s != nil {\nif err := client.MergeJSONObject(merged, t.%s); err != nil {\nreturn err\n}\n}\n", field.GoName(), field.GoName())
+	}
+
+	buf.WriteString("return json.MarshalEncode(enc, merged, json.Deterministic(true))\n}\n")
 }
 
-// formatGetter は getter メソッドを文字列にフォーマットする。
-//
-// 生成される getter メソッドは nil セーフで、レシーバが nil の場合は
-// ゼロ値で初期化された構造体を返す。
-//
-// パラメータ:
-//   - typeName: レシーバ型の名前（例: "User"）
-//   - fieldName: フィールド名（例: "Name"）
-//   - fieldType: フィールドの型（例: "string"）
-//
-// 戻り値: フォーマットされた getter メソッド定義（例: "func (t *User) GetName() string { ... }"）
-func (g *CodeGenerator) formatGetter(typeName, fieldName, fieldType string) string {
-	return fmt.Sprintf(`func (t *%s) Get%s() %s {
+// writeGetter は、フィールドの getter を書く。getter はレシーバが nil でも呼べて、そのときは
+// フィールドのゼロ値を返す。
+func writeGetter(buf *strings.Builder, typeName string, field *codegen.Field) {
+	fmt.Fprintf(buf, `func (t *%s) Get%s() %s {
 	if t == nil {
 		t = &%s{}
 	}
 	return t.%s
 }
-`, typeName, fieldName, fieldType, typeName, fieldName)
+`, typeName, field.GoName(), goTypeString(field.Type), typeName, field.GoName())
 }

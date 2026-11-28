@@ -7,8 +7,8 @@ import (
 )
 
 {{- end}}
-{{- range $goType:= .GoTypes }}
-{{ genCode $goType }}
+{{- range $responseType := .ResponseTypes }}
+{{ genCode $responseType }}
 {{- end}}
 
 {{- range $operation := .Operations}}

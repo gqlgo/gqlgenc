@@ -37,7 +37,7 @@ func GenerateCode(cfg *config.Config) error {
 	// generate template sources
 	// 型生成で @goFragment(type:) を読み取った後、サーバーへ送る Document に残さないよう
 	// AST から @goFragment を除去してから Document を生成する。
-	goTypes, err := codegen.NewGoTypeGenerator(cfg).CreateGoTypes(cfg.GQLGencConfig.QueryDocument.Operations)
+	responseTypes, err := codegen.NewGoTypeGenerator(cfg).CreateResponseTypes(cfg.GQLGencConfig.QueryDocument.Operations)
 	if err != nil {
 		return fmt.Errorf("failed to create go types: %w", err)
 	}
@@ -51,7 +51,7 @@ func GenerateCode(cfg *config.Config) error {
 
 	// querygen
 	if cfg.GQLGencConfig.QueryGen.IsDefined() {
-		if err := querygen.Generate(cfg, operations, goTypes); err != nil {
+		if err := querygen.Generate(cfg, operations, responseTypes); err != nil {
 			return fmt.Errorf("querygen failed: %w", err)
 		}
 	}

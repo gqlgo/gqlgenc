@@ -5,7 +5,6 @@ import (
 	"fmt"
 	gotypes "go/types"
 	"maps"
-	"reflect"
 	"slices"
 	"strings"
 	"unicode"
@@ -19,11 +18,21 @@ import (
 	graphql "github.com/vektah/gqlparser/v2/ast"
 )
 
+// ResponseType は、query_gen.go に宣言するレスポンスの型 1 つを表す。オペレーション・フィールドの
+// 選択セット・フラグメント・インラインフラグメントの枝ごとに 1 つ作る。
+type ResponseType struct {
+	// Name は Go の型名
+	Name string
+	// Fields は宣言するフィールド。Go のフィールド名ごとに 1 つを、選択の名前の順に並べる
+	Fields Fields
+}
+
 type GoTypeGenerator struct {
 	cfg    *config.Config
 	binder *typebind.Binder
-	types  map[string]gotypes.Type
-	err    error
+	// types は、生成する型を Go の型名で引く表
+	types map[string]*ResponseType
+	err   error
 	// typeNameOrigins は、生成する型の名前ごとに、その型を生成する選択の説明を持つ (claimTypeName)
 	typeNameOrigins map[string]string
 	// typeNameErr は、別々の選択が同じ型の名前を使った最初の衝突。err の後に報告する
@@ -34,21 +43,23 @@ func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
 	return &GoTypeGenerator{
 		cfg:             cfg,
 		binder:          cfg.GQLGencConfig.TypeBinder,
-		types:           map[string]gotypes.Type{},
+		types:           map[string]*ResponseType{},
 		typeNameOrigins: map[string]string{},
 		typeNameErr:     nil,
 	}
 }
 
-func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) ([]gotypes.Type, error) {
+// CreateResponseTypes は、オペレーションのレスポンスを表す型を、選択セットの入れ子の型も含めてすべて作り、
+// 型名の順に返す。
+func (g *GoTypeGenerator) CreateResponseTypes(operations graphql.OperationList) ([]*ResponseType, error) {
 	for _, operation := range operations {
 		// client_gen.go と query_gen.go の Document 定数は、オペレーション名を Go の名前
 		// (templates.ToGo: getUser → GetUser、GetUserId → GetUserID) にして参照する。
 		// 型も同じ名前で宣言しないと、Go の名前の形でないオペレーション名で参照先が無くなる。
 		typeName := templates.ToGo(operation.Name)
-		t := g.newFields(typeName, operation.SelectionSet).goStructType()
+		fields := g.newFields(typeName, operation.SelectionSet)
 		g.claimTypeName(typeName, "operation "+operation.Name)
-		g.newGoNamedType(typeName, false, t)
+		g.newResponseType(typeName, fields)
 	}
 
 	if g.err != nil {
@@ -61,13 +72,9 @@ func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) ([]got
 		return nil, g.typeNameErr
 	}
 
-	return g.goTypes(), nil
-}
-
-func (g *GoTypeGenerator) goTypes() []gotypes.Type {
-	return slices.SortedFunc(maps.Values(g.types), func(a, b gotypes.Type) int {
-		return strings.Compare(strings.TrimPrefix(a.String(), "*"), strings.TrimPrefix(b.String(), "*"))
-	})
+	return slices.SortedFunc(maps.Values(g.types), func(a, b *ResponseType) int {
+		return strings.Compare(a.Name, b.Name)
+	}), nil
 }
 
 // setErr は最初に起きたエラーだけを保持する (first-error-wins)。型生成は途中で止めず走査後に
@@ -285,7 +292,6 @@ func inlineFragmentOnEnclosingType(sel *graphql.InlineFragment) *graphql.InlineF
 func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Selection) *Field {
 	switch sel := selection.(type) {
 	case *graphql.Field:
-		tags := []string{fmt.Sprintf(`json:"%s"`, sel.Alias)}
 		// @goFragment(type:) でフィールド選択を既存 Go 型にバインドする場合は、
 		// 選択セットを再帰せずバインド型をそのまま使う。
 		var typeKind TypeKind
@@ -303,33 +309,34 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		if hasConditionalDirective(sel.Directives) && sel.Name != typenameFieldName {
 			t = pointerize(t)
 		}
-		return newField(typeKind, t, sel.Alias, tags)
+		return &Field{Name: sel.Alias, Type: t, TypeKind: typeKind, PossibleTypes: nil}
 	case *graphql.FragmentSpread:
 		// @goFragment(type:) または autobind でフラグメントを既存 Go 型にバインドする
-		// 場合は、型生成せずバインド型を埋め込む。埋め込みフィールド名はバインド型名。
+		// 場合は、型生成せずバインド型をそのまま使う。フィールド名はバインド型名。
 		if baseType, name, ok := g.fragmentBinding(sel.Definition); ok {
-			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
+			return &Field{Name: name, Type: baseType, TypeKind: FragmentSpread, PossibleTypes: nil}
 		}
-		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
+		fields := g.newFields(sel.Name, sel.Definition.SelectionSet)
 		g.claimTypeName(sel.Name, "fragment "+sel.Name)
-		namedType := g.newGoNamedType(sel.Name, true, structType)
-		return newField(FragmentSpread, namedType, sel.Name, []string{jsonIgnoreTag})
+		namedType := g.newResponseType(sel.Name, fields)
+		return &Field{Name: sel.Name, Type: namedType, TypeKind: FragmentSpread, PossibleTypes: nil}
 	case *graphql.InlineFragment:
 		// インラインフラグメントの枝も名前付き型で生成する。匿名構造体だと利用側が値を
 		// 構築するとき Go の型同一性ルールにより json タグまで一致するリテラルを書く必要が
 		// あり、テストや変換コードが書けないため。型名は 親型名_型条件 (例:
 		// UserOperation_User_User) とする。
 		typeName := fieldTypeName(parentTypeName, sel.TypeCondition)
-		structType := g.newFields(typeName, sel.SelectionSet).goStructType()
+		fields := g.newFields(typeName, sel.SelectionSet)
 		g.claimTypeName(typeName, fmt.Sprintf("inline fragment on %s in %s", sel.TypeCondition, parentTypeName))
-		namedType := g.newGoNamedType(typeName, true, structType)
+		namedType := g.newResponseType(typeName, fields)
 		// 枝に値が入るのは、レスポンスの __typename が型条件を満たす具体型のとき。interface / union への
-		// 型条件は __typename と名前が一致しないため、満たす具体型を内部タグで querygen へ渡す。
-		tags := []string{jsonIgnoreTag}
-		if tag := possibleTypesTag(g.possibleTypeNames(sel.TypeCondition, sel.ObjectDefinition)); tag != "" {
-			tags = append(tags, tag)
+		// 型条件は __typename と名前が一致しないため、満たす具体型を querygen へ渡す。
+		return &Field{
+			Name:          sel.TypeCondition,
+			Type:          gotypes.NewPointer(namedType),
+			TypeKind:      InlineFragment,
+			PossibleTypes: g.possibleTypeNames(sel.TypeCondition, sel.ObjectDefinition),
 		}
-		return newField(InlineFragment, gotypes.NewPointer(namedType), sel.TypeCondition, tags)
 	}
 	// 事前条件: selection は *Field/*FragmentSpread/*InlineFragment のいずれか。
 	panic("unexpected selection type")
@@ -408,7 +415,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 
 	// Create base type (always non-null) then wrap with list structure
 	g.claimTypeName(typeName, fmt.Sprintf("field %s in %s", sel.Alias, parentTypeName))
-	baseType := g.newGoNamedType(typeName, true, fields.goStructType())
+	baseType := g.newResponseType(typeName, fields)
 	t := g.newObjectGoType(baseType, sel.Definition.Type)
 	return Object, t
 }
@@ -469,15 +476,14 @@ func (g *GoTypeGenerator) newObjectGoType(baseType gotypes.Type, gqlType *graphq
 	panic(fmt.Sprintf("unexpected GraphQL type structure: %+v", gqlType))
 }
 
-func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotypes.Type) gotypes.Type {
-	var namedType gotypes.Type
-	namedType = gotypes.NewNamed(gotypes.NewTypeName(0, g.cfg.GQLGencConfig.QueryGen.Pkg(), typeName, nil), t, nil)
-	if !nonnull {
-		namedType = gotypes.NewPointer(namedType)
-	}
-	// new type set to g.types
-	g.types[namedType.String()] = namedType
-	return namedType
+// newResponseType は、名前 typeName とフィールド fields の型を、生成する型として記録する。
+// 戻り値は、ほかの型のフィールドからこの型を参照するための go/types の型。参照の表記
+// (パッケージの修飾・ポインタ・スライス) にだけ使うため、underlying は空の struct にしている。
+// フィールドは ResponseType が持つ。
+func (g *GoTypeGenerator) newResponseType(typeName string, fields Fields) gotypes.Type {
+	g.types[typeName] = &ResponseType{Name: typeName, Fields: fields.uniqueByName()}
+
+	return gotypes.NewNamed(gotypes.NewTypeName(0, g.cfg.GQLGencConfig.QueryGen.Pkg(), typeName, nil), gotypes.NewStruct(nil, nil), nil)
 }
 
 // claimTypeName は、生成する型の名前 typeName を、origin (その型を生成する選択の説明) が使うものとして
@@ -530,7 +536,7 @@ func resolveModelType(binder *typebind.Binder, models gqlgenconfig.TypeMap, type
 //
 // 戻り値:
 //   - gotypes.Type: バインド先の Go 型（要素型。リスト/NonNull の包みは呼び出し側で行う）
-//   - string: バインド先型の非修飾名（埋め込みフィールド名に使う）
+//   - string: バインド先型の非修飾名（フィールド名に使う）
 //   - bool: @goFragment が付いている場合は true
 func (g *GoTypeGenerator) boundGoType(directives graphql.DirectiveList) (gotypes.Type, string, bool) {
 	directive := directives.ForName(goFragmentDirectiveName)
@@ -624,131 +630,47 @@ const (
 	InlineFragment TypeKind = "InlineFragment"
 )
 
-const jsonIgnoreTag = `json:"-"`
-
-// internalTagKey は、codegen が querygen へ情報を渡すための struct タグのキー。生成コードには出力しない
-// (PublicTag が取り除く)。インラインフラグメントのフィールドに `gqlgenc:"possibleTypes=A,B"` の形で付け、
-// 型条件を満たす具体型を名前順に並べる。
-const (
-	internalTagKey         = "gqlgenc"
-	possibleTypesTagPrefix = "possibleTypes="
-)
-
-// possibleTypesTag は具体型名の一覧を内部タグにする。一覧が空なら空文字を返す。
-func possibleTypesTag(typeNames []string) string {
-	if len(typeNames) == 0 {
-		return ""
-	}
-
-	return internalTagKey + `:"` + possibleTypesTagPrefix + strings.Join(typeNames, ",") + `"`
-}
-
-// PossibleTypesFromTag は、インラインフラグメントのフィールドの struct タグから、型条件を満たす
-// 具体型名を取り出す。内部タグが無ければ nil を返す。
-func PossibleTypesFromTag(tag string) []string {
-	value, ok := reflect.StructTag(tag).Lookup(internalTagKey)
-	if !ok {
-		return nil
-	}
-
-	typeNames, ok := strings.CutPrefix(value, possibleTypesTagPrefix)
-	if !ok || typeNames == "" {
-		return nil
-	}
-
-	return strings.Split(typeNames, ",")
-}
-
-// PublicTag は、struct タグから生成器内部のタグを除いたものを返す。生成コードに出力するタグに使う。
-// `key:"value"` を空白で区切る慣習の形でないタグは、そのまま返す。
-func PublicTag(tag string) string {
-	if _, ok := reflect.StructTag(tag).Lookup(internalTagKey); !ok {
-		return tag
-	}
-
-	// reflect.StructTag.Lookup と同じ規則で key:"value" を 1 組ずつ読み、内部タグ以外を残す
-	kept := make([]string, 0, 1)
-	rest := tag
-	for {
-		rest = strings.TrimLeft(rest, " ")
-		keyEnd := strings.Index(rest, `:"`)
-		if keyEnd <= 0 {
-			break
-		}
-
-		valueEnd := keyEnd + 2
-		for valueEnd < len(rest) && rest[valueEnd] != '"' {
-			if rest[valueEnd] == '\\' {
-				valueEnd++
-			}
-			valueEnd++
-		}
-		if valueEnd >= len(rest) {
-			break
-		}
-
-		if rest[:keyEnd] != internalTagKey {
-			kept = append(kept, rest[:valueEnd+1])
-		}
-		rest = rest[valueEnd+1:]
-	}
-
-	return strings.Join(kept, " ")
-}
-
 // typenameFieldName は interface / union を判別する GraphQL メタフィールド。gqlparser は注入された
 // __typename を nullable な String で束縛するが、__typename は常に存在する非 null なので string で生成する。
 const typenameFieldName = "__typename"
 
+// Field は、レスポンスの型のフィールド 1 つを表す。選択セットの選択 1 つにあたる。
 type Field struct {
-	Name     string
-	Type     gotypes.Type
-	Tags     []string
+	// Name は選択の名前。フィールドは別名 (別名が無ければフィールド名)、フラグメントスプレッドは
+	// フラグメント名 (既存の Go 型に束縛したときはその型名)、インラインフラグメントは型条件の型名
+	Name string
+	// Type は Go のフィールドの型
+	Type gotypes.Type
+	// TypeKind は選択の種類
 	TypeKind TypeKind
+	// PossibleTypes は、インラインフラグメントの型条件を満たす具体型 (レスポンスの __typename に
+	// なり得る Object 型) の名前。名前順に並べる。インラインフラグメントでなければ nil
+	PossibleTypes []string
 }
 
-func newField(typeKind TypeKind, fieldType gotypes.Type, name string, tags []string) *Field {
-	return &Field{
-		Name:     name,
-		Type:     fieldType,
-		Tags:     tags,
-		TypeKind: typeKind,
-	}
+// GoName は Go のフィールド名を返す。
+//
+// フラグメントも名前付きのフィールドにし、埋め込まない。埋め込むと Go のフィールド昇格で
+// 複数のフラグメントの同名のフィールドが曖昧になり (ambiguous selector)、利用者が t.Field を
+// 読めなくなるため。アクセスは常に t.<FragmentName>.Field となる。
+func (r *Field) GoName() string {
+	return templates.ToGo(r.Name)
 }
 
-func (r *Field) goVar() *gotypes.Var {
-	// フラグメントは名前付きフィールドとして生成し、埋め込まない。埋め込むと Go のフィールド昇格で
-	// 複数フラグメントの同名フィールドが曖昧になり (ambiguous selector)、利用者が t.Field を読めなく
-	// なるため。アクセスは常に t.<FragmentName>.Field となる。
-	return gotypes.NewField(0, nil, templates.ToGo(r.Name), r.Type, false)
-}
-
-func (r *Field) joinTags() string {
-	return strings.Join(r.Tags, " ")
+// IsFragment は、フラグメントスプレッドかインラインフラグメントかを返す。フラグメントのフィールドは、
+// レスポンスの JSON に対応するメンバーを持たず、親と同じ JSON オブジェクトからデコードする。
+func (r *Field) IsFragment() bool {
+	return r.TypeKind == FragmentSpread || r.TypeKind == InlineFragment
 }
 
 type Fields []*Field
 
-func (fs Fields) goStructType() *gotypes.Struct {
-	// Go struct fields do not allow fields with the same name, so we remove duplicates
-	fields := fs.uniqueByName()
-	vars := make([]*gotypes.Var, 0, len(fields))
-	for _, field := range fields {
-		vars = append(vars, field.goVar())
-	}
-	tags := make([]string, 0, len(fields))
-	for _, field := range fields {
-		tags = append(tags, field.joinTags())
-	}
-	return gotypes.NewStruct(vars, tags)
-}
-
 func (fs Fields) uniqueByName() Fields {
-	// 異なるセレクション名でも Go フィールド名が衝突し得るため、Go 名でまとめて
-	// go/types.NewStruct の panic を防ぐ (衝突は checkGoNameCollision がエラーにする)
+	// 異なるセレクション名でも Go フィールド名が衝突し得るため、Go 名ごとに 1 つにまとめる
+	// (Go の struct は同じ名前のフィールドを持てない。衝突は checkGoNameCollision がエラーにする)
 	fieldMapByName := make(map[string]*Field, len(fs))
 	for _, field := range fs {
-		fieldMapByName[templates.ToGo(field.Name)] = field
+		fieldMapByName[field.GoName()] = field
 	}
 	return slices.SortedFunc(maps.Values(fieldMapByName), func(a *Field, b *Field) int {
 		return strings.Compare(a.Name, b.Name)
@@ -801,7 +723,7 @@ const (
 	goFragmentArgType       = "type"
 )
 
-// goTypeName はバインド先 Go 型の非修飾名を返す（埋め込みフィールド名に使う）。
+// goTypeName はバインド先 Go 型の非修飾名を返す（フィールド名に使う）。
 func goTypeName(t gotypes.Type) string {
 	if named, ok := t.(*gotypes.Named); ok {
 		return named.Obj().Name()
