@@ -187,7 +187,7 @@ bind:
     # []string 同名の Go 型が指定パッケージにあれば自動バインド（gqlgen の autobind 相当）
     packages:
       - github.com/example/myapp/domain
-    # マップ GraphQL 型名 → Go 型 の明示バインド
+    # マップ GraphQL 型名 → Go 型 の明示バインド。型ごとに書けるキーは model（Go 型 1 つ）だけ
     named:
       Email:
         model: github.com/example/myapp/domain.Email
@@ -603,7 +603,7 @@ input := UpdateUserInput{
 4. **型の束縛**（`schema.go` の `bindTypes`）: gqlgen の設定を組み立てて `Init()` を実行し、`bind.type.packages` のパッケージから同じ名前の Go 型を束縛する。interface の実装リストをソートして出力を決定的にする。gqlgen の設定は利用者に見せず、ここで v3 が常に使う値に固定する
 5. **クエリ読み込み**（`queryparser.Load`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
 6. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションとレスポンスの型の構築（codegen）→ querygen → clientgen の順に実行する。codegen は、レスポンスの型ごとに型名とフィールドの一覧（選択の種類・インラインフラグメントの型条件を満たす具体型つき）を作り、querygen はそれを読んで書き出すだけで、選択の種類を判定し直さない
-7. **出力の検査**（`output_validate.go` の `validateOutputs`）: 生成した出力ファイルが Go のソースとして構文解析できることを確かめる。gqlgen は出力の整形（gofmt）に失敗しても標準エラーへ `gofmt failed on ...` と書くだけで、整形前の内容をそのまま出力する。束縛した型を解決できなかったときに出る `*invalid type` のような読めないコードを出力として採用しないよう、ここで失敗にして前回の出力へ戻す。エラーには、最初の構文エラーの位置とその行、束縛に使うパッケージの読み込みエラー（あれば）を載せる
+7. **出力の検査**（`output_validate.go` の `validateOutputs`）: 生成した出力ファイルが Go のソースとして構文解析できることを確かめる。model を書く gqlgen も、query と client を書く gqlgenc（`internal/gosrc` の `WriteFile`）も、出力の整形（gofmt）に失敗したときは整形前の内容をそのまま出力する。束縛した型を解決できなかったときに出る `*invalid type` のような読めないコードを出力として採用しないよう、ここで失敗にして前回の出力へ戻す。エラーには、最初の構文エラーの位置とその行、束縛に使うパッケージの読み込みエラー（あれば）を載せる
 8. **出力の確定**（`output_backup.go` の `commitOutputBackups`）: 使用フィルタがすべての型を除いて宣言の無くなった model ファイルを消し、生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
 
 ### シーケンス図（コード生成）
@@ -705,7 +705,7 @@ sequenceDiagram
 | パッケージ | 役割 |
 |---|---|
 | `main` | エントリポイント。上記フローの実行（`run.go`）、スキーマ読み込みと型の束縛（`schema.go`）、出力の退避・検査・確定（`output_backup.go`・`output_validate.go`）。スキーマ・束縛の結果・クエリは、各段階の戻り値として次の段階へ渡す |
-| `config` | 設定ファイルの読み込み・検証。`Config` は設定の値だけを持ち、スキーマやクエリなど読み込んだ結果は持たない |
+| `config` | 設定ファイルの読み込み・検証。`Config` は設定の値だけを持ち、スキーマやクエリなど読み込んだ結果は持たない。出力先（`PackageConfig`）のパッケージ名と import パスは、出力先のディレクトリから決める |
 | `introspection` | イントロスペクション結果から GraphQL スキーマ（AST）を構築。リモート取得（`LoadRemoteSchema`、`client` 再利用）も担う |
 | `queryparser` | クエリファイルの読み込み（`Load`）、パース・検証、オペレーション分割、使用型の収集 |
 | `codegen` | オペレーションと、レスポンスの型（型名・フィールド・選択の種類）の構築 |
@@ -713,6 +713,8 @@ sequenceDiagram
 | `plugins/modelgen` | gqlgen modelgen のラップ（未使用型のフィルタリング） |
 | `plugins/querygen` | レスポンス型・UnmarshalJSONFrom / MarshalJSONTo・ドキュメント定数の生成 |
 | `plugins/clientgen` | 型付き Operation 値の生成 |
+| `internal/typebind` | 束縛先の Go パッケージの読み込みと、束縛先の Go 型の解決 |
+| `internal/gosrc` | 生成する Go のソースを書くための道具。GraphQL の名前から Go の名前への変換（`ToGo`）、生成するファイルの import の管理（`Imports`）、整形と書き出し（`WriteFile`） |
 | `client` | ランタイムの HTTP クライアント |
 
 ## 開発

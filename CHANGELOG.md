@@ -27,6 +27,7 @@ v0 からの移行手順は [MIGRATION.md](./MIGRATION.md) を参照してくだ
 - スキーマは `schema.files`（ローカル）か `schema.endpoint`（introspection で取得。URL とヘッダーを指定）のどちらか一方を指定します（同時指定・両方未指定はエラー）
 - 生成先は `generate.query.file`（レスポンス型）/ `generate.client.file`（variables・Operation 値）/ `generate.model.file`（input・enum モデル、省略可）で、各ファイルの package はディレクトリ名から導出します
 - 既存 Go 型へのバインドは `bind.type.packages`（スキーマ型名）と `bind.fragment.packages`（フラグメント名）に分けます。個別バインドは `bind.type.named`、Federation は `schema.federation.version` です
+- `bind.type.named` の型ごとに書けるキーは `model`（束縛先の Go 型 1 つ）だけです。gqlgen の `models` が持つ他のキー（`forceGenerate`・`fields`・`enum_values`・`extraFields`・`embedExtraFields`）と、`model` のリスト形式はエラーになります。`model` の無い型もエラーになります
 - nil 安全な Getter の生成は `generate.query.getters: true` で切り替えます。レスポンス型は常に公開型として生成します（旧 `export_query_type` トグルは廃止）
 - 設定ファイルに未知のフィールドがあるとエラーになります
 - v0 の `generate` 配下のオプションはセクション再編に伴いすべて廃止しました。`prefix` / `suffix` / `unamedPattern`（生成型名の命名カスタマイズ）、`client` / `clientInterfaceName`（クライアント生成のトグルと interface 名）、`clientV2`、`enableClientJsonOmitemptyTag` / `enableClientJsonOmitzeroTag`（JSON タグのトグル。v1 は `omitzero` 固定）、`onlyUsedModels`（v1 では `generate.model.onlyUsed` としてデフォルト有効。「モデル生成を Input 型と Enum 型に限定」参照）が対象です
@@ -281,6 +282,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - レスポンスの型の生成を、codegen が作った中間表現（型名とフィールドの一覧。フィールドは選択の種類と、インラインフラグメントの型条件を満たす具体型を持つ）を querygen がそのまま読む形にしました。従来は codegen が選択の種類を捨てて `go/types` の struct に変換し、querygen が struct の形（公開・`json:"-"`・ポインタ）から種類を推測し直していました。推測できない情報を渡すための内部用の struct タグと、フラグメントを埋め込みフィールドにしていた頃の処理も無くなりました。生成するコードは、満たす具体型が 1 つも無い型条件（実装する型の無い interface など）のインラインフラグメントに `__typename` の case を作らなくなる点を除いて変わりません
 - `config.Config` を設定の値だけを持つ 1 段の構造体にしました。従来は gqlgenc の設定と gqlgen の設定の 2 段で、スキーマ・クエリの AST・型の束縛器といった読み込みの結果も持っていました。スキーマの読み込み（`loadSchema`）・型の束縛（`bindTypes`）・クエリの読み込み（`queryparser.Load`）は `run.go` が順に呼び、結果を戻り値で次の段階へ渡します。`config` パッケージが `client` に依存しないよう、リモートのスキーマの取得を関数で注入していた仕組みも無くなりました
 - querygen・clientgen が gqlgen のプラグイン（`plugin.ConfigMutator`）の形をしていたのをやめ、`Generate` 関数を直接呼ぶようにしました（gqlgen のプラグイン機構は通っていませんでした）。introspection がヘッダーを付けるためだけの `introspection/internal/transport` パッケージも無くしました
+- 生成コードを作る側（`config`・`codegen`・`plugins/querygen`・`plugins/clientgen`・`internal/typebind`）が gqlgen のパッケージを import しないようにしました。GraphQL の名前から Go の名前への変換（`gosrc.ToGo`）、出力先のパッケージ名と import パスの解決（`config.PackageConfig`）、束縛の表（スキーマの型名から Go 型への `map[string]string`）、生成するファイルの import の管理と書き出し（`gosrc.Imports`・`gosrc.WriteFile`）を自前で持ちます。gqlgen を使うのは、型の束縛（`schema.go` が呼ぶ `Init()` と federation のディレクティブの定義）、model の生成（`plugins`・`plugins/modelgen`）、ランタイムの `graphql.Omittable`・`graphql.Upload`（`client`）です。生成するコードは変わりません。query と client の整形に失敗したときに標準エラーへ出ていた `gofmt failed on ...` は出なくなります（出力の検査がエラーを返します）
 
 ### 性能
 

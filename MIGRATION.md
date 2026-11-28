@@ -91,7 +91,7 @@ generate:
 | （相当なし） | `generate.query.file`（レスポンス型の出力先。新設） |
 | `model.package` / `client.package` | 廃止（package は file のディレクトリ名から導出） |
 | `autobind` | `bind.type.packages` |
-| `models` | `bind.type.named` |
+| `models` | `bind.type.named`（型ごとに書けるキーは `model` だけで、Go 型を 1 つ書く。`fields`・`enum_values`・`extraFields` など gqlgen の他のキーと、`model` のリスト形式はエラーになる） |
 | （相当なし） | `bind.fragment.packages`（フラグメント名の自動バインド。新設） |
 | `generate` 配下のトグル | すべて廃止（下記） |
 
