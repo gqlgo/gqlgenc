@@ -1,0 +1,29 @@
+{
+  "data": {
+    "typeType": {
+      "fields": [
+        { "name": "kind", "args": [] },
+        { "name": "fields", "args": [{ "name": "includeDeprecated" }] },
+        { "name": "inputFields", "args": [] }
+      ]
+    },
+    "fieldType": {
+      "fields": [
+        { "name": "name", "args": [] },
+        { "name": "args", "args": [] }
+      ]
+    },
+    "directiveType": {
+      "fields": [
+        { "name": "name", "args": [] },
+        { "name": "args", "args": [] }
+      ]
+    },
+    "inputValueType": {
+      "fields": [
+        { "name": "name", "args": [] },
+        { "name": "defaultValue", "args": [] }
+      ]
+    }
+  }
+}

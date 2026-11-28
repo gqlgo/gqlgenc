@@ -1,0 +1,24 @@
+# 先頭が小文字のオペレーション名
+query getUser($id: ID!) {
+  user(id: $id) {
+    id
+    name
+  }
+}
+
+# Go の名前では略語が大文字になるオペレーション名 (GetUserId → GetUserID)
+query GetUserId($id: ID!) {
+  user(id: $id) {
+    id
+    profile {
+      avatarUrl
+    }
+  }
+}
+
+# アンダースコアを含むオペレーション名
+query get_user_name($id: ID!) {
+  user(id: $id) {
+    name
+  }
+}

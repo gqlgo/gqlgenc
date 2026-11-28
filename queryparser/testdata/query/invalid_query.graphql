@@ -1,0 +1,5 @@
+query InvalidQuery {
+  nonExistentField {
+    id
+  }
+}

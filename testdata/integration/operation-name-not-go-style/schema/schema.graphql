@@ -1,0 +1,17 @@
+schema {
+  query: Query
+}
+
+type Query {
+  user(id: ID!): User!
+}
+
+type User {
+  id: ID!
+  name: String!
+  profile: Profile!
+}
+
+type Profile {
+  avatarUrl: String!
+}

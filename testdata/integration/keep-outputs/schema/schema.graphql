@@ -1,0 +1,13 @@
+type Query {
+  item: Item
+}
+
+type Item {
+  id: ID!
+  name: String!
+}
+
+enum Unused {
+  A
+  B
+}

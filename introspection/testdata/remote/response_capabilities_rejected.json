@@ -1,0 +1,5 @@
+{
+  "errors": [
+    { "message": "Cannot query field \"__type\" on type \"Query\"." }
+  ]
+}

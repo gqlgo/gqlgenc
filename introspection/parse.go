@@ -1,13 +1,28 @@
 package introspection
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/ast"
+	astparser "github.com/vektah/gqlparser/v2/parser"
 )
 
-func ParseIntrospectionQuery(url string, query Query) *ast.SchemaDocument {
+// errIntrospectionTypeTooDeep は、introspection パースで唯一「仕様違反の応答ではなく valid な
+// スキーマ」が原因で起きる panic の sentinel。型の list/non-null 入れ子が introspection クエリの
+// ofType 深さ (7) を超えると getType が OfType=nil に当たる。SchemaFromIntrospection はこれを
+// エラーに変換する。仕様から外れた応答 (kind 不一致・型欠落・null の要素) は、組み立てる前に
+// validateIntrospection がエラーにする。
+var errIntrospectionTypeTooDeep = errors.New("type nested deeper than the introspection query's ofType depth (7); use a local schema (schema.files) instead of endpoint introspection for deeply nested list/non-null types")
+
+func SchemaFromIntrospection(url string, query Query) (*ast.SchemaDocument, error) {
+	// サーバーの応答は信頼できないため、組み立てを続けられない応答は panic させずにエラーにする。
+	if err := validateIntrospection(query); err != nil {
+		return nil, fmt.Errorf("introspection schema parse failed: %w", err)
+	}
+
 	parser := parser{
 		sharedPosition: &ast.Position{Src: &ast.Source{
 			Name:    "remote",
@@ -20,7 +35,22 @@ func ParseIntrospectionQuery(url string, query Query) *ast.SchemaDocument {
 		parser.sharedPosition.Src.Name = url
 	}
 
-	return parser.parseIntrospectionQuery(query)
+	var doc *ast.SchemaDocument
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if e, ok := r.(error); ok && errors.Is(e, errIntrospectionTypeTooDeep) {
+					err = fmt.Errorf("introspection schema parse failed: %w", e)
+					return
+				}
+				panic(r)
+			}
+		}()
+		doc = parser.parseIntrospectionQuery(query)
+	}()
+
+	return doc, err
 }
 
 type parser struct {
@@ -40,6 +70,7 @@ func (p parser) parseIntrospectionQuery(query Query) *ast.SchemaDocument {
 	for _, directiveValue := range query.Schema.Directives {
 		doc.Directives = append(doc.Directives, p.parseDirectiveDefinition(directiveValue))
 	}
+
 	p.deprecatedDirectiveDefinition = doc.Directives.ForName("deprecated")
 
 	for _, typeVale := range p.typeMap {
@@ -50,48 +81,46 @@ func (p parser) parseIntrospectionQuery(query Query) *ast.SchemaDocument {
 }
 
 func (p parser) parseSchemaDefinition(query Query, typeMap map[string]*FullType) *ast.SchemaDefinition {
-	def := ast.SchemaDefinition{}
-	def.Position = p.sharedPosition
+	def := ast.SchemaDefinition{
+		Position: p.sharedPosition}
 
 	if query.Schema.QueryType.Name != nil {
 		def.OperationTypes = append(def.OperationTypes,
-			p.parseOperationTypeDefinitionForQuery(typeMap[*query.Schema.QueryType.Name]),
+			p.parseOperationTypeDefinition(ast.Query, typeMap[*query.Schema.QueryType.Name]),
 		)
 	}
 
 	if query.Schema.MutationType != nil {
 		def.OperationTypes = append(def.OperationTypes,
-			p.parseOperationTypeDefinitionForMutation(typeMap[*query.Schema.MutationType.Name]),
+			p.parseOperationTypeDefinition(ast.Mutation, typeMap[*query.Schema.MutationType.Name]),
+		)
+	}
+
+	if query.Schema.SubscriptionType != nil {
+		def.OperationTypes = append(def.OperationTypes,
+			p.parseOperationTypeDefinition(ast.Subscription, typeMap[*query.Schema.SubscriptionType.Name]),
 		)
 	}
 
 	return &def
 }
 
-func (p parser) parseOperationTypeDefinitionForQuery(fullType *FullType) *ast.OperationTypeDefinition {
-	var op ast.OperationTypeDefinition
-	op.Operation = ast.Query
-	op.Type = *fullType.Name
-	op.Position = p.sharedPosition
-
-	return &op
-}
-
-func (p parser) parseOperationTypeDefinitionForMutation(fullType *FullType) *ast.OperationTypeDefinition {
-	var op ast.OperationTypeDefinition
-	op.Operation = ast.Mutation
-	op.Type = *fullType.Name
-	op.Position = p.sharedPosition
-
-	return &op
+func (p parser) parseOperationTypeDefinition(operation ast.Operation, fullType *FullType) *ast.OperationTypeDefinition {
+	return &ast.OperationTypeDefinition{
+		Operation: operation,
+		Type:      *fullType.Name,
+		Position:  p.sharedPosition,
+	}
 }
 
 func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.DirectiveDefinition {
 	args := make(ast.ArgumentDefinitionList, 0, len(directiveValue.Args))
+
 	for _, arg := range directiveValue.Args {
 		argumentDefinition := p.buildInputValue(arg)
 		args = append(args, argumentDefinition)
 	}
+
 	locations := make([]ast.DirectiveLocation, 0, len(directiveValue.Locations))
 	for _, locationValue := range directiveValue.Locations {
 		locations = append(locations, ast.DirectiveLocation(locationValue))
@@ -102,15 +131,19 @@ func (p parser) parseDirectiveDefinition(directiveValue *DirectiveType) *ast.Dir
 		Name:        directiveValue.Name,
 		Arguments:   args,
 		Locations:   locations,
-		Position:    p.sharedPosition,
+		// repeatable を落とすと、同じ位置に2回書いたディレクティブを持つクエリが検証で弾かれる
+		IsRepeatable: directiveValue.IsRepeatable,
+		Position:     p.sharedPosition,
 	}
 }
 
 func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 	fieldList := make(ast.FieldList, 0, len(typeVale.Fields))
+
 	for _, field := range typeVale.Fields {
 		typ := p.getType(&field.Type)
 		args := make(ast.ArgumentDefinitionList, 0, len(field.Args))
+
 		for _, arg := range field.Args {
 			argumentDefinition := p.buildInputValue(arg)
 			args = append(args, argumentDefinition)
@@ -122,7 +155,7 @@ func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 			Arguments:   args,
 			Type:        typ,
 			Position:    p.sharedPosition,
-			Directives:  p.buildDeprecatedDirective(field),
+			Directives:  p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -132,13 +165,17 @@ func (p parser) parseObjectFields(typeVale *FullType) ast.FieldList {
 
 func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 	fieldList := make(ast.FieldList, 0, len(typeVale.InputFields))
+
 	for _, field := range typeVale.InputFields {
 		typ := p.getType(&field.Type)
 		fieldDefinition := &ast.FieldDefinition{
 			Description: pointerString(field.Description),
 			Name:        field.Name,
-			Type:        typ,
-			Position:    p.sharedPosition,
+			// 既定値を落とすと、既定値を持つ必須の input フィールドを省いたクエリが検証で弾かれる
+			DefaultValue: p.buildDefaultValue(field.DefaultValue, typ),
+			Type:         typ,
+			Position:     p.sharedPosition,
+			Directives:   p.buildDeprecatedDirective(field.IsDeprecated, field.DeprecationReason, ast.LocationInputFieldDefinition),
 		}
 		fieldList = append(fieldList, fieldDefinition)
 	}
@@ -147,68 +184,48 @@ func (p parser) parseInputObjectFields(typeVale *FullType) ast.FieldList {
 }
 
 func (p parser) parseObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
-
-	enums := make(ast.EnumValueList, 0, len(typeVale.EnumValues))
-	for _, enum := range typeVale.EnumValues {
-		enumValue := &ast.EnumValueDefinition{
-			Description: pointerString(enum.Description),
-			Name:        enum.Name,
-			Position:    p.sharedPosition,
-		}
-		enums = append(enums, enumValue)
-	}
-
 	return &ast.Definition{
 		Kind:        ast.Object,
 		Description: pointerString(typeVale.Description),
 		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
-		EnumValues:  enums,
+		Interfaces:  interfaceNames(typeVale),
+		Fields:      p.parseObjectFields(typeVale),
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInObject(typeVale),
+		BuiltIn:     builtIn(typeVale),
 	}
 }
 
 func (p parser) parseInterfaceTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseObjectFields(typeVale)
-	interfaces := make([]string, 0, len(typeVale.Interfaces))
-	for _, intf := range typeVale.Interfaces {
-		interfaces = append(interfaces, pointerString(intf.Name))
-	}
-
 	return &ast.Definition{
 		Kind:        ast.Interface,
 		Description: pointerString(typeVale.Description),
 		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
+		Interfaces:  interfaceNames(typeVale),
+		Fields:      p.parseObjectFields(typeVale),
 		Position:    p.sharedPosition,
 		BuiltIn:     false,
 	}
 }
 
 func (p parser) parseInputObjectTypeDefinition(typeVale *FullType) *ast.Definition {
-	fieldList := p.parseInputObjectFields(typeVale)
+	return &ast.Definition{
+		Kind:        ast.InputObject,
+		Description: pointerString(typeVale.Description),
+		Name:        pointerString(typeVale.Name),
+		Fields:      p.parseInputObjectFields(typeVale),
+		Position:    p.sharedPosition,
+		BuiltIn:     false,
+	}
+}
+
+// interfaceNames は type が実装するインターフェース名の一覧を返す。
+func interfaceNames(typeVale *FullType) []string {
 	interfaces := make([]string, 0, len(typeVale.Interfaces))
 	for _, intf := range typeVale.Interfaces {
 		interfaces = append(interfaces, pointerString(intf.Name))
 	}
 
-	return &ast.Definition{
-		Kind:        ast.InputObject,
-		Description: pointerString(typeVale.Description),
-		Name:        pointerString(typeVale.Name),
-		Interfaces:  interfaces,
-		Fields:      fieldList,
-		Position:    p.sharedPosition,
-		BuiltIn:     false,
-	}
+	return interfaces
 }
 
 func (p parser) parseUnionTypeDefinition(typeVale *FullType) *ast.Definition {
@@ -229,11 +246,13 @@ func (p parser) parseUnionTypeDefinition(typeVale *FullType) *ast.Definition {
 
 func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
 	enums := make(ast.EnumValueList, 0, len(typeVale.EnumValues))
+
 	for _, enum := range typeVale.EnumValues {
 		enumValue := &ast.EnumValueDefinition{
 			Description: pointerString(enum.Description),
 			Name:        enum.Name,
 			Position:    p.sharedPosition,
+			Directives:  p.buildDeprecatedDirective(enum.IsDeprecated, enum.DeprecationReason, ast.LocationEnumValue),
 		}
 		enums = append(enums, enumValue)
 	}
@@ -244,7 +263,7 @@ func (p parser) parseEnumTypeDefinition(typeVale *FullType) *ast.Definition {
 		Name:        pointerString(typeVale.Name),
 		EnumValues:  enums,
 		Position:    p.sharedPosition,
-		BuiltIn:     builtInEnum(typeVale),
+		BuiltIn:     builtIn(typeVale),
 	}
 }
 
@@ -282,29 +301,92 @@ func (p parser) parseTypeSystemDefinition(typeVale *FullType) *ast.Definition {
 func (p parser) buildInputValue(input *InputValue) *ast.ArgumentDefinition {
 	typ := p.getType(&input.Type)
 
-	var defaultValue *ast.Value
-	if input.DefaultValue != nil {
-		defaultValue = &ast.Value{
-			Raw:      pointerString(input.DefaultValue),
+	return &ast.ArgumentDefinition{
+		Description:  pointerString(input.Description),
+		Name:         input.Name,
+		DefaultValue: p.buildDefaultValue(input.DefaultValue, typ),
+		Type:         typ,
+		Position:     p.sharedPosition,
+		Directives:   p.buildDeprecatedDirective(input.IsDeprecated, input.DeprecationReason, ast.LocationArgumentDefinition),
+	}
+}
+
+// buildDefaultValue は、引数または input フィールドの既定値を組み立てる。
+//
+// サーバーは既定値を GraphQL のリテラル (`"text"`・`[A, B]`・`{min: 1}`) の文字列で返す。
+// リテラルとして解釈することで、文字列は引用符を外した値になり、リストは要素を、オブジェクトは
+// フィールドを保つ。リテラルとして解釈できない値は、書かれたまま typ の種類の値として残す。
+//
+// 事前条件: typ はスキーマにある型を指す。
+// 事後条件: defaultValue が nil なら nil を返す。返す値の Position は、入れ子の値も含めて
+// スキーマの Position になる。
+func (p parser) buildDefaultValue(defaultValue *string, typ *ast.Type) *ast.Value {
+	if defaultValue == nil {
+		return nil
+	}
+
+	value, err := parseValueLiteral(*defaultValue)
+	if err != nil {
+		// gqlparser を使うサーバー (gqlgen) は、文字列の既定値を strconv.Quote で書き出す。制御文字は
+		// GraphQL に無い Go のエスケープ (\x00・\a・\v・\U0001F600) になり、リテラルとして解釈できない。
+		// Go の文字列のリテラルとして読めれば、その値の文字列にする。
+		if unquoted, unquoteErr := strconv.Unquote(*defaultValue); unquoteErr == nil && strings.HasPrefix(*defaultValue, `"`) {
+			return &ast.Value{
+				Raw:      unquoted,
+				Kind:     ast.StringValue,
+				Position: p.sharedPosition,
+			}
+		}
+
+		return &ast.Value{
+			Raw:      *defaultValue,
 			Kind:     p.parseValueKind(typ),
 			Position: p.sharedPosition,
 		}
 	}
 
-	return &ast.ArgumentDefinition{
-		Description:  pointerString(input.Description),
-		Name:         input.Name,
-		DefaultValue: defaultValue,
-		Type:         typ,
-		Position:     p.sharedPosition,
+	p.setPosition(value)
+
+	return value
+}
+
+// setPosition は、value とその入れ子の値の Position をスキーマの Position にする。
+// parseValueLiteral が返す値は、解釈のために作った一時的なソースを指しているためである。
+func (p parser) setPosition(value *ast.Value) {
+	value.Position = p.sharedPosition
+
+	for _, child := range value.Children {
+		child.Position = p.sharedPosition
+		p.setPosition(child.Value)
 	}
+}
+
+// parseValueLiteral は GraphQL の値のリテラルを解釈する。literal が 1 つの値でなければエラーを返す。
+func parseValueLiteral(literal string) (*ast.Value, error) {
+	// 値はドキュメントの一部としてしか解釈できないため、フィールドの引数として包む。
+	// 改行は、literal が行コメントで終わっていても閉じ括弧を読めるようにするため。
+	document, err := astparser.ParseQuery(&ast.Source{Input: "{field(argument: " + literal + "\n)}"})
+	if err != nil {
+		return nil, fmt.Errorf("parse value literal %q: %w", literal, err)
+	}
+
+	if len(document.Operations) != 1 || len(document.Operations[0].SelectionSet) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	field, ok := document.Operations[0].SelectionSet[0].(*ast.Field)
+	if !ok || len(field.Arguments) != 1 {
+		return nil, fmt.Errorf("value literal %q is not one value", literal)
+	}
+
+	return field.Arguments[0].Value, nil
 }
 
 func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	if typeRef.Kind == TypeKindList {
 		itemRef := typeRef.OfType
 		if itemRef == nil {
-			panic("Decorated type deeper than introspection query.")
+			panic(errIntrospectionTypeTooDeep)
 		}
 
 		return ast.ListType(p.getType(itemRef), p.sharedPosition)
@@ -313,8 +395,9 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	if typeRef.Kind == TypeKindNonNull {
 		nullableRef := typeRef.OfType
 		if nullableRef == nil {
-			panic("Decorated type deeper than introspection query.")
+			panic(errIntrospectionTypeTooDeep)
 		}
+
 		nullableType := p.getType(nullableRef)
 		nullableType.NonNull = true
 
@@ -324,28 +407,33 @@ func (p parser) getType(typeRef *TypeRef) *ast.Type {
 	return ast.NamedType(pointerString(typeRef.Name), p.sharedPosition)
 }
 
-func (p parser) buildDeprecatedDirective(field *FieldValue) ast.DirectiveList {
+// buildDeprecatedDirective は、スキーマの要素 (フィールド・引数・input フィールド・enum の値) の
+// @deprecated を組み立てる。isDeprecated が false なら nil を返す。location は、その要素に
+// ディレクティブを書く位置を表す。
+func (p parser) buildDeprecatedDirective(isDeprecated bool, deprecationReason *string, location ast.DirectiveLocation) ast.DirectiveList {
 	var directives ast.DirectiveList
-	if field.IsDeprecated {
+
+	if isDeprecated {
 		var arguments ast.ArgumentList
-		if field.DeprecationReason != nil {
+		if deprecationReason != nil {
 			arguments = append(arguments, &ast.Argument{
 				Name: "reason",
 				Value: &ast.Value{
-					Raw:      *field.DeprecationReason,
+					Raw:      *deprecationReason,
 					Kind:     ast.StringValue,
 					Position: p.sharedPosition,
 				},
 				Position: p.sharedPosition,
 			})
 		}
+
 		deprecatedDirective := &ast.Directive{
 			Name:             "deprecated",
 			Arguments:        arguments,
 			Position:         p.sharedPosition,
 			ParentDefinition: nil,
 			Definition:       p.deprecatedDirectiveDefinition,
-			Location:         ast.LocationVariableDefinition,
+			Location:         location,
 		}
 		directives = append(directives, deprecatedDirective)
 	}
@@ -365,7 +453,7 @@ func (p parser) parseValueKind(typ *ast.Type) ast.ValueKind {
 		case TypeKindList:
 			return ast.ListValue
 		case TypeKindNonNull:
-			panic(fmt.Sprintf("parseValueKind not match Type Name: %s", typ.Name()))
+			panic("parseValueKind not match Type Name: " + typ.Name())
 		case TypeKindScalar:
 			switch typName {
 			case "Int":
@@ -382,7 +470,7 @@ func (p parser) parseValueKind(typ *ast.Type) ast.ValueKind {
 		}
 	}
 
-	panic(fmt.Sprintf("parseValueKind not match Type Name: %s", typ.Name()))
+	panic("parseValueKind not match Type Name: " + typ.Name())
 }
 
 func pointerString(s *string) string {
@@ -393,27 +481,21 @@ func pointerString(s *string) string {
 	return *s
 }
 
+// builtIn reports whether the type is an introspection meta type (name
+// prefixed with "__").
+func builtIn(fullType *FullType) bool {
+	return strings.HasPrefix(pointerString(fullType.Name), "__")
+}
+
 func builtInScalar(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-	if strings.HasPrefix(name, "__") {
+	if builtIn(fullType) {
 		return true
 	}
-	switch name {
+
+	switch pointerString(fullType.Name) {
 	case "String", "Int", "Float", "Boolean", "ID":
 		return true
 	}
 
 	return false
-}
-
-func builtInEnum(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-
-	return strings.HasPrefix(name, "__")
-}
-
-func builtInObject(fullType *FullType) bool {
-	name := pointerString(fullType.Name)
-
-	return strings.HasPrefix(name, "__")
 }

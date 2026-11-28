@@ -1,6 +1,17 @@
 package introspection
 
-const Introspection = `query Query {
+// includeDeprecatedArgument は、deprecated なメンバーも返すようサーバーに求める引数。
+const includeDeprecatedArgument = "(" + includeDeprecatedArgumentName + ": true)"
+
+// NewQuery は、capabilities を持つサーバーへ送る introspection クエリを組み立てる。
+// オペレーション名は Query になる。
+//
+// 事前条件: サーバーは、capabilities で true になっている部分のすべてに対応している。
+// 対応していない部分を使うと、サーバーはクエリを拒否する。
+// 事後条件: 任意のフィールドと引数は、対応する capability が true のときだけクエリに含まれる。
+// NewQuery(Capabilities{}) は Introspection と等しい。
+func NewQuery(capabilities Capabilities) string {
+	return `query Query {
       __schema {
         queryType { name }
         mutationType { name }
@@ -10,9 +21,10 @@ const Introspection = `query Query {
         }
         directives {
           name
-          description
+          description` + optional(capabilities.RepeatableDirective, `
+          isRepeatable`) + `
           locations
-          args {
+          args` + optional(capabilities.DirectiveArgumentDeprecation, includeDeprecatedArgument) + ` {
             ...InputValue
           }
         }
@@ -26,7 +38,7 @@ const Introspection = `query Query {
       fields(includeDeprecated: true) {
         name
         description
-        args {
+        args` + optional(capabilities.FieldArgumentDeprecation, includeDeprecatedArgument) + ` {
           ...InputValue
         }
         type {
@@ -35,7 +47,7 @@ const Introspection = `query Query {
         isDeprecated
         deprecationReason
       }
-      inputFields {
+      inputFields` + optional(capabilities.InputFieldDeprecation, includeDeprecatedArgument) + ` {
         ...InputValue
       }
       interfaces {
@@ -56,7 +68,9 @@ const Introspection = `query Query {
       name
       description
       type { ...TypeRef }
-      defaultValue
+      defaultValue` + optional(capabilities.InputValueDeprecation, `
+      isDeprecated
+      deprecationReason`) + `
     }
 
     fragment TypeRef on __Type {
@@ -91,3 +105,13 @@ const Introspection = `query Query {
         }
       }
     }`
+}
+
+// optional は、サーバーがその部分に対応しているときだけ text を返す。対応していなければ "" を返す。
+func optional(supported bool, text string) string {
+	if supported {
+		return text
+	}
+
+	return ""
+}

@@ -1,0 +1,1167 @@
+package main
+
+import (
+	"bytes"
+	json "encoding/json/v2"
+	"fmt"
+	"io"
+	"maps"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+
+	"github.com/Yamashou/gqlgenc/v3/client"
+	"github.com/Yamashou/gqlgenc/v3/internal/clientopt"
+	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/domain"
+	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
+	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
+	inlinefragmentsgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/inline-fragments/gen"
+	operationnamegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/operation-name-not-go-style/gen"
+	samepackagegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/samepackage/gen"
+	selfbindgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/selfbind/gen"
+)
+
+func Test_IntegrationTest_NoModelGen(t *testing.T) {
+	type want struct {
+		file          string
+		userOperation *domain.UserOperation
+	}
+	tests := []struct {
+		name            string
+		testDir         string
+		wantErr         bool
+		wantErrContains string
+		want            want
+	}{
+		{
+			name:    "basic test",
+			testDir: "testdata/integration/basic/",
+			wantErr: false,
+			want: want{
+				file: "./want/query_gen.go.txt",
+				userOperation: &domain.UserOperation{
+					OptionalUser: &domain.UserOperation_OptionalUser{
+						Name:  "Sam Smith",
+						Email: "sam.smith@example.com",
+					},
+					Article: &domain.UserOperation_Article{
+						ID:           "article-1",
+						Title:        "Test Article",
+						Tags:         []string{"tag1", "tag2", "tag3"},
+						OptionalTags: &[]string{"optional1", "optional2"},
+						Comments: []*domain.UserOperation_Article_Comments{
+							{ID: "1", Text: "First comment"},
+							{ID: "2", Text: "Second comment"},
+						},
+						OptionalComments: &[]*domain.UserOperation_Article_OptionalComments{
+							{ID: "3", Text: "Optional comment"},
+						},
+						Rating:         4.5,
+						OptionalRating: new(3.8),
+						NullableElementsList: []*string{
+							new("element1"),
+							nil,
+							new("element2"),
+						},
+						FullyNullableList: &[]*string{
+							new("nullable1"),
+							nil,
+						},
+						Statuses:         []domain.Status{domain.StatusActive, domain.StatusInactive},
+						OptionalStatuses: &[]domain.Status{domain.StatusActive},
+						Addresses: []*domain.UserOperation_Article_Addresses{
+							{
+								Street: "Public St",
+								AddressView: domain.AddressView{
+									ID:     "addr1",
+									Street: "Public St",
+									Public: true,
+								},
+								PrivateAddressFields: domain.PrivateAddressFields{
+									ID:      "addr1",
+									Street:  "Public St",
+									Private: false,
+								},
+							},
+							{
+								Street: "Private St",
+								PrivateAddressFields: domain.PrivateAddressFields{
+									ID:      "addr2",
+									Street:  "Private St",
+									Private: true,
+								},
+								AddressView: domain.AddressView{
+									ID:     "addr2",
+									Street: "Private St",
+									Public: false,
+								},
+							},
+						},
+						OptionalAddresses: &[]*domain.UserOperation_Article_OptionalAddresses{
+							{
+								Street:        "Optional St",
+								PublicAddress: &domain.UserOperation_Article_OptionalAddresses_PublicAddress{Public: false},
+								Typename:      "PublicAddress",
+							},
+						},
+						Profiles: []*domain.UserOperation_Article_Profiles{
+							{
+								PublicProfileFields: domain.PublicProfileFields{
+									ID:     "prof1",
+									Status: domain.StatusActive,
+								},
+								PrivateProfileFields: domain.PrivateProfileFields{
+									ID: "prof1",
+								},
+							},
+							{
+								PrivateProfileFields: domain.PrivateProfileFields{
+									ID:  "prof2",
+									Age: new(25),
+								},
+								PublicProfileFields: domain.PublicProfileFields{
+									ID: "prof2",
+								},
+							},
+						},
+						OptionalProfiles: &[]*domain.UserOperation_Article_OptionalProfiles{
+							{
+								PublicProfile: &domain.UserOperation_Article_OptionalProfiles_PublicProfile{Status: domain.StatusInactive},
+								Typename:      "PublicProfile",
+							},
+						},
+						Matrix: [][]string{
+							{"a", "b", "c"},
+							{"d", "e", "f"},
+						},
+						OptionalMatrix: &[][]string{
+							{"x", "y"},
+						},
+						// 入れ子リストの union ([[Profile!]!]!) は [][]* 単一ポインタで生成され __typename で判別される
+						ProfileGrid: [][]*domain.UserOperation_Article_ProfileGrid{
+							{
+								{
+									PublicProfile: &domain.UserOperation_Article_ProfileGrid_PublicProfile{ID: "grid1", Status: domain.StatusActive},
+									Typename:      "PublicProfile",
+								},
+								{
+									PrivateProfile: &domain.UserOperation_Article_ProfileGrid_PrivateProfile{Age: new(7), ID: "grid2"},
+									Typename:       "PrivateProfile",
+								},
+							},
+						},
+					},
+					Metadata: &domain.UserOperation_Metadata{
+						ID:   "metadata-1",
+						Data: new(`{"key":"value","number":123}`),
+						// scalar Map (map[string]any) のデコード回帰テスト (gqlgo/gqlgenc#76)
+						Properties: &map[string]any{
+							"propKey1": "123",
+							"propKey2": "test",
+						},
+						// int ベース enum バインド (@goModel/@goEnum) のデコード回帰テスト (gqlgo/gqlgenc#229)
+						Level: domain.LevelHigh,
+					},
+					User: domain.UserOperation_User{
+						Email: "john.doe@example.com",
+						User: &domain.UserOperation_User_User{
+							UserFragment2: domain.UserFragment2{Name: "John Doe"},
+							Name:          "John Doe",
+						},
+						UserFragment1: domain.UserFragment1{
+							User: &domain.UserFragment1_User{
+								Name: "John Doe",
+							},
+							Typename: "User",
+							Name:     "John Doe",
+							Profile: domain.UserFragment1_Profile{
+								PrivateProfile: &domain.UserFragment1_Profile_PrivateProfile{
+									Age: func() *int { i := 30; return &i }(),
+								},
+								Typename: "PrivateProfile",
+							},
+						},
+						UserFragment2: domain.UserFragment2{Name: "John Doe"},
+						Typename:      "User",
+						Name:          "John Doe",
+						Name2:         "John Doe",
+						SmallPic:      "https://example.com/pic_1_50.jpg",
+						LargePic:      "https://example.com/pic_1_500.jpg",
+						DefaultPic:    "https://example.com/pic_1_100.jpg",
+						Address: domain.UserOperation_User_Address{
+							Street: "123 Main St",
+							PrivateAddressFields: domain.PrivateAddressFields{
+								ID:     "addr1",
+								Street: "123 Main St",
+							},
+							AddressView: domain.AddressView{
+								ID:     "addr1",
+								Street: "123 Main St",
+							},
+						},
+						Profile: domain.UserOperation_User_Profile{
+							PrivateProfileFields: domain.PrivateProfileFields{
+								ID:  "profile1",
+								Age: func() *int { i := 30; return &i }(),
+							},
+							PublicProfileFields: domain.PublicProfileFields{
+								ID: "profile1",
+							},
+						},
+						Profile2: domain.UserOperation_User_Profile2{
+							PrivateProfile: &domain.UserOperation_User_Profile2_PrivateProfile{
+								Age: func() *int { i := 30; return &i }(),
+							},
+							Typename: "PrivateProfile",
+						},
+						OptionalProfile: &domain.UserOperation_User_OptionalProfile{
+							PublicProfileFields: domain.PublicProfileFields{
+								ID:     "profile2",
+								Status: domain.StatusActive,
+							},
+							PrivateProfileFields: domain.PrivateProfileFields{
+								ID: "profile2",
+							},
+						},
+						OptionalAddress: &domain.UserOperation_User_OptionalAddress{
+							Street: "456 Elm St",
+							PublicAddress: &domain.UserOperation_User_OptionalAddress_PublicAddress{
+								Street: "456 Elm St",
+							},
+							Typename: "PublicAddress",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "circular fragments test - should fail due to fragment cycle",
+			testDir: "testdata/integration/circular-fragments/",
+			wantErr: true,
+		},
+		{
+			// foo_bar と fooBar が同じ Go フィールド名 FooBar に衝突するケース (gqlgo/gqlgenc#108)。
+			// model 指定だが Object 型は input/enum のみ生成する filter で model_gen.go から
+			// 除去される (model_gen.go は宣言を持たない) ため、衝突は model_gen.go ではなくクエリ応答型
+			// GetObject_Object の生成時に表面化する。生成が失敗するので、model_gen.go は残らない。
+			name:            "duplicate fields test - should fail with a Go field name collision in the query type",
+			testDir:         "testdata/integration/duplicate-fields/",
+			wantErr:         true,
+			wantErrContains: `GetObject_Object map to the same Go field name "FooBar"`,
+		},
+		{
+			// 別名 Item のフィールドと ... on Item はどちらも Go のフィールド Item になる。
+			// 従来はエラーにならず、別名 Item のフィールドが生成型から黙って落ちていた
+			name:            "field alias equal to an inline fragment type condition - should fail with a Go field name collision",
+			testDir:         "testdata/integration/name-collision-field-inline-fragment/",
+			wantErr:         true,
+			wantErrContains: `field Item and inline fragment on Item in AliasEqualsTypeCondition_Node map to the same Go field name "Item"`,
+		},
+		{
+			// ...Item と ... on Item はどちらも Go のフィールド Item になる。
+			// 従来はエラーにならず、インラインフラグメントの枝が生成型から黙って落ちていた
+			name:            "fragment name equal to an inline fragment type condition - should fail with a Go field name collision",
+			testDir:         "testdata/integration/name-collision-fragment-inline-fragment/",
+			wantErr:         true,
+			wantErrContains: `fragment spread Item and inline fragment on Item in SpreadEqualsTypeCondition_Node map to the same Go field name "Item"`,
+		},
+		{
+			// query Payload と fragment Payload はどちらも Go の型 Payload になる。
+			// 従来は型 Payload を 2 回宣言し、生成したコードがコンパイルできなかった
+			name:            "operation and fragment with the same name - should fail with a Go type name collision",
+			testDir:         "testdata/integration/type-name-collision-operation-fragment/",
+			wantErr:         true,
+			wantErrContains: `fragment Payload and operation Payload generate the same Go type name "Payload"`,
+		},
+		{
+			// fragment Q_Payload の型が、query Q の payload の型 Q_Payload と同じ名前になる。
+			// 従来は後の型が先の型を上書きし、Q の payload から message が黙って落ちていた
+			name:            "fragment name equal to a nested type name - should fail with a Go type name collision",
+			testDir:         "testdata/integration/type-name-collision-fragment-nested-type/",
+			wantErr:         true,
+			wantErrContains: `field payload in Q and fragment Q_Payload generate the same Go type name "Q_Payload"`,
+		},
+		{
+			// UC1 (generate.model.file 未指定) で enum を autobind/@goModel のいずれにも束縛せず
+			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)。
+			// これはリーフ型を解決する CreateResponseTypes (GoTypeGenerator) 側の経路。
+			name:            "unbound enum test - should fail with a clean error, not panic",
+			testDir:         "testdata/integration/unbound-enum/",
+			wantErr:         true,
+			wantErrContains: `no Go model is bound for GraphQL type "Status"`,
+		},
+		{
+			// UC1 で未束縛の input 型を変数に使うケース。リーフ ok は Boolean (built-in) で
+			// 束縛されるため CreateResponseTypes は成功し、未束縛は変数 SearchFilter を解決する
+			// CreateOperations (OperationGenerator) 側でエラーになる (#4 の OperationGenerator 経路)。
+			name:            "unbound input variable test - should fail in the operation generator",
+			testDir:         "testdata/integration/unbound-input/",
+			wantErr:         true,
+			wantErrContains: `failed to create operations: no Go model is bound for GraphQL type "SearchFilter"`,
+		},
+		{
+			// 束縛先のパッケージを読み込めないと (ここではビルド制約ですべてのファイルが外れる)、
+			// そのパッケージの型はどれも束縛されず、enum Status は未束縛として失敗する。束縛先に
+			// 型が無いという設定の不備と見分けられるよう、エラーにパッケージの読み込みエラーを添える。
+			name:            "bind unloadable package test - should report the package load error",
+			testDir:         "testdata/integration/bind-unloadable-package/",
+			wantErr:         true,
+			wantErrContains: `no Go model is bound for GraphQL type "Status": generate it by setting generate.model.file, or bind it via bind.type.packages / @goModel (package github.com/Yamashou/gqlgenc/v3/testdata/integration/bind-unloadable-package/domain was loaded with errors: build constraints exclude all Go files in `,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("panic: %v", r)
+				}
+			}()
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			// Query and client generation
+			t.Chdir(tt.testDir)
+			err := run(t.Context())
+			if tt.wantErr {
+				switch {
+				case err == nil:
+					t.Errorf("run() expected error but got nil")
+				case tt.wantErrContains != "" && !strings.Contains(err.Error(), tt.wantErrContains):
+					t.Errorf("run() error = %q, want it to contain %q", err, tt.wantErrContains)
+				}
+				return // エラーが期待される場合はここでテストを終了
+			}
+			if err != nil {
+				t.Errorf("run() error = %v", err)
+			}
+
+			// Compare the content of the generated file with the want file
+			actualFilePath := "domain/query_gen.go"
+			wantFilePath := tt.want.file
+			compareFiles(t, wantFilePath, actualFilePath)
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			// send request test
+			ctx := t.Context()
+
+			es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
+			srv := handler.New(es)
+			srv.AddTransport(transport.POST{})
+			srv.AddTransport(transport.GET{})
+
+			rawClient := client.NewClient(
+				"http://local/graphql",
+				clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+					return handlerRoundTripper{handler: srv}
+				}),
+			)
+
+			// Query
+			{
+				size := 100
+				userID := "1"
+				userStatus := domain.StatusActive
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					UserID:       graphql.OmittableOf[*string](&userID),
+					UserStatus:   graphql.OmittableOf[*domain.Status](&userStatus),
+					IncludeEmail: false,
+					SkipName:     true,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, userOperation); diff != "" {
+					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Query with list-type variables (旧 listvars: スカラーリスト [ID!]! / Input リスト
+			// [FilterInput!]! / 入れ子リスト [[String!]] が構造を保ってエンコードされ、実サーバが
+			// 受理することを検証する)
+			{
+				matrixRow := []string{"x", "y"}
+				filteredKeys, err := rawClient.Post(ctx, query.FilteredKeysOp, query.FilteredKeysVars{
+					Filters: []domain.FilterInput{{Key: "k", Value: "v"}},
+					Ids:     []string{"1", "2"},
+					Matrix:  graphql.OmittableOf(&[]*[]string{&matrixRow}),
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				// resolver は ids をそのまま返す
+				if diff := cmp.Diff(&domain.FilteredKeys{FilteredKeys: []string{"1", "2"}}, filteredKeys); diff != "" {
+					t.Errorf("filteredKeys mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Marshal / Unmarshal round-trip (フラグメントを含むレスポンス型の JSON 永続化)
+			// フラグメントフィールドは json:"-" のため、生成される MarshalJSONTo が
+			// フラグメントの中身を同一オブジェクトへ平坦化して出力しないと、永続化 →
+			// 復元でフラグメント部分がサイレントに欠損する。
+			{
+				data, err := json.Marshal(tt.want.userOperation)
+				if err != nil {
+					t.Errorf("marshal round-trip failed: %v", err)
+				}
+				var restored domain.UserOperation
+				if err := json.Unmarshal(data, &restored); err != nil {
+					t.Errorf("unmarshal round-trip failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, &restored); diff != "" {
+					t.Errorf("round-trip mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Query via GET
+			{
+				size := 100
+				userID := "1"
+				userStatus := domain.StatusActive
+				userOperation, err := rawClient.Get(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					UserID:       graphql.OmittableOf[*string](&userID),
+					UserStatus:   graphql.OmittableOf[*domain.Status](&userStatus),
+					IncludeEmail: false,
+					SkipName:     true,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if diff := cmp.Diff(tt.want.userOperation, userOperation); diff != "" {
+					t.Errorf("integrationTest mismatch (-want +got):\n%s", diff)
+				}
+			}
+			// Test field argument default values (schema-level defaults)
+			{
+				size := 100
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					Size:         graphql.OmittableOf[*int](&size),
+					IncludeEmail: false,
+					SkipName:     true,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				// UserID / UserStatus を省略すると Omittable のゼロ値 = undefined になり、
+				// omitzero で variables から除外される。GraphQL の schema default は変数が省略された
+				// ときだけ適用されるため、resolver が default の "John Doe" を返すことを確認する。
+				if userOperation.User.UserFragment2.Name != "John Doe" {
+					t.Errorf("expected user name to be 'John Doe', got '%s'", userOperation.User.UserFragment2.Name)
+				}
+			}
+
+			// @skip / @include を実サーバで評価する。include=true で emailIfIncluded、skip=false で
+			// nameIfNotSkipped がレスポンスに含まれ、ポインタに値が入る(欠落時の nil と区別できる)。
+			{
+				userOperation, err := rawClient.Post(ctx, query.UserOperationOp, query.UserOperationVars{
+					ArticleID:    "article-1",
+					MetadataID:   "metadata-1",
+					IncludeEmail: true,
+					SkipName:     false,
+				})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if userOperation.User.EmailIfIncluded == nil {
+					t.Error("emailIfIncluded should be non-nil when @include(if: true)")
+				}
+				if userOperation.User.NameIfNotSkipped == nil {
+					t.Error("nameIfNotSkipped should be non-nil when @skip(if: false)")
+				}
+			}
+
+			// Mutation
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.OmittableOf[*string](nil),
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Name != "nil" {
+					t.Errorf("expected name to be 'nil', got '%s'", updateUser.GetUpdateUser().User.Name)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.Omittable[*string]{},
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Name != "undefined" {
+					t.Errorf("expected name to be 'undefined', got '%s'", updateUser.GetUpdateUser().User.Name)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.OmittableOf[*string](new("Sam Smith")),
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Name != "Sam Smith" {
+					t.Errorf("expected name to be 'Sam Smith', got '%s'", updateUser.GetUpdateUser().User.Name)
+				}
+			}
+			// Test nested input object type (UserSettingsInput)
+			{
+				input := domain.UpdateUserInput{
+					ID:   "1",
+					Name: graphql.OmittableOf[*string](new("Test User")),
+					Settings: graphql.OmittableOf[*domain.UserSettingsInput](&domain.UserSettingsInput{
+						Theme:         "dark",
+						Notifications: true,
+					}),
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings == nil {
+					t.Errorf("expected settings to be set, got nil")
+				}
+				if updateUser.GetUpdateUser().User.Settings.Theme != "dark" {
+					t.Errorf("expected theme to be 'dark', got '%s'", updateUser.GetUpdateUser().User.Settings.Theme)
+				}
+				if updateUser.GetUpdateUser().User.Settings.Notifications != true {
+					t.Errorf("expected notifications to be true, got %v", updateUser.GetUpdateUser().User.Settings.Notifications)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:       "1",
+					Name:     graphql.OmittableOf[*string](new("Test User")),
+					Settings: graphql.OmittableOf[*domain.UserSettingsInput](nil),
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings != nil {
+					t.Errorf("expected settings to be nil, got %+v", updateUser.GetUpdateUser().User.Settings)
+				}
+			}
+			{
+				input := domain.UpdateUserInput{
+					ID:       "1",
+					Name:     graphql.OmittableOf[*string](new("Test User")),
+					Settings: graphql.Omittable[*domain.UserSettingsInput]{},
+				}
+				updateUser, err := rawClient.Post(ctx, query.UpdateUserOp, query.UpdateUserVars{Input: input})
+				if err != nil {
+					t.Errorf("request failed: %v", err)
+				}
+				if updateUser.GetUpdateUser().User.Settings != nil {
+					t.Errorf("expected settings to be nil (omitted), got %+v", updateUser.GetUpdateUser().User.Settings)
+				}
+			}
+		})
+	}
+}
+
+// query と client を同じディレクトリ(= 同一 Go パッケージ)へ出力すると、client_gen.go は
+// レスポンス型と Document 定数を自パッケージ名で修飾せずに参照する。修飾すると自パッケージへの
+// self-import になりコンパイルできない(v0 互換の1ディレクトリ構成が壊れる)ための回帰テスト。
+func Test_IntegrationTest_SamePackage(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/samepackage/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// 修飾なしで生成されることをファイル内容で検証する
+	compareFiles(t, "./want/client_gen.go.txt", "gen/client_gen.go")
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する
+	if samepackagegen.GetUserOp.Name != "GetUser" {
+		t.Errorf("GetUserOp.Name = %q, want %q", samepackagegen.GetUserOp.Name, "GetUser")
+	}
+}
+
+// オペレーション名が Go の公開名の形でないとき (getUser・GetUserId・get_user_name)、query_gen.go の
+// 型を client_gen.go と同じ Go の名前 (GetUser・GetUserID・GetUserName) で宣言することを検証する。
+// 型を元の名前で宣言すると、client_gen.go の参照先が無くなりコンパイルできない。
+func Test_IntegrationTest_OperationNameNotGoStyle(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/operation-name-not-go-style/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する。Name はサーバーへ送るため元の名前のまま。
+	got := []string{
+		operationnamegen.GetUserOp.Name,
+		operationnamegen.GetUserIDOp.Name,
+		operationnamegen.GetUserNameOp.Name,
+	}
+	want := []string{"getUser", "GetUserId", "get_user_name"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("operation names diff(-want +got): %s", diff)
+	}
+}
+
+// model 出力先パッケージを bind.type.packages にも指定し、手書きコード (gen/helper.go) が
+// 生成型を参照する自己参照レイアウトの回帰テスト。再生成の開始時に model_gen.go が出力先から
+// 退避されるため、autobind は「手書きコードが未定義の型を参照する壊れたパッケージ」をロードする。
+// modelgen が model_gen.go を書いた後に binder (internal/typebind) のキャッシュを evict しないと、codegen の
+// 型解決が生成前の状態を見て unable to find type で失敗する。
+func Test_IntegrationTest_SelfBind(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/selfbind/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する
+	if got := selfbindgen.DefaultCode(); got != selfbindgen.DiscountErrorCodeActive {
+		t.Errorf("DefaultCode() = %q, want %q", got, selfbindgen.DiscountErrorCodeActive)
+	}
+}
+
+// generate.model.onlyUsed: false のとき、クエリで使われていない Input / Enum 型
+// (UnusedFilter / UnusedKind) も含めてスキーマの全 Input / Enum 型が生成されることを
+// 検証する。デフォルト (true) の使用フィルタは modelgen fixture が担保している。
+func Test_IntegrationTest_ModelOnlyUsedFalse(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/onlyused/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, "./want/model_gen.go.txt", "gen/model_gen.go")
+}
+
+// 複数の設定ファイルを1回の run で順に処理できることを検証する。gqlgen のパッケージ
+// キャッシュ (go list + 型検査の結果) を config 間で共有するため、生成物が単独実行時と
+// 同一であることを want ファイルとの比較で確認する。
+func Test_IntegrationTest_MultipleConfigs(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	// run は設定ファイルのディレクトリへ chdir するため、テスト終了時に元へ戻す
+	t.Chdir(".")
+
+	basicDir, err := filepath.Abs("testdata/integration/basic")
+	if err != nil {
+		t.Fatalf("failed to resolve basic dir: %v", err)
+	}
+	samePackageDir, err := filepath.Abs("testdata/integration/samepackage")
+	if err != nil {
+		t.Fatalf("failed to resolve samepackage dir: %v", err)
+	}
+
+	if err := run(t.Context(),
+		filepath.Join(basicDir, ".gqlgenc.yml"),
+		filepath.Join(samePackageDir, ".gqlgenc.yml"),
+	); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, filepath.Join(basicDir, "want/query_gen.go.txt"), filepath.Join(basicDir, "domain/query_gen.go"))
+	compareFiles(t, filepath.Join(samePackageDir, "want/client_gen.go.txt"), filepath.Join(samePackageDir, "gen/client_gen.go"))
+}
+
+// 出力ファイルの扱いの回帰テスト。
+//   - 使用フィルタがすべての型を除いたとき、package 句だけの model_gen.go を残さない (gqlgo/gqlgenc#327)
+//   - 生成した内容が前回と同じ出力は書き換えない (更新時刻を保ち、下流のビルドを走り直させない)
+//   - 生成が失敗したとき、前回の出力を消さずに戻す (gqlgo/gqlgenc#322)
+func Test_IntegrationTest_KeepOutputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/keep-outputs/")
+
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// スキーマの Enum (Unused) をクエリが使っていないので、model_gen.go は出力されない。
+	// 退避ファイル (.gqlgenc.bak) も残らない
+	generated := readOutputFiles(t, "gen")
+	if diff := cmp.Diff([]string{"client_gen.go", "query_gen.go"}, slices.Sorted(maps.Keys(generated))); diff != "" {
+		t.Errorf("generated files diff(-want +got): %s", diff)
+	}
+	generatedModTimes := outputModTimes(t, "gen")
+
+	// 同じ入力からもう一度生成しても、内容が同じ出力は書き換えない
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("second run() error = %v", err)
+	}
+	if diff := cmp.Diff(generated, readOutputFiles(t, "gen")); diff != "" {
+		t.Errorf("files after second run diff(-want +got): %s", diff)
+	}
+	if diff := cmp.Diff(generatedModTimes, outputModTimes(t, "gen")); diff != "" {
+		t.Errorf("mod times after second run diff(-want +got): %s", diff)
+	}
+
+	// broken.gqlgenc.yml のクエリはスキーマに無いフィールドを選択するので、生成が失敗する。
+	// 失敗しても前回の出力は消えず、内容も更新時刻も変わらない
+	if err := run(t.Context(), "broken.gqlgenc.yml"); err == nil {
+		t.Fatal("run() with a query selecting an unknown field should return an error, got nil")
+	}
+	if diff := cmp.Diff(generated, readOutputFiles(t, "gen")); diff != "" {
+		t.Errorf("files after failed run diff(-want +got): %s", diff)
+	}
+	if diff := cmp.Diff(generatedModTimes, outputModTimes(t, "gen")); diff != "" {
+		t.Errorf("mod times after failed run diff(-want +got): %s", diff)
+	}
+}
+
+// インラインフラグメントと選択の統合の回帰テスト。生成コードを want と比べ、生成された型へ
+// レスポンスをデコードして、__typename に応じた枝に値が入ることを確かめる。
+func Test_IntegrationTest_InlineFragments(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/inline-fragments/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	compareFiles(t, "./want/query_gen.go.txt", "gen/query_gen.go")
+	compareFiles(t, "./want/client_gen.go.txt", "gen/client_gen.go")
+
+	type args struct {
+		response string
+		out      any
+	}
+
+	type want struct {
+		data any
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// Image は Node と File を実装し、Document は Node・File・Document の 3 つの型条件を満たす。
+			// 型条件の名前 (Node・File) と __typename (Image・Document) は一致しない (gqlgo/gqlgenc#325)
+			name: "interfaceへの型条件は、実装する具体型の__typenameで値が入る",
+			args: args{
+				response: `{"files":[{"__typename":"Image","id":"1","filename":"a.png"},{"__typename":"Document","id":"2","filename":"b.pdf","title":"B"}]}`,
+				out:      &inlinefragmentsgen.Files{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.Files{
+					Files: []*inlinefragmentsgen.Files_Files{
+						{
+							File:     &inlinefragmentsgen.Files_Files_File{Filename: "a.png"},
+							Node:     &inlinefragmentsgen.Files_Files_Node{ID: "1"},
+							Typename: "Image",
+						},
+						{
+							Document: &inlinefragmentsgen.Files_Files_Document{Title: "B"},
+							File:     &inlinefragmentsgen.Files_Files_File{Filename: "b.pdf"},
+							Node:     &inlinefragmentsgen.Files_Files_Node{ID: "2"},
+							Typename: "Document",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "interfaceへの型条件の中の、具体型への型条件にも値が入る",
+			args: args{
+				response: `{"node":{"__typename":"Image","filename":"a.png","width":640}}`,
+				out:      &inlinefragmentsgen.NodeFile{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeFile{
+					Node: &inlinefragmentsgen.NodeFile_Node{
+						File: &inlinefragmentsgen.NodeFile_Node_File{
+							Image:    &inlinefragmentsgen.NodeFile_Node_File_Image{Width: 640},
+							Typename: "Image",
+							Filename: "a.png",
+						},
+						Typename: "Image",
+					},
+				},
+			},
+		},
+		{
+			// Item は Node を実装するが File を実装しないので、... on File の枝は nil のままになる
+			name: "型条件を満たさない具体型では、枝に値が入らない",
+			args: args{
+				response: `{"node":{"__typename":"Item"}}`,
+				out:      &inlinefragmentsgen.NodeFile{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeFile{
+					Node: &inlinefragmentsgen.NodeFile_Node{
+						Typename: "Item",
+					},
+				},
+			},
+		},
+		{
+			// HttpError は Go の名前 (HTTPError) と綴りが違う。__typename は GraphQL の型名で返る
+			name: "unionのメンバーを、GraphQLの型名の__typenameで判別する",
+			args: args{
+				response: `{"search":[{"__typename":"HttpError","message":"not found"},{"__typename":"Item","name":"pen"},{"__typename":"Image","width":640}]}`,
+				out:      &inlinefragmentsgen.Search{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.Search{
+					Search: []*inlinefragmentsgen.Search_Search{
+						{
+							HTTPError: &inlinefragmentsgen.Search_Search_HTTPError{Message: "not found"},
+							Typename:  "HttpError",
+						},
+						{
+							Item:     &inlinefragmentsgen.Search_Search_Item{Name: "pen"},
+							Typename: "Item",
+						},
+						{
+							Image:    &inlinefragmentsgen.Search_Search_Image{Width: 640},
+							Typename: "Image",
+						},
+					},
+				},
+			},
+		},
+		{
+			// detail { code } と detail { note } の両方のサブフィールドが型に残る (gqlgo/gqlgenc#282)
+			name: "同じフィールドを複数回選択しても、サブフィールドがすべてデコードされる",
+			args: args{
+				response: `{"payload":{"success":true,"message":"ok","detail":{"code":7,"note":"memo"}}}`,
+				out:      &inlinefragmentsgen.PayloadTwice{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.PayloadTwice{
+					Payload: &inlinefragmentsgen.PayloadTwice_Payload{
+						Detail: &inlinefragmentsgen.PayloadTwice_Payload_Detail{
+							Code: 7,
+							Note: func() *string { note := "memo"; return &note }(),
+						},
+						Message: func() *string { message := "ok"; return &message }(),
+						Success: true,
+					},
+				},
+			},
+		},
+		{
+			// ... on Item { id } と ... on Item { name parent { id } } は 1 つの枝 Item になる。
+			// 型条件の無い ... { id } は、外側の型 Node への型条件の枝になる
+			name: "同じ型へのインラインフラグメントは1つの枝にまとまり、型条件の無いものは外側の型の枝になる",
+			args: args{
+				response: `{"node":{"__typename":"Item","id":"1","name":"pen","parent":{"id":"0"}}}`,
+				out:      &inlinefragmentsgen.NodeRepeated{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeRepeated{
+					Node: &inlinefragmentsgen.NodeRepeated_Node{
+						Item: &inlinefragmentsgen.NodeRepeated_Node_Item{
+							ID:     "1",
+							Name:   "pen",
+							Parent: &inlinefragmentsgen.NodeRepeated_Node_Item_Parent{ID: "0"},
+						},
+						Node:     &inlinefragmentsgen.NodeRepeated_Node_Node{ID: "1"},
+						Typename: "Item",
+					},
+				},
+			},
+		},
+		{
+			// $withDetail が偽のとき、payload は無条件の選択で返るが、条件付きの選択だけにある success と
+			// detail は返らない。success は非 null の Boolean! でも *bool になり、返らなかったことを nil で表す
+			name: "条件付きの選択と条件の無い選択をまとめると、条件付きの選択だけのサブフィールドはnilになる",
+			args: args{
+				response: `{"payload":{"message":"ok"}}`,
+				out:      &inlinefragmentsgen.PayloadConditional{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.PayloadConditional{
+					Payload: &inlinefragmentsgen.PayloadConditional_Payload{
+						Detail:  nil,
+						Message: func() *string { message := "ok"; return &message }(),
+						Success: nil,
+					},
+				},
+			},
+		},
+		{
+			// $withName が真のとき、条件付きの選択の __typename と name が返り、Item の枝に値が入る。
+			// __typename は条件付きの選択に注入されたものでも string で生成され、switch で判別できる
+			name: "条件付きの選択にだけあるインラインフラグメントは、__typenameで枝に値が入る",
+			args: args{
+				response: `{"node":{"__typename":"Item","id":"1","name":"pen"}}`,
+				out:      &inlinefragmentsgen.NodeConditionalFragment{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeConditionalFragment{
+					Node: &inlinefragmentsgen.NodeConditionalFragment_Node{
+						Item:     &inlinefragmentsgen.NodeConditionalFragment_Node_Item{Name: func() *string { name := "pen"; return &name }()},
+						Typename: "Item",
+						ID:       "1",
+					},
+				},
+			},
+		},
+		{
+			// $withName が偽のとき、__typename は返らず空文字列になり、どの枝にも値が入らない
+			name: "条件付きの選択が返らないとき、__typenameは空文字列で枝はnilになる",
+			args: args{
+				response: `{"node":{"id":"1"}}`,
+				out:      &inlinefragmentsgen.NodeConditionalFragment{},
+			},
+			want: want{
+				data: &inlinefragmentsgen.NodeConditionalFragment{
+					Node: &inlinefragmentsgen.NodeConditionalFragment_Node{
+						Item:     nil,
+						Typename: "",
+						ID:       "1",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := json.Unmarshal([]byte(tt.args.response), tt.args.out); err != nil {
+				t.Fatalf("json.Unmarshal() error = %v", err)
+			}
+
+			if diff := cmp.Diff(tt.want.data, tt.args.out); diff != "" {
+				t.Errorf("diff(-want +got): %s", diff)
+			}
+		})
+	}
+
+	// 生成された MarshalJSONTo は、通常フィールド (__typename) とインラインフラグメントの枝
+	// (Document の title・File の filename・Node の id) を1つのオブジェクトにまとめ、メンバーをキーの昇順に
+	// 並べる。json/v2 は既定では map のメンバーを反復の順で出力するため、生成コードが順を決めないと、
+	// 同じ値でも実行のたびに出力が変わる
+	marshaled, err := json.Marshal(&inlinefragmentsgen.Files{
+		Files: []*inlinefragmentsgen.Files_Files{
+			{
+				Document: &inlinefragmentsgen.Files_Files_Document{Title: "B"},
+				File:     &inlinefragmentsgen.Files_Files_File{Filename: "b.pdf"},
+				Node:     &inlinefragmentsgen.Files_Files_Node{ID: "2"},
+				Typename: "Document",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{"files":[{"__typename":"Document","filename":"b.pdf","id":"2","title":"B"}]}`, string(marshaled)); diff != "" {
+		t.Errorf("marshaled response diff(-want +got): %s", diff)
+	}
+
+	// 既定値を持つ変数 ($first: Int! = 5) は、型が non-null でも省略できる。省略すると variables に
+	// 含まれず、サーバーが既定値を使う
+	omitted, err := json.Marshal(inlinefragmentsgen.ItemsVars{})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{}`, string(omitted)); diff != "" {
+		t.Errorf("omitted variables diff(-want +got): %s", diff)
+	}
+
+	specified, err := json.Marshal(inlinefragmentsgen.ItemsVars{First: graphql.OmittableOf(10)})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{"first":10}`, string(specified)); diff != "" {
+		t.Errorf("specified variables diff(-want +got): %s", diff)
+	}
+}
+
+// outputModTimes は dir のファイルの名前と更新時刻を返す。
+func outputModTimes(t *testing.T, dir string) map[string]time.Time {
+	t.Helper()
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("failed to read directory: %v", err)
+	}
+
+	modTimes := make(map[string]time.Time, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			t.Fatalf("failed to stat %s: %v", entry.Name(), err)
+		}
+		modTimes[entry.Name()] = info.ModTime()
+	}
+
+	return modTimes
+}
+
+func compareFiles(t *testing.T, wantFile, generatedFile string) {
+	t.Helper()
+
+	// Compare file contents
+	want, err := os.ReadFile(wantFile)
+	if err != nil {
+		t.Errorf("error reading file (expected file): %v", err)
+		return
+	}
+
+	generated, err := os.ReadFile(generatedFile)
+	if err != nil {
+		t.Errorf("error reading file (actual file): %v", err)
+		return
+	}
+
+	if diff := cmp.Diff(string(want), string(generated)); diff != "" {
+		t.Errorf("file contents differ:\n%s", diff)
+	}
+}
+
+type handlerRoundTripper struct {
+	handler http.Handler
+}
+
+func (rt handlerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqClone := req.Clone(req.Context())
+	if req.Body != nil {
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body: %w", err)
+		}
+		_ = req.Body.Close()
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		reqClone.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, reqClone)
+	resp := recorder.Result()
+	return resp, nil
+}
+
+func Test_Subscription(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		target int
+	}
+
+	type want struct {
+		counts []int
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			// サーバーが 1..target を順に push し、complete でストリームが終わる
+			name: "countサブスクリプションが順に値を受け取れる",
+			args: args{
+				target: 3,
+			},
+			want: want{
+				counts: []int{1, 2, 3},
+			},
+		},
+		{
+			// target が 1 の場合は 1 件だけ受け取って終わる
+			name: "1件だけのサブスクリプション",
+			args: args{
+				target: 1,
+			},
+			want: want{
+				counts: []int{1},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// httptest.NewTestServer のインメモリ network と synctest の擬似クロックで
+			// 実ポート・実時間に依存しない決定論的な subscription テストにする
+			synctest.Test(t, func(t *testing.T) {
+				es := schema.NewExecutableSchema(schema.Config{Resolvers: &schema.Resolver{}})
+				srv := handler.New(es)
+				srv.AddTransport(transport.Websocket{
+					KeepAlivePingInterval: 10 * time.Second,
+					InitTimeout:           5 * time.Second,
+				})
+
+				httpServer := httptest.NewTestServer(t, srv)
+				// Client() は in-memory サーバを起動して httpServer.URL を設定するため、
+				// URL を読む前に呼ぶ
+				httpClient := httpServer.Client()
+
+				subClient := client.NewSubscriptionClient(httpServer.URL, clientopt.WithRoundTripper(func(http.RoundTripper) http.RoundTripper {
+					return httpClient.Transport
+				}))
+
+				ctx := t.Context()
+
+				var got []int
+				for res, err := range subClient.Subscribe(ctx, query.CountOp, query.CountVars{Target: tt.args.target}) {
+					if err != nil {
+						t.Fatalf("subscription error: %v", err)
+					}
+					got = append(got, res.Count)
+				}
+
+				if diff := cmp.Diff(tt.want.counts, got); diff != "" {
+					t.Errorf("diff(-want +got): %s", diff)
+				}
+			})
+		})
+	}
+}

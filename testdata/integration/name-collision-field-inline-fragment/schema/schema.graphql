@@ -1,0 +1,18 @@
+type Query {
+  node(id: ID!): Node
+  payload: Payload
+}
+
+interface Node {
+  id: ID!
+}
+
+type Item implements Node {
+  id: ID!
+  name: String!
+}
+
+type Payload {
+  success: Boolean!
+  message: String
+}

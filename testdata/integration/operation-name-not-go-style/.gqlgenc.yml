@@ -1,0 +1,13 @@
+# オペレーション名が Go の公開名の形でない (先頭が小文字・Id のような略語・アンダースコア) 構成。
+# query_gen.go の型と client_gen.go の参照が同じ Go の名前になり、コンパイルできることを検証する fixture。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

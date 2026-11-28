@@ -1,0 +1,3 @@
+query Check($filter: SearchFilter!) {
+  ok(filter: $filter)
+}

@@ -1,0 +1,18 @@
+schema:
+  files:
+    - testdata/cfg/glob/**/*.graphql
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  query:
+    file: ./gen/query.go
+bind:
+  type:
+    packages:
+      - github.com/example/myapp/domain
+    named:
+      Email:
+        model: github.com/example/myapp/domain.Email
+      Timestamp:
+        model: github.com/99designs/gqlgen/graphql.Time

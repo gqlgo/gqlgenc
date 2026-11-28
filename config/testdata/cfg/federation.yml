@@ -1,0 +1,13 @@
+schema:
+  files:
+    - testdata/cfg/glob/**/*.graphql
+  federation:
+    version: 2
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  model:
+    file: ./gen/models_gen.go
+  query:
+    file: ./gen/query.go

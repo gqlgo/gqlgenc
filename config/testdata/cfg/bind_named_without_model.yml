@@ -1,0 +1,13 @@
+schema:
+  files:
+    - testdata/cfg/glob/**/*.graphql
+query:
+  files:
+    - "./queries/*.graphql"
+generate:
+  query:
+    file: ./gen/query.go
+bind:
+  type:
+    named:
+      Email: {}

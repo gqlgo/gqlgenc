@@ -1,0 +1,75 @@
+schema {
+  query: Query
+}
+
+type Query {
+  # input / custom scalar / enum を持つ Input を受け取り object を返す
+  searchInput(input: SearchInput!): InputResult!
+  # union を返す。inline fragment で各メンバーを選択する
+  searchNodes(filter: SearchFilter!): [SearchResult!]!
+  # interface を返す
+  node(id: ID!): Node
+}
+
+# ---- Input / custom scalar / enum ----
+input SearchInput {
+  keyword: String!
+  status: Status!
+  page: PageInput
+  createdAfter: Timestamp
+  meta: Raw
+  # 入れ子リスト経由でのみ到達する nested input。collector が 1 段しか剥がさないと生成漏れする
+  filters: [[FilterInput!]!]
+}
+
+input FilterInput {
+  field: String!
+  value: String!
+}
+
+input PageInput {
+  size: Int!
+}
+
+# 対応する Go 型を bind.type.named でバインドした custom scalar (→ その型)
+scalar Timestamp
+# 対応する型が無い custom scalar (→ graphql.String)
+scalar Raw
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+type InputResult {
+  total: Int!
+  status: Status!
+}
+
+# ---- interface / union ----
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String!
+  kind: NodeKind!
+}
+
+type Post implements Node {
+  id: ID!
+  title: String!
+}
+
+union SearchResult = User | Post
+
+input SearchFilter {
+  keyword: String!
+  kind: NodeKind!
+}
+
+enum NodeKind {
+  USER
+  POST
+}

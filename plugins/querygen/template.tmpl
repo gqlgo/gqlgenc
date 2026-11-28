@@ -1,0 +1,7 @@
+{{- range $responseType := .ResponseTypes }}
+{{ genCode $responseType }}
+{{- end}}
+
+{{- range $operation := .Operations}}
+const {{ $operation.Name|go }}Document = `{{ $operation.Document }}`
+{{- end}}

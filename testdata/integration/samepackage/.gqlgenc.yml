@@ -1,0 +1,14 @@
+# query と client を同じディレクトリ(= 同一 Go パッケージ)へ出力する構成。
+# client_gen.go がレスポンス型・Document 定数を自パッケージ名で修飾しない
+# (修飾すると self-import になりコンパイルできない)ことを検証する fixture。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

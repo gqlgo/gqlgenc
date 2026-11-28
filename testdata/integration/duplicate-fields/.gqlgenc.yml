@@ -1,0 +1,13 @@
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  model:
+    file: ./domain/model_gen.go
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go

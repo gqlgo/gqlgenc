@@ -1,0 +1,17 @@
+# フラグメント Q_Payload の型が、オペレーション Q の payload の型 Q_Payload を上書きし、
+# Q の payload から message が落ちるため、生成をエラーにする。
+fragment Q_Payload on Payload {
+  success
+}
+
+query Q {
+  payload {
+    message
+  }
+}
+
+query R {
+  payload {
+    ...Q_Payload
+  }
+}

@@ -1,0 +1,51 @@
+type Query {
+  files: [File!]!
+  node(id: ID!): Node
+  search(text: String!): [SearchResult!]!
+  payload: Payload
+  items(first: Int!, after: ID): [Item!]!
+}
+
+interface Node {
+  id: ID!
+}
+
+interface File implements Node {
+  id: ID!
+  filename: String!
+}
+
+type Image implements Node & File {
+  id: ID!
+  filename: String!
+  width: Int!
+}
+
+type Document implements Node & File {
+  id: ID!
+  filename: String!
+  title: String!
+}
+
+type Item implements Node {
+  id: ID!
+  name: String!
+  parent: Item
+}
+
+type HttpError {
+  message: String!
+}
+
+union SearchResult = Image | Item | HttpError
+
+type Payload {
+  success: Boolean!
+  message: String
+  detail: Detail
+}
+
+type Detail {
+  code: Int!
+  note: String
+}

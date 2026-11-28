@@ -1,0 +1,22 @@
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+bind:
+  type:
+    # custom scalar Timestamp を既存 Go 型にバインドする(Raw は未指定なので graphql.String 既定)
+    named:
+      Timestamp:
+        model: github.com/99designs/gqlgen/graphql.Time
+generate:
+  # file を指定するため gqlgenc が model_gen.go を生成する。スキーマに interface (Node) /
+  # union (SearchResult) / object を含むが、生成されるのは Input 型と Enum 型のみで、
+  # interface / union / object は除去されることを担保する。
+  model:
+    file: ./domain/model_gen.go
+  query:
+    file: ./domain/query_gen.go
+  client:
+    file: ./query/client_gen.go

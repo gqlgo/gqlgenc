@@ -1,0 +1,12 @@
+# オペレーションとフラグメントは名前空間が別なので、GraphQL では同じ名前を付けられる。
+# どちらも Go の型 Payload になり、同じ型を 2 回宣言するため、生成をエラーにする。
+fragment Payload on Payload {
+  success
+}
+
+query Payload {
+  payload {
+    ...Payload
+    message
+  }
+}

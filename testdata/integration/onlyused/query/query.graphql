@@ -1,0 +1,3 @@
+query Search($filter: UsedFilter!, $kind: UsedKind!) {
+  search(filter: $filter, kind: $kind)
+}
