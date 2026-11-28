@@ -240,10 +240,10 @@ func lookupAutobindType(pkg *packages.Package, schemaType *ast.Definition) types
 
 // pkgAndType は "import/path.TypeName" を import パスと型名に分割する。
 func pkgAndType(name string) (string, string) {
-	idx := strings.LastIndex(name, ".")
-	if idx == -1 {
+	pkgPath, typeName, found := strings.CutLast(name, ".")
+	if !found {
 		return "", name
 	}
 
-	return name[:idx], name[idx+1:]
+	return pkgPath, typeName
 }

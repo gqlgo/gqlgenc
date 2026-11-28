@@ -1,7 +1,8 @@
 module github.com/Yamashou/gqlgenc/v3
 
 go 1.27
-toolchain go1.27rc1
+
+toolchain go1.27.4
 
 require (
 	github.com/99designs/gqlgen v0.17.91
@@ -9,7 +10,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/vektah/gqlparser/v2 v2.5.34
-	golang.org/x/tools v0.46.1-0.20260612172744-cb639a5a9bb6
+	golang.org/x/tools v0.53.0
 )
 
 require (
@@ -213,9 +214,9 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
-	golang.org/x/mod v0.37.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
