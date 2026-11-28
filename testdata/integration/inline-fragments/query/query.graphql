@@ -74,3 +74,10 @@ query NodeRepeated($id: ID!) {
     }
   }
 }
+
+# 既定値を持つ変数は、型が non-null でも省略できる (省略するとサーバーが既定値を使う)。
+query Items($first: Int! = 5, $after: ID = "a") {
+  items(first: $first, after: $after) {
+    id
+  }
+}

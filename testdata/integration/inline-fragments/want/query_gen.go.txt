@@ -91,6 +91,14 @@ type Files_Files_Node struct {
 	ID string `json:"id"`
 }
 
+type Items struct {
+	Items []*Items_Items `json:"items"`
+}
+
+type Items_Items struct {
+	ID string `json:"id"`
+}
+
 type NodeFile struct {
 	Node *NodeFile_Node `json:"node"`
 }
@@ -339,3 +347,4 @@ const NodeFileDocument = `query NodeFile($id: ID!) { node(id: $id) { __typename 
 const SearchDocument = `query Search($text: String!) { search(text: $text) { __typename ... on Image { width } ... on Item { name } ... on HttpError { message } } }`
 const PayloadTwiceDocument = `query PayloadTwice{ payload { success detail { code } detail { note } success message } }`
 const NodeRepeatedDocument = `query NodeRepeated($id: ID!) { node(id: $id) { __typename ... on Item { id } ... on Item { name parent { id } } ... { id } } }`
+const ItemsDocument = `query Items($first: Int! = 5, $after: ID = "a") { items(first: $first, after: $after) { id } }`

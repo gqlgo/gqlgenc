@@ -3,6 +3,7 @@ type Query {
   node(id: ID!): Node
   search(text: String!): [SearchResult!]!
   payload: Payload
+  items(first: Int!, after: ID): [Item!]!
 }
 
 interface Node {

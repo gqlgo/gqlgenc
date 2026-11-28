@@ -3,6 +3,7 @@
 package gen
 
 import (
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/Yamashou/gqlgenc/v3/client"
 )
 
@@ -47,4 +48,14 @@ type NodeRepeatedVars struct {
 var NodeRepeatedOp = client.Operation[client.Query, NodeRepeatedVars, NodeRepeated]{
 	Name:     "NodeRepeated",
 	Document: NodeRepeatedDocument,
+}
+
+type ItemsVars struct {
+	First graphql.Omittable[int]     `json:"first,omitzero"`
+	After graphql.Omittable[*string] `json:"after,omitzero"`
+}
+
+var ItemsOp = client.Operation[client.Query, ItemsVars, Items]{
+	Name:     "Items",
+	Document: ItemsDocument,
 }

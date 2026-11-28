@@ -346,7 +346,7 @@ Name: graphql.OmittableOf(&name),
 
 注意:
 
-- 同じ仕組みが **オペレーション変数**にも適用されます。nullable な変数（例 `$size: Int` → `Vars.Size graphql.Omittable[*int]`）も undefined（省略）/ null / 値を区別でき、省略するとスキーマのデフォルト（`$x: Int = 5` やフィールド引数の `= ...`）が適用されます。非 nullable（必須）変数（例 `$id: ID!` → `Vars.ID string`）は素の型で常に送信されます。
+- 同じ仕組みが **オペレーション変数**にも適用されます。nullable な変数（例 `$size: Int` → `Vars.Size graphql.Omittable[*int]`）も undefined（省略）/ null / 値を区別でき、省略するとスキーマのデフォルト（`$x: Int = 5` やフィールド引数の `= ...`）が適用されます。非 nullable（必須）変数（例 `$id: ID!` → `Vars.ID string`）は素の型で常に送信されます。既定値を持つ変数は、型が非 nullable でも省略できるため `graphql.Omittable[T]` になります（例 `$first: Int! = 5` → `Vars.First graphql.Omittable[int]`。省略するとサーバーが既定値 5 を使います）。
 - input オブジェクト・変数いずれも、非 nullable（必須）のもの（例 `id: ID!`）は省略できず常に送信されます。
 
 ## ランタイム（client パッケージ）

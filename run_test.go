@@ -860,6 +860,24 @@ func Test_IntegrationTest_InlineFragments(t *testing.T) {
 			}
 		})
 	}
+
+	// 既定値を持つ変数 ($first: Int! = 5) は、型が non-null でも省略できる。省略すると variables に
+	// 含まれず、サーバーが既定値を使う
+	omitted, err := json.Marshal(inlinefragmentsgen.ItemsVars{})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{}`, string(omitted)); diff != "" {
+		t.Errorf("omitted variables diff(-want +got): %s", diff)
+	}
+
+	specified, err := json.Marshal(inlinefragmentsgen.ItemsVars{First: graphql.OmittableOf(10)})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if diff := cmp.Diff(`{"first":10}`, string(specified)); diff != "" {
+		t.Errorf("specified variables diff(-want +got): %s", diff)
+	}
 }
 
 // outputModTimes は dir のファイルの名前と更新時刻を返す。

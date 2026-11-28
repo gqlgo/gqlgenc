@@ -46,9 +46,11 @@ func (g *OperationGenerator) operationArguments(variableDefinitions graphql.Vari
 	argumentTypes := make([]*OperationArgument, 0, len(variableDefinitions))
 	for _, v := range variableDefinitions {
 		argumentTypes = append(argumentTypes, &OperationArgument{
-			Variable:  v.Variable,
-			Type:      scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
-			Omittable: !v.Type.NonNull,
+			Variable: v.Variable,
+			Type:     scalarGoType(g.binder, g.cfg.GQLGenConfig.Models, v.Type, g.setErr),
+			// 既定値を持つ変数は、型が non-null でも省略できる (省略するとサーバーが既定値を使う)。
+			// 素の型で生成すると必ず値を送ることになり、既定値を使えない。
+			Omittable: !v.Type.NonNull || v.DefaultValue != nil,
 		})
 	}
 
@@ -83,9 +85,10 @@ type Operation struct {
 type OperationArgument struct {
 	Type     gotypes.Type
 	Variable string
-	// Omittable is true when the variable is nullable. Nullable variables are
-	// generated as graphql.Omittable[T] so they can be omitted (undefined),
-	// matching input fields and letting schema defaults apply.
+	// Omittable is true when the variable can be left out of the request: it is
+	// nullable, or it has a default value (also when its type is non-null). Such
+	// variables are generated as graphql.Omittable[T] so they can be omitted
+	// (undefined), matching input fields and letting schema defaults apply.
 	Omittable bool
 }
 
