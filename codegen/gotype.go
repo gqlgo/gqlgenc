@@ -42,9 +42,13 @@ func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
 
 func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) ([]gotypes.Type, error) {
 	for _, operation := range operations {
-		t := g.newFields(operation.Name, operation.SelectionSet).goStructType()
-		g.claimTypeName(operation.Name, "operation "+operation.Name)
-		g.newGoNamedType(operation.Name, false, t)
+		// client_gen.go と query_gen.go の Document 定数は、オペレーション名を Go の名前
+		// (templates.ToGo: getUser → GetUser、GetUserId → GetUserID) にして参照する。
+		// 型も同じ名前で宣言しないと、Go の名前の形でないオペレーション名で参照先が無くなる。
+		typeName := templates.ToGo(operation.Name)
+		t := g.newFields(typeName, operation.SelectionSet).goStructType()
+		g.claimTypeName(typeName, "operation "+operation.Name)
+		g.newGoNamedType(typeName, false, t)
 	}
 
 	if g.err != nil {

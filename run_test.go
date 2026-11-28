@@ -28,6 +28,7 @@ import (
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/query"
 	"github.com/Yamashou/gqlgenc/v3/testdata/integration/basic/schema"
 	inlinefragmentsgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/inline-fragments/gen"
+	operationnamegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/operation-name-not-go-style/gen"
 	samepackagegen "github.com/Yamashou/gqlgenc/v3/testdata/integration/samepackage/gen"
 	selfbindgen "github.com/Yamashou/gqlgenc/v3/testdata/integration/selfbind/gen"
 )
@@ -602,6 +603,34 @@ func Test_IntegrationTest_SamePackage(t *testing.T) {
 	// コンパイル可能であることも担保する
 	if samepackagegen.GetUserOp.Name != "GetUser" {
 		t.Errorf("GetUserOp.Name = %q, want %q", samepackagegen.GetUserOp.Name, "GetUser")
+	}
+}
+
+// オペレーション名が Go の公開名の形でないとき (getUser・GetUserId・get_user_name)、query_gen.go の
+// 型を client_gen.go と同じ Go の名前 (GetUser・GetUserID・GetUserName) で宣言することを検証する。
+// 型を元の名前で宣言すると、client_gen.go の参照先が無くなりコンパイルできない。
+func Test_IntegrationTest_OperationNameNotGoStyle(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/operation-name-not-go-style/")
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// コミット済みの gen パッケージを import して参照することで、生成コードが
+	// コンパイル可能であることも担保する。Name はサーバーへ送るため元の名前のまま。
+	got := []string{
+		operationnamegen.GetUserOp.Name,
+		operationnamegen.GetUserIDOp.Name,
+		operationnamegen.GetUserNameOp.Name,
+	}
+	want := []string{"getUser", "GetUserId", "get_user_name"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("operation names diff(-want +got): %s", diff)
 	}
 }
 
