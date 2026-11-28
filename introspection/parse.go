@@ -3,6 +3,7 @@ package introspection
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/ast"
@@ -326,6 +327,17 @@ func (p parser) buildDefaultValue(defaultValue *string, typ *ast.Type) *ast.Valu
 
 	value, err := parseValueLiteral(*defaultValue)
 	if err != nil {
+		// gqlparser を使うサーバー (gqlgen) は、文字列の既定値を strconv.Quote で書き出す。制御文字は
+		// GraphQL に無い Go のエスケープ (\x00・\a・\v・\U0001F600) になり、リテラルとして解釈できない。
+		// Go の文字列のリテラルとして読めれば、その値の文字列にする。
+		if unquoted, unquoteErr := strconv.Unquote(*defaultValue); unquoteErr == nil && strings.HasPrefix(*defaultValue, `"`) {
+			return &ast.Value{
+				Raw:      unquoted,
+				Kind:     ast.StringValue,
+				Position: p.sharedPosition,
+			}
+		}
+
 		return &ast.Value{
 			Raw:      *defaultValue,
 			Kind:     p.parseValueKind(typ),

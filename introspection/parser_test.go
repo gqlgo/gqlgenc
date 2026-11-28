@@ -344,6 +344,18 @@ func TestParser_buildDefaultValue(t *testing.T) {
 			},
 		},
 		{
+			// gqlgen のサーバーは制御文字を GraphQL に無い Go のエスケープ (\x00・\a) で返す。
+			// 引用符ごとの文字列にせず、Go の文字列のリテラルとして読んだ値にする
+			name: "Goのエスケープを含む文字列は、Goの文字列のリテラルとして読んだ値になる",
+			args: args{
+				defaultValue: literal(`"tab\tnul\x00bell\a"`),
+				typ:          ast.NamedType("String", nil),
+			},
+			want: want{
+				value: &ast.Value{Raw: "tab\tnul\x00bell\a", Kind: ast.StringValue, Position: position},
+			},
+		},
+		{
 			// 既定値が null のとき、型の種類 (文字列) の値 "null" にしない
 			name: "nullのリテラルはnullの値になる",
 			args: args{
