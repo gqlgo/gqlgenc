@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/99designs/gqlgen/graphql"
 )
@@ -48,6 +49,7 @@ func TestNewPostRequestUpload(t *testing.T) {
 		mapping            map[string][]string
 		files              map[string]string
 		bodyContains       []string
+		err                error
 	}
 
 	tests := []struct {
@@ -245,13 +247,35 @@ func TestNewPostRequestUpload(t *testing.T) {
 				bodyContains: []string{`"files":[]`},
 			},
 		},
+		{
+			// File が nil の Upload (必須の Upload! 変数の設定し忘れ) はエラーにする。
+			// 本文を書く goroutine で nil の File を読むと、プロセスごと panic で落ちる。
+			name: "FileがnilのUploadはエラー",
+			args: args{
+				operationName: "UploadFile",
+				query:         "mutation UploadFile($file: Upload!) { uploadFile(file: $file) }",
+				variables: func(t *testing.T) any {
+					t.Helper()
+					type vars struct {
+						File graphql.Upload `json:"file"`
+					}
+					return vars{}
+				},
+			},
+			want: want{
+				err: errUploadWithoutFile,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := newPostRequest(t.Context(), "http://example.com/graphql", tt.args.operationName, tt.args.query, tt.args.variables(t))
-			if err != nil {
-				t.Fatalf("newPostRequest() error = %v", err)
+			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Fatalf("newPostRequest() error diff(-want +got): %s", diff)
+			}
+			if tt.want.err != nil {
+				return
 			}
 
 			if !tt.want.multipart {

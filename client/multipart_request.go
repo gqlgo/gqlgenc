@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -14,6 +15,10 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 )
+
+// errUploadWithoutFile は、File が nil の graphql.Upload を送ろうとしたことを表す。
+// 必須の Upload! 変数は値型で生成されるため、設定し忘れたゼロ値で起こり得る。
+var errUploadWithoutFile = errors.New("graphql.Upload has a nil File")
 
 // uploadCollector は variables のエンコード中に現れた graphql.Upload を収集する。
 // 値の位置には JSON null を書き込み、ファイル本体とその JSON パスを
@@ -29,11 +34,7 @@ type uploadCollector struct {
 func (c *uploadCollector) marshalers() *json.Marshalers {
 	return json.JoinMarshalers(
 		json.MarshalToFunc(func(enc *jsontext.Encoder, upload graphql.Upload) error {
-			if err := enc.WriteToken(jsontext.Null); err != nil {
-				return fmt.Errorf("write null: %w", err)
-			}
-			c.collect(upload, enc.StackPointer())
-			return nil
+			return c.collect(enc, upload)
 		}),
 		json.MarshalToFunc(func(enc *jsontext.Encoder, upload *graphql.Upload) error {
 			if upload == nil {
@@ -42,20 +43,27 @@ func (c *uploadCollector) marshalers() *json.Marshalers {
 				}
 				return nil
 			}
-			if err := enc.WriteToken(jsontext.Null); err != nil {
-				return fmt.Errorf("write null: %w", err)
-			}
-			c.collect(*upload, enc.StackPointer())
-			return nil
+			return c.collect(enc, *upload)
 		}),
 	)
 }
 
-// collect は JSON Pointer (例: /variables/input/file) を
-// graphql-multipart-request-spec のパス表記 (例: variables.input.file) に変換して記録する。
-func (c *uploadCollector) collect(upload graphql.Upload, pointer jsontext.Pointer) {
+// collect は Upload の位置に JSON null を書き、ファイルとその位置を記録する。位置は JSON Pointer
+// (例: /variables/input/file) を graphql-multipart-request-spec のパス表記 (例: variables.input.file)
+// に変換したもの。File が nil の Upload はエラーにする。
+func (c *uploadCollector) collect(enc *jsontext.Encoder, upload graphql.Upload) error {
+	if upload.File == nil {
+		return errUploadWithoutFile
+	}
+
+	if err := enc.WriteToken(jsontext.Null); err != nil {
+		return fmt.Errorf("write null: %w", err)
+	}
+
 	c.files = append(c.files, upload)
-	c.paths = append(c.paths, strings.ReplaceAll(strings.TrimPrefix(string(pointer), "/"), "/", "."))
+	c.paths = append(c.paths, strings.ReplaceAll(strings.TrimPrefix(string(enc.StackPointer()), "/"), "/", "."))
+
+	return nil
 }
 
 // quoteEscaper は MIME ヘッダーのクォート内で特別扱いされる文字をエスケープする。
