@@ -252,8 +252,8 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 		{
 			// foo_bar と fooBar が同じ Go フィールド名 FooBar に衝突するケース (gqlgo/gqlgenc#108)。
 			// model 指定だが Object 型は input/enum のみ生成する filter で model_gen.go から
-			// 除去される (model_gen.go は空スタブ) ため、衝突は model_gen.go ではなくクエリ応答型
-			// GetObject_Object の生成時に表面化する。
+			// 除去される (model_gen.go は宣言を持たない) ため、衝突は model_gen.go ではなくクエリ応答型
+			// GetObject_Object の生成時に表面化する。生成が失敗するので、model_gen.go は残らない。
 			name:            "duplicate fields test - should fail with a Go field name collision in the query type",
 			testDir:         "testdata/integration/duplicate-fields/",
 			wantErr:         true,
@@ -639,6 +639,7 @@ func Test_IntegrationTest_MultipleConfigs(t *testing.T) {
 }
 
 // 出力ファイルの扱いの回帰テスト。
+//   - 使用フィルタがすべての型を除いたとき、package 句だけの model_gen.go を残さない (gqlgo/gqlgenc#327)
 //   - 生成した内容が前回と同じ出力は書き換えない (更新時刻を保ち、下流のビルドを走り直させない)
 //   - 生成が失敗したとき、前回の出力を消さずに戻す (gqlgo/gqlgenc#322)
 func Test_IntegrationTest_KeepOutputs(t *testing.T) {
@@ -654,7 +655,8 @@ func Test_IntegrationTest_KeepOutputs(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	// 退避ファイル (.gqlgenc.bak) は残らない
+	// スキーマの Enum (Unused) をクエリが使っていないので、model_gen.go は出力されない。
+	// 退避ファイル (.gqlgenc.bak) も残らない
 	generated := readOutputFiles(t, "gen")
 	if diff := cmp.Diff([]string{"client_gen.go", "query_gen.go"}, slices.Sorted(maps.Keys(generated))); diff != "" {
 		t.Errorf("generated files diff(-want +got): %s", diff)

@@ -1,4 +1,6 @@
 # 出力ファイルの扱いの fixture。次を検証する。
+#   - 使用フィルタがすべての型を除いたとき、package 句だけの model_gen.go を残さない
+#     (スキーマの Enum は Unused だけで、クエリは使っていない)
 #   - 生成した内容が前回と同じ出力は、書き換えない (更新時刻を保つ)
 #   - 生成が失敗したとき、前回の出力を消さずに戻す (broken.gqlgenc.yml が失敗する設定)
 schema:
@@ -8,6 +10,8 @@ query:
   files:
     - ./query/*.graphql
 generate:
+  model:
+    file: ./gen/model_gen.go
   query:
     file: ./gen/query_gen.go
   client:

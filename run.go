@@ -124,6 +124,11 @@ func generateOutputs(ctx context.Context, cfg *config.Config, backups []*outputB
 		return fmt.Errorf("failed to generate code: %w", err)
 	}
 
+	// 使用フィルタがすべての型を除いたときに残る、宣言の無い model ファイルを消す
+	if err := removePackageClauseOnlyModel(cfg); err != nil {
+		return err
+	}
+
 	if err := commitOutputBackups(backups); err != nil {
 		return fmt.Errorf("failed to commit outputs: %w", err)
 	}

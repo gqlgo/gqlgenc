@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -291,4 +293,38 @@ func (b *outputBackup) applyCommit(action outputCommitAction) error {
 	b.state = outputBackupStateCommitted
 
 	return nil
+}
+
+// removePackageClauseOnlyModel は、宣言が 1 つも無い (package 句だけの) model ファイルを消す。
+//
+// gqlgen の modelgen は、生成する型があるかを判定した後で gqlgenc の使用フィルタを呼ぶ。
+// フィルタがすべての型を除くと package 句だけのファイルが書かれるため、model を生成しない
+// 場合と同じ出力になるようにそのファイルを消す。
+func removePackageClauseOnlyModel(cfg *config.Config) error {
+	model := &cfg.GQLGenConfig.Model
+	if !model.IsDefined() || !isPackageClauseOnly(model.Filename) {
+		return nil
+	}
+
+	if err := os.Remove(model.Filename); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("remove empty model file: %w", err)
+	}
+
+	// ファイルを消したパッケージを、後続の設定が消した後の状態でロードし直すようにする
+	if cfg.GQLGenConfig.Packages != nil {
+		cfg.GQLGenConfig.Packages.Evict(model.ImportPath())
+	}
+
+	return nil
+}
+
+// isPackageClauseOnly は、filename が Go のファイルとして読めて、宣言を 1 つも持たないかを返す。
+// 存在しないファイルと読めないファイルは false を返す。
+func isPackageClauseOnly(filename string) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+
+	return len(file.Decls) == 0
 }

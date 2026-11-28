@@ -7,6 +7,8 @@ query:
   files:
     - ./broken/*.graphql
 generate:
+  model:
+    file: ./gen/model_gen.go
   query:
     file: ./gen/query_gen.go
   client:

@@ -235,6 +235,7 @@ generate:
 
 - レスポンスの形は query_gen.go の専用型が表現し、再利用したい応答型は `@goFragment` / autobind で既存 Go 型にバインドするため、スキーマの Object 型モデルはクライアントから参照されない
 - 使用判定は、変数定義の Input 型（ネストした Input を再帰的に辿る）と、セレクションセットで参照される Enum 型から行う
+- クエリが Input 型も Enum 型も使っておらず、生成する型が1つも無いときは、model ファイルを出力しない（package 句だけのファイルを残さない。前回の生成で出力した model ファイルがあれば消す）
 
 `generate.model.file` の指定有無で使い方が分かれます。
 
@@ -595,7 +596,7 @@ input := UpdateUserInput{
 3. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。さらに gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
 4. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
 5. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
-6. **出力の確定**（`run.go` の `commitOutputBackups`）: 生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
+6. **出力の確定**（`run.go` の `commitOutputBackups`）: 使用フィルタがすべての型を除いて宣言の無くなった model ファイルを消し、生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
 
 ### シーケンス図（コード生成）
 
