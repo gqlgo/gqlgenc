@@ -277,6 +277,22 @@ func Test_IntegrationTest_NoModelGen(t *testing.T) {
 			wantErrContains: `fragment spread Item and inline fragment on Item in SpreadEqualsTypeCondition_Node map to the same Go field name "Item"`,
 		},
 		{
+			// query Payload と fragment Payload はどちらも Go の型 Payload になる。
+			// 従来は型 Payload を 2 回宣言し、生成したコードがコンパイルできなかった
+			name:            "operation and fragment with the same name - should fail with a Go type name collision",
+			testDir:         "testdata/integration/type-name-collision-operation-fragment/",
+			wantErr:         true,
+			wantErrContains: `fragment Payload and operation Payload generate the same Go type name "Payload"`,
+		},
+		{
+			// fragment Q_Payload の型が、query Q の payload の型 Q_Payload と同じ名前になる。
+			// 従来は後の型が先の型を上書きし、Q の payload から message が黙って落ちていた
+			name:            "fragment name equal to a nested type name - should fail with a Go type name collision",
+			testDir:         "testdata/integration/type-name-collision-fragment-nested-type/",
+			wantErr:         true,
+			wantErrContains: `field payload in Q and fragment Q_Payload generate the same Go type name "Q_Payload"`,
+		},
+		{
 			// UC1 (generate.model.file 未指定) で enum を autobind/@goModel のいずれにも束縛せず
 			// クエリのリーフとして選択すると、panic ではなく型名を含むエラーで失敗する (#4 回帰)。
 			// これはリーフ型を解決する CreateGoTypes (GoTypeGenerator) 側の経路。

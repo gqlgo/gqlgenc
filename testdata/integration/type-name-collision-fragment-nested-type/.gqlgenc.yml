@@ -1,0 +1,12 @@
+# フラグメントの名前が、別のオペレーションの入れ子の型の名前 (親の型名_フィールド名) と同じ。生成が失敗することを検証する。
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

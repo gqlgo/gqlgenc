@@ -24,24 +24,37 @@ type GoTypeGenerator struct {
 	binder *typebind.Binder
 	types  map[string]gotypes.Type
 	err    error
+	// typeNameOrigins は、生成する型の名前ごとに、その型を生成する選択の説明を持つ (claimTypeName)
+	typeNameOrigins map[string]string
+	// typeNameErr は、別々の選択が同じ型の名前を使った最初の衝突。err の後に報告する
+	typeNameErr error
 }
 
 func NewGoTypeGenerator(cfg *config.Config) *GoTypeGenerator {
 	return &GoTypeGenerator{
-		cfg:    cfg,
-		binder: cfg.GQLGencConfig.TypeBinder,
-		types:  map[string]gotypes.Type{},
+		cfg:             cfg,
+		binder:          cfg.GQLGencConfig.TypeBinder,
+		types:           map[string]gotypes.Type{},
+		typeNameOrigins: map[string]string{},
+		typeNameErr:     nil,
 	}
 }
 
 func (g *GoTypeGenerator) CreateGoTypes(operations graphql.OperationList) ([]gotypes.Type, error) {
 	for _, operation := range operations {
 		t := g.newFields(operation.Name, operation.SelectionSet).goStructType()
+		g.claimTypeName(operation.Name, "operation "+operation.Name)
 		g.newGoNamedType(operation.Name, false, t)
 	}
 
 	if g.err != nil {
 		return nil, g.err
+	}
+
+	// 型の名前の衝突は、ほかのエラーの後に報告する。Go のフィールド名の衝突 (foo_bar と fooBar) は
+	// 型の名前も重ねる (どちらも <親の型>_FooBar) ため、直し方を示すフィールド名の衝突のエラーを先に返す。
+	if g.typeNameErr != nil {
+		return nil, g.typeNameErr
 	}
 
 	return g.goTypes(), nil
@@ -291,6 +304,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 			return newField(FragmentSpread, baseType, name, []string{jsonIgnoreTag})
 		}
 		structType := g.newFields(sel.Name, sel.Definition.SelectionSet).goStructType()
+		g.claimTypeName(sel.Name, "fragment "+sel.Name)
 		namedType := g.newGoNamedType(sel.Name, true, structType)
 		return newField(FragmentSpread, namedType, sel.Name, []string{jsonIgnoreTag})
 	case *graphql.InlineFragment:
@@ -300,6 +314,7 @@ func (g *GoTypeGenerator) newField(parentTypeName string, selection graphql.Sele
 		// UserOperation_User_User) とする。
 		typeName := fieldTypeName(parentTypeName, sel.TypeCondition)
 		structType := g.newFields(typeName, sel.SelectionSet).goStructType()
+		g.claimTypeName(typeName, fmt.Sprintf("inline fragment on %s in %s", sel.TypeCondition, parentTypeName))
 		namedType := g.newGoNamedType(typeName, true, structType)
 		// 枝に値が入るのは、レスポンスの __typename が型条件を満たす具体型のとき。interface / union への
 		// 型条件は __typename と名前が一致しないため、満たす具体型を内部タグで querygen へ渡す。
@@ -385,6 +400,7 @@ func (g *GoTypeGenerator) newTypeKindAndGoType(parentTypeName string, sel *graph
 	}
 
 	// Create base type (always non-null) then wrap with list structure
+	g.claimTypeName(typeName, fmt.Sprintf("field %s in %s", sel.Alias, parentTypeName))
 	baseType := g.newGoNamedType(typeName, true, fields.goStructType())
 	t := g.newObjectGoType(baseType, sel.Definition.Type)
 	return Object, t
@@ -455,6 +471,23 @@ func (g *GoTypeGenerator) newGoNamedType(typeName string, nonnull bool, t gotype
 	// new type set to g.types
 	g.types[namedType.String()] = namedType
 	return namedType
+}
+
+// claimTypeName は、生成する型の名前 typeName を、origin (その型を生成する選択の説明) が使うものとして
+// 記録する。別の origin が同じ名前を使っていれば、最初の衝突を typeNameErr に残す。衝突を許すと、同じ
+// 名前の型を 2 回宣言してコンパイルできないコードになるか (オペレーションとフラグメントの型)、後の型が
+// 先の型を上書きして先の選択のフィールドが生成型から落ちる (g.types のキーが同じになる型)。
+// 同じフラグメントを複数回展開したときのように、同じ origin が同じ名前を使うのは衝突ではない。
+func (g *GoTypeGenerator) claimTypeName(typeName, origin string) {
+	existing, ok := g.typeNameOrigins[typeName]
+	if !ok {
+		g.typeNameOrigins[typeName] = origin
+		return
+	}
+
+	if existing != origin && g.typeNameErr == nil {
+		g.typeNameErr = fmt.Errorf("%s and %s generate the same Go type name %q: rename one of them in the query", existing, origin, typeName)
+	}
 }
 
 // resolveModelType は GraphQL 型名に束縛された Go 型を gqlgen の model マップから解決する。

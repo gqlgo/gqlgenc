@@ -262,7 +262,7 @@ enum には gqlgen が `MarshalJSON` / `UnmarshalJSON` を生成するため（[
     - 型条件が interface / union のとき（`... on Node`）は、その型条件を満たす具体型（interface を実装する Object 型・union のメンバー）の `__typename` で値が入る。1つの具体型が複数の型条件を満たすとき（`... on Node` と `... on Image`）は、該当する枝すべてに値が入る
     - 同じ型への型条件を複数回書くと（`... on Item { id } ... on Item { name }`）、選択を合わせた1つの枝になる。型条件の無いインラインフラグメント（`... { id }` / `... @include(if: $x) { id }`）は、外側の型への型条件として扱う
   - 同じレスポンスキーのフィールドを複数回選択すると（`detail { code } detail { note }`）、GraphQL のフィールド収集と同じくサブセレクションを合わせた1つのフィールドになる
-  - Go の名前が重なる選択は生成時にエラーにする。別名 `Item` のフィールドと `... on Item`、フラグメント `Item` と `... on Item` はどちらも Go のフィールド `Item` になり、片方が生成型から落ちるため。クエリで別名を付けるか、フラグメントの名前を変えて解消する
+  - Go の名前が重なる選択は生成時にエラーにする。別名 `Item` のフィールドと `... on Item`、フラグメント `Item` と `... on Item` はどちらも Go のフィールド `Item` になり、片方が生成型から落ちるため。オペレーションとフラグメントの同じ名前（`query Payload` と `fragment Payload`）、フラグメントの名前と入れ子の型の名前（`fragment Q_Payload` と `query Q { payload { ... } }` の `Q_Payload`）は同じ Go の型名になるため。クエリで別名を付けるか、オペレーション・フラグメントの名前を変えて解消する
   - フラグメント定義やフィールド選択に `@goFragment(type: "import/path.Type")` を付けると、型を生成せず指定した既存 Go 型にバインドする（`fragment X on T @goFragment(type: "...") { ... }`）。バインド型のデコードは json/v2 のデフォルト（または型自身の `UnmarshalJSON`）に任せる。`@goFragment` はクライアント側のコード生成専用で、サーバーへ送るクエリからは除去される
   - `bind.fragment.packages` にパッケージを列挙すると、フラグメント名と同名の Go 型がそのパッケージにある場合、`@goFragment` を書かなくても自動でその既存型にバインドする（`bind.type.packages` のクエリ版。マッチ対象はフラグメント名）。明示的な `@goFragment(type: ...)` が付いている場合はそちらが優先される
 - `UnmarshalJSONFrom`（json/v2 の `UnmarshalerFrom`）はフラグメントを含む型にのみ生成される。通常フィールドはメソッドを持たない別名型（`type plain T`）を経由して json/v2 のデフォルトデコードに任せ、フラグメントスプレッドと `__typename` 分岐だけを追加でデコードする。フラグメントを含まない型はメソッド自体を生成せず、デフォルトデコードで処理される
