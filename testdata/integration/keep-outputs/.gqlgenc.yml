@@ -1,0 +1,14 @@
+# 出力ファイルの扱いの fixture。次を検証する。
+#   - 生成した内容が前回と同じ出力は、書き換えない (更新時刻を保つ)
+#   - 生成が失敗したとき、前回の出力を消さずに戻す (broken.gqlgenc.yml が失敗する設定)
+schema:
+  files:
+    - ./schema/*.graphql
+query:
+  files:
+    - ./query/*.graphql
+generate:
+  query:
+    file: ./gen/query_gen.go
+  client:
+    file: ./gen/client_gen.go

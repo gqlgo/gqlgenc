@@ -591,9 +591,11 @@ input := UpdateUserInput{
 `gqlgenc` コマンドは次の順に処理します。
 
 1. **設定読み込み**（`config.LoadConfig`）: 設定ファイルの探索、YAML パース（環境変数展開・未知キー検出）、バリデーション
-2. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。さらに既存の生成ファイルを削除して gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
-3. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
-4. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
+2. **前回の出力の退避**（`run.go` の `backupOutputs`）: 設定された出力ファイル（model / query / client）を `<ファイル名>.gqlgenc.bak` へ移す。出力先のパッケージを束縛先としてロードするときに、前回の生成物の型を拾わないようにするためである。以降のどこかで失敗したときは、退避したファイルを元へ戻す（前回の出力を消さない）。プロセスが強制終了されて退避ファイルが残った場合は、次の実行がそれを前回の出力として扱い、成功か失敗かに応じて片付ける
+3. **スキーマ読み込み**（`config.LoadSchema`）: `run.go` が `introspection.LoadRemoteSchema` を注入し、`LoadSchema` はローカルファイル、または `endpoint` 指定時に注入された loader でリモートスキーマを取得する。さらに gqlgen の `Init()` を実行し、interface の実装リストをソートして出力を決定的にする。loader を注入する（直接 import しない）ことで `config` パッケージは `client` に依存しない
+4. **クエリ読み込み**（`GQLGencConfig.LoadQuery`）: クエリファイルをパースしてスキーマに対して検証し、オペレーション単位の QueryDocument（参照フラグメント込み）に分割する
+5. **コード生成**（`plugins.GenerateCode`）: modelgen → オペレーションと Go 型の構築（codegen）→ querygen → clientgen の順に実行する
+6. **出力の確定**（`run.go` の `commitOutputBackups`）: 生成した内容が前回と同じ出力は前回のファイルを戻す（更新時刻が変わらないので、下流のビルドが走り直さない）。内容が変わった出力だけが、生成したファイルに置き換わる
 
 ### シーケンス図（コード生成）
 
@@ -615,6 +617,8 @@ sequenceDiagram
     Note over cfg: 設定ファイル探索 / YAMLパース<br/>検証 / schema・federation の Source 構築
     cfg-->>run: *Config
 
+    run->>out: 前回の出力を .gqlgenc.bak へ退避（失敗時は元へ戻す）
+
     run->>cfg: LoadSchema(ctx, introspection.LoadRemoteSchema)
     Note over cfg,cl: loader を注入。config は client / introspection に依存しない
     alt schema.files（ローカル）
@@ -628,7 +632,7 @@ sequenceDiagram
         intro->>intro: SchemaFromIntrospection → AST
         intro-->>cfg: schema (AST)
     end
-    cfg->>cfg: 既存生成ファイル削除 / gqlgen Init() / Implements ソート
+    cfg->>cfg: gqlgen Init() / Implements ソート
     cfg-->>run: finalized
 
     run->>qp: LoadQuery(schema)
@@ -649,6 +653,8 @@ sequenceDiagram
     opt generate.client.file 指定あり
         gen->>out: client_gen.go（Vars 構造体 + Op 値）
     end
+
+    run->>out: 出力の確定（内容が前回と同じ出力は前回のファイルを戻す / 退避を削除）
 ```
 
 ### シーケンス図（ランタイム）

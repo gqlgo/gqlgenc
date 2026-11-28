@@ -5,10 +5,12 @@ import (
 	json "encoding/json/v2"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -562,8 +564,8 @@ func Test_IntegrationTest_SamePackage(t *testing.T) {
 }
 
 // model 出力先パッケージを bind.type.packages にも指定し、手書きコード (gen/helper.go) が
-// 生成型を参照する自己参照レイアウトの回帰テスト。再生成の開始時に model_gen.go が削除される
-// ため、autobind は「手書きコードが未定義の型を参照する壊れたパッケージ」をロードする。
+// 生成型を参照する自己参照レイアウトの回帰テスト。再生成の開始時に model_gen.go が出力先から
+// 退避されるため、autobind は「手書きコードが未定義の型を参照する壊れたパッケージ」をロードする。
 // modelgen が model_gen.go を書いた後に TypeBinder のキャッシュを evict しないと、codegen の
 // 型解決が生成前の状態を見て unable to find type で失敗する。
 func Test_IntegrationTest_SelfBind(t *testing.T) {
@@ -634,6 +636,74 @@ func Test_IntegrationTest_MultipleConfigs(t *testing.T) {
 
 	compareFiles(t, filepath.Join(basicDir, "want/query_gen.go.txt"), filepath.Join(basicDir, "domain/query_gen.go"))
 	compareFiles(t, filepath.Join(samePackageDir, "want/client_gen.go.txt"), filepath.Join(samePackageDir, "gen/client_gen.go"))
+}
+
+// 出力ファイルの扱いの回帰テスト。
+//   - 生成した内容が前回と同じ出力は書き換えない (更新時刻を保ち、下流のビルドを走り直させない)
+//   - 生成が失敗したとき、前回の出力を消さずに戻す (gqlgo/gqlgenc#322)
+func Test_IntegrationTest_KeepOutputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	t.Chdir("testdata/integration/keep-outputs/")
+
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	// 退避ファイル (.gqlgenc.bak) は残らない
+	generated := readOutputFiles(t, "gen")
+	if diff := cmp.Diff([]string{"client_gen.go", "query_gen.go"}, slices.Sorted(maps.Keys(generated))); diff != "" {
+		t.Errorf("generated files diff(-want +got): %s", diff)
+	}
+	generatedModTimes := outputModTimes(t, "gen")
+
+	// 同じ入力からもう一度生成しても、内容が同じ出力は書き換えない
+	if err := run(t.Context()); err != nil {
+		t.Fatalf("second run() error = %v", err)
+	}
+	if diff := cmp.Diff(generated, readOutputFiles(t, "gen")); diff != "" {
+		t.Errorf("files after second run diff(-want +got): %s", diff)
+	}
+	if diff := cmp.Diff(generatedModTimes, outputModTimes(t, "gen")); diff != "" {
+		t.Errorf("mod times after second run diff(-want +got): %s", diff)
+	}
+
+	// broken.gqlgenc.yml のクエリはスキーマに無いフィールドを選択するので、生成が失敗する。
+	// 失敗しても前回の出力は消えず、内容も更新時刻も変わらない
+	if err := run(t.Context(), "broken.gqlgenc.yml"); err == nil {
+		t.Fatal("run() with a query selecting an unknown field should return an error, got nil")
+	}
+	if diff := cmp.Diff(generated, readOutputFiles(t, "gen")); diff != "" {
+		t.Errorf("files after failed run diff(-want +got): %s", diff)
+	}
+	if diff := cmp.Diff(generatedModTimes, outputModTimes(t, "gen")); diff != "" {
+		t.Errorf("mod times after failed run diff(-want +got): %s", diff)
+	}
+}
+
+// outputModTimes は dir のファイルの名前と更新時刻を返す。
+func outputModTimes(t *testing.T, dir string) map[string]time.Time {
+	t.Helper()
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("failed to read directory: %v", err)
+	}
+
+	modTimes := make(map[string]time.Time, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			t.Fatalf("failed to stat %s: %v", entry.Name(), err)
+		}
+		modTimes[entry.Name()] = info.ModTime()
+	}
+
+	return modTimes
 }
 
 func compareFiles(t *testing.T, wantFile, generatedFile string) {

@@ -240,6 +240,7 @@ v0.x（gqlgo/gqlgenc）で報告されていた以下の issue は v3 で解決�
 - [gqlgo/gqlgenc#292](https://github.com/gqlgo/gqlgenc/issues/292) struct や配列の中にネストした `Upload` が認識されない — multipart リクエストの構築を json/v2 のエンコード中に `graphql.Upload` を収集する方式にしたため、配列要素や入れ子 input の中にある Upload も検出されます
 - [gqlgo/gqlgenc#269](https://github.com/gqlgo/gqlgenc/issues/269) undefined と null の区別 — `graphql.Omittable` + `omitzero` への対応で解決しました
 - [gqlgo/gqlgenc#282](https://github.com/gqlgo/gqlgenc/issues/282) 特定のクエリで発生する panic — 修正済みです
+- [gqlgo/gqlgenc#322](https://github.com/gqlgo/gqlgenc/issues/322) 生成に失敗すると既存の生成ファイルが消える — 生成の前に前回の出力を `<ファイル名>.gqlgenc.bak` へ退避し、スキーマやクエリの誤りで失敗したときは元へ戻します。生成した内容が前回と同じ出力は書き換えず、更新時刻を保ちます。中断した実行が退避ファイルを残していた場合は、それを最後に成功した出力として扱います（[gqlgo/gqlgenc#375](https://github.com/gqlgo/gqlgenc/issues/375)）。複数の出力は、すべてを確かめてからまとめて確定します（[gqlgo/gqlgenc#376](https://github.com/gqlgo/gqlgenc/issues/376)）
 - [gqlgo/gqlgenc#326](https://github.com/gqlgo/gqlgenc/issues/326) 生成される構造体のタグが `"json:\"id\""` の形になる — raw 文字列（`` `json:"id"` ``）で出力します
 - [gqlgo/gqlgenc#309](https://github.com/gqlgo/gqlgenc/pull/309) `onlyUsedModels` で enum がフィルタリングされない — 未使用モデルのフィルタリングを既定動作として取り込みました
 

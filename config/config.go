@@ -271,19 +271,9 @@ func (c *Config) LoadSchema(ctx context.Context, loadRemoteSchema RemoteSchemaLo
 		return errNoSchemaSource
 	}
 
-	// delete exist gen file
-	if c.GQLGenConfig.Model.IsDefined() {
-		// model gen file must be removed before cfg.PrepareSchema()
-		_ = os.Remove(c.GQLGenConfig.Model.Filename)
-	}
-
-	if c.GQLGencConfig.QueryGen.IsDefined() {
-		_ = os.Remove(c.GQLGencConfig.QueryGen.Filename)
-	}
-
-	if c.GQLGencConfig.ClientGen.IsDefined() {
-		_ = os.Remove(c.GQLGencConfig.ClientGen.Filename)
-	}
+	// 事前条件: 前回の生成物 (model / query / client の出力ファイル) は、呼び出し側が出力先から
+	// 外してある。残っていると、下の Init() と autobind が前回の生成物の型を束縛先の型として拾う。
+	// 生成の失敗時に戻せるよう、消すのではなく退避するのは呼び出し側 (run.go) の責務とする。
 
 	// gqlgen.Config.Init() に必要なフィールドを初期化
 	if c.GQLGenConfig.Models == nil {
